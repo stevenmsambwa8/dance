@@ -126,97 +126,14 @@
 .joinBtn:hover { opacity: 0.85; }
 .joinBtn:disabled { opacity: 0.5; }
 
-/* ── Fee badge ── */
-.feeBadge {
+/* ── Ongoing status badge ── */
+.statusBadge.ongoing { background: rgba(234,179,8,0.15); color: #ca8a04; }
+[data-theme="dark"] .statusBadge.ongoing { background: rgba(234,179,8,0.18); color: #facc15; }
+
+/* ── Test badge ── */
+.testBadge {
   display: flex; align-items: center; gap: 3px;
   font-size: 10px; font-weight: 700;
-  color: #d97706; background: rgba(217,119,6,0.1);
+  color: #f59e0b; background: rgba(245,158,11,0.12);
   border-radius: 20px; padding: 2px 7px;
 }
-[data-theme="dark"] .feeBadge { color: #fbbf24; background: rgba(251,191,36,0.12); }
-
-.pendingBadge {
-  display: flex; align-items: center; gap: 3px;
-  font-size: 10px; font-weight: 700; color: #0ea5e9;
-}
-
-/* ── Register button in card footer ── */
-.registerBtn {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 7px 14px; border-radius: 8px;
-  background: var(--text); color: var(--bg);
-  border: none; font-size: 12px; font-weight: 800;
-  cursor: pointer; transition: opacity 0.15s;
-}
-.registerBtn:hover { opacity: 0.82; }
-.registerBtn i { font-size: 13px; }
-
-/* ── Payment Modal ── */
-.modalBackdrop {
-  position: fixed; inset: 0; z-index: 1000;
-  background: rgba(0,0,0,0.55); backdrop-filter: blur(4px);
-  display: flex; align-items: flex-end; justify-content: center;
-  padding-bottom: env(safe-area-inset-bottom, 0);
-}
-.modalSheet {
-  background: var(--bg); border-radius: 20px 20px 0 0;
-  width: 100%; max-width: 560px; padding: 28px 22px 36px;
-  position: relative; max-height: 90dvh; overflow-y: auto;
-}
-.modalClose {
-  position: absolute; top: 14px; right: 14px;
-  width: 30px; height: 30px; border-radius: 50%;
-  border: 1px solid var(--border-dark); background: var(--surface);
-  color: var(--text-muted); font-size: 16px;
-  display: flex; align-items: center; justify-content: center; cursor: pointer;
-}
-.modalIcon {
-  font-size: 34px; color: var(--accent);
-  text-align: center; margin-bottom: 10px;
-}
-.modalTitle {
-  font-size: 18px; font-weight: 900; text-align: center; margin-bottom: 6px;
-}
-.modalSub {
-  font-size: 13px; color: var(--text-muted); text-align: center;
-  line-height: 1.55; margin-bottom: 18px;
-}
-.modalInstructions {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 10px; padding: 12px 14px; margin-bottom: 18px;
-  display: flex; flex-direction: column; gap: 8px;
-}
-.instrRow {
-  display: flex; gap: 10px; font-size: 12px; color: var(--text-dim); line-height: 1.45;
-}
-.instrRow span:first-child {
-  font-weight: 800; color: var(--accent); flex-shrink: 0; width: 16px;
-}
-.modalField { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
-.modalField label {
-  font-size: 10px; font-weight: 800; letter-spacing: 0.1em;
-  text-transform: uppercase; color: var(--text-muted);
-}
-.modalField input {
-  border: 1px solid var(--border-dark); border-radius: 8px;
-  padding: 11px 13px; background: var(--surface);
-  font-size: 14px; color: var(--text); outline: none;
-  font-family: var(--font);
-}
-.modalField input:focus { border-color: var(--text); }
-.req { color: #ef4444; }
-.modalErr {
-  font-size: 12px; color: #ef4444; display: flex; align-items: center;
-  gap: 5px; margin-bottom: 12px; padding: 10px 12px;
-  background: rgba(239,68,68,0.08); border-radius: 8px;
-}
-.modalSubmit {
-  width: 100%; padding: 13px; border-radius: 10px;
-  background: var(--text); color: var(--bg);
-  border: none; font-size: 14px; font-weight: 800;
-  cursor: pointer; transition: opacity 0.15s;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  margin-top: 4px;
-}
-.modalSubmit:hover { opacity: 0.85; }
-.modalSubmit:disabled { opacity: 0.5; cursor: not-allowed; }

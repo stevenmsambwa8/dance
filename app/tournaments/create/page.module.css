@@ -306,3 +306,50 @@
   font-size: 12px; color: var(--text-dim); line-height: 1.5; margin-top: 14px;
 }
 .feeNote i { font-size: 14px; color: #f59e0b; flex-shrink: 0; margin-top: 1px; }
+
+/* ── Entrance fee hint ── */
+.feeHint {
+  font-size: 11px; color: var(--text-muted); line-height: 1.5;
+  display: flex; align-items: flex-start; gap: 5px; margin-top: 2px;
+}
+.feeHint i { font-size: 12px; flex-shrink: 0; margin-top: 1px; }
+
+/* ── Test Run toggle ── */
+.testToggle {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 13px 14px; border-radius: 12px; cursor: pointer;
+  border: 1.5px solid var(--border-dark); background: var(--surface);
+  transition: border-color 0.2s, background 0.2s; text-align: left;
+  margin-top: 4px;
+}
+.testToggle:hover { border-color: var(--text-muted); }
+.testToggleOn { border-color: #f59e0b; background: rgba(245,158,11,0.06); }
+[data-theme="dark"] .testToggleOn { background: rgba(245,158,11,0.08); }
+
+.testToggleLeft { display: flex; align-items: flex-start; gap: 10px; }
+.testToggleLeft > i { font-size: 18px; color: var(--text-muted); margin-top: 1px; flex-shrink: 0; }
+.testToggleOn .testToggleLeft > i { color: #f59e0b; }
+
+.testToggleLabel { display: block; font-size: 13px; font-weight: 800; color: var(--text); }
+.testToggleHint  { display: block; font-size: 11px; color: var(--text-muted); line-height: 1.45; margin-top: 2px; }
+
+.testToggleSwitch {
+  width: 38px; height: 22px; border-radius: 11px; flex-shrink: 0;
+  background: var(--border-dark); position: relative; transition: background 0.25s;
+}
+.testToggleSwitchOn { background: #f59e0b; }
+.testToggleKnob {
+  width: 16px; height: 16px; border-radius: 50%; background: #fff;
+  position: absolute; top: 3px; left: 3px;
+  transition: transform 0.25s; box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.testToggleSwitchOn .testToggleKnob { transform: translateX(16px); }
+
+/* ── Test note on review step ── */
+.testNote {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 12px 14px; border-radius: 10px; margin-top: 14px;
+  background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25);
+  font-size: 12px; color: var(--text-dim); line-height: 1.5;
+}
+.testNote i { font-size: 14px; color: #f59e0b; flex-shrink: 0; margin-top: 1px; }

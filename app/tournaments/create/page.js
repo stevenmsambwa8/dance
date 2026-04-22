@@ -19,6 +19,7 @@ const STEPS = [
 ]
 
 const SLOT_OPTIONS = [4, 8, 16, 32, 64]
+
 const FORMATS = ['Solo', 'Duo', 'Squad', 'Bo3', 'Bo5', 'Round Robin', 'Double Elim']
 
 export default function CreateTournament() {
@@ -30,17 +31,21 @@ export default function CreateTournament() {
     name: '', game_slug: GAME_SLUGS[0] || 'pubg',
     format: '', prize: '', slots: 32,
     date: '', description: '',
-    entrance_fee: '',          // NEW
+    entrance_fee: '',
+    is_test: false,           // NEW
   })
   const [errors, setErrors] = useState({})
 
+  // Upload / submit state
   const [submitting, setSubmitting] = useState(false)
-  const [progress, setProgress] = useState(0)
+  const [progress, setProgress] = useState(0)   // 0–100
   const [progressLabel, setProgressLabel] = useState('')
   const [done, setDone] = useState(false)
   const [createdSlug, setCreatedSlug] = useState(null)
 
   function set(key, val) { setForm(f => ({ ...f, [key]: val })); setErrors(e => ({ ...e, [key]: null })) }
+
+  // ── Validation ────────────────────────────────────────────────────────────
 
   function validateStep(idx) {
     const e = {}
@@ -50,9 +55,6 @@ export default function CreateTournament() {
     }
     if (idx === 1) {
       if (!form.slots || form.slots < 2) e.slots = 'Need at least 2 slots'
-      if (form.entrance_fee && isNaN(Number(String(form.entrance_fee).replace(/,/g, '')))) {
-        e.entrance_fee = 'Enter a valid number'
-      }
     }
     setErrors(e)
     return Object.keys(e).length === 0
@@ -61,17 +63,19 @@ export default function CreateTournament() {
   function next() { if (validateStep(step)) setStep(s => Math.min(s + 1, STEPS.length - 1)) }
   function back() { setStep(s => Math.max(s - 1, 0)) }
 
+  // ── Submit with staged progress ───────────────────────────────────────────
+
   async function submit() {
     if (!user || submitting) return
     setSubmitting(true)
     setProgress(0)
     setProgressLabel('Preparing tournament…')
 
+    // Stage 1 — insert
+    await tick(15, 'Creating tournament…')
     const fee = form.entrance_fee
       ? Number(String(form.entrance_fee).replace(/,/g, ''))
       : 0
-
-    await tick(15, 'Creating tournament…')
     const { data: newT, error } = await supabase.from('tournaments').insert({
       name: form.name.trim(),
       slug: slugify(form.name),
@@ -82,6 +86,7 @@ export default function CreateTournament() {
       date: form.date,
       description: form.description,
       entrance_fee: fee,
+      is_test: form.is_test,
       status: 'active',
       registered_count: 0,
       created_by: user.id,
@@ -96,25 +101,30 @@ export default function CreateTournament() {
 
     await tick(50, 'Tournament created!')
 
-    setProgressLabel('Notifying players…')
-    const { data: allProfiles } = await supabase
-      .from('profiles').select('id').neq('id', user.id)
+    // Stage 2 — skip notifications for test runs
+    if (form.is_test) {
+      setProgressLabel('Test run ready — no notifications sent.')
+    } else {
+      setProgressLabel('Notifying players…')
+      const { data: allProfiles } = await supabase
+        .from('profiles').select('id').neq('id', user.id)
 
-    if (allProfiles?.length) {
-      const gameName = newT.game_slug ? ` ${newT.game_slug.toUpperCase()}` : ''
-      const feeNote  = fee > 0 ? ` · Entry fee: TZS ${fee.toLocaleString()}` : ''
-      const notifications = allProfiles.map(p => ({
-        user_id: p.id,
-        title: `New Tournament — ${newT.name}`,
-        body: `A new${gameName} tournament is open for registration${newT.date ? ` on ${newT.date}` : ''}. ${newT.slots} slots available${newT.prize ? ` · Prize: TZS ${newT.prize}` : ''}${feeNote}. Register now!`,
-        type: 'tournament',
-        meta: { tournament_id: newT.id },
-        read: false,
-      }))
-      for (let i = 0; i < notifications.length; i += 100) {
-        await supabase.from('notifications').insert(notifications.slice(i, i + 100))
-        const pct = 50 + Math.round(((i + 100) / notifications.length) * 40)
-        setProgress(Math.min(pct, 90))
+      if (allProfiles?.length) {
+        const gameName = newT.game_slug ? ` ${newT.game_slug.toUpperCase()}` : ''
+        const feeNote  = fee > 0 ? ` · Entry fee: TZS ${fee.toLocaleString()}` : ''
+        const notifications = allProfiles.map(p => ({
+          user_id: p.id,
+          title: `New Tournament — ${newT.name}`,
+          body: `A new${gameName} tournament is open for registration${newT.date ? ` on ${newT.date}` : ''}. ${newT.slots} slots available${newT.prize ? ` · Prize: TZS ${newT.prize}` : ''}${feeNote}. Register now!`,
+          type: 'tournament',
+          meta: { tournament_id: newT.id },
+          read: false,
+        }))
+        for (let i = 0; i < notifications.length; i += 100) {
+          await supabase.from('notifications').insert(notifications.slice(i, i + 100))
+          const pct = 50 + Math.round(((i + 100) / notifications.length) * 40)
+          setProgress(Math.min(pct, 90))
+        }
       }
     }
 
@@ -141,6 +151,8 @@ export default function CreateTournament() {
     })
   }
 
+  // ── Done screen ───────────────────────────────────────────────────────────
+
   if (done) {
     return (
       <div className={styles.page}>
@@ -163,6 +175,8 @@ export default function CreateTournament() {
     )
   }
 
+  // ── Submitting screen ─────────────────────────────────────────────────────
+
   if (submitting) {
     return (
       <div className={styles.page}>
@@ -180,6 +194,8 @@ export default function CreateTournament() {
       </div>
     )
   }
+
+  // ── Wizard ────────────────────────────────────────────────────────────────
 
   return (
     <div className={styles.page}>
@@ -257,7 +273,7 @@ export default function CreateTournament() {
         {step === 1 && (
           <div className={styles.stepContent}>
             <h2 className={styles.stepHeading}><i className="ri-gamepad-line" /> Format & Rules</h2>
-            <p className={styles.stepHint}>Set the structure, prize, schedule, and entry fee.</p>
+            <p className={styles.stepHint}>Set the structure, prize, schedule, and entry options.</p>
 
             <div className={styles.field}>
               <label>Format</label>
@@ -303,26 +319,46 @@ export default function CreateTournament() {
               </div>
             </div>
 
-            {/* ── Entrance Fee (NEW) ── */}
+            {/* Entrance Fee */}
             <div className={styles.field}>
               <label>
                 <i className="ri-money-dollar-circle-line" style={{ marginRight: 4 }} />
-                Entrance Fee (TZS) <span className={styles.opt}>(optional — leave blank for free)</span>
+                Entrance Fee (TZS) <span className={styles.opt}>(optional)</span>
               </label>
               <input
                 type="text"
                 value={form.entrance_fee}
                 placeholder="e.g. 2,000  — leave blank for free entry"
                 onChange={e => set('entrance_fee', e.target.value)}
-                className={errors.entrance_fee ? styles.inputError : ''}
               />
-              {errors.entrance_fee && <span className={styles.errMsg}>{errors.entrance_fee}</span>}
-              {form.entrance_fee && !errors.entrance_fee && (
+              {form.entrance_fee && (
                 <span className={styles.feeHint}>
-                  <i className="ri-information-line" /> Players must submit payment proof. Admin approves before they are registered.
+                  <i className="ri-information-line" /> Players submit M-Pesa proof — admin approves before registration.
                 </span>
               )}
             </div>
+
+            {/* Test Run toggle */}
+            <button
+              type="button"
+              className={`${styles.testToggle} ${form.is_test ? styles.testToggleOn : ''}`}
+              onClick={() => set('is_test', !form.is_test)}
+            >
+              <div className={styles.testToggleLeft}>
+                <i className={form.is_test ? 'ri-flask-fill' : 'ri-flask-line'} />
+                <div>
+                  <span className={styles.testToggleLabel}>Test Run</span>
+                  <span className={styles.testToggleHint}>
+                    {form.is_test
+                      ? 'Active — no notifications sent. Only you & admin can see this.'
+                      : 'Run a silent test — no notifications, hidden from other users.'}
+                  </span>
+                </div>
+              </div>
+              <div className={`${styles.testToggleSwitch} ${form.is_test ? styles.testToggleSwitchOn : ''}`}>
+                <div className={styles.testToggleKnob} />
+              </div>
+            </button>
           </div>
         )}
 
@@ -363,6 +399,12 @@ export default function CreateTournament() {
                 <span className={styles.reviewLabel}><i className="ri-calendar-event-line" /> Date</span>
                 <span className={styles.reviewVal}>{form.date || '—'}</span>
               </div>
+              <div className={styles.reviewRow}>
+                <span className={styles.reviewLabel}><i className="ri-flask-line" /> Mode</span>
+                <span className={styles.reviewVal} style={{ color: form.is_test ? '#f59e0b' : 'var(--text-muted)' }}>
+                  {form.is_test ? '🧪 Test Run (silent)' : 'Live'}
+                </span>
+              </div>
               {form.description && (
                 <div className={`${styles.reviewRow} ${styles.reviewRowFull}`}>
                   <span className={styles.reviewLabel}><i className="ri-file-text-line" /> Description</span>
@@ -371,10 +413,10 @@ export default function CreateTournament() {
               )}
             </div>
 
-            {form.entrance_fee && (
-              <div className={styles.feeNote}>
-                <i className="ri-information-line" />
-                <span>Players registering must submit M-Pesa payment proof. Admin will approve each payment before they are added to the bracket.</span>
+            {form.is_test && (
+              <div className={styles.testNote}>
+                <i className="ri-flask-line" />
+                <span>Test Run — no notifications will be sent. This tournament will only be visible to you and admins.</span>
               </div>
             )}
 
