@@ -1327,81 +1327,246 @@
   color: var(--text, #fff);
 }
 
-/* ── Entrance fee payment additions ── */
+/* ── Ongoing status badge ── */
+.statusBadge[style*="#6366f1"] { /* handled via inline style in statusColor() */ }
+
+/* ── Hero: Test chip ── */
+.heroTestChip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 12px; border-radius: 20px;
+  border: 1px solid rgba(245,158,11,0.5);
+  color: #d97706; font-size: 11px; font-weight: 700;
+  background: rgba(245,158,11,0.08);
+}
+[data-theme="dark"] .heroTestChip { color: #fbbf24; border-color: rgba(251,191,36,0.4); background: rgba(251,191,36,0.1); }
+
+/* ── Hero: Start Tournament button ── */
+.heroStartBtn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 20px;
+  border: 1.5px solid #6366f1;
+  background: rgba(99,102,241,0.1); color: #6366f1;
+  font-size: 11px; font-weight: 800; cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.heroStartBtn:hover { background: #6366f1; color: #fff; }
+[data-theme="dark"] .heroStartBtn { background: rgba(99,102,241,0.15); }
+[data-theme="dark"] .heroStartBtn:hover { background: #6366f1; color: #fff; }
+
+/* ══════════════════════════════════════════════════════
+   PAYMENT MODAL & FEE SYSTEM — FULL STYLES
+   ══════════════════════════════════════════════════════ */
+
+/* ── Pending chip in hero ── */
 .heroPayPendingChip {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 5px 12px; border-radius: 20px;
-  border: 1px solid #0ea5e9; color: #0ea5e9;
+  border: 1.5px solid #0ea5e9; color: #0ea5e9;
   font-size: 11px; font-weight: 700;
+  background: rgba(14,165,233,0.08);
 }
 
+/* ── Entry fee banner (below slot bar) ── */
 .feeBanner {
   display: flex; align-items: center; gap: 8px;
-  margin-top: 12px; padding: 10px 14px; border-radius: 10px;
-  background: rgba(217,119,6,0.08); border: 1px solid rgba(217,119,6,0.25);
+  margin-top: 12px; padding: 11px 14px; border-radius: 12px;
+  background: rgba(217,119,6,0.08); border: 1px solid rgba(217,119,6,0.28);
   font-size: 12px; font-weight: 600; color: #d97706;
 }
-[data-theme="dark"] .feeBanner { color: #fbbf24; background: rgba(251,191,36,0.1); border-color: rgba(251,191,36,0.2); }
-.feeBanner i { font-size: 15px; flex-shrink: 0; }
-.feeBannerPending { background: rgba(14,165,233,0.08); border-color: rgba(14,165,233,0.25); color: #0ea5e9; }
-[data-theme="dark"] .feeBannerPending { background: rgba(14,165,233,0.12); }
-.feeBannerRejected { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.25); color: #ef4444; }
+[data-theme="dark"] .feeBanner {
+  color: #fbbf24; background: rgba(251,191,36,0.1);
+  border-color: rgba(251,191,36,0.22);
+}
+.feeBanner > i { font-size: 15px; flex-shrink: 0; }
+.feeBanner > span { flex: 1; line-height: 1.45; }
 
-/* ── Payment modal ── */
+.feeBannerPending {
+  background: rgba(14,165,233,0.08);
+  border-color: rgba(14,165,233,0.28);
+  color: #0ea5e9;
+}
+[data-theme="dark"] .feeBannerPending {
+  background: rgba(14,165,233,0.12);
+  border-color: rgba(14,165,233,0.22);
+}
+
+.feeBannerRejected {
+  background: rgba(239,68,68,0.08);
+  border-color: rgba(239,68,68,0.28);
+  color: #ef4444;
+}
+
+.feeBannerBtn {
+  flex-shrink: 0; padding: 5px 12px; border-radius: 8px;
+  border: none; background: currentColor;
+  font-size: 11px; font-weight: 800; cursor: pointer;
+  color: #fff; transition: opacity 0.15s;
+  background: #d97706;
+}
+.feeBannerPending .feeBannerBtn { background: #0ea5e9; }
+.feeBannerRejected .feeBannerBtn { background: #ef4444; }
+.feeBannerBtn:hover { opacity: 0.85; }
+
+/* ── Modal backdrop ── */
 .modalBackdrop {
-  position: fixed; inset: 0; z-index: 1000;
-  background: rgba(0,0,0,0.55); backdrop-filter: blur(4px);
-  display: flex; align-items: flex-end; justify-content: center;
-  padding-bottom: env(safe-area-inset-bottom, 0);
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  animation: fadeInBackdrop 0.2s ease;
 }
+@keyframes fadeInBackdrop {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Modal sheet (bottom sheet) ── */
 .modalSheet {
-  background: var(--bg); border-radius: 20px 20px 0 0;
-  width: 100%; max-width: 600px; padding: 28px 22px 36px;
-  position: relative; max-height: 90dvh; overflow-y: auto;
+  background: var(--bg);
+  border-radius: 22px 22px 0 0;
+  width: 100%;
+  max-width: 600px;
+  padding: 10px 22px 40px;
+  position: relative;
+  max-height: 92dvh;
+  overflow-y: auto;
+  animation: slideUpSheet 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+  /* thin scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-dark) transparent;
 }
+.modalSheet::-webkit-scrollbar { width: 4px; }
+.modalSheet::-webkit-scrollbar-track { background: transparent; }
+.modalSheet::-webkit-scrollbar-thumb { background: var(--border-dark); border-radius: 99px; }
+
+@keyframes slideUpSheet {
+  from { transform: translateY(60px); opacity: 0.4; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* drag handle pill at top */
+.modalSheet::before {
+  content: '';
+  display: block;
+  width: 36px; height: 4px;
+  border-radius: 99px;
+  background: var(--border-dark);
+  margin: 0 auto 20px;
+}
+
+/* ── Close button ── */
 .modalClose {
-  position: absolute; top: 14px; right: 14px;
-  width: 30px; height: 30px; border-radius: 50%;
-  border: 1px solid var(--border-dark); background: var(--surface);
-  color: var(--text-muted); font-size: 16px;
-  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  position: absolute; top: 18px; right: 16px;
+  width: 32px; height: 32px; border-radius: 50%;
+  border: 1px solid var(--border-dark);
+  background: var(--surface);
+  color: var(--text-muted); font-size: 17px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: background 0.15s, color 0.15s;
+  z-index: 1;
 }
-.modalIcon { font-size: 34px; color: var(--accent); text-align: center; margin-bottom: 10px; }
-.modalTitle { font-size: 18px; font-weight: 900; text-align: center; margin-bottom: 6px; }
+.modalClose:hover { background: var(--bg-2); color: var(--text); }
+
+/* ── Icon ── */
+.modalIcon {
+  font-size: 38px;
+  color: var(--accent);
+  text-align: center;
+  margin-bottom: 10px;
+  display: block;
+}
+
+/* ── Title & subtitle ── */
+.modalTitle {
+  font-size: 20px; font-weight: 900;
+  text-align: center; margin-bottom: 6px;
+  color: var(--text);
+}
 .modalSub {
-  font-size: 13px; color: var(--text-muted); text-align: center;
-  line-height: 1.55; margin-bottom: 18px;
+  font-size: 13px; color: var(--text-muted);
+  text-align: center; line-height: 1.6;
+  margin-bottom: 20px;
 }
+.modalSub strong { color: var(--text); }
+
+/* ── Step instructions box ── */
 .modalInstructions {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 10px; padding: 12px 14px; margin-bottom: 18px;
-  display: flex; flex-direction: column; gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+  display: flex; flex-direction: column; gap: 10px;
 }
-.instrRow { display: flex; gap: 10px; font-size: 12px; color: var(--text-dim); line-height: 1.45; }
-.instrRow span:first-child { font-weight: 800; color: var(--accent); flex-shrink: 0; width: 16px; }
-.modalField { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+.instrRow {
+  display: flex; gap: 12px;
+  font-size: 12px; color: var(--text-dim); line-height: 1.5;
+}
+.instrRow > span:first-child {
+  font-size: 12px; font-weight: 900;
+  color: var(--accent);
+  flex-shrink: 0; width: 16px; padding-top: 1px;
+}
+
+/* ── Form fields ── */
+.modalField {
+  display: flex; flex-direction: column; gap: 6px;
+  margin-bottom: 16px;
+}
 .modalField label {
-  font-size: 10px; font-weight: 800; letter-spacing: 0.1em;
-  text-transform: uppercase; color: var(--text-muted);
+  font-size: 10px; font-weight: 800;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-muted);
+  display: flex; align-items: center; gap: 4px;
 }
 .modalField input {
-  border: 1px solid var(--border-dark); border-radius: 8px;
-  padding: 11px 13px; background: var(--surface);
-  font-size: 14px; color: var(--text); outline: none; font-family: var(--font);
+  border: 1.5px solid var(--border-dark);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: var(--surface);
+  font-size: 15px; font-weight: 600;
+  color: var(--text);
+  outline: none;
+  font-family: var(--font);
+  transition: border-color 0.15s;
+  width: 100%; box-sizing: border-box;
 }
-.modalField input:focus { border-color: var(--text); }
-.req { color: #ef4444; }
+.modalField input:focus {
+  border-color: var(--text);
+  background: var(--bg);
+}
+.modalField input::placeholder { color: var(--text-muted); font-weight: 400; }
+.req { color: #ef4444; margin-left: 2px; }
+
+/* ── Error message ── */
 .modalErr {
-  font-size: 12px; color: #ef4444; display: flex; align-items: center;
-  gap: 5px; margin-bottom: 12px; padding: 10px 12px;
-  background: rgba(239,68,68,0.08); border-radius: 8px;
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600; color: #ef4444;
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.2);
+  border-radius: 8px; padding: 10px 12px;
+  margin-bottom: 14px;
 }
+.modalErr i { font-size: 14px; flex-shrink: 0; }
+
+/* ── Submit button ── */
 .modalSubmit {
-  width: 100%; padding: 13px; border-radius: 10px;
+  width: 100%; padding: 14px;
+  border-radius: 12px;
   background: var(--text); color: var(--bg);
-  border: none; font-size: 14px; font-weight: 800; cursor: pointer;
-  transition: opacity 0.15s; display: flex; align-items: center;
-  justify-content: center; gap: 8px; margin-top: 4px;
+  border: none;
+  font-size: 15px; font-weight: 800;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+  display: flex; align-items: center;
+  justify-content: center; gap: 8px;
+  margin-top: 4px;
+  font-family: var(--font);
 }
-.modalSubmit:hover { opacity: 0.85; }
-.modalSubmit:disabled { opacity: 0.5; cursor: not-allowed; }
+.modalSubmit:hover:not(:disabled) { opacity: 0.87; transform: translateY(-1px); }
+.modalSubmit:active:not(:disabled) { transform: translateY(0); }
+.modalSubmit:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }

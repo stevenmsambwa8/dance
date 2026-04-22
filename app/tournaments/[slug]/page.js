@@ -313,8 +313,8 @@ export default function TournamentDetail() {
   const [prizeDistrib, setPrizeDistrib] = useState({})
   const [prizeDistribSaving, setPrizeDistribSaving] = useState(false)
 
-  // ── Entrance fee payment state ────────────────────────────────────────────
-  const [paymentStatus, setPaymentStatus] = useState(null)  // null | 'payment_submitted' | 'approved' | 'rejected'
+  // ── Entrance fee payment ──────────────────────────────────────────────────
+  const [paymentStatus, setPaymentStatus] = useState(null)
   const [showPayModal, setShowPayModal]   = useState(false)
   const [payRef, setPayRef]               = useState('')
   const [payPhone, setPayPhone]           = useState('')
@@ -374,7 +374,7 @@ export default function TournamentDetail() {
         .maybeSingle()
       setRegistered(!!reg)
 
-      // Load payment status for paid tournaments
+      // Load entrance-fee payment status
       if ((t.entrance_fee || 0) > 0) {
         const { data: pmt } = await supabase
           .from('tournament_payments')
@@ -542,69 +542,44 @@ export default function TournamentDetail() {
 
   // ── Registration ──────────────────────────────────────────────────────────
 
-  // ── Submit entrance fee payment proof ────────────────────────────────────
+  // ── Submit entrance-fee payment proof ────────────────────────────────────
   async function submitPayment() {
     if (!payRef.trim() || !payPhone.trim()) { setPayErr('Fill in all fields'); return }
     setPayLoading(true); setPayErr('')
     const fee = tournament.entrance_fee
 
     const { data: existing } = await supabase
-      .from('tournament_payments')
-      .select('id, status')
-      .eq('tournament_id', id)
-      .eq('user_id', user.id)
-      .maybeSingle()
+      .from('tournament_payments').select('id,status')
+      .eq('tournament_id', id).eq('user_id', user.id).maybeSingle()
 
-    if (existing?.status === 'approved') {
-      setPayErr('Already approved — refresh the page.'); setPayLoading(false); return
-    }
-    if (existing?.status === 'payment_submitted') {
-      setPayErr('Already submitted — waiting for admin approval.'); setPayLoading(false); return
-    }
+    if (existing?.status === 'approved')          { setPayErr('Already approved — refresh.'); setPayLoading(false); return }
+    if (existing?.status === 'payment_submitted') { setPayErr('Already submitted — awaiting admin.'); setPayLoading(false); return }
 
     const { error } = await supabase.from('tournament_payments').upsert({
-      tournament_id: id,
-      user_id: user.id,
-      payment_ref: payRef.trim(),
-      payment_phone: payPhone.trim(),
-      amount: fee,
-      status: 'payment_submitted',
+      tournament_id: id, user_id: user.id,
+      payment_ref: payRef.trim(), payment_phone: payPhone.trim(),
+      amount: fee, status: 'payment_submitted',
       submitted_at: new Date().toISOString(),
     }, { onConflict: 'tournament_id,user_id' })
-
     if (error) { setPayErr(error.message); setPayLoading(false); return }
 
-    // Notify admin(s)
-    const { data: admins } = await supabase
-      .from('profiles').select('id')
+    const { data: admins } = await supabase.from('profiles').select('id')
       .in('email', ['stevenmsambwa8@gmail.com', 'nabogamingss1@gmail.com'])
     if (admins?.length) {
       const { data: prof } = await supabase.from('profiles').select('username').eq('id', user.id).single()
-      await supabase.from('notifications').insert(
-        admins.map(a => ({
-          user_id: a.id,
-          title: '💳 Tournament Payment — Verify',
-          body: `${prof?.username || 'A player'} submitted TZS ${Number(fee).toLocaleString()} entry fee for "${tournament.name}". Ref: ${payRef.trim()} · Phone: ${payPhone.trim()}`,
-          type: 'payment',
-          meta: { tournament_id: id, action: 'verify_tournament_payment' },
-          read: false,
-        }))
-      )
+      await supabase.from('notifications').insert(admins.map(a => ({
+        user_id: a.id, title: '💳 Tournament Payment — Verify',
+        body: `${prof?.username || 'A player'} submitted TZS ${Number(fee).toLocaleString()} entry fee for "${tournament.name}". Ref: ${payRef.trim()}`,
+        type: 'payment', meta: { tournament_id: id, action: 'verify_tournament_payment' }, read: false,
+      })))
     }
-
-    // Notify user
     await supabase.from('notifications').insert({
-      user_id: user.id,
-      title: '⏳ Payment Submitted',
+      user_id: user.id, title: '⏳ Payment Submitted',
       body: `Your entry fee for "${tournament.name}" is pending admin approval. Ref: ${payRef.trim()}`,
-      type: 'tournament',
-      meta: { tournament_id: id },
-      read: false,
+      type: 'tournament', meta: { tournament_id: id }, read: false,
     })
-
     setPaymentStatus('payment_submitted')
-    setShowPayModal(false)
-    setPayRef(''); setPayPhone('')
+    setShowPayModal(false); setPayRef(''); setPayPhone('')
     showToast('Payment submitted! Admin will verify shortly.', 'success')
     setPayLoading(false)
   }
@@ -1253,7 +1228,8 @@ export default function TournamentDetail() {
 
   // ── Derived state ─────────────────────────────────────────────────────────
 
-  function statusColor(s) { return { active: 'var(--accent)', completed: 'var(--text-muted)', cancelled: '#dc2626' }[s] || 'var(--text-muted)' }
+  function statusColor(s) { return { active: 'var(--accent)', ongoing: '#eab308', completed: 'var(--text-muted)', cancelled: '#dc2626' }[s] || 'var(--text-muted)' }
+  function statusIcon(s)  { return { active: 'ri-live-line', ongoing: 'ri-play-circle-line', completed: 'ri-checkbox-circle-line', cancelled: 'ri-close-circle-line' }[s] || 'ri-circle-line' }
 
   function handleShare() {
     const text = buildShareText(tournament, rankedLeaderboard)
@@ -1301,7 +1277,47 @@ export default function TournamentDetail() {
   )
 
   const podiumPlayers = rankedLeaderboard.slice(0, 3)
-  const isCompleted = tournament?.status === 'completed'
+  const isCompleted    = tournament?.status === 'completed'
+  const isOngoing      = tournament?.status === 'ongoing'
+  const isTestTournament = tournament?.is_test
+
+  // ── Per-pair score state for Matches tab ─────────────────────────────────
+  // scoreMap[`${rIdx}-${pIdx}`] = { a: string, b: string }
+  const [scoreMap, setScoreMap]   = useState({})
+  const [scoreSaving, setScoreSaving] = useState(null)  // key being saved
+
+  function getScore(rIdx, pIdx) {
+    const key = `${rIdx}-${pIdx}`
+    const pair = bracketData?.rounds?.[rIdx]?.[pIdx]
+    // scoreA on slot[0], scoreB on slot[1] — survives JSON roundtrip
+    const fromBracket = { a: pair?.[0]?.scoreA ?? '', b: pair?.[1]?.scoreB ?? '' }
+    return scoreMap[key] ?? fromBracket
+  }
+  function setScore(rIdx, pIdx, side, val) {
+    const key = `${rIdx}-${pIdx}`
+    setScoreMap(m => ({ ...m, [key]: { ...getScore(rIdx, pIdx), [side]: val } }))
+  }
+  async function saveScore(rIdx, pIdx) {
+    if (!bracketData) return
+    const key = `${rIdx}-${pIdx}`
+    const sc = getScore(rIdx, pIdx)
+    setScoreSaving(key)
+    const { data: freshT } = await supabase.from('tournaments').select('bracket_data').eq('id', id).single()
+    const freshBd = parseBracketData(freshT?.bracket_data) ?? bracketData
+    const newRounds = freshBd.rounds.map((r, ri) =>
+      ri !== rIdx ? r : r.map((pair, pi) => {
+        if (pi !== pIdx) return pair
+        return [
+          pair[0] ? { ...pair[0], scoreA: sc.a } : pair[0],
+          pair[1] ? { ...pair[1], scoreB: sc.b } : pair[1],
+        ]
+      })
+    )
+    const newBd = { ...freshBd, rounds: newRounds }
+    await supabase.from('tournaments').update({ bracket_data: newBd }).eq('id', id)
+    setBracketData(newBd)
+    setScoreSaving(null)
+  }
   const canManage = isAdmin || (user && tournament?.created_by === user.id)
   const isOwnTournament = !isAdmin && !!(user && tournament?.created_by === user.id)
 
@@ -1373,7 +1389,7 @@ export default function TournamentDetail() {
         <div className={styles.heroMeta}>
           <span className={styles.gameTag}>{gameLabel}</span>
           <span className={styles.statusBadge} style={{ color: statusColor(tournament.status), borderColor: statusColor(tournament.status) }}>
-            <i className={`ri-${tournament.status === 'active' ? 'live-line' : tournament.status === 'completed' ? 'checkbox-circle-line' : 'close-circle-line'}`} />
+            <i className={`ri-${statusIcon(tournament.status)}`} />
             {tournament.status}
           </span>
           {registered && tournament.status === 'active' && (
@@ -1404,11 +1420,12 @@ export default function TournamentDetail() {
             }
             if (paymentStatus === 'rejected') {
               return (
-                <button className={styles.heroRegisterBtn} style={{ background: '#ef4444' }} onClick={() => setShowPayModal(true)}>
+                <button className={styles.heroRegisterBtn} style={{ background: '#ef4444', borderColor: '#ef4444' }} onClick={() => setShowPayModal(true)}>
                   <i className="ri-error-warning-line" /> Resubmit Payment
                 </button>
               )
             }
+            // No payment yet — show pay-to-register button
             return (
               <button className={styles.heroRegisterBtn} onClick={() => setShowPayModal(true)}>
                 <i className="ri-money-dollar-circle-line" /> Register · TZS {Number(tournament.entrance_fee).toLocaleString()}
@@ -1419,6 +1436,41 @@ export default function TournamentDetail() {
             <span className={styles.heroFullChip} style={{ borderColor: 'var(--text-muted)', color: 'var(--text-muted)' }}>
               <i className="ri-shield-line" /> Your tournament
             </span>
+          )}
+          {/* Test mode badge */}
+          {isTestTournament && (
+            <span className={styles.heroTestChip}>
+              <i className="ri-flask-line" /> Test Run
+            </span>
+          )}
+          {/* Start Tournament button — creator or admin, only when active */}
+          {(isAdmin || isOwnTournament) && tournament.status === 'active' && (
+            <button
+              className={styles.heroStartBtn}
+              onClick={async () => {
+                await supabase.from('tournaments').update({ status: 'ongoing' }).eq('id', id)
+                setTournament(t => ({ ...t, status: 'ongoing' }))
+                // Notify participants only if not a test tournament
+                if (!isTestTournament) {
+                  const { data: parts } = await supabase.from('tournament_participants').select('user_id').eq('tournament_id', id)
+                  if (parts?.length) {
+                    await supabase.from('notifications').insert(
+                      parts.map(p => ({
+                        user_id: p.user_id,
+                        title: `🏆 Tournament Started — ${tournament.name}`,
+                        body: `The tournament "${tournament.name}" is now underway! Check the bracket for your next match.`,
+                        type: 'tournament',
+                        meta: { tournament_id: id },
+                        read: false,
+                      }))
+                    )
+                  }
+                }
+                showToast('Tournament is now ongoing!', 'success')
+              }}
+            >
+              <i className="ri-play-circle-line" /> Start Tournament
+            </button>
           )}
           {isFull && !registered && (
             <span className={styles.heroFullChip}><i className="ri-lock-line" /> Full</span>
@@ -1442,7 +1494,7 @@ export default function TournamentDetail() {
         </div>
 
         {/* Entry fee banner */}
-        {(tournament.entrance_fee || 0) > 0 && (
+        {(tournament.entrance_fee || 0) > 0 && !registered && (
           <div className={`${styles.feeBanner} ${paymentStatus === 'payment_submitted' ? styles.feeBannerPending : paymentStatus === 'rejected' ? styles.feeBannerRejected : ''}`}>
             <i className={paymentStatus === 'payment_submitted' ? 'ri-time-line' : paymentStatus === 'rejected' ? 'ri-error-warning-line' : 'ri-money-dollar-circle-line'} />
             <span>
@@ -1452,6 +1504,11 @@ export default function TournamentDetail() {
                 ? 'Payment rejected — please resubmit'
                 : `Entry fee: TZS ${Number(tournament.entrance_fee).toLocaleString()} via M-Pesa`}
             </span>
+            {(!paymentStatus || paymentStatus === 'rejected') && (
+              <button className={styles.feeBannerBtn} onClick={() => setShowPayModal(true)}>
+                {paymentStatus === 'rejected' ? 'Resubmit' : 'Pay Now'}
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -1460,9 +1517,7 @@ export default function TournamentDetail() {
       {showPayModal && (
         <div className={styles.modalBackdrop} onClick={() => setShowPayModal(false)}>
           <div className={styles.modalSheet} onClick={e => e.stopPropagation()}>
-            <button className={styles.modalClose} onClick={() => setShowPayModal(false)}>
-              <i className="ri-close-line" />
-            </button>
+            <button className={styles.modalClose} onClick={() => setShowPayModal(false)}><i className="ri-close-line" /></button>
             <div className={styles.modalIcon}><i className="ri-money-dollar-circle-line" /></div>
             <h3 className={styles.modalTitle}>Entry Fee Required</h3>
             <p className={styles.modalSub}>
@@ -1600,7 +1655,20 @@ export default function TournamentDetail() {
                                     participants={participants}
                                     onJoin={
                                       rIdx === 0 && !registered && !isFull && !isOwnTournament && tournament?.status === 'active'
-                                        ? (sIdx) => joinViaSlot(pIdx, sIdx)
+                                        ? (() => {
+                                            const hasFee = (tournament.entrance_fee || 0) > 0
+                                            if (!hasFee) return (sIdx) => joinViaSlot(pIdx, sIdx)
+                                            // Has fee — only allow if payment is approved
+                                            if (paymentStatus === 'approved') return (sIdx) => joinViaSlot(pIdx, sIdx)
+                                            // Not approved — clicking slot opens pay modal or shows pending state
+                                            return () => {
+                                              if (paymentStatus === 'payment_submitted') {
+                                                showToast('Payment is awaiting admin approval before you can join.', 'info')
+                                              } else {
+                                                setShowPayModal(true)
+                                              }
+                                            }
+                                          })()
                                         : undefined
                                     }
                                   />
@@ -1780,6 +1848,45 @@ export default function TournamentDetail() {
                                 </button>
                               </div>
                             )}
+
+                            {/* ── Score row — visible to all, editable by canManage ── */}
+                            {!isBye && (() => {
+                              const sc = getScore(rIdx, pIdx)
+                              const key = `${rIdx}-${pIdx}`
+                              const saving = scoreSaving === key
+                              const hasScore = sc.a !== '' || sc.b !== ''
+                              return canManage ? (
+                                <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <i className="ri-bar-chart-2-line" style={{ fontSize: 13, color: 'var(--text-muted)', flexShrink: 0 }} />
+                                  <input
+                                    type="text" inputMode="numeric" placeholder="Score A"
+                                    value={sc.a}
+                                    onChange={e => setScore(rIdx, pIdx, 'a', e.target.value)}
+                                    style={{ width: 64, padding: '5px 8px', borderRadius: 7, border: '1px solid var(--border-dark)', background: 'var(--bg)', color: 'var(--text)', fontSize: 13, fontWeight: 700, textAlign: 'center', fontFamily: 'var(--font)' }}
+                                  />
+                                  <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)' }}>–</span>
+                                  <input
+                                    type="text" inputMode="numeric" placeholder="Score B"
+                                    value={sc.b}
+                                    onChange={e => setScore(rIdx, pIdx, 'b', e.target.value)}
+                                    style={{ width: 64, padding: '5px 8px', borderRadius: 7, border: '1px solid var(--border-dark)', background: 'var(--bg)', color: 'var(--text)', fontSize: 13, fontWeight: 700, textAlign: 'center', fontFamily: 'var(--font)' }}
+                                  />
+                                  <button
+                                    onClick={() => saveScore(rIdx, pIdx)}
+                                    disabled={saving}
+                                    style={{ marginLeft: 'auto', padding: '5px 12px', borderRadius: 7, border: 'none', background: saving ? 'var(--surface)' : 'var(--text)', color: saving ? 'var(--text-muted)' : 'var(--bg)', fontSize: 11, fontWeight: 800, cursor: saving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                                  >
+                                    {saving ? <><i className="ri-loader-4-line" /> Saving…</> : <><i className="ri-save-line" /> Save</>}
+                                  </button>
+                                </div>
+                              ) : hasScore ? (
+                                <div style={{ borderTop: '1px solid var(--border)', paddingTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+                                  <span style={{ fontSize: 20, fontWeight: 900, color: aWon ? '#f59e0b' : 'var(--text)' }}>{sc.a}</span>
+                                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>–</span>
+                                  <span style={{ fontSize: 20, fontWeight: 900, color: bWon ? '#f59e0b' : 'var(--text)' }}>{sc.b}</span>
+                                </div>
+                              ) : null
+                            })()}
                           </div>
                         )
                       })}
@@ -2113,6 +2220,7 @@ export default function TournamentDetail() {
                 <label>Status</label>
                 <select value={editForm.status || 'active'} onChange={e => setEditForm(x => ({ ...x, status: e.target.value }))}>
                   <option value="active">Active</option>
+                  <option value="ongoing">Ongoing</option>
                   <option value="completed">Completed</option>
                   <option value="cancelled">Cancelled</option>
                 </select>
