@@ -9,7 +9,7 @@ import ThemeScript from '../components/ThemeScript'
 import PWAInstallPrompt from '../components/PWAInstallPrompt'
 
 export const metadata = {
-  title: 'Nabogaming — Tournament Dashboard',
+  title: 'ARENA — Tournament Dashboard',
   description: 'Compete. Rank. Dominate.',
   manifest: '/manifest.json',
   appleWebApp: {
