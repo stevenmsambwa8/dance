@@ -1,0 +1,308 @@
+/* ── Full-screen layout: no scroll, fills viewport ── */
+.page {
+  display: flex; flex-direction: column;
+  height: 100dvh;           /* full viewport, respects mobile chrome */
+  max-width: 560px; margin: 0 auto;
+  padding: 16px 14px 20px;
+  overflow: hidden;          /* the page itself never scrolls */
+  box-sizing: border-box;
+}
+
+/* ── Top bar ── */
+.topBar {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 20px; flex-shrink: 0;
+}
+.backBtn {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid var(--border-dark); background: none;
+  color: var(--text-muted); font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.15s; flex-shrink: 0;
+}
+.backBtn:hover { background: var(--surface); color: var(--text); }
+.topTitle { font-size: 15px; font-weight: 800; flex: 1; }
+.topStep { font-size: 11px; font-weight: 700; color: var(--text-muted); }
+
+/* ── Step indicator row ── */
+.stepRow {
+  display: flex; align-items: center;
+  margin-bottom: 20px; flex-shrink: 0;
+}
+.stepItem {
+  display: flex; align-items: center; gap: 7px;
+  flex: 1; position: relative;
+}
+.stepDot {
+  width: 32px; height: 32px; border-radius: 50%;
+  border: 2px solid var(--border-dark);
+  background: var(--surface);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; color: var(--text-muted);
+  transition: all 0.25s; flex-shrink: 0;
+}
+.stepLabel {
+  font-size: 11px; font-weight: 700; color: var(--text-muted);
+  white-space: nowrap; transition: color 0.2s;
+}
+.stepLine {
+  flex: 1; height: 2px; background: var(--border-dark);
+  border-radius: 99px; margin: 0 8px;
+  transition: background 0.3s;
+}
+.stepLineDone { background: var(--accent); }
+
+.stepActive .stepDot {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+  box-shadow: 0 0 0 4px rgba(var(--accent-rgb, 34,197,94), 0.18);
+}
+.stepActive .stepLabel { color: var(--text); }
+
+.stepDone .stepDot {
+  border-color: var(--accent);
+  background: rgba(var(--accent-rgb, 34,197,94), 0.12);
+  color: var(--accent);
+}
+.stepDone .stepLabel { color: var(--accent); }
+
+/* ── Card: grows to fill remaining space, scrolls internally ── */
+.card {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--bg);
+  overflow-y: auto;          /* only the card content scrolls if needed */
+  flex: 1;                   /* take all available vertical space */
+  margin-bottom: 16px;
+  /* thin scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-dark) transparent;
+}
+.card::-webkit-scrollbar { width: 4px; }
+.card::-webkit-scrollbar-track { background: transparent; }
+.card::-webkit-scrollbar-thumb { background: var(--border-dark); border-radius: 99px; }
+
+.stepContent { padding: 22px 20px; }
+.stepHeading {
+  font-size: 17px; font-weight: 900; margin-bottom: 4px;
+  display: flex; align-items: center; gap: 8px;
+}
+.stepHeading i { color: var(--accent); font-size: 18px; }
+.stepHint { font-size: 12px; color: var(--text-muted); margin-bottom: 22px; line-height: 1.5; }
+
+/* ── Fields ── */
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
+.field:last-child { margin-bottom: 0; }
+.field label {
+  font-size: 10px; font-weight: 800; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--text-muted);
+  display: flex; align-items: center; gap: 5px;
+}
+.req { color: var(--accent); }
+.opt { font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--text-dim); font-size: 10px; }
+
+.field input, .field textarea, .field select {
+  border: 1px solid var(--border-dark);
+  border-radius: 10px; padding: 10px 13px;
+  background: var(--surface); font-family: var(--font);
+  font-size: 13px; color: var(--text); outline: none;
+  resize: vertical; transition: border-color 0.15s;
+  width: 100%; box-sizing: border-box; /* never overflow parent */
+  min-width: 0;
+}
+.field input:focus, .field textarea:focus, .field select:focus {
+  border-color: var(--accent);
+}
+.inputError { border-color: #dc2626 !important; }
+.errMsg { font-size: 11px; color: #dc2626; font-weight: 600; }
+
+/* Two-column on wide screens, single column on narrow — no clipping */
+.fieldRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 400px) {
+  .fieldRow { grid-template-columns: 1fr; }
+}
+
+/* ── Game grid ── */
+.gameGrid { display: flex; flex-wrap: wrap; gap: 6px; }
+.gameChip {
+  padding: 6px 12px; border: 1px solid var(--border-dark);
+  border-radius: 20px; background: none;
+  font-size: 11px; font-weight: 700; color: var(--text-muted);
+  cursor: pointer; transition: all 0.12s; white-space: nowrap;
+}
+.gameChip:hover { border-color: var(--text); color: var(--text); }
+.gameChipActive {
+  background: var(--accent); color: var(--accent-text);
+  border-color: var(--accent);
+}
+
+/* ── Chip row ── */
+.chipRow { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  padding: 5px 12px; border: 1px solid var(--border-dark);
+  border-radius: 20px; background: none;
+  font-size: 11px; font-weight: 700; color: var(--text-muted);
+  cursor: pointer; transition: all 0.12s;
+}
+.chip:hover { border-color: var(--text); color: var(--text); }
+.chipActive {
+  background: var(--text); color: var(--bg);
+  border-color: var(--text);
+}
+
+/* ── Review card ── */
+.reviewCard {
+  border: 1px solid var(--border);
+  border-radius: 12px; overflow: hidden;
+  background: var(--surface);
+}
+.reviewRow {
+  display: flex; align-items: flex-start;
+  justify-content: space-between; gap: 12px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.reviewRow:last-child { border-bottom: none; }
+.reviewRowFull { flex-direction: column; gap: 6px; }
+.reviewLabel {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 700; color: var(--text-muted);
+  white-space: nowrap; flex-shrink: 0;
+}
+.reviewLabel i { font-size: 13px; color: var(--accent); }
+.reviewVal {
+  font-size: 13px; font-weight: 700; color: var(--text);
+  text-align: right;
+}
+.submitErr {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 14px; padding: 10px 13px;
+  background: rgba(220,38,38,0.08);
+  border: 1px solid rgba(220,38,38,0.25);
+  border-radius: 8px; color: #dc2626;
+  font-size: 12px; font-weight: 600;
+}
+
+/* ── Nav row — pinned to bottom, never scrolls away ── */
+.navRow {
+  display: flex; align-items: center;
+  justify-content: flex-end; gap: 10px;
+  flex-shrink: 0;
+}
+.navBack {
+  display: flex; align-items: center; gap: 6px;
+  padding: 10px 18px; border: 1px solid var(--border-dark);
+  border-radius: 10px; background: none;
+  font-size: 13px; font-weight: 700; color: var(--text-muted);
+  cursor: pointer; transition: all 0.15s; margin-right: auto;
+}
+.navBack:hover { background: var(--surface); color: var(--text); }
+.navNext {
+  display: flex; align-items: center; gap: 6px;
+  padding: 10px 22px; border: none;
+  border-radius: 10px; background: var(--surface);
+  border: 1px solid var(--border-dark);
+  font-size: 13px; font-weight: 800; color: var(--text);
+  cursor: pointer; transition: all 0.15s;
+}
+.navNext:hover { background: var(--text); color: var(--bg); border-color: var(--text); }
+.navLaunch {
+  display: flex; align-items: center; gap: 8px;
+  padding: 11px 26px; border: none;
+  border-radius: 10px; background: var(--accent);
+  font-size: 13px; font-weight: 800; color: var(--accent-text);
+  cursor: pointer; transition: opacity 0.15s, transform 0.15s;
+}
+.navLaunch:hover { opacity: 0.88; transform: translateY(-1px); }
+.navLaunch:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* ── Upload / progress screen ── */
+.uploadWrap {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; flex: 1; gap: 14px;
+}
+.uploadIconWrap {
+  width: 72px; height: 72px; border-radius: 50%;
+  background: rgba(var(--accent-rgb, 34,197,94), 0.1);
+  border: 2px solid rgba(var(--accent-rgb, 34,197,94), 0.3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 32px; color: var(--accent);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb, 34,197,94), 0.3); }
+  50%       { box-shadow: 0 0 0 12px rgba(var(--accent-rgb, 34,197,94), 0); }
+}
+.uploadTitle { font-size: 20px; font-weight: 900; }
+.uploadSub { font-size: 13px; color: var(--text-muted); font-weight: 600; }
+
+.uploadTrack {
+  width: 100%; max-width: 340px; height: 6px;
+  background: var(--border); border-radius: 99px; overflow: hidden;
+}
+.uploadFill {
+  height: 100%; background: var(--accent);
+  border-radius: 99px;
+  transition: width 0.18s ease-out;
+}
+.uploadPct {
+  font-size: 13px; font-weight: 800; color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Done screen ── */
+.doneWrap {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; flex: 1; gap: 14px; text-align: center;
+}
+.doneIcon {
+  width: 80px; height: 80px; border-radius: 50%;
+  background: rgba(var(--accent-rgb, 34,197,94), 0.12);
+  border: 2px solid var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 36px; color: #f59e0b;
+  animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes popIn {
+  from { transform: scale(0.4); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+.doneTitle { font-size: 24px; font-weight: 900; }
+.doneSub { font-size: 14px; color: var(--text-muted); line-height: 1.5; }
+.doneBtns { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 300px; margin-top: 6px; }
+.donePrimary {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px 24px; border: none; border-radius: 10px;
+  background: var(--accent); color: var(--accent-text);
+  font-size: 13px; font-weight: 800; cursor: pointer;
+  transition: opacity 0.15s;
+}
+.donePrimary:hover { opacity: 0.88; }
+.doneSecondary {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px 24px; border: 1px solid var(--border-dark); border-radius: 10px;
+  background: none; color: var(--text-muted);
+  font-size: 13px; font-weight: 700; cursor: pointer;
+  transition: all 0.15s;
+}
+.doneSecondary:hover { background: var(--surface); color: var(--text); }
+
+/* ── Entrance fee additions ── */
+.feeHint {
+  font-size: 11px; color: var(--text-muted); line-height: 1.5;
+  display: flex; align-items: flex-start; gap: 5px; margin-top: 2px;
+}
+.feeHint i { font-size: 12px; flex-shrink: 0; margin-top: 1px; }
+
+.feeNote {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 12px 14px; border-radius: 10px;
+  background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.25);
+  font-size: 12px; color: var(--text-dim); line-height: 1.5; margin-top: 14px;
+}
+.feeNote i { font-size: 14px; color: #f59e0b; flex-shrink: 0; margin-top: 1px; }

@@ -1,0 +1,484 @@
+.page {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 0 0 100px;
+}
+
+/* ── Back nav — sits INSIDE hero on top of bg image ── */
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 18px 20px 0;
+  position: relative;
+  z-index: 2;
+  transition: color 0.15s;
+}
+.back:hover { color: var(--text); }
+.back i { font-size: 14px; }
+
+/* ── Hero — full bleed, starts at very top ── */
+.hero {
+  position: relative;
+  padding: 0 20px 32px;
+  overflow: hidden;
+}
+
+/* Game image background — full bleed including behind back button */
+.heroBg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  opacity: 0.13;
+  filter: blur(2px) saturate(1.5);
+  transform: scale(1.06);
+  pointer-events: none;
+  z-index: 0;
+  mask-image: linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 100%);
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 100%);
+}
+
+/* Faint grid texture */
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 32px 32px;
+  opacity: 0.25;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Bottom fade */
+.hero::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 80px;
+  background: linear-gradient(to bottom, transparent, var(--bg));
+  pointer-events: none;
+  z-index: 0;
+}
+
+.heroInner {
+  position: relative;
+  z-index: 1;
+  padding-top: 14px;
+}
+
+/* Flex row: text left, logo right */
+.heroFlex {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.heroLeft {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Game logo on the right */
+.heroLogoWrap {
+  flex-shrink: 0;
+  width: 90px;
+  height: 90px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1.5px solid var(--border-dark);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.18);
+  align-self: flex-end;
+  margin-bottom: 4px;
+}
+.heroLogo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.genreRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.genreChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: var(--bg-2);
+  border: 1px solid var(--border-dark);
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.heroName {
+  font-size: clamp(52px, 12vw, 88px);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 0.92;
+  color: var(--text);
+  margin-bottom: 14px;
+}
+
+.heroFull {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-bottom: 28px;
+}
+
+/* ── Stats strip ── */
+.statsStrip {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg);
+  margin-bottom: 28px;
+}
+
+.stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 16px 20px;
+  border-right: 1px solid var(--border);
+}
+.stat:last-child { border-right: none; }
+
+.statVal {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  line-height: 1;
+}
+
+.statLabel {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+
+/* ── Description ── */
+.desc {
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 1.75;
+  padding: 0 20px;
+  margin-bottom: 20px;
+  max-width: 540px;
+}
+
+/* ── Subscribe + Chat row ── */
+.subRow {
+  padding: 0 20px;
+  margin-bottom: 48px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.subBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 22px;
+  background: transparent;
+  border: 1.5px solid var(--border-dark);
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.subBtn i { font-size: 16px; }
+.subBtn:hover {
+  border-color: var(--text);
+  color: var(--text);
+  background: var(--bg-2);
+}
+.subActive {
+  background: var(--accent) !important;
+  color: #fff !important;
+  border-color: var(--accent) !important;
+}
+
+/* ── Group Chat button ── */
+.chatBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 22px;
+  background: transparent;
+  border: 1.5px solid var(--border-dark);
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-decoration: none;
+}
+.chatBtn i { font-size: 16px; }
+.chatBtn:hover {
+  border-color: var(--text);
+  color: var(--text);
+  background: var(--bg-2);
+}
+
+/* ── Section ── */
+.section {
+  padding: 0 20px;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+.sectionTitle {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.sectionMeta {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ── Empty ── */
+.empty {
+  padding: 56px 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* ── Tournament list ── */
+.list { display: flex; flex-direction: column; }
+
+.tRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 12px;
+  margin: 0 -12px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  border-radius: 10px;
+  transition: background 0.1s;
+}
+.tRow:hover { background: var(--bg-2); }
+.tRowFull { opacity: 0.35; cursor: default; pointer-events: none; }
+.tRowJoined { opacity: 1; cursor: pointer; pointer-events: all; }
+
+.tInfo { flex: 1; min-width: 0; }
+
+.tName {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 3px;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tFormat {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.tMeta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.tPrize, .tSlots, .tDate {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.tPrize i, .tSlots i, .tDate i {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.tPrize { color: var(--accent); }
+.tPrize i { color: var(--accent); }
+
+/* ── Badge ── */
+.badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 4px 10px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.badgeOpen {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+}
+.badgeFull {
+  background: var(--bg-2);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+.badgeJoined {
+  background: var(--text);
+  color: var(--bg);
+}
+
+/* ── Progress bar in slot line ── */
+.slotBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 5px;
+}
+.slotTrack {
+  flex: 1;
+  height: 3px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+  max-width: 80px;
+}
+.slotFill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 99px;
+  transition: width 0.4s ease;
+}
+.slotText {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ── Modal detail ── */
+.tDetail { display: flex; flex-direction: column; gap: 20px; }
+
+.joinedBanner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 16px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.joinedBanner i { font-size: 18px; }
+
+.tGrid {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.tGridRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.tGridRow:last-child { border-bottom: none; }
+
+.tGridLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.tGridVal {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.tNote {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.65;
+  padding: 13px 15px;
+  background: var(--bg-2);
+  border-radius: 8px;
+}
+
+.joinBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px;
+  background: var(--text);
+  color: var(--bg);
+  border: none;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+  transition: opacity 0.15s;
+}
+.joinBtn:hover { opacity: 0.82; }
+
+/* ── Mobile ── */
+@media (max-width: 560px) {
+  .heroName { font-size: clamp(44px, 14vw, 72px); }
+  .heroLogoWrap { width: 72px; height: 72px; }
+  .statsStrip { margin-bottom: 20px; }
+  .stat { padding: 14px 16px; }
+  .statVal { font-size: 22px; }
+  .tMeta { display: none; }
+}
