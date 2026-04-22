@@ -6,15 +6,16 @@ import AuthProvider from '../components/AuthProvider'
 import PhoneGate from '../components/PhoneGate'
 import LoadingProvider from '../components/LoadingContext'
 import ThemeScript from '../components/ThemeScript'
+import PWAInstallPrompt from '../components/PWAInstallPrompt'
 
 export const metadata = {
-  title: 'Nabogaming App',
+  title: 'Nabogaming — Tournament Dashboard',
   description: 'Compete. Rank. Dominate.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Nabogaming',
+    title: 'ARENA',
   },
 }
 
@@ -41,6 +42,7 @@ export default function RootLayout({ children }) {
             <LoadingProvider>
               <NavWrapper />
               <PhoneGate />
+              <PWAInstallPrompt />
               <PageTransition>
                 <main>{children}</main>
               </PageTransition>
