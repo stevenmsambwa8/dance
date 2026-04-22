@@ -64,13 +64,13 @@ export default function PWAInstallPrompt() {
         {/* App info */}
         <div className={styles.appRow}>
           <div className={styles.iconWrap}>
-            <img src="/logo.png" alt="ARENA" className={styles.icon} />
+            <img src="/logo.png" alt="Nabogaming" className={styles.icon} />
           </div>
           <div className={styles.appInfo}>
-            <span className={styles.appName}>ARENA</span>
+            <span className={styles.appName}>Nabogaming</span>
             <span className={styles.appSub}>Tournament Dashboard</span>
           </div>
-          <div className={styles.badge}>FREE</div>
+          <div className={styles.badge}>FREE ( 186.82KB )</div>
         </div>
 
         {/* Features */}
