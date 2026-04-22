@@ -1402,11 +1402,35 @@ export default function TournamentDetail() {
           {registered && tournament.status !== 'active' && (
             <span className={styles.heroParticipatedChip}><i className="ri-checkbox-circle-fill" /></span>
           )}
-          {!registered && tournament.status === 'active' && !isFull && !isOwnTournament && !isCompleted && (
-            <button className={styles.heroRegisterBtn} onClick={register} disabled={registering}>
-              <i className="ri-add-circle-line" />{registering ? '…' : 'Register'}
-            </button>
-          )}
+          {!registered && tournament.status === 'active' && !isFull && !isOwnTournament && !isCompleted && (() => {
+            const hasFee = (tournament.entrance_fee || 0) > 0
+            if (!hasFee) {
+              return (
+                <button className={styles.heroRegisterBtn} onClick={register} disabled={registering}>
+                  <i className="ri-add-circle-line" />{registering ? '…' : 'Register'}
+                </button>
+              )
+            }
+            if (paymentStatus === 'payment_submitted') {
+              return (
+                <span className={styles.heroPayPendingChip}>
+                  <i className="ri-time-line" /> Awaiting Approval
+                </span>
+              )
+            }
+            if (paymentStatus === 'rejected') {
+              return (
+                <button className={styles.heroRegisterBtn} style={{ background: '#ef4444', borderColor: '#ef4444' }} onClick={() => setShowPayModal(true)}>
+                  <i className="ri-error-warning-line" /> Resubmit Payment
+                </button>
+              )
+            }
+            return (
+              <button className={styles.heroRegisterBtn} onClick={() => setShowPayModal(true)}>
+                <i className="ri-money-dollar-circle-line" /> Register · TZS {Number(tournament.entrance_fee).toLocaleString()}
+              </button>
+            )
+          })()}
           {isOwnTournament && tournament.status === 'active' && (
             <span className={styles.heroFullChip} style={{ borderColor: 'var(--text-muted)', color: 'var(--text-muted)' }}>
               <i className="ri-shield-line" /> Your tournament
@@ -1630,7 +1654,18 @@ export default function TournamentDetail() {
                                     participants={participants}
                                     onJoin={
                                       rIdx === 0 && !registered && !isFull && !isOwnTournament && tournament?.status === 'active'
-                                        ? (sIdx) => joinViaSlot(pIdx, sIdx)
+                                        ? (() => {
+                                            const hasFee = (tournament.entrance_fee || 0) > 0
+                                            if (!hasFee) return (sIdx) => joinViaSlot(pIdx, sIdx)
+                                            if (paymentStatus === 'approved') return (sIdx) => joinViaSlot(pIdx, sIdx)
+                                            return () => {
+                                              if (paymentStatus === 'payment_submitted') {
+                                                showToast('Payment awaiting approval — you cannot join yet.', 'info')
+                                              } else {
+                                                setShowPayModal(true)
+                                              }
+                                            }
+                                          })()
                                         : undefined
                                     }
                                   />
