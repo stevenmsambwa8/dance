@@ -8,8 +8,14 @@ import LoadingProvider from '../components/LoadingContext'
 import ThemeScript from '../components/ThemeScript'
 
 export const metadata = {
-  title: 'ARENA — Tournament Dashboard',
+  title: 'Nabogaming App',
   description: 'Compete. Rank. Dominate.',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Nabogaming',
+  },
 }
 
 export const viewport = {
@@ -24,6 +30,10 @@ export default function RootLayout({ children }) {
       <head>
         <ThemeScript />
         <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet" />
+        {/* PWA / iOS */}
+        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="theme-color" content="#0a0a0a" />
       </head>
       <body>
         <AuthProvider>
