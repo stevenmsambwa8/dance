@@ -9,8 +9,17 @@ import { supabase } from '../../../lib/supabase'
 import styles from './page.module.css'
 import UserBadges from '../../../components/UserBadges'
 import usePageLoading from '../../../components/usePageLoading'
+import { GAME_META, GAME_SLUGS } from '../../../lib/constants'
+import { RANK_TIERS } from '../../../lib/constants'
 
 const ADMIN_EMAIL = 'stevenmsambwa8@gmail.com'
+const ALL_GAMES = GAME_SLUGS.map(s => GAME_META[s].name)
+const PLAY_STYLES = ['Aggressive', 'Defensive', 'Support', 'Sniper', 'All-Round']
+const FLAG_OPTIONS = [
+  { value: 'kenya',    label: 'Kenya' },
+  { value: 'tanzania', label: 'Tanzania' },
+  { value: 'uganda',   label: 'Uganda' },
+]
 
 export default function PublicProfile() {
   const { id } = useParams()
@@ -28,6 +37,21 @@ export default function PublicProfile() {
   const [achievements, setAchievements] = useState([])
   const [shopItems, setShopItems]     = useState([])
   const [shopLoading, setShopLoading] = useState(true)
+
+  // Edit profile (own profile only)
+  const { updateProfile, uploadAvatar } = useAuth()
+  const fileRef = useRef()
+  const [editModal, setEditModal]     = useState(false)
+  const [editUsername, setEditUsername] = useState('')
+  const [editBio, setEditBio]         = useState('')
+  const [editPlayStyle, setEditPlayStyle] = useState('Aggressive')
+  const [editGameTags, setEditGameTags] = useState([])
+  const [editFlag, setEditFlag]       = useState('')
+  const [editPhoneCode, setEditPhoneCode] = useState('255')
+  const [editPhoneLocal, setEditPhoneLocal] = useState('')
+  const [editSaving, setEditSaving]   = useState(false)
+  const [editError, setEditError]     = useState('')
+  const [avatarLoading, setAvatarLoading] = useState(false)
 
   // Comments modal
   const [selected, setSelected]       = useState(null)
@@ -70,6 +94,22 @@ export default function PublicProfile() {
     setShopItems(shopData || [])
     setShopLoading(false)
 
+    // Prefill edit fields for own profile
+    if (prof) {
+      setEditUsername(prof.username || '')
+      setEditBio(prof.bio || '')
+      setEditPlayStyle(prof.play_style || 'Aggressive')
+      setEditGameTags(prof.game_tags || [])
+      setEditFlag(prof.country_flag || '')
+      if (prof.phone) {
+        const CODES = ['254', '255', '256']
+        const stripped = prof.phone.replace(/^\+/, '')
+        const matched = CODES.find(c => stripped.startsWith(c))
+        setEditPhoneCode(matched || '255')
+        setEditPhoneLocal(matched ? stripped.slice(matched.length) : stripped)
+      }
+    }
+
     if (user && user.id !== id) {
       const { data: followRow } = await supabase
         .from('follows').select('follower_id')
@@ -91,6 +131,36 @@ export default function PublicProfile() {
     }
 
     setLoading(false)
+  }
+
+  async function saveProfile() {
+    setEditSaving(true); setEditError('')
+    const fullPhone = editPhoneLocal.trim()
+      ? `+${editPhoneCode}${editPhoneLocal.trim().replace(/^0/, '')}`
+      : null
+    try {
+      await updateProfile({ username: editUsername, bio: editBio, play_style: editPlayStyle, game_tags: editGameTags, country_flag: editFlag || null, phone: fullPhone })
+      setProfile(p => ({ ...p, username: editUsername, bio: editBio, play_style: editPlayStyle, game_tags: editGameTags, country_flag: editFlag || null, phone: fullPhone }))
+      setEditModal(false)
+    } catch (e) { setEditError(e.message) }
+    setEditSaving(false)
+  }
+
+  async function handleAvatarChange(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setAvatarLoading(true)
+    try {
+      await uploadAvatar(file)
+      // reload to get fresh avatar_url
+      const { data } = await supabase.from('profiles').select('avatar_url').eq('id', id).single()
+      if (data) setProfile(p => ({ ...p, avatar_url: data.avatar_url }))
+    } catch (e) { alert('Upload failed: ' + e.message) }
+    setAvatarLoading(false)
+  }
+
+  function toggleGameTag(g) {
+    setEditGameTags(t => t.includes(g) ? t.filter(x => x !== g) : [...t, g])
   }
 
   async function toggleFollow() {
@@ -234,38 +304,48 @@ export default function PublicProfile() {
         <i className="ri-arrow-left-line" /> Back
       </button>
 
-      {/* Profile card */}
-      <div className={styles.profileCard} style={{
-        background: theme.gradient,
-        border: `1px solid ${theme.border}`,
-        borderRadius: 16,
-        padding: '20px 16px',
-        boxShadow: `0 0 0 1px ${theme.border}, 0 4px 24px ${theme.glow}`,
-        position: 'relative',
-        overflow: 'hidden',
-      }}>
-        <div className={styles.avatar}>
-          {profile.avatar_url
-            ? <img src={profile.avatar_url} className={styles.avatarImg} alt="" style={{ outline: `3px solid ${theme.primary}`, outlineOffset: 2 }} />
-            : <span style={{ background: theme.primary, color: '#fff', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'inherit' }}>{initials}</span>
+      {/* Profile hero */}
+      <div className={styles.hero}>
+        {/* Faded avatar background */}
+        {profile.avatar_url && (
+          <div className={styles.heroBg} style={{ backgroundImage: `url(${profile.avatar_url})` }} />
+        )}
+        <div className={styles.heroOverlay} />
+
+        {/* Avatar — clickable if own profile */}
+        <div
+          className={styles.heroAvatar}
+          onClick={isOwnProfile ? () => fileRef.current?.click() : undefined}
+          style={{ cursor: isOwnProfile ? 'pointer' : 'default' }}
+        >
+          {avatarLoading
+            ? <div className={styles.heroAvatarInner} style={{ opacity: 0.5 }}><i className="ri-loader-4-line" style={{ fontSize: 24 }} /></div>
+            : profile.avatar_url
+              ? <img src={profile.avatar_url} className={styles.heroAvatarImg} alt="" />
+              : <div className={styles.heroAvatarInner}>{initials}</div>
           }
+          {isOwnProfile && <div className={styles.heroAvatarOverlay}><i className="ri-camera-line" /></div>}
+          {isOwnProfile && <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarChange} />}
         </div>
-        <div className={styles.profileInfo}>
-          <h1 className={styles.username}>
+
+        {/* Info */}
+        <div className={styles.heroInfo}>
+          <h1 className={styles.heroUsername}>
             {profile.username}
-            <UserBadges email={profile.email} countryFlag={profile.country_flag} isSeasonWinner={profile.is_season_winner} size={18} />
+            <UserBadges email={profile.email} countryFlag={profile.country_flag} isSeasonWinner={profile.is_season_winner} size={16} />
           </h1>
           {!isHelpdesk && (
-            <p className={styles.tagline} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <i className={theme.icon} style={{ color: theme.primary, fontSize: 13 }} />
-              <span style={{ color: theme.primary, fontWeight: 700 }}>{profile.tier || 'Gold'}</span>
-              <span>· Lv.{profile.level ?? 1} · {profile.play_style || 'Player'}</span>
+            <p className={styles.heroMeta}>
+              <span className={styles.heroTier}>{profile.tier || 'Gold'}</span>
+              <span className={styles.heroDot}>·</span>
+              Lv.{profile.level ?? 1}
+              <span className={styles.heroDot}>·</span>
+              {profile.play_style || 'Player'}
             </p>
           )}
-          {isHelpdesk && <p className={styles.tagline}>Nabogaming Help Desk</p>}
           {(profile.game_tags || []).length > 0 && (
-            <div className={styles.gameTags}>
-              {profile.game_tags.map(g => <span key={g} className={styles.gameTag}>{g}</span>)}
+            <div className={styles.heroTags}>
+              {profile.game_tags.map(g => <span key={g} className={styles.heroTag}>{g}</span>)}
             </div>
           )}
         </div>
@@ -293,7 +373,7 @@ export default function PublicProfile() {
       )}
       {isOwnProfile && (
         <div className={styles.actions}>
-          <button className={styles.editBtn} onClick={() => router.push('/account')}>
+          <button className={styles.editBtn} onClick={() => setEditModal(true)}>
             <i className="ri-edit-line" /> Edit Profile
           </button>
         </div>
@@ -447,6 +527,102 @@ export default function PublicProfile() {
           </div>
         )}
       </section>
+
+      {/* ── Edit Profile Modal (own profile) ── */}
+      {isOwnProfile && (
+        <Modal
+          open={editModal}
+          onClose={() => { setEditModal(false); setEditError('') }}
+          title="Edit Profile"
+          size="sm"
+          footer={
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+              {editError && <p style={{ color: '#ef4444', fontSize: '0.8rem' }}>{editError}</p>}
+              <button className={styles.saveBtn} onClick={saveProfile} disabled={editSaving}>
+                <i className="ri-check-line" /> {editSaving ? 'Saving…' : 'Save Changes'}
+              </button>
+            </div>
+          }
+        >
+          <div className={styles.editForm}>
+            <div className={styles.editField}>
+              <label>Username</label>
+              <input value={editUsername} onChange={e => setEditUsername(e.target.value)} />
+            </div>
+            <div className={styles.editField}>
+              <label>Bio</label>
+              <textarea rows={3} value={editBio} onChange={e => setEditBio(e.target.value)} placeholder="Tell other players about yourself..." />
+            </div>
+            <div className={styles.editField}>
+              <label>Play Style</label>
+              <select value={editPlayStyle} onChange={e => setEditPlayStyle(e.target.value)}>
+                {PLAY_STYLES.map(s => <option key={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className={styles.editField}>
+              <label>Country</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {FLAG_OPTIONS.map(f => (
+                  <button key={f.value} type="button"
+                    onClick={() => setEditFlag(prev => prev === f.value ? '' : f.value)}
+                    style={{
+                      flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
+                      padding: '10px 6px', borderRadius: 6,
+                      border: `1px solid ${editFlag === f.value ? 'var(--text)' : 'var(--border-dark)'}`,
+                      background: editFlag === f.value ? 'var(--surface)' : 'var(--bg-2)',
+                      color: editFlag === f.value ? 'var(--text)' : 'var(--text-muted)',
+                      fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
+                    }}>
+                    <img src={`/${f.value}.png`} alt={f.label} style={{ width: 22, height: 22, borderRadius: 3 }} />
+                    <span>{f.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className={styles.editField}>
+              <label>Phone Number</label>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                {[{ code: '254', flag: '/kenya.png', label: '+254' }, { code: '255', flag: '/tanzania.png', label: '+255' }, { code: '256', flag: '/uganda.png', label: '+256' }].map(c => (
+                  <button key={c.code} type="button" onClick={() => setEditPhoneCode(c.code)} style={{
+                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                    padding: '7px 8px', borderRadius: 4,
+                    border: `1px solid ${editPhoneCode === c.code ? 'var(--text)' : 'var(--border-dark)'}`,
+                    background: editPhoneCode === c.code ? 'var(--surface)' : 'var(--bg-2)',
+                    color: editPhoneCode === c.code ? 'var(--text)' : 'var(--text-muted)',
+                    fontWeight: 700, fontSize: 11, cursor: 'pointer', transition: 'all 0.15s',
+                  }}>
+                    <img src={c.flag} alt={c.code} style={{ width: 16, height: 16, borderRadius: 2, objectFit: 'cover' }} />
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid var(--border-dark)', borderRadius: 4, background: 'var(--bg-2)', padding: '0 12px' }}>
+                <span style={{ color: 'var(--text-muted)', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>+{editPhoneCode}</span>
+                <div style={{ width: 1, height: 16, background: 'var(--border-dark)', flexShrink: 0 }} />
+                <input type="tel" placeholder="712 345 678" value={editPhoneLocal}
+                  onChange={e => setEditPhoneLocal(e.target.value)}
+                  style={{ flex: 1, border: 'none', background: 'transparent', padding: '10px 0', fontSize: 13, color: 'var(--text)', outline: 'none', fontFamily: 'var(--font)' }} />
+                {editPhoneLocal && (
+                  <button type="button" onClick={() => setEditPhoneLocal('')}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0, fontSize: 14 }}>
+                    <i className="ri-close-line" />
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className={styles.editField}>
+              <label>Game Tags</label>
+              <div className={styles.gameTagGrid}>
+                {ALL_GAMES.map(g => (
+                  <button key={g} type="button"
+                    className={`${styles.gameTagBtn} ${editGameTags.includes(g) ? styles.gameTagActive : ''}`}
+                    onClick={() => toggleGameTag(g)}>{g}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {/* Comments Modal */}
       <Modal
