@@ -8,7 +8,7 @@ import UserBadges from '../../../components/UserBadges'
 import usePageLoading from '../../../components/usePageLoading'
 import { getCurrentSeason, computeLevelAfterWin } from '../../../lib/seasons'
 
-const STATUS_OPTIONS = ['pending', 'confirmed', 'live', 'completed', 'declined', 'cancelled']
+const STATUS_OPTIONS = ['pending', 'confirmed', 'live', 'awaiting_review', 'completed', 'declined', 'cancelled']
 
 export default function MatchPage() {
   const { slug } = useParams()
@@ -26,6 +26,11 @@ export default function MatchPage() {
   const [ticker, setTicker]         = useState('')
   const [tickerInput, setTickerInput] = useState('')
   const [tickerSaving, setTickerSaving] = useState(false)
+
+  // Score submission (competitor-side)
+  const [scoreGoals, setScoreGoals]     = useState({ challenger: 0, challenged: 0 })
+  const [scoreSubmitting, setScoreSubmitting] = useState(false)
+  const [scoreRequest, setScoreRequest] = useState(null) // pending result from DB
 
   useEffect(() => { if (slug) loadMatch() }, [slug])
 
@@ -50,6 +55,17 @@ export default function MatchPage() {
         setResultForm({ winner_id: data.winner_id || '', score_challenger: data.score_challenger ?? '', score_challenged: data.score_challenged ?? '', notes: data.notes || '' })
         setTicker(data.ticker_text || '')
         setTickerInput(data.ticker_text || '')
+        // Load pending score request
+        const { data: sr } = await supabase
+          .from('score_requests')
+          .select('*')
+          .eq('match_id', data.id)
+          .eq('status', 'pending')
+          .maybeSingle()
+        setScoreRequest(sr || null)
+        if (sr) {
+          setScoreGoals({ challenger: sr.score_challenger ?? 0, challenged: sr.score_challenged ?? 0 })
+        }
         // Load tournament creator if match is linked to a tournament
         if (data.tournament_id) {
           supabase.from('tournaments').select('id, created_by').eq('id', data.tournament_id).maybeSingle()
@@ -155,12 +171,156 @@ export default function MatchPage() {
     setForfeitLoading(false); loadMatch()
   }
 
+  // Competitor submits their score for admin review
+  async function submitScoreRequest() {
+    if (!confirm('Submit these scores for admin review? This cannot be changed after submission.')) return
+    setScoreSubmitting(true)
+    // Upsert: cancel any prior pending request first
+    await supabase.from('score_requests').update({ status: 'superseded' }).eq('match_id', match.id).eq('status', 'pending')
+    const { error } = await supabase.from('score_requests').insert({
+      match_id: match.id,
+      submitted_by: user.id,
+      score_challenger: scoreGoals.challenger,
+      score_challenged: scoreGoals.challenged,
+      status: 'pending',
+    })
+    if (error) { alert(error.message); setScoreSubmitting(false); return }
+    // Move match to awaiting_review so admin sees it
+    await supabase.from('matches').update({ status: 'awaiting_review' }).eq('id', match.id)
+    // Notify admin via notifications table
+    await supabase.from('notifications').insert({
+      user_id: null, // admin-targeted; adapt if you have admin user id
+      type: 'score_request',
+      title: '📋 Score Submitted — Review Required',
+      body: `${user.id === match.challenger_id ? ch?.username : cd?.username} submitted a result for match ${match.id?.slice(0,8)}.`,
+      meta: { match_id: match.id },
+      read: false,
+    })
+    setScoreSubmitting(false)
+    loadMatch()
+  }
+
+  // Admin accepts submitted result and completes the match
+  async function acceptResult() {
+    if (!scoreRequest) return
+    setSaving(true)
+    // Determine winner from submitted scores
+    let winnerId = null
+    if (scoreRequest.score_challenger > scoreRequest.score_challenged) winnerId = match.challenger_id
+    else if (scoreRequest.score_challenged > scoreRequest.score_challenger) winnerId = match.challenged_id
+    // If draw and admin has a manual pick in resultForm, use that
+    if (!winnerId && resultForm.winner_id) winnerId = resultForm.winner_id
+
+    const { error } = await supabase.from('matches').update({
+      status: 'completed',
+      winner_id: winnerId,
+      score_challenger: scoreRequest.score_challenger,
+      score_challenged: scoreRequest.score_challenged,
+      notes: resultForm.notes,
+    }).eq('id', match.id)
+    if (error) { alert(error.message); setSaving(false); return }
+    await supabase.from('score_requests').update({ status: 'accepted' }).eq('id', scoreRequest.id)
+
+    // Award points/stats
+    if (winnerId && match.status !== 'completed') {
+      const loserId = winnerId === match.challenger_id ? match.challenged_id : match.challenger_id
+      const [{ data: wData }, { data: lData }] = await Promise.all([
+        supabase.from('profiles').select('wins, points, season_wins, level, current_season').eq('id', winnerId).single(),
+        supabase.from('profiles').select('losses, points, season_losses, current_season').eq('id', loserId).single(),
+      ])
+      await Promise.all([
+        supabase.from('profiles').update({
+          wins: (wData?.wins ?? 0) + 1,
+          points: (wData?.points ?? 0) + 12,
+          season_wins: (wData?.season_wins ?? 0) + 1,
+          level: computeLevelAfterWin(wData?.level ?? 1, (wData?.season_wins ?? 0) + 1),
+          current_season: getCurrentSeason(),
+        }).eq('id', winnerId),
+        supabase.from('profiles').update({
+          losses: (lData?.losses ?? 0) + 1,
+          points: Math.max(0, (lData?.points ?? 0) + 4),
+          season_losses: (lData?.season_losses ?? 0) + 1,
+          current_season: getCurrentSeason(),
+        }).eq('id', loserId),
+      ])
+      await Promise.all([
+        supabase.rpc('log_earning', {
+          p_user_id: winnerId, p_type: 'match_win', p_points: 12,
+          p_description: `Beat ${(winnerId === match.challenger_id ? cd : ch)?.username ?? 'opponent'}`,
+          p_ref_id: match.id,
+        }),
+        supabase.rpc('log_earning', {
+          p_user_id: loserId, p_type: 'match_loss', p_points: 4,
+          p_description: `Lost to ${(loserId === match.challenger_id ? cd : ch)?.username ?? 'opponent'}`,
+          p_ref_id: match.id,
+        }),
+      ])
+      // Notify both players
+      await supabase.from('notifications').insert([
+        { user_id: winnerId, type: 'match_result', title: '🏆 Match Result: You Won!', body: `Your match result has been confirmed. +12 pts`, meta: { match_id: match.id }, read: false },
+        { user_id: loserId, type: 'match_result', title: 'Match Result: Defeat', body: `Your match result has been confirmed. +4 pts`, meta: { match_id: match.id }, read: false },
+      ])
+      if (user?.id === winnerId || user?.id === loserId) refreshProfile?.()
+    }
+    setSaving(false)
+    loadMatch()
+  }
+
+  // Admin overrides result manually (no score_request needed)
+  async function updateResult() {
+    setSaving(true)
+    const winnerId = resultForm.winner_id || null
+    const { error } = await supabase.from('matches').update({
+      status: 'completed', winner_id: winnerId,
+      score_challenger: resultForm.score_challenger !== '' ? Number(resultForm.score_challenger) : null,
+      score_challenged: resultForm.score_challenged !== '' ? Number(resultForm.score_challenged) : null,
+      notes: resultForm.notes,
+    }).eq('id', match.id)
+    if (error) { alert(error.message); setSaving(false); return }
+    if (winnerId && match.status !== 'completed') {
+      const loserId = winnerId === match.challenger_id ? match.challenged_id : match.challenger_id
+      const [{ data: wData }, { data: lData }] = await Promise.all([
+        supabase.from('profiles').select('wins, points, season_wins, level, current_season').eq('id', winnerId).single(),
+        supabase.from('profiles').select('losses, points, season_losses, current_season').eq('id', loserId).single(),
+      ])
+      await Promise.all([
+        supabase.from('profiles').update({
+          wins: (wData?.wins ?? 0) + 1,
+          points: (wData?.points ?? 0) + 12,
+          season_wins: (wData?.season_wins ?? 0) + 1,
+          level: computeLevelAfterWin(wData?.level ?? 1, (wData?.season_wins ?? 0) + 1),
+          current_season: getCurrentSeason(),
+        }).eq('id', winnerId),
+        supabase.from('profiles').update({
+          losses: (lData?.losses ?? 0) + 1,
+          points: Math.max(0, (lData?.points ?? 0) + 4),
+          season_losses: (lData?.season_losses ?? 0) + 1,
+          current_season: getCurrentSeason(),
+        }).eq('id', loserId),
+      ])
+      await Promise.all([
+        supabase.rpc('log_earning', {
+          p_user_id: winnerId, p_type: 'match_win', p_points: 12,
+          p_description: `Beat ${(winnerId === match.challenger_id ? cd : ch)?.username ?? 'opponent'}`,
+          p_ref_id: match.id,
+        }),
+        supabase.rpc('log_earning', {
+          p_user_id: loserId, p_type: 'match_loss', p_points: 4,
+          p_description: `Lost to ${(loserId === match.challenger_id ? cd : ch)?.username ?? 'opponent'}`,
+          p_ref_id: match.id,
+        }),
+      ])
+      if (user?.id === winnerId || user?.id === loserId) refreshProfile?.()
+    }
+    setSaving(false); loadMatch()
+  }
+
   function formatDate(iso) {
     if (!iso) return 'TBD'
     return new Date(iso).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
   }
 
-  const STATUS_COLOR = { live: '#22c55e', confirmed: 'var(--text)', pending: '#f59e0b', completed: 'var(--text-muted)', declined: '#ef4444', cancelled: '#ef4444' }
+  const STATUS_COLOR = { live: '#22c55e', confirmed: 'var(--text)', pending: '#f59e0b', awaiting_review: '#a855f7', completed: 'var(--text-muted)', declined: '#ef4444', cancelled: '#ef4444' }
 
   if (loading) return null
 
@@ -182,6 +342,7 @@ export default function MatchPage() {
   const cd = match.challenged
   const isLive = match.status === 'live'
   const isCompleted = match.status === 'completed'
+  const isAwaitingReview = match.status === 'awaiting_review'
   const isActive = ['pending', 'confirmed', 'live'].includes(match.status)
   const isCompetitor = user && (user.id === match.challenger_id || user.id === match.challenged_id)
   const canManage = isAdmin || (user && tournament?.created_by === user.id)
@@ -288,6 +449,7 @@ export default function MatchPage() {
       {/* ── COMPETITOR ACTIONS ── */}
       {!canManage && isCompetitor && (
         <div className={styles.actions}>
+          {/* Accept / Decline when pending */}
           {match.status === 'pending' && user?.id === match.challenged_id && (<>
             <button className={styles.btn} onClick={() => updateStatus('confirmed')} disabled={saving}>
               <i className="ri-check-line" /> Accept Match
@@ -296,6 +458,57 @@ export default function MatchPage() {
               <i className="ri-close-line" /> Decline
             </button>
           </>)}
+
+          {/* Score control panel — only on live matches */}
+          {isLive && (
+            <div className={styles.scorePanel}>
+              <p className={styles.scorePanelTitle}><i className="ri-gamepad-line" /> Submit Match Score</p>
+              <p className={styles.scorePanelHint}>Enter the final goals/score for each player, then submit for admin review.</p>
+
+              {/* Challenger stepper */}
+              <div className={styles.stepperRow}>
+                <span className={styles.stepperName}>{ch?.username}</span>
+                <div className={styles.stepper}>
+                  <button className={styles.stepBtn} onClick={() => setScoreGoals(g => ({ ...g, challenger: Math.max(0, g.challenger - 1) }))}>−</button>
+                  <span className={styles.stepVal}>{scoreGoals.challenger}</span>
+                  <button className={styles.stepBtn} onClick={() => setScoreGoals(g => ({ ...g, challenger: g.challenger + 1 }))}>+</button>
+                </div>
+              </div>
+
+              {/* Challenged stepper */}
+              <div className={styles.stepperRow}>
+                <span className={styles.stepperName}>{cd?.username}</span>
+                <div className={styles.stepper}>
+                  <button className={styles.stepBtn} onClick={() => setScoreGoals(g => ({ ...g, challenged: Math.max(0, g.challenged - 1) }))}>−</button>
+                  <span className={styles.stepVal}>{scoreGoals.challenged}</span>
+                  <button className={styles.stepBtn} onClick={() => setScoreGoals(g => ({ ...g, challenged: g.challenged + 1 }))}>+</button>
+                </div>
+              </div>
+
+              <button className={styles.btn} onClick={submitScoreRequest} disabled={scoreSubmitting}>
+                <i className="ri-send-plane-line" /> {scoreSubmitting ? 'Submitting…' : 'Submit Result for Review'}
+              </button>
+            </div>
+          )}
+
+          {/* Awaiting review — show submitted scores, locked */}
+          {isAwaitingReview && scoreRequest && (
+            <div className={styles.reviewBanner}>
+              <i className="ri-time-line" />
+              <div>
+                <p className={styles.reviewBannerTitle}>Result submitted — awaiting admin</p>
+                <p className={styles.reviewBannerSub}>{ch?.username} <strong>{scoreRequest.score_challenger}</strong> — <strong>{scoreRequest.score_challenged}</strong> {cd?.username}</p>
+              </div>
+            </div>
+          )}
+          {isAwaitingReview && !scoreRequest && (
+            <div className={styles.reviewBanner}>
+              <i className="ri-time-line" />
+              <div><p className={styles.reviewBannerTitle}>Result submitted — awaiting admin review</p></div>
+            </div>
+          )}
+
+          {/* Forfeit — available on confirmed/live */}
           {isActive && match.status !== 'pending' && (
             <button className={`${styles.btn} ${styles.btnGhost}`} onClick={forfeitMatch} disabled={forfeitLoading}>
               <i className="ri-flag-line" /> {forfeitLoading ? 'Forfeiting…' : 'Forfeit Match'}
@@ -308,6 +521,62 @@ export default function MatchPage() {
       {canManage && (
         <div className={styles.adminPanel}>
           <p className={styles.adminTitle}><i className="ri-shield-line" /> {isAdmin ? 'Admin Controls' : 'Organiser Controls'}</p>
+
+          {/* ── Pending score request review ── */}
+          {(isAwaitingReview || scoreRequest) && scoreRequest && (
+            <div className={styles.adminBlock}>
+              <label className={styles.adminLabel} style={{ color: '#a855f7' }}>
+                <i className="ri-inbox-line" style={{ marginRight: 4 }} /> Score Request — Review &amp; Accept
+              </label>
+              <div className={styles.scoreRequestCard}>
+                <div className={styles.scoreRequestPlayers}>
+                  <div className={styles.srPlayer}>
+                    <span className={styles.srName}>{ch?.username}</span>
+                    <span className={styles.srScore}>{scoreRequest.score_challenger}</span>
+                  </div>
+                  <span className={styles.srSep}>—</span>
+                  <div className={`${styles.srPlayer} ${styles.srPlayerRight}`}>
+                    <span className={styles.srScore}>{scoreRequest.score_challenged}</span>
+                    <span className={styles.srName}>{cd?.username}</span>
+                  </div>
+                </div>
+                {/* Auto-inferred winner */}
+                {scoreRequest.score_challenger !== scoreRequest.score_challenged && (
+                  <p className={styles.srInferred}>
+                    <i className="ri-trophy-line" /> Inferred winner:{' '}
+                    <strong>{scoreRequest.score_challenger > scoreRequest.score_challenged ? ch?.username : cd?.username}</strong>
+                  </p>
+                )}
+                {/* Draw — admin must pick */}
+                {scoreRequest.score_challenger === scoreRequest.score_challenged && (
+                  <div className={styles.field} style={{ marginTop: 10 }}>
+                    <label className={styles.fieldLabel}>Draw — manually pick winner</label>
+                    <select className={styles.input} value={resultForm.winner_id} onChange={e => setResultForm(x => ({ ...x, winner_id: e.target.value }))}>
+                      <option value="">— No winner (draw) —</option>
+                      <option value={match.challenger_id}>{ch?.username}</option>
+                      <option value={match.challenged_id}>{cd?.username}</option>
+                    </select>
+                  </div>
+                )}
+                <div className={styles.field} style={{ marginTop: 10 }}>
+                  <label className={styles.fieldLabel}>Admin Notes (optional)</label>
+                  <textarea className={styles.input} rows={2} value={resultForm.notes} onChange={e => setResultForm(x => ({ ...x, notes: e.target.value }))} />
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                  <button className={styles.btn} onClick={acceptResult} disabled={saving} style={{ background: '#a855f7' }}>
+                    <i className="ri-check-double-line" /> {saving ? 'Accepting…' : 'Accept & Complete Match'}
+                  </button>
+                  <button className={`${styles.btn} ${styles.btnGhost}`} onClick={async () => {
+                    await supabase.from('score_requests').update({ status: 'rejected' }).eq('id', scoreRequest.id)
+                    await supabase.from('matches').update({ status: 'live' }).eq('id', match.id)
+                    loadMatch()
+                  }} style={{ width: 'auto', flexShrink: 0, padding: '0 16px' }} title="Reject and send back to live">
+                    <i className="ri-close-line" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className={styles.adminBlock}>
             <label className={styles.adminLabel}>Status</label>
@@ -331,7 +600,7 @@ export default function MatchPage() {
           </div>
 
           <div className={styles.adminBlock}>
-            <label className={styles.adminLabel}>Set Result</label>
+            <label className={styles.adminLabel}>Override Result <span className={styles.adminHint}>(bypasses score request)</span></label>
             <div className={styles.resultForm}>
               <div className={styles.field}>
                 <label className={styles.fieldLabel}>Winner</label>
