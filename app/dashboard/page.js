@@ -35,6 +35,8 @@ export default function Dashboard() {
 
   // Edit states
   const [editUser, setEditUser] = useState(null)
+  const [editUserPhoneCode, setEditUserPhoneCode] = useState('255')
+  const [editUserPhoneLocal, setEditUserPhoneLocal] = useState('')
   const [editPost, setEditPost] = useState(null)
   const [editTournament, setEditTournament] = useState(null)
   const [editShop, setEditShop] = useState(null)
@@ -186,6 +188,9 @@ export default function Dashboard() {
 
   // ── Users ──
   async function saveUser() {
+    const fullPhone = editUserPhoneLocal.trim()
+      ? `+${editUserPhoneCode}${editUserPhoneLocal.trim().replace(/^0/, '')}`
+      : null
     const { error } = await supabase.from('profiles').update({
       username: editUser.username,
       tier: editUser.tier,
@@ -194,9 +199,10 @@ export default function Dashboard() {
       losses: Number(editUser.losses),
       points: Number(editUser.points),
       bio: editUser.bio,
+      phone: fullPhone,
     }).eq('id', editUser.id)
     if (error) { alert(error.message); return }
-    setUsers(u => u.map(x => x.id === editUser.id ? { ...x, ...editUser } : x))
+    setUsers(u => u.map(x => x.id === editUser.id ? { ...x, ...editUser, phone: fullPhone } : x))
     setEditUser(null)
   }
   async function deleteUser(id) {
@@ -503,18 +509,26 @@ export default function Dashboard() {
           {tab === 'Users' && (
             <div className={styles.tableWrap}>
               <table className={styles.table}>
-                <thead><tr><th>Username</th><th>Email</th><th>Tier</th><th>Rank</th><th>Wins</th><th>Points</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Username</th><th>Email</th><th>Phone</th><th>Tier</th><th>Rank</th><th>Wins</th><th>Points</th><th>Actions</th></tr></thead>
                 <tbody>
                   {users.map(u => (
                     <tr key={u.id}>
                       <td><a href={`/profile/${u.id}`} className={styles.link}>{u.username}</a></td>
                       <td style={{ fontSize: 11, color: 'var(--text-muted)' }}>{u.email}</td>
+                      <td style={{ fontSize: 11, color: u.phone ? 'var(--text)' : 'var(--text-muted)', fontFamily: 'monospace' }}>{u.phone || <span style={{ opacity: 0.4 }}>—</span>}</td>
                       <td>{u.tier}</td>
                       <td>Lv.{u.level ?? 1}</td>
                       <td>{u.wins}</td>
                       <td>{(u.points || 0).toLocaleString()}</td>
                       <td style={{ display: 'flex', gap: 4 }}>
-                        <button className={styles.editBtn} onClick={() => setEditUser({ ...u })}><i className="ri-edit-line" /></button>
+                        <button className={styles.editBtn} onClick={() => {
+                            const CODES = ['254', '255', '256']
+                            const stripped = (u.phone || '').replace(/^\+/, '')
+                            const matched = CODES.find(c => stripped.startsWith(c))
+                            setEditUserPhoneCode(matched || '255')
+                            setEditUserPhoneLocal(matched ? stripped.slice(matched.length) : stripped)
+                            setEditUser({ ...u })
+                          }}><i className="ri-edit-line" /></button>
                         <button className={styles.delBtn} onClick={() => deleteUser(u.id)}><i className="ri-delete-bin-line" /></button>
                       </td>
                     </tr>
@@ -673,6 +687,53 @@ export default function Dashboard() {
                   </div>
                 ))}
                 <div className={styles.createField}><label>Bio</label><textarea rows={2} value={editUser.bio || ''} onChange={e => setEditUser(x => ({ ...x, bio: e.target.value }))} /></div>
+                <div className={styles.createField}>
+                  <label>Phone Number</label>
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                    {[
+                      { code: '254', flag: '/kenya.png',    label: '+254' },
+                      { code: '255', flag: '/tanzania.png', label: '+255' },
+                      { code: '256', flag: '/uganda.png',   label: '+256' },
+                    ].map(c => (
+                      <button key={c.code} type="button" onClick={() => setEditUserPhoneCode(c.code)} style={{
+                        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                        padding: '7px 8px', borderRadius: 4,
+                        border: `1px solid ${editUserPhoneCode === c.code ? 'var(--text)' : 'var(--border-dark)'}`,
+                        background: editUserPhoneCode === c.code ? 'var(--surface)' : 'var(--bg-2)',
+                        color: editUserPhoneCode === c.code ? 'var(--text)' : 'var(--text-muted)',
+                        fontWeight: 700, fontSize: 11, cursor: 'pointer', transition: 'all 0.15s',
+                      }}>
+                        <img src={c.flag} alt={c.code} style={{ width: 16, height: 16, borderRadius: 2, objectFit: 'cover' }} />
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    border: '1px solid var(--border-dark)', borderRadius: 4,
+                    background: 'var(--bg-2)', padding: '0 12px',
+                  }}>
+                    <span style={{ color: 'var(--text-muted)', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>+{editUserPhoneCode}</span>
+                    <div style={{ width: 1, height: 16, background: 'var(--border-dark)', flexShrink: 0 }} />
+                    <input
+                      type="tel"
+                      placeholder="712 345 678"
+                      value={editUserPhoneLocal}
+                      onChange={e => setEditUserPhoneLocal(e.target.value)}
+                      style={{
+                        flex: 1, border: 'none', background: 'transparent',
+                        padding: '10px 0', fontSize: 13, color: 'var(--text)',
+                        outline: 'none', fontFamily: 'var(--font)',
+                      }}
+                    />
+                    {editUserPhoneLocal && (
+                      <button type="button" onClick={() => setEditUserPhoneLocal('')}
+                        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0, fontSize: 14 }}>
+                        <i className="ri-close-line" />
+                      </button>
+                    )}
+                  </div>
+                </div>
                 <button className={styles.saveBtn} onClick={saveUser}><i className="ri-check-line" /> Save User</button>
               </div>
             </>}
