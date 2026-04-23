@@ -27,22 +27,24 @@ export default function Home() {
 
   useEffect(() => { loadPublic() }, [])
 
-  // Re-fetch tournaments when any participant joins so count stays live
+  // Live slot count updates
   useEffect(() => {
     const ch = supabase
       .channel('home-tourney-count')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tournament_participants' }, async () => {
         const { data } = await supabase
           .from('tournaments')
-          .select('id, name, game_slug, status, slots, registered_count, date, prize')
-          .in('status', ['active', 'upcoming'])
+          .select('id, name, slug, game_slug, status, slots, registered_count, date, prize, entrance_fee, is_test, created_by, created_at')
+          .in('status', ['active', 'ongoing'])
           .order('created_at', { ascending: false })
           .limit(4)
-        if (data) setTournaments(data)
+        if (data) {
+          setTournaments(filterTestTournaments(data))
+        }
       })
       .subscribe()
     return () => supabase.removeChannel(ch)
-  }, [])
+  }, [user, isAdmin])
 
   useEffect(() => {
     if (!user) return
@@ -50,15 +52,23 @@ export default function Home() {
     loadUserData()
   }, [user])
 
+  function filterTestTournaments(list) {
+    return (list || []).filter(t => {
+      if (!t.is_test) return true
+      if (!user) return false
+      return isAdmin || t.created_by === user?.id
+    })
+  }
+
   async function loadPublic() {
     setPublicLoading(true)
     const [{ data: tourns }, { data: players }, { data: matches }, { data: items }, { data: posts }] = await Promise.all([
       supabase
         .from('tournaments')
-        .select('id, name, game_slug, status, slots, registered_count, date, prize')
-        .in('status', ['active', 'upcoming'])
+        .select('id, name, slug, game_slug, status, slots, registered_count, date, prize, entrance_fee, is_test, created_by, created_at')
+        .in('status', ['active', 'ongoing'])
         .order('created_at', { ascending: false })
-        .limit(4),
+        .limit(6),
       supabase
         .from('profiles')
         .select('id, username, level, tier, points, wins, season_wins, avatar_url, country_flag, email, is_season_winner')
@@ -83,7 +93,7 @@ export default function Home() {
         .order('created_at', { ascending: false })
         .limit(4),
     ])
-    setTournaments(tourns || [])
+    setTournaments(filterTestTournaments(tourns))
     setTopPlayers(players || [])
     setLiveMatches(matches || [])
     setShopItems(items || [])
@@ -143,8 +153,13 @@ export default function Home() {
     return isNaN(n) || n <= 0 ? null : n
   }
 
-  function fmtTZS(n) {
-    return `TZS ${Number(n).toLocaleString()}`
+  function fmtTZS(n) { return `TZS ${Number(n).toLocaleString()}` }
+
+  function statusColor(s) {
+    return { active: '#22c55e', ongoing: '#6366f1', upcoming: '#f59e0b', completed: '#6b7280', cancelled: '#ef4444' }[s] || '#6b7280'
+  }
+  function statusIcon(s) {
+    return { active: 'ri-live-line', ongoing: 'ri-play-circle-fill', upcoming: 'ri-time-line', completed: 'ri-checkbox-circle-line', cancelled: 'ri-close-circle-line' }[s] || 'ri-circle-line'
   }
 
   const stats = profile ? (() => {
@@ -153,14 +168,14 @@ export default function Home() {
     const tw = profile.wins   ?? 0
     const tl = profile.losses ?? 0
     return [
-      { label: 'Level',        value: `Lv.${profile.level ?? 1}` },
-      { label: 'Season Wins',  value: sw },
-      { label: 'Win Rate',     value: tw + tl > 0 ? `${Math.round((tw / (tw + tl)) * 100)}%` : '—' },
-      { label: 'Points',       value: profile.points?.toLocaleString() ?? '—' },
+      { label: 'Level',        value: `Lv.${profile.level ?? 1}`,  icon: 'ri-bar-chart-fill' },
+      { label: 'Season Wins',  value: sw,                           icon: 'ri-trophy-fill' },
+      { label: 'Win Rate',     value: tw + tl > 0 ? `${Math.round((tw / (tw + tl)) * 100)}%` : '—', icon: 'ri-percent-line' },
+      { label: 'Points',       value: profile.points?.toLocaleString() ?? '—', icon: 'ri-star-fill' },
     ]
   })() : null
 
-  const season = getCurrentSeason()
+  const season   = getCurrentSeason()
   const daysLeft = getDaysRemaining()
 
   return (
@@ -168,14 +183,9 @@ export default function Home() {
 
       {/* ── Hero ── */}
       <div className={styles.hero}>
-        {/* Fading avatar background */}
         {profile?.avatar_url && (
-          <div
-            className={styles.heroBg}
-            style={{ backgroundImage: `url(${profile.avatar_url})` }}
-          />
+          <div className={styles.heroBg} style={{ backgroundImage: `url(${profile.avatar_url})` }} />
         )}
-
         <div className={styles.heroInner}>
           <div className={styles.heroLeft}>
             <p className={styles.eyebrow}>Season {season} · {daysLeft}d left</p>
@@ -185,7 +195,6 @@ export default function Home() {
             </h1>
             {!user && <p className={styles.heroSub}>Sign in to track your matches and climb the ranks.</p>}
           </div>
-
           {profile && (
             <div className={styles.rankBadge}>
               <span className={styles.rankLabel}>LEVEL</span>
@@ -201,6 +210,7 @@ export default function Home() {
         <div className={styles.statsGrid}>
           {stats.map(s => (
             <div key={s.label} className={styles.statCard}>
+              <i className={s.icon} />
               <span className={styles.statLabel}>{s.label}</span>
               <span className={styles.statValue}>{s.value}</span>
             </div>
@@ -227,13 +237,10 @@ export default function Home() {
         return (
           <div className={styles.tierBar}>
             <div className={styles.tierBarTop}>
-              <span className={styles.tierBarLabel}>
-                <i className="ri-shield-star-line" /> {tier}
-              </span>
+              <span className={styles.tierBarLabel}><i className="ri-shield-star-line" /> {tier}</span>
               {isMax
                 ? <span className={styles.tierBarMax}>Max tier 🏆</span>
-                : <span className={styles.tierBarNext}>{winsLeft} win{winsLeft !== 1 ? 's' : ''} to {nextTier}</span>
-              }
+                : <span className={styles.tierBarNext}>{winsLeft} win{winsLeft !== 1 ? 's' : ''} to {nextTier}</span>}
             </div>
             <div className={styles.tierTrack}>
               <div className={styles.tierFill} style={{ width: `${Math.max(pct, seasonWins > 0 ? 4 : 0)}%` }} />
@@ -248,8 +255,7 @@ export default function Home() {
               </span>
               {(profile.level ?? 1) >= MAX_LEVEL
                 ? <span className={styles.tierBarMax}>Max level 🌟</span>
-                : <span className={styles.tierBarNext}>{Math.max(0, levelThreshold - seasonWins)} wins to Lv.{(profile.level ?? 1) + 1}</span>
-              }
+                : <span className={styles.tierBarNext}>{Math.max(0, levelThreshold - seasonWins)} wins to Lv.{(profile.level ?? 1) + 1}</span>}
             </div>
             <div className={styles.tierTrack}>
               <div className={styles.tierFill} style={{
@@ -325,7 +331,7 @@ export default function Home() {
         </section>
       )}
 
-      {/* ── Active Tournaments ── */}
+      {/* ── Active & Ongoing Tournaments ── */}
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}><i className="ri-node-tree" /> Tournaments</h2>
@@ -344,26 +350,41 @@ export default function Home() {
         ) : (
           <div className={styles.tournamentList}>
             {tournaments.map(t => {
-              const game = GAME_META[t.game_slug]
-              const prize = parsePrize(t.prize)
-              const pct = t.slots ? Math.min(100, Math.round(((t.registered_count || 0) / t.slots) * 100)) : 0
+              const game   = GAME_META[t.game_slug]
+              const prize  = parsePrize(t.prize)
+              const fee    = t.entrance_fee ? parsePrize(t.entrance_fee) : null
+              const pct    = t.slots ? Math.min(100, Math.round(((t.registered_count || 0) / t.slots) * 100)) : 0
               const isFull = (t.registered_count || 0) >= t.slots
+              const href   = `/tournaments/${t.slug || t.id}`
               return (
-                <Link key={t.id} href={`/tournaments/${t.id}`} className={styles.tCard}>
+                <Link key={t.id} href={href} className={styles.tCard}>
                   <div className={styles.tCardTop}>
                     <div className={styles.tCardMeta}>
                       <span className={styles.tGameTag}>
                         <i className={game?.icon || 'ri-gamepad-line'} /> {game?.name || t.game_slug}
                       </span>
-                      <span className={`${styles.tStatusBadge} ${t.status === 'active' ? styles.tStatusActive : styles.tStatusUpcoming}`}>
-                        <i className={t.status === 'active' ? 'ri-live-line' : 'ri-time-line'} /> {t.status}
+                      {/* Status badge — color-coded for active vs ongoing */}
+                      <span className={styles.tStatusBadge} style={{
+                        color: statusColor(t.status),
+                        background: `${statusColor(t.status)}18`,
+                        border: `1px solid ${statusColor(t.status)}40`,
+                      }}>
+                        <i className={statusIcon(t.status)} /> {t.status}
                       </span>
+                      {/* Test badge */}
+                      {t.is_test && (
+                        <span className={styles.tTestBadge}><i className="ri-flask-line" /> Test</span>
+                      )}
+                      {/* Entry fee badge */}
+                      {fee && (
+                        <span className={styles.tFeeBadge}><i className="ri-money-dollar-circle-line" /> TZS {fee.toLocaleString()}</span>
+                      )}
                       {isFull && <span className={styles.tFullBadge}><i className="ri-lock-line" /> Full</span>}
                     </div>
                     <h3 className={styles.tCardName}>{t.name}</h3>
                   </div>
                   <div className={styles.tCardStats}>
-                    {prize && <span><i className="ri-trophy-line" />TZS {prize.toLocaleString()}</span>}
+                    {prize && <span><i className="ri-trophy-line" />{fmtTZS(prize)}</span>}
                     {t.date && <span><i className="ri-calendar-event-line" />{t.date}</span>}
                     {t.format && <span><i className="ri-gamepad-line" />{t.format}</span>}
                   </div>
@@ -490,14 +511,13 @@ export default function Home() {
           <div className={styles.shopGrid}>
             {shopItems.map(item => {
               const price = parsePrize(item.price)
-              const imgs = shopImages[item.id] || []
+              const imgs  = shopImages[item.id] || []
               return (
                 <Link key={item.id} href={`/shop/${item.id}`} className={styles.shopCard}>
                   <div className={styles.shopCardImgWrap}>
                     {imgs.length > 0
                       ? <img src={imgs[0]} alt={item.title} className={styles.shopCardImg} />
-                      : <div className={styles.shopCardImgEmpty}><i className="ri-image-line" /></div>
-                    }
+                      : <div className={styles.shopCardImgEmpty}><i className="ri-image-line" /></div>}
                     <span className={styles.shopCatBadge}>{item.category || 'item'}</span>
                   </div>
                   <div className={styles.shopCardBody}>
@@ -549,13 +569,11 @@ export default function Home() {
               return (
                 <Link key={post.id} href="/feed" className={styles.feedPost}>
                   <div className={styles.feedPostHeader}>
-                    <Link href="/feed" className={styles.feedAvatarLink} onClick={e => e.stopPropagation()}>
-                      <div className={styles.feedAvatar}>
-                        {post.profiles?.avatar_url
-                          ? <img src={post.profiles.avatar_url} alt="" className={styles.avatarImg} />
-                          : <span>{(post.profiles?.username || '?').slice(0, 2).toUpperCase()}</span>}
-                      </div>
-                    </Link>
+                    <div className={styles.feedAvatar}>
+                      {post.profiles?.avatar_url
+                        ? <img src={post.profiles.avatar_url} alt="" className={styles.avatarImg} />
+                        : <span>{(post.profiles?.username || '?').slice(0, 2).toUpperCase()}</span>}
+                    </div>
                     <div className={styles.feedPostMeta}>
                       <span className={styles.feedUser}>{post.profiles?.username || '—'} <span className={styles.feedTier}>{post.profiles?.tier}</span></span>
                       <span className={styles.feedTime}>{ago}</span>
@@ -594,7 +612,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Season Progress Bar ── */}
+      {/* ── Season Bar ── */}
       <div className={styles.seasonBar}>
         <div className={styles.seasonBarTop}>
           <span className={styles.seasonBarLabel}><i className="ri-calendar-line" /> Season {season}</span>

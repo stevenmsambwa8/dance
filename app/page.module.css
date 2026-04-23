@@ -308,3 +308,23 @@
 .gameCard:hover { color: var(--text); border-color: var(--text-muted); transform: translateY(-1px); }
 .gameCard i { font-size: 24px; }
 .gameCardImg { width: 48px; height: 48px; object-fit: cover; border-radius: 10px; display: block; }
+
+/* ── Tournament card: test + fee badges (home page additions) ── */
+.tTestBadge {
+  font-size: 10px; font-weight: 700;
+  color: #d97706; background: rgba(217,119,6,0.1);
+  border-radius: 4px; padding: 2px 7px;
+  display: flex; align-items: center; gap: 3px;
+}
+[data-theme="dark"] .tTestBadge { color: #fbbf24; background: rgba(251,191,36,0.12); }
+
+.tFeeBadge {
+  font-size: 10px; font-weight: 700;
+  color: #0ea5e9; background: rgba(14,165,233,0.1);
+  border-radius: 4px; padding: 2px 7px;
+  display: flex; align-items: center; gap: 3px;
+}
+[data-theme="dark"] .tFeeBadge { background: rgba(14,165,233,0.15); }
+
+/* stat card icons */
+.statCard i { font-size: 16px; color: var(--accent); margin-bottom: 2px; }

@@ -325,8 +325,10 @@ export default function TournamentDetail() {
   const [payPhone, setPayPhone]           = useState('')
   const [payLoading, setPayLoading]       = useState(false)
   const [payErr, setPayErr]               = useState('')
+  const [testTimeLeft, setTestTimeLeft]   = useState(null) // ms remaining for test tournament
 
-  const toastTimer = useRef(null)
+  const toastTimer   = useRef(null)
+  const testExpireTimer = useRef(null)
 
   function showToast(text, type = 'error') {
     if (toastTimer.current) clearTimeout(toastTimer.current)
@@ -394,6 +396,48 @@ export default function TournamentDetail() {
 
   useEffect(() => { if (slug) load() }, [load])
   useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current) }, [])
+
+  // ── Live countdown display for test tournament ───────────────────────────
+  useEffect(() => {
+    if (!tournament?.is_test || !tournament?.created_at) { setTestTimeLeft(null); return }
+    const THREE_HOURS_MS = 3 * 60 * 60 * 1000
+    const tick = () => {
+      const elapsed = Date.now() - new Date(tournament.created_at).getTime()
+      setTestTimeLeft(Math.max(0, THREE_HOURS_MS - elapsed))
+    }
+    tick()
+    const iv = setInterval(tick, 1000)
+    return () => clearInterval(iv)
+  }, [tournament?.is_test, tournament?.created_at])
+
+  // ── Auto-delete test tournaments after 3 hours ─────────────────────────────
+  useEffect(() => {
+    if (!tournament?.is_test || !tournament?.created_at || !id) return
+    if (testExpireTimer.current) clearTimeout(testExpireTimer.current)
+
+    const THREE_HOURS_MS = 3 * 60 * 60 * 1000
+    const createdAt = new Date(tournament.created_at).getTime()
+    const elapsed   = Date.now() - createdAt
+    const remaining = THREE_HOURS_MS - elapsed
+
+    async function autoDelete() {
+      // silently delete all related data then redirect
+      await supabase.from('tournament_leaderboard').delete().eq('tournament_id', id)
+      await supabase.from('tournament_participants').delete().eq('tournament_id', id)
+      await supabase.from('tournament_payments').delete().eq('tournament_id', id)
+      await supabase.from('tournaments').delete().eq('id', id)
+      router.replace('/tournaments')
+    }
+
+    if (remaining <= 0) {
+      // Already expired — delete immediately
+      autoDelete()
+    } else {
+      testExpireTimer.current = setTimeout(autoDelete, remaining)
+    }
+
+    return () => { if (testExpireTimer.current) clearTimeout(testExpireTimer.current) }
+  }, [tournament?.is_test, tournament?.created_at, id])
 
   // ── Realtime subscriptions ─────────────────────────────────────────────────
 
@@ -1440,6 +1484,16 @@ export default function TournamentDetail() {
           {isTestTournament && (
             <span className={styles.heroTestChip}>
               <i className="ri-flask-line" /> Test Run
+              {testTimeLeft !== null && (
+                <span className={styles.heroTestTimer}>
+                  {(() => {
+                    const h = Math.floor(testTimeLeft / 3600000)
+                    const m = Math.floor((testTimeLeft % 3600000) / 60000)
+                    const s = Math.floor((testTimeLeft % 60000) / 1000)
+                    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+                  })()}
+                </span>
+              )}
             </span>
           )}
           {/* Start Tournament button — creator or admin, only when active */}

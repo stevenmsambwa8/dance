@@ -1570,3 +1570,15 @@
 .modalSubmit:hover:not(:disabled) { opacity: 0.87; transform: translateY(-1px); }
 .modalSubmit:active:not(:disabled) { transform: translateY(0); }
 .modalSubmit:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+/* ── Test tournament countdown timer in hero chip ── */
+.heroTestTimer {
+  margin-left: 6px;
+  font-size: 10px; font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.05em;
+  background: rgba(245,158,11,0.18);
+  border-radius: 6px; padding: 1px 6px;
+  color: #d97706;
+}
+[data-theme="dark"] .heroTestTimer { color: #fbbf24; background: rgba(251,191,36,0.2); }
