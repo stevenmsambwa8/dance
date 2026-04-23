@@ -482,3 +482,245 @@
   .statVal { font-size: 22px; }
   .tMeta { display: none; }
 }
+
+/* ── Create Tournament button ─────────────────────────────── */
+.createBtn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 11px 18px; border-radius: 10px;
+  background: var(--text); color: var(--bg);
+  border: none; font-size: 13px; font-weight: 700;
+  text-decoration: none; transition: opacity 0.15s; cursor: pointer;
+}
+.createBtn:hover { opacity: 0.85; }
+
+/* ── Tab switcher ─────────────────────────────────────────── */
+.tabRow {
+  display: flex; align-items: center; gap: 6px;
+}
+.tabBtn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 12px; border-radius: 20px;
+  border: 1px solid var(--border-dark);
+  background: none; font-size: 11px; font-weight: 700;
+  color: var(--text-muted); cursor: pointer; transition: all 0.15s;
+}
+.tabBtn span {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 16px; height: 16px; border-radius: 20px;
+  background: var(--border-dark); color: var(--text-muted);
+  font-size: 9px; font-weight: 900; padding: 0 4px;
+}
+.tabActive {
+  background: rgba(34,197,94,0.1); color: #16a34a;
+  border-color: rgba(34,197,94,0.3);
+}
+.tabActive span { background: #16a34a; color: #fff; }
+.tabActiveOngoing {
+  background: rgba(99,102,241,0.1); color: #6366f1;
+  border-color: rgba(99,102,241,0.3);
+}
+
+/* ── Empty state ──────────────────────────────────────────── */
+.emptyWrap {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 8px; padding: 52px 20px; text-align: center; color: var(--text-muted);
+}
+.emptyWrap i { font-size: 32px; margin-bottom: 4px; }
+.emptyWrap p { font-size: 13px; color: var(--text-dim); }
+.emptyLink {
+  font-size: 12px; font-weight: 700; color: var(--accent);
+  display: flex; align-items: center; gap: 4px; text-decoration: none;
+  margin-top: 4px;
+}
+
+/* ── Tournament row additions ─────────────────────────────── */
+.tTopRow {
+  display: flex; align-items: flex-start;
+  justify-content: space-between; gap: 8px; margin-bottom: 3px;
+}
+.tBadges { display: flex; align-items: center; gap: 4px; flex-shrink: 0; flex-wrap: wrap; }
+
+.tRowOngoing {
+  border-left: 3px solid #6366f1;
+  padding-left: 9px;
+  background: rgba(99,102,241,0.03);
+  opacity: 1; cursor: pointer; pointer-events: all;
+}
+.tRowOngoing:hover { background: rgba(99,102,241,0.07); }
+
+/* ── Status / info badges on rows ─────────────────────────── */
+.badgeActive {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 9px; font-weight: 800; letter-spacing: 0.06em;
+  text-transform: uppercase; padding: 2px 6px; border-radius: 4px;
+  background: rgba(34,197,94,0.1); color: #16a34a;
+  border: 1px solid rgba(34,197,94,0.25);
+}
+.badgeOngoing {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 9px; font-weight: 800; letter-spacing: 0.06em;
+  text-transform: uppercase; padding: 2px 6px; border-radius: 4px;
+  background: rgba(99,102,241,0.12); color: #6366f1;
+  border: 1px solid rgba(99,102,241,0.3);
+}
+.badgeTest {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px;
+  background: rgba(245,158,11,0.1); color: #d97706;
+  border: 1px solid rgba(245,158,11,0.25);
+}
+[data-theme="dark"] .badgeTest { color: #fbbf24; background: rgba(251,191,36,0.1); }
+
+.badgeFee {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px;
+  background: rgba(14,165,233,0.1); color: #0ea5e9;
+  border: 1px solid rgba(14,165,233,0.22);
+}
+
+/* Right-side pill badges */
+.badgeView {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10px; font-weight: 700; padding: 5px 10px; border-radius: 6px;
+  background: rgba(99,102,241,0.12); color: #6366f1;
+  border: 1px solid rgba(99,102,241,0.25); flex-shrink: 0;
+  white-space: nowrap;
+}
+.badgePending {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+  padding: 4px 10px; border-radius: 6px; text-transform: uppercase; flex-shrink: 0;
+  background: rgba(14,165,233,0.1); color: #0ea5e9;
+  border: 1px solid rgba(14,165,233,0.25);
+}
+.badgePay {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+  padding: 4px 10px; border-radius: 6px; text-transform: uppercase; flex-shrink: 0;
+  background: rgba(217,119,6,0.1); color: #d97706;
+  border: 1px solid rgba(217,119,6,0.25);
+}
+
+/* slot warm/full colors */
+.slotWarm { background: #f97316; }
+.slotFull { background: #dc2626; }
+
+/* ── Detail sheet ─────────────────────────────────────────── */
+.detailTitle {
+  font-size: 18px; font-weight: 900;
+  color: var(--text); margin-bottom: 4px;
+}
+.detailFormat {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text-muted); margin-bottom: 16px;
+}
+.pendingBanner {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 14px; border-radius: 10px;
+  background: rgba(14,165,233,0.08); border: 1px solid rgba(14,165,233,0.25);
+  font-size: 13px; font-weight: 600; color: #0ea5e9; margin-bottom: 16px;
+}
+.detailActions {
+  display: flex; flex-direction: column; gap: 8px; margin-top: 16px;
+}
+.viewBtn {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 12px; border-radius: 10px;
+  border: 1px solid var(--border-dark); background: var(--surface);
+  color: var(--text); font-size: 13px; font-weight: 700;
+  text-decoration: none; transition: background 0.15s;
+}
+.viewBtn:hover { background: var(--bg-2); }
+.fullNote {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 12px; border-radius: 10px;
+  background: var(--surface); border: 1px solid var(--border);
+  font-size: 13px; font-weight: 600; color: var(--text-muted);
+}
+.tGridLabel i { font-size: 13px; margin-right: 4px; color: var(--text-muted); }
+
+/* ── Payment Modal ────────────────────────────────────────── */
+.modalBackdrop {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  display: flex; align-items: flex-end; justify-content: center;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  animation: gFadeIn 0.2s ease;
+}
+@keyframes gFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.modalSheet {
+  background: var(--bg); border-radius: 22px 22px 0 0;
+  width: 100%; max-width: 600px; padding: 10px 22px 44px;
+  position: relative; max-height: 92dvh; overflow-y: auto;
+  animation: gSlideUp 0.28s cubic-bezier(0.32,0.72,0,1);
+  scrollbar-width: thin; scrollbar-color: var(--border-dark) transparent;
+}
+.modalSheet::-webkit-scrollbar { width: 4px; }
+.modalSheet::-webkit-scrollbar-thumb { background: var(--border-dark); border-radius: 99px; }
+@keyframes gSlideUp {
+  from { transform: translateY(60px); opacity: 0.4; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.modalSheet::before {
+  content: ''; display: block; width: 36px; height: 4px;
+  border-radius: 99px; background: var(--border-dark); margin: 0 auto 20px;
+}
+.modalClose {
+  position: absolute; top: 18px; right: 16px;
+  width: 32px; height: 32px; border-radius: 50%;
+  border: 1px solid var(--border-dark); background: var(--surface);
+  color: var(--text-muted); font-size: 17px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: background 0.15s; z-index: 1;
+}
+.modalClose:hover { background: var(--bg-2); color: var(--text); }
+.modalIcon { font-size: 38px; color: var(--accent); text-align: center; display: block; margin-bottom: 10px; }
+.modalTitle { font-size: 20px; font-weight: 900; text-align: center; margin-bottom: 6px; color: var(--text); }
+.modalSub { font-size: 13px; color: var(--text-muted); text-align: center; line-height: 1.6; margin-bottom: 20px; }
+.modalSub strong { color: var(--text); }
+.modalInstr {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 16px; margin-bottom: 20px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.instrRow { display: flex; gap: 12px; font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+.instrRow > span:first-child { font-weight: 900; color: var(--accent); flex-shrink: 0; width: 16px; padding-top: 1px; }
+.modalField { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.modalField label {
+  font-size: 10px; font-weight: 800; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--text-muted);
+}
+.modalField input {
+  border: 1.5px solid var(--border-dark); border-radius: 10px;
+  padding: 12px 14px; background: var(--surface);
+  font-size: 15px; font-weight: 600; color: var(--text); outline: none;
+  font-family: var(--font); width: 100%; box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+.modalField input:focus { border-color: var(--text); background: var(--bg); }
+.modalField input::placeholder { color: var(--text-muted); font-weight: 400; }
+.req { color: #ef4444; margin-left: 2px; }
+.modalErr {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600; color: #ef4444;
+  background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2);
+  border-radius: 8px; padding: 10px 12px; margin-bottom: 14px;
+}
+.modalSubmit {
+  width: 100%; padding: 14px; border-radius: 12px;
+  background: var(--text); color: var(--bg); border: none;
+  font-size: 15px; font-weight: 800; font-family: var(--font);
+  cursor: pointer; transition: opacity 0.15s, transform 0.1s;
+  display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 4px;
+}
+.modalSubmit:hover:not(:disabled) { opacity: 0.87; transform: translateY(-1px); }
+.modalSubmit:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+/* ── Mobile ───────────────────────────────────────────────── */
+@media (max-width: 560px) {
+  .tMeta { display: none; }
+  .tBadges { display: none; }
+  .statsStrip .stat:last-child { display: flex; }
+}

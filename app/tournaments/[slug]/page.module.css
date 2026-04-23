@@ -1582,3 +1582,33 @@
   color: #d97706;
 }
 [data-theme="dark"] .heroTestTimer { color: #fbbf24; background: rgba(251,191,36,0.2); }
+
+/* ── Payment box (real account numbers) ─────────────────── */
+.paymentBox {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: 16px; margin-bottom: 18px;
+}
+.payProviderHead {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 11px; font-weight: 800; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text);
+  padding-bottom: 10px; margin-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.payProviderHead i { font-size: 16px; }
+.payRow {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  font-size: 13px; padding: 5px 0;
+}
+.payRow span { color: var(--text-muted); font-weight: 500; }
+.payRow strong { color: var(--text); font-weight: 700; }
+.payNumber { font-size: 20px !important; letter-spacing: 2px; font-variant-numeric: tabular-nums; }
+.payDivider {
+  height: 1px; background: var(--border);
+  margin: 12px 0;
+}
+.modalSubSmall {
+  font-size: 12px; font-weight: 600; color: var(--text-dim);
+  margin-bottom: 12px;
+}

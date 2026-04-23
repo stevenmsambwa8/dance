@@ -593,7 +593,7 @@ export default function TournamentDetail() {
 
   // ── Submit entrance-fee payment proof ────────────────────────────────────
   async function submitPayment() {
-    if (!payRef.trim() || !payPhone.trim()) { setPayErr('Fill in all fields'); return }
+    if (!payRef.trim() && !payPhone.trim()) { setPayErr('Enter your transaction ID or phone number'); return }
     setPayLoading(true); setPayErr('')
     const fee = tournament.entrance_fee
 
@@ -606,7 +606,7 @@ export default function TournamentDetail() {
 
     const { error } = await supabase.from('tournament_payments').upsert({
       tournament_id: id, user_id: user.id,
-      payment_ref: payRef.trim(), payment_phone: payPhone.trim(),
+      payment_ref: payRef.trim() || null, payment_phone: payPhone.trim() || null,
       amount: fee, status: 'payment_submitted',
       submitted_at: new Date().toISOString(),
     }, { onConflict: 'tournament_id,user_id' })
@@ -1571,27 +1571,66 @@ export default function TournamentDetail() {
         <div className={styles.modalBackdrop} onClick={() => setShowPayModal(false)}>
           <div className={styles.modalSheet} onClick={e => e.stopPropagation()}>
             <button className={styles.modalClose} onClick={() => setShowPayModal(false)}><i className="ri-close-line" /></button>
-            <div className={styles.modalIcon}><i className="ri-money-dollar-circle-line" /></div>
-            <h3 className={styles.modalTitle}>Entry Fee Required</h3>
-            <p className={styles.modalSub}>
-              Send <strong>TZS {Number(tournament.entrance_fee).toLocaleString()}</strong> via M-Pesa, then paste your reference below.
-            </p>
-            <div className={styles.modalInstructions}>
-              <div className={styles.instrRow}><span>1.</span><span>Go to M-Pesa → Pay Bill / Lipa</span></div>
-              <div className={styles.instrRow}><span>2.</span><span>Send TZS {Number(tournament.entrance_fee).toLocaleString()} to the admin account</span></div>
-              <div className={styles.instrRow}><span>3.</span><span>Copy the M-Pesa transaction reference below</span></div>
+
+            <p className={styles.modalTitle}><i className="ri-secure-payment-line" style={{ color: '#22c55e' }} /> Send Payment</p>
+            <p className={styles.modalSub}>Send the exact amount to one of the accounts below, then submit your proof.</p>
+
+            <div className={styles.paymentBox}>
+              <div className={styles.payProviderHead}>
+                <i className="ri-sim-card-line" style={{ color: '#e11d48' }} />
+                <span>Halopesa — Lipa Number</span>
+              </div>
+              <div className={styles.payRow}>
+                <span>Lipa Number</span>
+                <strong className={styles.payNumber}>25165945</strong>
+              </div>
+              <div className={styles.payRow}>
+                <span>Account Name</span>
+                <strong>NABOGAMING</strong>
+              </div>
+
+              <div className={styles.payDivider} />
+
+              <div className={styles.payProviderHead}>
+                <i className="ri-sim-card-2-line" style={{ color: '#16a34a' }} />
+                <span>M-Pesa — Lipa Number</span>
+              </div>
+              <div className={styles.payRow}>
+                <span>Lipa Number</span>
+                <strong className={styles.payNumber}>36835506</strong>
+              </div>
+              <div className={styles.payRow}>
+                <span>Account Name</span>
+                <strong>STEVEN DAVID</strong>
+              </div>
+
+              <div className={styles.payDivider} />
+
+              <div className={styles.payRow}>
+                <span>Amount</span>
+                <strong style={{ color: '#22c55e', fontSize: 16 }}>TZS {Number(tournament.entrance_fee).toLocaleString()}</strong>
+              </div>
+              <div className={styles.payRow}>
+                <span>Reference</span>
+                <strong>{tournament.name?.slice(0, 22)}</strong>
+              </div>
+            </div>
+
+            <p className={styles.modalSubSmall}>After paying, enter your proof below:</p>
+
+            <div className={styles.modalField}>
+              <label><i className="ri-fingerprint-line" /> Transaction ID / Reference <span className={styles.req}>*</span></label>
+              <input type="text" placeholder="e.g. ABC12345XY" value={payRef} onChange={e => setPayRef(e.target.value)} />
             </div>
             <div className={styles.modalField}>
-              <label>M-Pesa Reference <span className={styles.req}>*</span></label>
-              <input type="text" placeholder="e.g. QJK2XABCD" value={payRef} onChange={e => setPayRef(e.target.value)} />
-            </div>
-            <div className={styles.modalField}>
-              <label>Phone Used <span className={styles.req}>*</span></label>
+              <label><i className="ri-phone-line" /> Phone Number Used</label>
               <input type="tel" placeholder="e.g. 0712 345 678" value={payPhone} onChange={e => setPayPhone(e.target.value)} />
             </div>
+
             {payErr && <p className={styles.modalErr}><i className="ri-error-warning-line" /> {payErr}</p>}
-            <button className={styles.modalSubmit} onClick={submitPayment} disabled={payLoading}>
-              {payLoading ? <><i className="ri-loader-4-line" /> Submitting…</> : <><i className="ri-send-plane-line" /> Submit Payment Proof</>}
+
+            <button className={styles.modalSubmit} onClick={submitPayment} disabled={payLoading || (!payRef.trim() && !payPhone.trim())}>
+              {payLoading ? <><i className="ri-loader-4-line" /> Submitting…</> : <><i className="ri-check-double-line" /> I've Paid — Notify Admin</>}
             </button>
           </div>
         </div>

@@ -40,64 +40,42 @@ function PaymentModal({ tournament, user, onClose, onSubmitted }) {
   const [err,      setErr]      = useState('')
 
   async function submit() {
-    if (!payRef.trim() || !payPhone.trim()) { setErr('Fill in all fields'); return }
+    if (!payRef.trim() && !payPhone.trim()) { setErr('Enter your transaction ID or phone number'); return }
     setLoading(true); setErr('')
 
-    // Guard against duplicate submissions
     const { data: existing } = await supabase
-      .from('tournament_payments')
-      .select('id, status')
-      .eq('tournament_id', tournament.id)
-      .eq('user_id', user.id)
-      .maybeSingle()
+      .from('tournament_payments').select('id, status')
+      .eq('tournament_id', tournament.id).eq('user_id', user.id).maybeSingle()
 
-    if (existing?.status === 'approved') {
-      setErr('Your payment is already approved — refresh the page.'); setLoading(false); return
-    }
-    if (existing?.status === 'payment_submitted') {
-      setErr('Already submitted — waiting for admin approval.'); setLoading(false); return
-    }
+    if (existing?.status === 'approved')          { setErr('Already approved — refresh.'); setLoading(false); return }
+    if (existing?.status === 'payment_submitted') { setErr('Already submitted — awaiting admin.'); setLoading(false); return }
 
     const { error } = await supabase.from('tournament_payments').upsert({
-      tournament_id: tournament.id,
-      user_id:       user.id,
-      payment_ref:   payRef.trim(),
-      payment_phone: payPhone.trim(),
-      amount:        tournament.entrance_fee,
-      status:        'payment_submitted',
-      submitted_at:  new Date().toISOString(),
+      tournament_id: tournament.id, user_id: user.id,
+      payment_ref: payRef.trim() || null,
+      payment_phone: payPhone.trim() || null,
+      amount: tournament.entrance_fee, status: 'payment_submitted',
+      submitted_at: new Date().toISOString(),
     }, { onConflict: 'tournament_id,user_id' })
 
     if (error) { setErr(error.message); setLoading(false); return }
 
-    // Notify admins
-    const { data: admins } = await supabase
-      .from('profiles').select('id')
+    const { data: admins } = await supabase.from('profiles').select('id')
       .in('email', ['stevenmsambwa8@gmail.com', 'nabogamingss1@gmail.com'])
     if (admins?.length) {
       const { data: prof } = await supabase.from('profiles').select('username').eq('id', user.id).single()
-      await supabase.from('notifications').insert(
-        admins.map(a => ({
-          user_id: a.id,
-          title:   '💳 Tournament Payment — Verify',
-          body:    `${prof?.username || 'A player'} submitted TZS ${fmtFee(tournament.entrance_fee)} entry fee for "${tournament.name}". Ref: ${payRef.trim()} · Phone: ${payPhone.trim()}`,
-          type:    'payment',
-          meta:    { tournament_id: tournament.id, action: 'verify_tournament_payment' },
-          read:    false,
-        }))
-      )
+      await supabase.from('notifications').insert(admins.map(a => ({
+        user_id: a.id,
+        title: '💳 Tournament Payment — Verify',
+        body: `${prof?.username || 'A player'} paid TZS ${fmtFee(tournament.entrance_fee)} for "${tournament.name}". Ref: ${payRef.trim() || payPhone.trim()}`,
+        type: 'payment', meta: { tournament_id: tournament.id, action: 'verify_tournament_payment' }, read: false,
+      })))
     }
-
-    // Notify user
     await supabase.from('notifications').insert({
-      user_id: user.id,
-      title:   '⏳ Payment Submitted',
-      body:    `Your entry fee for "${tournament.name}" is pending admin approval. Ref: ${payRef.trim()}`,
-      type:    'tournament',
-      meta:    { tournament_id: tournament.id },
-      read:    false,
+      user_id: user.id, title: '⏳ Payment Submitted',
+      body: `Entry fee for "${tournament.name}" is pending admin approval.`,
+      type: 'tournament', meta: { tournament_id: tournament.id }, read: false,
     })
-
     onSubmitted(tournament.id)
   }
 
@@ -105,31 +83,66 @@ function PaymentModal({ tournament, user, onClose, onSubmitted }) {
     <div className={styles.modalBackdrop} onClick={onClose}>
       <div className={styles.modalSheet} onClick={e => e.stopPropagation()}>
         <button className={styles.modalClose} onClick={onClose}><i className="ri-close-line" /></button>
-        <i className={`ri-money-dollar-circle-line ${styles.modalIcon}`} />
-        <h3 className={styles.modalTitle}>Entry Fee Required</h3>
-        <p className={styles.modalSub}>
-          Send <strong>TZS {fmtFee(tournament.entrance_fee)}</strong> via M-Pesa, then paste your reference below.
-        </p>
-        <div className={styles.modalInstructions}>
-          <div className={styles.instrRow}><span>1.</span><span>Open M-Pesa → Lipa na M-Pesa / Pay Bill</span></div>
-          <div className={styles.instrRow}><span>2.</span><span>Send TZS {fmtFee(tournament.entrance_fee)} to the admin number</span></div>
-          <div className={styles.instrRow}><span>3.</span><span>Copy the confirmation reference code below</span></div>
+
+        <p className={styles.modalTitle}><i className="ri-secure-payment-line" style={{ color: '#22c55e' }} /> Send Payment</p>
+        <p className={styles.modalSub}>Send the exact amount to one of the accounts below, then submit your proof.</p>
+
+        <div className={styles.paymentBox}>
+          <div className={styles.payProviderHead}>
+            <i className="ri-sim-card-line" style={{ color: '#e11d48' }} />
+            <span>Halopesa — Lipa Number</span>
+          </div>
+          <div className={styles.payRow}>
+            <span>Lipa Number</span>
+            <strong className={styles.payNumber}>25165945</strong>
+          </div>
+          <div className={styles.payRow}>
+            <span>Account Name</span>
+            <strong>NABOGAMING</strong>
+          </div>
+
+          <div className={styles.payDivider} />
+
+          <div className={styles.payProviderHead}>
+            <i className="ri-sim-card-2-line" style={{ color: '#16a34a' }} />
+            <span>M-Pesa — Lipa Number</span>
+          </div>
+          <div className={styles.payRow}>
+            <span>Lipa Number</span>
+            <strong className={styles.payNumber}>36835506</strong>
+          </div>
+          <div className={styles.payRow}>
+            <span>Account Name</span>
+            <strong>STEVEN DAVID</strong>
+          </div>
+
+          <div className={styles.payDivider} />
+
+          <div className={styles.payRow}>
+            <span>Amount</span>
+            <strong style={{ color: '#22c55e', fontSize: 16 }}>TZS {fmtFee(tournament.entrance_fee)}</strong>
+          </div>
+          <div className={styles.payRow}>
+            <span>Reference</span>
+            <strong>{tournament.name?.slice(0, 22)}</strong>
+          </div>
+        </div>
+
+        <p className={styles.modalSubSmall}>After paying, enter your proof below:</p>
+
+        <div className={styles.modalField}>
+          <label><i className="ri-fingerprint-line" /> Transaction ID / Reference <span className={styles.req}>*</span></label>
+          <input type="text" placeholder="e.g. ABC12345XY" value={payRef} onChange={e => setPayRef(e.target.value)} />
         </div>
         <div className={styles.modalField}>
-          <label>M-Pesa Reference <span className={styles.req}>*</span></label>
-          <input type="text" placeholder="e.g. QJK2XABCD" value={payRef} onChange={e => setPayRef(e.target.value)} />
-        </div>
-        <div className={styles.modalField}>
-          <label>Phone Number Used <span className={styles.req}>*</span></label>
+          <label><i className="ri-phone-line" /> Phone Number Used</label>
           <input type="tel" placeholder="e.g. 0712 345 678" value={payPhone} onChange={e => setPayPhone(e.target.value)} />
         </div>
-        {err && (
-          <p className={styles.modalErr}><i className="ri-error-warning-line" /> {err}</p>
-        )}
-        <button className={styles.modalSubmit} onClick={submit} disabled={loading}>
-          {loading
-            ? <><i className="ri-loader-4-line" /> Submitting…</>
-            : <><i className="ri-send-plane-line" /> Submit Payment Proof</>}
+
+        {err && <p className={styles.modalErr}><i className="ri-error-warning-line" /> {err}</p>}
+
+        <button className={styles.modalSubmit} onClick={submit} disabled={loading || (!payRef.trim() && !payPhone.trim())}>
+          {loading ? <><i className="ri-loader-4-line" /> Submitting…</> : <><i className="ri-check-double-line" /> I've Paid — Notify Admin</>}
         </button>
       </div>
     </div>
