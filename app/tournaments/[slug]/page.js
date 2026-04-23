@@ -1277,7 +1277,7 @@ export default function TournamentDetail() {
   if (loadingTournament) return null
   if (!tournament) return (
     <div className={styles.page}>
-      <p style={{ color: 'var(--text-muted)', padding: , textAlign: 'center' }}>Tournament not found.</p>
+      <p style={{ color: 'var(--text-muted)', padding: '40px 20px', textAlign: 'center' }}>Tournament not found.</p>
     </div>
   )
 
