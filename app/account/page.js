@@ -29,6 +29,9 @@ export default function About() {
   const [playStyle, setPlayStyle] = useState('Aggressive')
   const [gameTags, setGameTags] = useState([])
   const [countryFlag, setCountryFlag] = useState('')
+  const [phoneCode, setPhoneCode] = useState('255')
+  const [phoneLocal, setPhoneLocal] = useState('')
+  const [phoneError, setPhoneError] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [achievements, setAchievements] = useState([])
@@ -46,6 +49,20 @@ export default function About() {
       setPlayStyle(profile.play_style || 'Aggressive')
       setGameTags(profile.game_tags || [])
       setCountryFlag(profile.country_flag || '')
+      // Prefill phone: split stored "+255712345678" into code + local
+      if (profile.phone) {
+        const CODES = ['254', '255', '256']
+        const stripped = profile.phone.replace(/^\+/, '')
+        const matched = CODES.find(c => stripped.startsWith(c))
+        if (matched) {
+          setPhoneCode(matched)
+          setPhoneLocal(stripped.slice(matched.length))
+        } else {
+          setPhoneLocal(stripped)
+        }
+      } else {
+        setPhoneLocal('')
+      }
     }
   }, [profile])
 
@@ -67,10 +84,19 @@ export default function About() {
   }, [user])
 
   async function saveProfile() {
+    // Validate phone if entered
+    if (phoneLocal.trim() && phoneLocal.trim().length < 6) {
+      setPhoneError('Enter a valid phone number.')
+      return
+    }
+    setPhoneError('')
+    const fullPhone = phoneLocal.trim()
+      ? `+${phoneCode}${phoneLocal.trim().replace(/^0/, '')}`
+      : null
     setSaving(true)
     setSaveError('')
     try {
-      await updateProfile({ username, bio, play_style: playStyle, game_tags: gameTags, country_flag: countryFlag || null })
+      await updateProfile({ username, bio, play_style: playStyle, game_tags: gameTags, country_flag: countryFlag || null, phone: fullPhone })
       setEditModal(false)
     } catch (e) {
       setSaveError(e.message)
@@ -271,6 +297,73 @@ export default function About() {
                 </button>
               ))}
             </div>
+          </div>
+          <div className={styles.editField}>
+            <label>Phone Number</label>
+            {/* Country code pills */}
+            <div style={{ display: 'flex', gap: 6 }}>
+              {[
+                { code: '254', flag: '/kenya.png',    label: '+254' },
+                { code: '255', flag: '/tanzania.png', label: '+255' },
+                { code: '256', flag: '/uganda.png',   label: '+256' },
+              ].map(c => (
+                <button
+                  key={c.code}
+                  type="button"
+                  onClick={() => setPhoneCode(c.code)}
+                  style={{
+                    flex: 1,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                    padding: '7px 8px', borderRadius: 4,
+                    border: `1px solid ${phoneCode === c.code ? 'var(--text)' : 'var(--border-dark)'}`,
+                    background: phoneCode === c.code ? 'var(--surface)' : 'var(--bg-2)',
+                    color: phoneCode === c.code ? 'var(--text)' : 'var(--text-muted)',
+                    fontWeight: 700, fontSize: 11, cursor: 'pointer', transition: 'all 0.15s',
+                  }}
+                >
+                  <img src={c.flag} alt={c.code} style={{ width: 16, height: 16, borderRadius: 2, objectFit: 'cover' }} />
+                  {c.label}
+                </button>
+              ))}
+            </div>
+            {/* Number input */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              border: `1px solid ${phoneError ? '#ef4444' : 'var(--border-dark)'}`,
+              borderRadius: 4, background: 'var(--bg-2)', padding: '0 12px',
+              transition: 'border-color 0.15s',
+            }}>
+              <span style={{ color: 'var(--text-muted)', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>+{phoneCode}</span>
+              <div style={{ width: 1, height: 16, background: 'var(--border-dark)', flexShrink: 0 }} />
+              <input
+                type="tel"
+                placeholder="712 345 678"
+                value={phoneLocal}
+                onChange={e => { setPhoneLocal(e.target.value); setPhoneError('') }}
+                style={{
+                  flex: 1, border: 'none', background: 'transparent',
+                  padding: '10px 0', fontSize: 13, color: 'var(--text)',
+                  outline: 'none', fontFamily: 'var(--font)',
+                }}
+              />
+              {phoneLocal.trim() && (
+                <button
+                  type="button"
+                  onClick={() => { setPhoneLocal(''); setPhoneError('') }}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0, fontSize: 14 }}
+                >
+                  <i className="ri-close-line" />
+                </button>
+              )}
+            </div>
+            {phoneError && (
+              <p style={{ fontSize: 11, color: '#ef4444', margin: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <i className="ri-error-warning-line" /> {phoneError}
+              </p>
+            )}
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>
+              Used for match confirmations and payouts only.
+            </p>
           </div>
           <div className={styles.editField}>
             <label>Game Tags</label>
