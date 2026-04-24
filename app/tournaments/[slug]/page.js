@@ -1651,8 +1651,8 @@ export default function TournamentDetail() {
                 disabled={payLoading || (!payRef.trim() && !payPhone.trim())}
               >
                 {payLoading
-                  ? <><i className="ri-loader-4-line" /> Submitting\u2026</>
-                  : <><i className="ri-check-double-line" /> I\u2019ve Paid \u2014 Notify Admin</>}
+                  ? <><i className="ri-loader-4-line" /> Submitting…</>
+                  : <><i className="ri-check-double-line" /> I've Paid — Notify Admin</>}
               </button>
             </div>
           </div>
