@@ -34,10 +34,21 @@ function SkeletonCard() {
 
 // ── Payment Modal ─────────────────────────────────────────────────────────────
 function PaymentModal({ tournament, user, onClose, onSubmitted }) {
-  const [payRef,   setPayRef]   = useState('')
-  const [payPhone, setPayPhone] = useState('')
-  const [loading,  setLoading]  = useState(false)
-  const [err,      setErr]      = useState('')
+  const [payRef,    setPayRef]    = useState('')
+  const [payPhone,  setPayPhone]  = useState('')
+  const [loading,   setLoading]   = useState(false)
+  const [err,       setErr]       = useState('')
+  const [copied,    setCopied]    = useState(null) // 'halo' | 'mpesa'
+
+  function copyNumber(which, num) {
+    navigator.clipboard?.writeText(num).catch(() => {
+      const ta = document.createElement('textarea')
+      ta.value = num; document.body.appendChild(ta); ta.select()
+      document.execCommand('copy'); document.body.removeChild(ta)
+    })
+    setCopied(which)
+    setTimeout(() => setCopied(null), 2000)
+  }
 
   async function submit() {
     if (!payRef.trim() && !payPhone.trim()) { setErr('Enter your transaction ID or phone number'); return }
@@ -52,10 +63,11 @@ function PaymentModal({ tournament, user, onClose, onSubmitted }) {
 
     const { error } = await supabase.from('tournament_payments').upsert({
       tournament_id: tournament.id, user_id: user.id,
-      payment_ref: payRef.trim() || null,
+      payment_ref:   payRef.trim() || null,
       payment_phone: payPhone.trim() || null,
-      amount: tournament.entrance_fee, status: 'payment_submitted',
-      submitted_at: new Date().toISOString(),
+      amount:        tournament.entrance_fee,
+      status:        'payment_submitted',
+      submitted_at:  new Date().toISOString(),
     }, { onConflict: 'tournament_id,user_id' })
 
     if (error) { setErr(error.message); setLoading(false); return }
@@ -66,14 +78,14 @@ function PaymentModal({ tournament, user, onClose, onSubmitted }) {
       const { data: prof } = await supabase.from('profiles').select('username').eq('id', user.id).single()
       await supabase.from('notifications').insert(admins.map(a => ({
         user_id: a.id,
-        title: '💳 Tournament Payment — Verify',
-        body: `${prof?.username || 'A player'} paid TZS ${fmtFee(tournament.entrance_fee)} for "${tournament.name}". Ref: ${payRef.trim() || payPhone.trim()}`,
+        title:   '💳 Tournament Payment — Verify',
+        body:    `${prof?.username || 'A player'} paid TZS ${fmtFee(tournament.entrance_fee)} for "${tournament.name}". Ref: ${payRef.trim() || payPhone.trim()}`,
         type: 'payment', meta: { tournament_id: tournament.id, action: 'verify_tournament_payment' }, read: false,
       })))
     }
     await supabase.from('notifications').insert({
       user_id: user.id, title: '⏳ Payment Submitted',
-      body: `Entry fee for "${tournament.name}" is pending admin approval.`,
+      body:    `Entry fee for "${tournament.name}" is pending admin approval.`,
       type: 'tournament', meta: { tournament_id: tournament.id }, read: false,
     })
     onSubmitted(tournament.id)
@@ -84,51 +96,69 @@ function PaymentModal({ tournament, user, onClose, onSubmitted }) {
       <div className={styles.modalSheet} onClick={e => e.stopPropagation()}>
         <button className={styles.modalClose} onClick={onClose}><i className="ri-close-line" /></button>
 
-        <p className={styles.modalTitle}><i className="ri-secure-payment-line" style={{ color: '#22c55e' }} /> Send Payment</p>
-        <p className={styles.modalSub}>Send the exact amount to one of the accounts below, then submit your proof.</p>
-
-        <div className={styles.paymentBox}>
-          <div className={styles.payProviderHead}>
-            <i className="ri-sim-card-line" style={{ color: '#e11d48' }} />
-            <span>Halopesa — Lipa Number</span>
-          </div>
-          <div className={styles.payRow}>
-            <span>Lipa Number</span>
-            <strong className={styles.payNumber}>25165945</strong>
-          </div>
-          <div className={styles.payRow}>
-            <span>Account Name</span>
-            <strong>NABOGAMING</strong>
-          </div>
-
-          <div className={styles.payDivider} />
-
-          <div className={styles.payProviderHead}>
-            <i className="ri-sim-card-2-line" style={{ color: '#16a34a' }} />
-            <span>M-Pesa — Lipa Number</span>
-          </div>
-          <div className={styles.payRow}>
-            <span>Lipa Number</span>
-            <strong className={styles.payNumber}>36835506</strong>
-          </div>
-          <div className={styles.payRow}>
-            <span>Account Name</span>
-            <strong>STEVEN DAVID</strong>
-          </div>
-
-          <div className={styles.payDivider} />
-
-          <div className={styles.payRow}>
-            <span>Amount</span>
-            <strong style={{ color: '#22c55e', fontSize: 16 }}>TZS {fmtFee(tournament.entrance_fee)}</strong>
-          </div>
-          <div className={styles.payRow}>
-            <span>Reference</span>
-            <strong>{tournament.name?.slice(0, 22)}</strong>
+        <div className={styles.payHeader}>
+          <i className="ri-secure-payment-line" />
+          <div>
+            <h3 className={styles.payTitle}>Send Entry Fee</h3>
+            <p className={styles.paySub}>Choose one account, send <strong>TZS {fmtFee(tournament.entrance_fee)}</strong>, then submit proof.</p>
           </div>
         </div>
 
-        <p className={styles.modalSubSmall}>After paying, enter your proof below:</p>
+        {/* Amount pill */}
+        <div className={styles.payAmountPill}>
+          <span>Amount to send</span>
+          <strong>TZS {fmtFee(tournament.entrance_fee)}</strong>
+        </div>
+
+        {/* OR — choose one */}
+        <p className={styles.payChooseLabel}><span>Choose one account</span></p>
+
+        {/* Grid of two accounts */}
+        <div className={styles.payGrid}>
+          {/* Halopesa */}
+          <div className={styles.payCard}>
+            <div className={styles.payCardHead}>
+              <i className="ri-sim-card-line" style={{ color: '#e11d48' }} />
+              <span>Halopesa</span>
+            </div>
+            <div className={styles.payCardNum}>
+              <span>25165945</span>
+              <button
+                className={`${styles.copyBtn} ${copied === 'halo' ? styles.copyBtnDone : ''}`}
+                onClick={() => copyNumber('halo', '25165945')}
+              >
+                {copied === 'halo' ? <><i className="ri-check-line" /> Copied</> : <><i className="ri-file-copy-line" /> Copy</>}
+              </button>
+            </div>
+            <div className={styles.payCardMeta}>
+              <span>Lipa Number</span>
+              <span className={styles.payCardAcct}>NABOGAMING</span>
+            </div>
+          </div>
+
+          {/* M-Pesa */}
+          <div className={styles.payCard}>
+            <div className={styles.payCardHead}>
+              <i className="ri-sim-card-2-line" style={{ color: '#16a34a' }} />
+              <span>M-Pesa</span>
+            </div>
+            <div className={styles.payCardNum}>
+              <span>36835506</span>
+              <button
+                className={`${styles.copyBtn} ${copied === 'mpesa' ? styles.copyBtnDone : ''}`}
+                onClick={() => copyNumber('mpesa', '36835506')}
+              >
+                {copied === 'mpesa' ? <><i className="ri-check-line" /> Copied</> : <><i className="ri-file-copy-line" /> Copy</>}
+              </button>
+            </div>
+            <div className={styles.payCardMeta}>
+              <span>Lipa Number</span>
+              <span className={styles.payCardAcct}>STEVEN DAVID</span>
+            </div>
+          </div>
+        </div>
+
+        <p className={styles.payProofLabel}>After paying, paste your proof below:</p>
 
         <div className={styles.modalField}>
           <label><i className="ri-fingerprint-line" /> Transaction ID / Reference <span className={styles.req}>*</span></label>
@@ -141,13 +171,20 @@ function PaymentModal({ tournament, user, onClose, onSubmitted }) {
 
         {err && <p className={styles.modalErr}><i className="ri-error-warning-line" /> {err}</p>}
 
-        <button className={styles.modalSubmit} onClick={submit} disabled={loading || (!payRef.trim() && !payPhone.trim())}>
-          {loading ? <><i className="ri-loader-4-line" /> Submitting…</> : <><i className="ri-check-double-line" /> I've Paid — Notify Admin</>}
+        <button
+          className={styles.modalSubmit}
+          onClick={submit}
+          disabled={loading || (!payRef.trim() && !payPhone.trim())}
+        >
+          {loading
+            ? <><i className="ri-loader-4-line" /> Submitting\u2026</>
+            : <><i className="ri-check-double-line" /> I\u2019ve Paid \u2014 Notify Admin</>}
         </button>
       </div>
     </div>
   )
 }
+
 
 // ── Payment Status Modal (pending / rejected) ─────────────────────────────────
 function PaymentStatusModal({ status, onClose }) {

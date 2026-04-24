@@ -325,6 +325,7 @@ export default function TournamentDetail() {
   const [payPhone, setPayPhone]           = useState('')
   const [payLoading, setPayLoading]       = useState(false)
   const [payErr, setPayErr]               = useState('')
+  const [paySlugCopied, setPaySlugCopied]   = useState(null)
   const [testTimeLeft, setTestTimeLeft]   = useState(null) // ms remaining for test tournament
 
   const toastTimer   = useRef(null)
@@ -1567,74 +1568,96 @@ export default function TournamentDetail() {
       </div>
 
       {/* ── Payment Modal ── */}
-      {showPayModal && (
-        <div className={styles.modalBackdrop} onClick={() => setShowPayModal(false)}>
-          <div className={styles.modalSheet} onClick={e => e.stopPropagation()}>
-            <button className={styles.modalClose} onClick={() => setShowPayModal(false)}><i className="ri-close-line" /></button>
+      {showPayModal && (() => {
+        const fmtFeeLocal = n => Number(n).toLocaleString()
+        return (
+          <div className={styles.modalBackdrop} onClick={() => setShowPayModal(false)}>
+            <div className={styles.modalSheet} onClick={e => e.stopPropagation()}>
+              <button className={styles.modalClose} onClick={() => setShowPayModal(false)}><i className="ri-close-line" /></button>
 
-            <p className={styles.modalTitle}><i className="ri-secure-payment-line" style={{ color: '#22c55e' }} /> Send Payment</p>
-            <p className={styles.modalSub}>Send the exact amount to one of the accounts below, then submit your proof.</p>
-
-            <div className={styles.paymentBox}>
-              <div className={styles.payProviderHead}>
-                <i className="ri-sim-card-line" style={{ color: '#e11d48' }} />
-                <span>Halopesa — Lipa Number</span>
-              </div>
-              <div className={styles.payRow}>
-                <span>Lipa Number</span>
-                <strong className={styles.payNumber}>25165945</strong>
-              </div>
-              <div className={styles.payRow}>
-                <span>Account Name</span>
-                <strong>NABOGAMING</strong>
+              <div className={styles.payHeader}>
+                <i className="ri-secure-payment-line" />
+                <div>
+                  <h3 className={styles.payTitle}>Send Entry Fee</h3>
+                  <p className={styles.paySub}>Choose one account, send <strong>TZS {fmtFeeLocal(tournament.entrance_fee)}</strong>, then submit proof.</p>
+                </div>
               </div>
 
-              <div className={styles.payDivider} />
-
-              <div className={styles.payProviderHead}>
-                <i className="ri-sim-card-2-line" style={{ color: '#16a34a' }} />
-                <span>M-Pesa — Lipa Number</span>
-              </div>
-              <div className={styles.payRow}>
-                <span>Lipa Number</span>
-                <strong className={styles.payNumber}>36835506</strong>
-              </div>
-              <div className={styles.payRow}>
-                <span>Account Name</span>
-                <strong>STEVEN DAVID</strong>
+              <div className={styles.payAmountPill}>
+                <span>Amount to send</span>
+                <strong>TZS {fmtFeeLocal(tournament.entrance_fee)}</strong>
               </div>
 
-              <div className={styles.payDivider} />
+              <p className={styles.payChooseLabel}><span>Choose one account</span></p>
 
-              <div className={styles.payRow}>
-                <span>Amount</span>
-                <strong style={{ color: '#22c55e', fontSize: 16 }}>TZS {Number(tournament.entrance_fee).toLocaleString()}</strong>
+              <div className={styles.payGrid}>
+                <div className={styles.payCard}>
+                  <div className={styles.payCardHead}>
+                    <i className="ri-sim-card-line" style={{ color: '#e11d48' }} />
+                    <span>Halopesa</span>
+                  </div>
+                  <div className={styles.payCardNum}>
+                    <span>25165945</span>
+                    <button
+                      className={`${styles.copyBtn} ${paySlugCopied === 'halo' ? styles.copyBtnDone : ''}`}
+                      onClick={() => { navigator.clipboard?.writeText('25165945'); setPaySlugCopied('halo'); setTimeout(() => setPaySlugCopied(null), 2000) }}
+                    >
+                      {paySlugCopied === 'halo' ? <><i className="ri-check-line" /> Copied</> : <><i className="ri-file-copy-line" /> Copy</>}
+                    </button>
+                  </div>
+                  <div className={styles.payCardMeta}>
+                    <span>Lipa Number</span>
+                    <span className={styles.payCardAcct}>NABOGAMING</span>
+                  </div>
+                </div>
+
+                <div className={styles.payCard}>
+                  <div className={styles.payCardHead}>
+                    <i className="ri-sim-card-2-line" style={{ color: '#16a34a' }} />
+                    <span>M-Pesa</span>
+                  </div>
+                  <div className={styles.payCardNum}>
+                    <span>36835506</span>
+                    <button
+                      className={`${styles.copyBtn} ${paySlugCopied === 'mpesa' ? styles.copyBtnDone : ''}`}
+                      onClick={() => { navigator.clipboard?.writeText('36835506'); setPaySlugCopied('mpesa'); setTimeout(() => setPaySlugCopied(null), 2000) }}
+                    >
+                      {paySlugCopied === 'mpesa' ? <><i className="ri-check-line" /> Copied</> : <><i className="ri-file-copy-line" /> Copy</>}
+                    </button>
+                  </div>
+                  <div className={styles.payCardMeta}>
+                    <span>Lipa Number</span>
+                    <span className={styles.payCardAcct}>STEVEN DAVID</span>
+                  </div>
+                </div>
               </div>
-              <div className={styles.payRow}>
-                <span>Reference</span>
-                <strong>{tournament.name?.slice(0, 22)}</strong>
+
+              <p className={styles.payProofLabel}>After paying, paste your proof below:</p>
+
+              <div className={styles.modalField}>
+                <label><i className="ri-fingerprint-line" /> Transaction ID / Reference <span className={styles.req}>*</span></label>
+                <input type="text" placeholder="e.g. ABC12345XY" value={payRef} onChange={e => setPayRef(e.target.value)} />
               </div>
+              <div className={styles.modalField}>
+                <label><i className="ri-phone-line" /> Phone Number Used</label>
+                <input type="tel" placeholder="e.g. 0712 345 678" value={payPhone} onChange={e => setPayPhone(e.target.value)} />
+              </div>
+
+              {payErr && <p className={styles.modalErr}><i className="ri-error-warning-line" /> {payErr}</p>}
+
+              <button
+                className={styles.modalSubmit}
+                onClick={submitPayment}
+                disabled={payLoading || (!payRef.trim() && !payPhone.trim())}
+              >
+                {payLoading
+                  ? <><i className="ri-loader-4-line" /> Submitting\u2026</>
+                  : <><i className="ri-check-double-line" /> I\u2019ve Paid \u2014 Notify Admin</>}
+              </button>
             </div>
-
-            <p className={styles.modalSubSmall}>After paying, enter your proof below:</p>
-
-            <div className={styles.modalField}>
-              <label><i className="ri-fingerprint-line" /> Transaction ID / Reference <span className={styles.req}>*</span></label>
-              <input type="text" placeholder="e.g. ABC12345XY" value={payRef} onChange={e => setPayRef(e.target.value)} />
-            </div>
-            <div className={styles.modalField}>
-              <label><i className="ri-phone-line" /> Phone Number Used</label>
-              <input type="tel" placeholder="e.g. 0712 345 678" value={payPhone} onChange={e => setPayPhone(e.target.value)} />
-            </div>
-
-            {payErr && <p className={styles.modalErr}><i className="ri-error-warning-line" /> {payErr}</p>}
-
-            <button className={styles.modalSubmit} onClick={submitPayment} disabled={payLoading || (!payRef.trim() && !payPhone.trim())}>
-              {payLoading ? <><i className="ri-loader-4-line" /> Submitting…</> : <><i className="ri-check-double-line" /> I've Paid — Notify Admin</>}
-            </button>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Tabs */}
       <div className={styles.tabs}>
@@ -2091,7 +2114,7 @@ export default function TournamentDetail() {
                   return (
                     <div key={e.user_id} className={styles.lbRowWrap}>
                       <div
-                        className={`${styles.lbRow} ${getLbRowClass(e)} ${bracketData ? styles.lbRowClickable : ''} ${!isCompleted && bracketData ? styles.lbRowDimmed : ''}`}
+                        className={`${styles.lbRow} ${getLbRowClass(e)} ${bracketData ? styles.lbRowClickable : ''}`}
                         onClick={() => bracketData && openHistory(e.user_id)}
                       >
                         <span className={styles.lbCol_rank}>{getPosEl(e)}</span>
@@ -2108,20 +2131,19 @@ export default function TournamentDetail() {
                           <div className={styles.lbNameBadges}>
                             {isMVP && <span className={styles.mvpBadgeInline}><i className="ri-sword-fill" /> MVP</span>}
                             {e.user_id === user?.id && <span className={styles.youBadge}>You</span>}
+                            {/* Live bracket status chip — always visible */}
+                            {bStatus === 'in'  && <span className={styles.liveTagIn}><i className="ri-checkbox-circle-fill" /> Active</span>}
+                            {bStatus === 'out' && <span className={styles.liveTagOut}><i className="ri-close-circle-fill" /> Eliminated</span>}
                           </div>
                         </div>
                         <div className={styles.lbCol_status}>
-                          {!isCompleted && bStatus && (
-                            bStatus === 'in'
-                              ? <span className={styles.liveTagIn}><i className="ri-checkbox-circle-fill" /> In</span>
-                              : <span className={styles.liveTagOut}><i className="ri-close-circle-fill" /> Out</span>
-                          )}
+                          {/* prize column slot kept for layout */}
                         </div>
                         <div className={styles.lbCol_prize}>
                           {rowPrize && <span className={styles.lbPrizeAmt}>{fmtTZS(rowPrize)}</span>}
                         </div>
-                        <span className={`${styles.lbCol_pts} ${e.points === 0 ? styles.lbPtsDim : ''}`}>
-                          {e.points > 0 ? `${e.points}pts` : '—'}
+                        <span className={`${styles.lbCol_pts} ${e.points === 0 ? styles.lbPtsDim : bStatus === 'out' ? styles.lbPtsElim : ''}`}>
+                          {e.points > 0 ? `${e.points} pts` : bStatus === 'out' ? '0 pts' : '—'}
                         </span>
                         <div className={styles.lbCol_action}>
                           {canManage && e.lbEntry && e.points > 0 ? (
