@@ -1,3 +1,4 @@
+// updated 1777218303
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
@@ -37,6 +38,7 @@ export default function PublicProfile() {
   const [shopItems, setShopItems]         = useState([])
   const [shopLoading, setShopLoading]     = useState(true)
   const [activeTab, setActiveTab]         = useState('posts')
+  const [zoomedAvatar, setZoomedAvatar]   = useState(false)
 
   // Edit profile
   const { updateProfile, uploadAvatar } = useAuth()
@@ -272,14 +274,12 @@ export default function PublicProfile() {
 
       {/* ── Full-bleed hero (Apple Music artist style) ── */}
       <div className={styles.hero}>
-        {/* Blurred full-bleed background */}
-        <div
-          className={styles.heroBg}
-          style={{
-            backgroundImage: profile.avatar_url ? `url(${profile.avatar_url})` : undefined,
-            background: !profile.avatar_url ? theme.gradient : undefined,
-          }}
-        />
+        {/* Profile photo as cover — fades into page bg */}
+        {profile.avatar_url ? (
+          <img src={profile.avatar_url} className={styles.heroBgImg} alt="" />
+        ) : (
+          <div className={styles.heroBgFallback} style={{ background: theme.gradient }} />
+        )}
         {/* Gradient fade to page bg */}
         <div className={styles.heroFade} />
 
@@ -300,11 +300,11 @@ export default function PublicProfile() {
           {/* Avatar */}
           <div
             className={styles.avatarWrap}
-            onClick={isOwnProfile ? () => fileRef.current?.click() : undefined}
-            style={{
-              cursor: isOwnProfile ? 'pointer' : 'default',
-              '--ring-color': theme.avatarRing,
-            }}
+            onClick={isOwnProfile
+              ? () => fileRef.current?.click()
+              : profile.avatar_url ? () => setZoomedAvatar(true) : undefined
+            }
+            style={{ cursor: (isOwnProfile || profile.avatar_url) ? 'pointer' : 'default' }}
           >
             {avatarLoading ? (
               <div className={styles.avatarInner}>
@@ -364,7 +364,12 @@ export default function PublicProfile() {
         </div>
       </div>
 
-      {/* ── Body ── */}
+      {/* ── Avatar zoom lightbox ── */}
+      {zoomedAvatar && profile.avatar_url && (
+        <div className={styles.lightbox} onClick={() => setZoomedAvatar(false)}>
+          <img src={profile.avatar_url} className={styles.lightboxImg} alt={profile.username} />
+        </div>
+      )}
       <div className={styles.body}>
 
         {/* ── Social stats + CTA row ── */}
@@ -389,7 +394,7 @@ export default function PublicProfile() {
                   onClick={toggleFollow}
                   disabled={followLoading}
                 >
-                  {following ? 'Following' : 'Follow'}
+                  {following ? <i className="ri-check-line" /> : 'Follow'}
                 </button>
                 <button
                   className={styles.msgBtn}
@@ -399,6 +404,13 @@ export default function PublicProfile() {
                   }
                 >
                   <i className="ri-message-3-line" />
+                </button>
+                <button
+                  className={styles.msgBtn}
+                  onClick={() => navigator.share?.({ title: profile.username, url: window.location.href })
+                    ?? navigator.clipboard?.writeText(window.location.href)}
+                >
+                  <i className="ri-share-forward-line" />
                 </button>
               </>
             ) : (
