@@ -37,7 +37,6 @@ export default function PublicProfile() {
   const [shopItems, setShopItems]         = useState([])
   const [shopLoading, setShopLoading]     = useState(true)
   const [activeTab, setActiveTab]         = useState('posts')
-  const [zoomedAvatar, setZoomedAvatar]   = useState(false)
 
   // Edit profile
   const { updateProfile, uploadAvatar } = useAuth()
@@ -301,11 +300,11 @@ export default function PublicProfile() {
           {/* Avatar */}
           <div
             className={styles.avatarWrap}
-            onClick={isOwnProfile
-              ? () => fileRef.current?.click()
-              : profile.avatar_url ? () => setZoomedAvatar(true) : undefined
-            }
-            style={{ cursor: (isOwnProfile || profile.avatar_url) ? 'pointer' : 'default' }}
+            onClick={isOwnProfile ? () => fileRef.current?.click() : undefined}
+            style={{
+              cursor: isOwnProfile ? 'pointer' : 'default',
+              '--ring-color': theme.avatarRing,
+            }}
           >
             {avatarLoading ? (
               <div className={styles.avatarInner}>
@@ -365,12 +364,7 @@ export default function PublicProfile() {
         </div>
       </div>
 
-      {/* ── Avatar zoom lightbox ── */}
-      {zoomedAvatar && profile.avatar_url && (
-        <div className={styles.lightbox} onClick={() => setZoomedAvatar(false)}>
-          <img src={profile.avatar_url} className={styles.lightboxImg} alt={profile.username} />
-        </div>
-      )}
+      {/* ── Body ── */}
       <div className={styles.body}>
 
         {/* ── Social stats + CTA row ── */}
@@ -395,7 +389,7 @@ export default function PublicProfile() {
                   onClick={toggleFollow}
                   disabled={followLoading}
                 >
-                  {following ? <i className="ri-check-line" /> : 'Follow'}
+                  {following ? 'Following' : 'Follow'}
                 </button>
                 <button
                   className={styles.msgBtn}
