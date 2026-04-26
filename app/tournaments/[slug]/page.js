@@ -145,21 +145,32 @@ function computeMVP(bracketData, participants) {
 function getPlayerBracketStatus(userId, bracketData) {
   if (!bracketData?.rounds || !userId) return null
   const totalRounds = bracketData.rounds.length
-  let found = false, out = false
-  bracketData.rounds.slice(0, totalRounds - 1).forEach(pairs => {
+  let found = false
+  let deepestActive = -1
+  let isEliminated = false
+
+  bracketData.rounds.forEach((pairs, rIdx) => {
     pairs.forEach(pair => {
       pair.forEach(slot => {
-        if (slot?.userId !== userId) return
+        if (!slot || slot.userId !== userId || slot.status === 'bye') return
         found = true
-        if (slot.status === 'eliminated' || slot.status === 'disqualified') out = true
+        const isOut = slot.status === 'eliminated' || slot.status === 'disqualified'
+        if (!isOut && rIdx > deepestActive) deepestActive = rIdx
+        if (isOut) isEliminated = true
       })
     })
   })
-  bracketData.rounds[totalRounds - 1]?.forEach(pair => {
-    pair.forEach(slot => { if (slot?.userId === userId) found = true })
-  })
+
   if (!found) return null
-  return out ? 'out' : 'in'
+  if (isEliminated && deepestActive === -1) return 'out'
+
+  // Return stage label based on deepest active round
+  const fromEnd = (totalRounds - 1) - deepestActive
+  if (fromEnd === 0) return 'champion'
+  if (fromEnd === 1) return 'final'
+  if (fromEnd === 2) return 'semi'
+  if (fromEnd === 3) return 'quarter'
+  return 'in'
 }
 
 function buildMatchHistory(userId, bracketData) {
@@ -326,6 +337,7 @@ export default function TournamentDetail() {
   const [payLoading, setPayLoading]       = useState(false)
   const [payErr, setPayErr]               = useState('')
   const [paySlugCopied, setPaySlugCopied]   = useState(null)
+  const [creatorProfile, setCreatorProfile] = useState(null)
   const [testTimeLeft, setTestTimeLeft]   = useState(null) // ms remaining for test tournament
 
   const toastTimer   = useRef(null)
@@ -357,6 +369,10 @@ export default function TournamentDetail() {
     setEditForm(t)
     setBracketData(parseBracketData(t.bracket_data) ?? (t.slots >= 2 ? buildLobbyBracket(t.slots) : null))
     setLoadingTournament(false)
+
+    if (t.created_by) {
+      supabase.from('profiles').select('id, username, avatar_url, email, country_flag, is_season_winner').eq('id', t.created_by).single().then(({ data }) => setCreatorProfile(data))
+    }
 
     const [partsRes, lbRes] = await Promise.all([
       supabase.from('tournament_participants')
@@ -564,27 +580,66 @@ export default function TournamentDetail() {
       lbEntry: lbMap[p.user_id] || null,
     }))
 
+    // Tier = how far a player progressed.
+    // Lower tier = better. Derived purely from bracket slot statuses:
+    //   - Champion slot (active/winner in final round) → tier 0
+    //   - Still active in round rIdx (not yet eliminated) → tier = rounds from final
+    //   - Eliminated/DQ'd in round rIdx → tier = rounds from final + 1 (lost there)
+    //   - Never appeared → tier 99
     function getBracketTier(userId) {
       if (!bracketData?.rounds || !userId) return 99
       const totalRounds = bracketData.rounds.length
-      const champRound = bracketData.rounds[totalRounds - 1]
-      const inChamp = champRound?.some(pair => pair?.some(s =>
-        s?.userId === userId && s.status !== 'eliminated' && s.status !== 'disqualified' && s.status !== 'bye'
-      ))
-      if (inChamp) return 0
-      for (let rIdx = totalRounds - 2; rIdx >= 0; rIdx--) {
-        const fromEnd = (totalRounds - 2) - rIdx
-        const appeared = bracketData.rounds[rIdx]?.some(pair => pair?.some(s => s?.userId === userId && s.status !== 'bye'))
-        if (appeared) return fromEnd + 1
+
+      // Scan every round to find the deepest round the player reached
+      // and whether they were eliminated or are still active there.
+      let deepestActiveRound = -1   // highest rIdx where player is still active
+      let eliminatedAtRound  = -1   // rIdx where player was eliminated/DQ'd
+
+      bracketData.rounds.forEach((pairs, rIdx) => {
+        pairs.forEach(pair => {
+          pair.forEach(slot => {
+            if (!slot || slot.userId !== userId || slot.status === 'bye') return
+            const isOut = slot.status === 'eliminated' || slot.status === 'disqualified'
+            if (isOut) {
+              if (rIdx > eliminatedAtRound) eliminatedAtRound = rIdx
+            } else {
+              if (rIdx > deepestActiveRound) deepestActiveRound = rIdx
+            }
+          })
+        })
+      })
+
+      // Never appeared in the bracket
+      if (deepestActiveRound === -1 && eliminatedAtRound === -1) return 99
+
+      // Still active: rank by how deep they currently are (later rounds = better)
+      // fromEnd: 0 = final, 1 = semi, 2 = quarter, etc.
+      if (deepestActiveRound >= 0) {
+        const fromEnd = (totalRounds - 1) - deepestActiveRound
+        // Being active in a round is better than being eliminated in that same round
+        // Use negative to rank active players better than eliminated at same depth
+        return fromEnd  // 0 = active in final (champion), 1 = active in semi, etc.
       }
-      return 99
+
+      // Eliminated: the further they got before losing, the better their tier
+      // Being eliminated at a later round is still better → smaller tier number
+      const fromEnd = (totalRounds - 1) - eliminatedAtRound
+      return fromEnd + 0.5  // 0.5 gap ensures eliminated at round N is below active at round N
     }
 
     full.forEach(e => { e._tier = getBracketTier(e.user_id) })
+
+    // Sort: tier ASC (lower = better), then points DESC for ties
     full.sort((a, b) => a._tier !== b._tier ? a._tier - b._tier : b.points - a.points)
+
+    // Assign positions — players with same tier AND same points share a position
     let pos = 1
     full.forEach((e, i) => {
-      if (i > 0 && (e._tier !== full[i - 1]._tier || e.points !== full[i - 1].points)) pos = i + 1
+      if (i > 0) {
+        const prev = full[i - 1]
+        // Different tier or different points = new position
+        if (e._tier !== prev._tier || e.points !== prev.points) pos = i + 1
+      }
       e.position = pos
     })
     return full
@@ -1293,6 +1348,17 @@ export default function TournamentDetail() {
       .catch(() => { fallback(); setShareCopied(true); setTimeout(() => setShareCopied(false), 2500) })
   }
 
+  function shareLink() {
+    const url = (typeof window !== 'undefined' ? window.location.origin : 'https://nabogaming.live') + '/tournaments/' + (tournament?.slug || id)
+    const text = '🏆 ' + (tournament?.name || '') + '\nJoin this tournament on NABOGAMING!\n' + url
+    if (navigator.share) { navigator.share({ title: tournament?.name, text, url }).catch(() => {}); return }
+    navigator.clipboard?.writeText(url).catch(() => {
+      const ta = document.createElement('textarea'); ta.value = url
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta)
+    })
+    showToast('Link copied!', 'success')
+  }
+
   function handleBracketShare() {
     const text = buildBracketShareText(tournament, bracketData, participants)
     const fallback = () => {
@@ -1531,6 +1597,30 @@ export default function TournamentDetail() {
           )}
         </div>
         <h1 className={styles.heroTitle}>{tournament.name}</h1>
+
+        <div className={styles.heroCreatorRow}>
+          {creatorProfile && (
+            <a href={`/profile/${creatorProfile.id}`} className={styles.heroCreatorChip}>
+              <div className={styles.heroCreatorAvatar}>
+                {creatorProfile.avatar_url
+                  ? <img src={creatorProfile.avatar_url} alt="" />
+                  : <span>{(creatorProfile.username || '?').slice(0, 2).toUpperCase()}</span>}
+              </div>
+              <div className={styles.heroCreatorInfo}>
+                <span className={styles.heroCreatorBy}>Created by</span>
+                <span className={styles.heroCreatorName}>
+                  {creatorProfile.username}
+                  <UserBadges email={creatorProfile.email} countryFlag={creatorProfile.country_flag}
+                    isSeasonWinner={creatorProfile.is_season_winner} size={10} gap={3} />
+                </span>
+              </div>
+            </a>
+          )}
+          <button className={styles.heroShareBtn} onClick={shareLink} title="Share tournament">
+            <i className="ri-share-line" /> Share
+          </button>
+        </div>
+
         {tournament.description && <p className={styles.heroDesc}>{tournament.description}</p>}
         <div className={styles.heroStats}>
           <div className={styles.heroStat}><i className="ri-trophy-line" /><div><span className={styles.heroStatLabel}>Prize</span><span className={styles.heroStatVal}>{prizeTotal ? fmtTZS(prizeTotal) : 'None'}</span></div></div>
@@ -2131,9 +2221,13 @@ export default function TournamentDetail() {
                           <div className={styles.lbNameBadges}>
                             {isMVP && <span className={styles.mvpBadgeInline}><i className="ri-sword-fill" /> MVP</span>}
                             {e.user_id === user?.id && <span className={styles.youBadge}>You</span>}
-                            {/* Live bracket status chip — always visible */}
-                            {bStatus === 'in'  && <span className={styles.liveTagIn}><i className="ri-checkbox-circle-fill" /> Active</span>}
-                            {bStatus === 'out' && <span className={styles.liveTagOut}><i className="ri-close-circle-fill" /> Eliminated</span>}
+                            {/* Live bracket status chip — stage-aware */}
+                            {bStatus === 'champion' && <span className={styles.liveTagChamp}><i className="ri-trophy-fill" /> Champion</span>}
+                            {bStatus === 'final'    && <span className={styles.liveTagIn}><i className="ri-checkbox-circle-fill" /> Final</span>}
+                            {bStatus === 'semi'     && <span className={styles.liveTagIn}><i className="ri-checkbox-circle-fill" /> Semi-Final</span>}
+                            {bStatus === 'quarter'  && <span className={styles.liveTagIn}><i className="ri-checkbox-circle-fill" /> Quarter-Final</span>}
+                            {bStatus === 'in'       && <span className={styles.liveTagIn}><i className="ri-checkbox-circle-fill" /> Active</span>}
+                            {bStatus === 'out'      && <span className={styles.liveTagOut}><i className="ri-close-circle-fill" /> Eliminated</span>}
                           </div>
                         </div>
                         <div className={styles.lbCol_status}>
