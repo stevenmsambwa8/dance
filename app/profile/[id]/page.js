@@ -272,102 +272,95 @@ export default function PublicProfile() {
   return (
     <div className={styles.page}>
 
-      {/* ── Full-bleed hero (Apple Music artist style) ── */}
-      <div className={styles.hero}>
-        {/* Profile photo as cover — fades into page bg */}
-        {profile.avatar_url ? (
-          <img src={profile.avatar_url} className={styles.heroBgImg} alt="" />
-        ) : (
-          <div className={styles.heroBgFallback} style={{ background: theme.gradient }} />
-        )}
-        {/* Gradient fade to page bg */}
-        <div className={styles.heroFade} />
-
-        {/* Back button — floats over hero */}
+      {/* ── Header bar ── */}
+      <div className={styles.header}>
         <button className={styles.backBtn} onClick={() => router.back()}>
           <i className="ri-arrow-left-line" />
         </button>
-
-        {/* Edit/settings shortcut — own profile */}
         {isOwnProfile && (
           <button className={styles.heroEditBtn} onClick={() => setEditModal(true)}>
             <i className="ri-edit-line" />
           </button>
         )}
+      </div>
 
-        {/* Hero content */}
-        <div className={styles.heroContent}>
-          {/* Avatar */}
-          <div
-            className={styles.avatarWrap}
-            onClick={isOwnProfile
-              ? () => fileRef.current?.click()
-              : profile.avatar_url ? () => setZoomedAvatar(true) : undefined
-            }
-            style={{ cursor: (isOwnProfile || profile.avatar_url) ? 'pointer' : 'default' }}
-          >
-            {avatarLoading ? (
-              <div className={styles.avatarInner}>
-                <i className="ri-loader-4-line" style={{ fontSize: 26, opacity: 0.5 }} />
-              </div>
-            ) : profile.avatar_url ? (
-              <img src={profile.avatar_url} className={styles.avatarImg} alt="" />
-            ) : (
-              <div className={styles.avatarInner}>{initials}</div>
-            )}
-            {isOwnProfile && (
-              <div className={styles.avatarCamera}><i className="ri-camera-line" /></div>
-            )}
-            <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarChange} />
+      {/* ── Profile hero ── */}
+      <div className={styles.hero}>
+        {/* Avatar */}
+        <div
+          className={styles.avatarWrap}
+          onClick={profile.avatar_url ? () => setZoomedAvatar(true) : (isOwnProfile ? () => fileRef.current?.click() : undefined)}
+          style={{ cursor: (isOwnProfile || profile.avatar_url) ? 'pointer' : 'default' }}
+        >
+          {avatarLoading ? (
+            <div className={styles.avatarInner}>
+              <i className="ri-loader-4-line" style={{ fontSize: 26, opacity: 0.5 }} />
+            </div>
+          ) : profile.avatar_url ? (
+            <img src={profile.avatar_url} className={styles.avatarImg} alt="" />
+          ) : (
+            <div className={styles.avatarInner}>{initials}</div>
+          )}
+          {isOwnProfile && (
+            <div className={styles.avatarCamera}><i className="ri-camera-line" /></div>
+          )}
+          <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarChange} />
+        </div>
+
+        {/* Name + meta */}
+        <div className={styles.heroMeta}>
+          <div className={styles.heroNameRow}>
+            <h1 className={styles.heroName}>{profile.username}</h1>
+            <UserBadges
+              email={profile.email}
+              countryFlag={profile.country_flag}
+              isSeasonWinner={profile.is_season_winner}
+              size={20}
+            />
           </div>
 
-          {/* Name + meta */}
-          <div className={styles.heroMeta}>
-            <div className={styles.heroNameRow}>
-              <h1 className={styles.heroName}>{profile.username}</h1>
-              <UserBadges
-                email={profile.email}
-                countryFlag={profile.country_flag}
-                isSeasonWinner={profile.is_season_winner}
-                size={18}
-              />
-            </div>
-
-            {/* Tier badge + play style */}
-            <div className={styles.heroSubRow}>
-              <span
-                className={styles.tierBadge}
-                style={{ color: tierMeta.color, borderColor: tierMeta.color + '55', background: tierMeta.color + '18' }}
-              >
-                <i className={tierMeta.icon} />
-                {profile.tier || 'Gold'}
-              </span>
-              <span className={styles.heroDot}>·</span>
-              <span className={styles.heroLevel}>Lv.{profile.level ?? 1}</span>
-              {profile.play_style && (
-                <>
-                  <span className={styles.heroDot}>·</span>
-                  <span className={styles.heroPlayStyle}>{profile.play_style}</span>
-                </>
-              )}
-            </div>
-
-            {/* Game tags */}
-            {(profile.game_tags || []).length > 0 && (
-              <div className={styles.heroTags}>
-                {profile.game_tags.map(g => (
-                  <span key={g} className={styles.heroTag}>{g}</span>
-                ))}
-              </div>
+          {/* Tier badge + play style */}
+          <div className={styles.heroSubRow}>
+            <span
+              className={styles.tierBadge}
+              style={{ color: tierMeta.color, borderColor: tierMeta.color + '55', background: tierMeta.color + '18' }}
+            >
+              <i className={tierMeta.icon} />
+              {profile.tier || 'Gold'}
+            </span>
+            <span className={styles.heroDot}>·</span>
+            <span className={styles.heroLevel}>Lv.{profile.level ?? 1}</span>
+            {profile.play_style && (
+              <>
+                <span className={styles.heroDot}>·</span>
+                <span className={styles.heroPlayStyle}>{profile.play_style}</span>
+              </>
             )}
           </div>
+
+          {/* Game tags */}
+          {(profile.game_tags || []).length > 0 && (
+            <div className={styles.heroTags}>
+              {profile.game_tags.map(g => (
+                <span key={g} className={styles.heroTag}>{g}</span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       {/* ── Avatar zoom lightbox ── */}
       {zoomedAvatar && profile.avatar_url && (
         <div className={styles.lightbox} onClick={() => setZoomedAvatar(false)}>
-          <img src={profile.avatar_url} className={styles.lightboxImg} alt={profile.username} />
+          <img src={profile.avatar_url} className={styles.lightboxImg} alt={profile.username} onClick={e => e.stopPropagation()} />
+          {isOwnProfile && (
+            <button className={styles.lightboxChangeBtn} onClick={e => { e.stopPropagation(); setZoomedAvatar(false); fileRef.current?.click() }}>
+              <i className="ri-camera-line" /> Change Photo
+            </button>
+          )}
+          <button className={styles.lightboxClose} onClick={() => setZoomedAvatar(false)}>
+            <i className="ri-close-line" />
+          </button>
         </div>
       )}
       <div className={styles.body}>
