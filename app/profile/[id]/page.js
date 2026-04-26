@@ -39,6 +39,7 @@ export default function PublicProfile() {
   const [shopLoading, setShopLoading]     = useState(true)
   const [activeTab, setActiveTab]         = useState('posts')
   const [zoomedAvatar, setZoomedAvatar]   = useState(false)
+  const [menuOpen, setMenuOpen]           = useState(false)
 
   // Edit profile
   const { updateProfile, uploadAvatar } = useAuth()
@@ -277,11 +278,33 @@ export default function PublicProfile() {
         <button className={styles.backBtn} onClick={() => router.back()}>
           <i className="ri-arrow-left-line" />
         </button>
-        {isOwnProfile && (
-          <button className={styles.heroEditBtn} onClick={() => setEditModal(true)}>
-            <i className="ri-edit-line" />
+        <div className={styles.menuWrap}>
+          <button className={styles.dotsBtn} onClick={() => setMenuOpen(o => !o)}>
+            <i className="ri-more-2-fill" />
           </button>
-        )}
+          {menuOpen && (
+            <>
+              <div className={styles.menuOverlay} onClick={() => setMenuOpen(false)} />
+              <div className={styles.dropdown}>
+                {isOwnProfile && (
+                  <button className={styles.dropdownItem} onClick={() => { setMenuOpen(false); setEditModal(true) }}>
+                    <i className="ri-edit-line" /> Edit Profile
+                  </button>
+                )}
+                <button
+                  className={styles.dropdownItem}
+                  onClick={() => {
+                    setMenuOpen(false)
+                    navigator.share?.({ title: profile.username, url: window.location.href })
+                      ?? navigator.clipboard?.writeText(window.location.href)
+                  }}
+                >
+                  <i className="ri-share-forward-line" /> Share Profile
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* ── Profile hero ── */}
@@ -387,7 +410,7 @@ export default function PublicProfile() {
                   onClick={toggleFollow}
                   disabled={followLoading}
                 >
-                  {following ? <i className="ri-check-line" /> : 'Follow'}
+                  {following ? <><i className="ri-check-line" /> Following</> : 'Follow'}
                 </button>
                 <button
                   className={styles.msgBtn}
@@ -398,19 +421,8 @@ export default function PublicProfile() {
                 >
                   <i className="ri-message-3-line" />
                 </button>
-                <button
-                  className={styles.msgBtn}
-                  onClick={() => navigator.share?.({ title: profile.username, url: window.location.href })
-                    ?? navigator.clipboard?.writeText(window.location.href)}
-                >
-                  <i className="ri-share-forward-line" />
-                </button>
               </>
-            ) : (
-              <button className={styles.editProfileBtn} onClick={() => setEditModal(true)}>
-                Edit Profile
-              </button>
-            )}
+            ) : null}
           </div>
         </div>
 
