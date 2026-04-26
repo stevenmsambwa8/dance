@@ -10,9 +10,8 @@ import styles from './page.module.css'
 import UserBadges from '../../../components/UserBadges'
 import usePageLoading from '../../../components/usePageLoading'
 import { GAME_META, GAME_SLUGS } from '../../../lib/constants'
-import { RANK_TIERS } from '../../../lib/constants'
+import { RANK_TIERS, RANK_META } from '../../../lib/constants'
 
-const ADMIN_EMAIL = 'stevenmsambwa8@gmail.com'
 const ALL_GAMES = GAME_SLUGS.map(s => GAME_META[s].name)
 const PLAY_STYLES = ['Aggressive', 'Defensive', 'Support', 'Sniper', 'All-Round']
 const FLAG_OPTIONS = [
@@ -26,37 +25,38 @@ export default function PublicProfile() {
   const router = useRouter()
   const { user, profile: myProfile, isAdmin } = useAuth()
 
-  const [profile, setProfile]         = useState(null)
-  const [loading, setLoading]         = useState(true)
+  const [profile, setProfile]             = useState(null)
+  const [loading, setLoading]             = useState(true)
   usePageLoading(loading)
-  const [following, setFollowing]     = useState(false)
+  const [following, setFollowing]         = useState(false)
   const [followLoading, setFollowLoading] = useState(false)
-  const [stats, setStats]             = useState({ followers: 0, following: 0 })
-  const [posts, setPosts]             = useState([])
-  const [liked, setLiked]             = useState({})
-  const [achievements, setAchievements] = useState([])
-  const [shopItems, setShopItems]     = useState([])
-  const [shopLoading, setShopLoading] = useState(true)
+  const [stats, setStats]                 = useState({ followers: 0, following: 0 })
+  const [posts, setPosts]                 = useState([])
+  const [liked, setLiked]                 = useState({})
+  const [achievements, setAchievements]   = useState([])
+  const [shopItems, setShopItems]         = useState([])
+  const [shopLoading, setShopLoading]     = useState(true)
+  const [activeTab, setActiveTab]         = useState('posts')
 
-  // Edit profile (own profile only)
+  // Edit profile
   const { updateProfile, uploadAvatar } = useAuth()
   const fileRef = useRef()
-  const [editModal, setEditModal]     = useState(false)
-  const [editUsername, setEditUsername] = useState('')
-  const [editBio, setEditBio]         = useState('')
+  const [editModal, setEditModal]         = useState(false)
+  const [editUsername, setEditUsername]   = useState('')
+  const [editBio, setEditBio]             = useState('')
   const [editPlayStyle, setEditPlayStyle] = useState('Aggressive')
-  const [editGameTags, setEditGameTags] = useState([])
-  const [editFlag, setEditFlag]       = useState('')
+  const [editGameTags, setEditGameTags]   = useState([])
+  const [editFlag, setEditFlag]           = useState('')
   const [editPhoneCode, setEditPhoneCode] = useState('255')
   const [editPhoneLocal, setEditPhoneLocal] = useState('')
-  const [editSaving, setEditSaving]   = useState(false)
-  const [editError, setEditError]     = useState('')
+  const [editSaving, setEditSaving]       = useState(false)
+  const [editError, setEditError]         = useState('')
   const [avatarLoading, setAvatarLoading] = useState(false)
 
   // Comments modal
-  const [selected, setSelected]       = useState(null)
-  const [comments, setComments]       = useState([])
-  const [comment, setComment]         = useState('')
+  const [selected, setSelected]   = useState(null)
+  const [comments, setComments]   = useState([])
+  const [comment, setComment]     = useState('')
 
   useEffect(() => { if (id) loadProfile() }, [id, user])
 
@@ -94,7 +94,6 @@ export default function PublicProfile() {
     setShopItems(shopData || [])
     setShopLoading(false)
 
-    // Prefill edit fields for own profile
     if (prof) {
       setEditUsername(prof.username || '')
       setEditBio(prof.bio || '')
@@ -117,7 +116,6 @@ export default function PublicProfile() {
       setFollowing(!!followRow)
     }
 
-    // Load liked state
     if (user && postsData?.length) {
       const postIds = postsData.map(p => p.id)
       const { data: likeRows } = await supabase
@@ -152,7 +150,6 @@ export default function PublicProfile() {
     setAvatarLoading(true)
     try {
       await uploadAvatar(file)
-      // reload to get fresh avatar_url
       const { data } = await supabase.from('profiles').select('avatar_url').eq('id', id).single()
       if (data) setProfile(p => ({ ...p, avatar_url: data.avatar_url }))
     } catch (e) { alert('Upload failed: ' + e.message) }
@@ -193,8 +190,7 @@ export default function PublicProfile() {
 
   async function deletePost(post) {
     if (!user) return
-    const canDelete = user.id === post.user_id || isAdmin
-    if (!canDelete) return
+    if (user.id !== post.user_id && !isAdmin) return
     if (!confirm('Delete this post?')) return
     const { error } = await supabase.from('posts').delete().eq('id', post.id)
     if (!error) {
@@ -232,291 +228,294 @@ export default function PublicProfile() {
     </div>
   )
 
-  const isOwnProfile = user?.id === id
-  const initials = (profile.username || 'P').slice(0, 2).toUpperCase()
-  const winRate = ((profile.wins / Math.max((profile.wins || 0) + (profile.losses || 0), 1)) * 100).toFixed(0) + '%'
-  const isHelpdesk = isHelpdeskEmail(profile.email)
-  const theme = getTierTheme(profile.tier)
+  const isOwnProfile   = user?.id === id
+  const isHelpdesk     = isHelpdeskEmail(profile.email)
+  const initials       = (profile.username || 'P').slice(0, 2).toUpperCase()
+  const winRate        = ((profile.wins / Math.max((profile.wins || 0) + (profile.losses || 0), 1)) * 100).toFixed(0) + '%'
+  const theme          = getTierTheme(profile.tier)
+  const tierMeta       = RANK_META[profile.tier] || RANK_META.Gold
 
+  // ── Helpdesk special profile ──
   if (isHelpdesk) return (
     <div className={styles.page}>
-      <button className={styles.back} onClick={() => router.back()}>
+      <button className={styles.backBtn} onClick={() => router.back()}>
         <i className="ri-arrow-left-line" /> Back
       </button>
-      <div style={{
-        margin: '32px 16px',
-        borderRadius: 16,
-        border: '1px solid var(--border)',
-        padding: '32px 24px',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: 12,
-        textAlign: 'center',
-        background: 'var(--card)',
-      }}>
-        <div style={{
-          width: 72, height: 72, borderRadius: '50%',
-          background: 'var(--accent)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 32,
-        }}>
+      <div className={styles.helpdeskCard}>
+        <div className={styles.helpdeskAvatar}>
           {profile.avatar_url
-            ? <img src={profile.avatar_url} alt="" style={{ width: 72, height: 72, borderRadius: '50%', objectFit: 'cover' }} />
-            : <i className="ri-customer-service-2-line" style={{ color: '#fff' }} />
+            ? <img src={profile.avatar_url} alt="" />
+            : <i className="ri-customer-service-2-line" />
           }
         </div>
-        <div>
-          <h1 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-            {profile.username}
-            <UserBadges email={profile.email} countryFlag={null} isSeasonWinner={false} size={18} />
-          </h1>
-          <p style={{ color: 'var(--accent)', fontWeight: 600, fontSize: '0.85rem', margin: '4px 0 0', letterSpacing: 1, textTransform: 'uppercase' }}>
-            Nabogaming Help Desk
-          </p>
-        </div>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: 1.6, maxWidth: 280, margin: 0 }}>
+        <h1 className={styles.helpdeskName}>
+          {profile.username}
+          <UserBadges email={profile.email} countryFlag={null} isSeasonWinner={false} size={18} />
+        </h1>
+        <p className={styles.helpdeskRole}>Nabogaming Help Desk</p>
+        <p className={styles.helpdeskBio}>
           {profile.bio || 'Official Nabogaming support account. Reach out for help with your account, matches, or any platform issues.'}
         </p>
-        <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-          <button
-            onClick={() => user ? router.push('/help-desk') : router.push('/login')}
-            style={{
-              padding: '10px 20px', borderRadius: 8, border: 'none',
-              background: 'var(--accent)', color: '#fff',
-              fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: 6,
-            }}
-          >
-            <i className="ri-message-3-line" /> Message Support
-          </button>
-        </div>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: 4 }}>
-          This is an official support account · Not a player profile
-        </p>
+        <button
+          className={styles.helpdeskBtn}
+          onClick={() => user ? router.push('/help-desk') : router.push('/login')}
+        >
+          <i className="ri-message-3-line" /> Message Support
+        </button>
+        <p className={styles.helpdeskNote}>Official support account · Not a player profile</p>
       </div>
     </div>
   )
 
   return (
     <div className={styles.page}>
-      <button className={styles.back} onClick={() => router.back()}>
-        <i className="ri-arrow-left-line" /> Back
-      </button>
 
-      {/* Profile hero */}
+      {/* ── Full-bleed hero (Apple Music artist style) ── */}
       <div className={styles.hero}>
-        {/* Faded avatar background */}
-        {profile.avatar_url && (
-          <div className={styles.heroBg} style={{ backgroundImage: `url(${profile.avatar_url})` }} />
-        )}
-        <div className={styles.heroOverlay} />
-
-        {/* Avatar — clickable if own profile */}
+        {/* Blurred full-bleed background */}
         <div
-          className={styles.heroAvatar}
-          onClick={isOwnProfile ? () => fileRef.current?.click() : undefined}
-          style={{ cursor: isOwnProfile ? 'pointer' : 'default' }}
-        >
-          {avatarLoading
-            ? <div className={styles.heroAvatarInner} style={{ opacity: 0.5 }}><i className="ri-loader-4-line" style={{ fontSize: 24 }} /></div>
-            : profile.avatar_url
-              ? <img src={profile.avatar_url} className={styles.heroAvatarImg} alt="" />
-              : <div className={styles.heroAvatarInner}>{initials}</div>
-          }
-          {isOwnProfile && <div className={styles.heroAvatarOverlay}><i className="ri-camera-line" /></div>}
-          {isOwnProfile && <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarChange} />}
-        </div>
+          className={styles.heroBg}
+          style={{
+            backgroundImage: profile.avatar_url ? `url(${profile.avatar_url})` : undefined,
+            background: !profile.avatar_url ? theme.gradient : undefined,
+          }}
+        />
+        {/* Gradient fade to page bg */}
+        <div className={styles.heroFade} />
 
-        {/* Info */}
-        <div className={styles.heroInfo}>
-          <h1 className={styles.heroUsername}>
-            {profile.username}
-            <UserBadges email={profile.email} countryFlag={profile.country_flag} isSeasonWinner={profile.is_season_winner} size={16} />
-          </h1>
-          {!isHelpdesk && (
-            <p className={styles.heroMeta}>
-              <span className={styles.heroTier}>{profile.tier || 'Gold'}</span>
-              <span className={styles.heroDot}>·</span>
-              Lv.{profile.level ?? 1}
-              <span className={styles.heroDot}>·</span>
-              {profile.play_style || 'Player'}
-            </p>
-          )}
-          {(profile.game_tags || []).length > 0 && (
-            <div className={styles.heroTags}>
-              {profile.game_tags.map(g => <span key={g} className={styles.heroTag}>{g}</span>)}
-            </div>
-          )}
-        </div>
-      </div>
+        {/* Back button — floats over hero */}
+        <button className={styles.backBtn} onClick={() => router.back()}>
+          <i className="ri-arrow-left-line" />
+        </button>
 
-      {/* Actions */}
-      {!isOwnProfile && (
-        <div className={styles.actions}>
-          <button
-            className={`${styles.followBtn} ${following ? styles.followingBtn : ''}`}
-            onClick={toggleFollow}
-            disabled={followLoading}
+        {/* Edit/settings shortcut — own profile */}
+        {isOwnProfile && (
+          <button className={styles.heroEditBtn} onClick={() => setEditModal(true)}>
+            <i className="ri-edit-line" />
+          </button>
+        )}
+
+        {/* Hero content */}
+        <div className={styles.heroContent}>
+          {/* Avatar */}
+          <div
+            className={styles.avatarWrap}
+            onClick={isOwnProfile ? () => fileRef.current?.click() : undefined}
+            style={{
+              cursor: isOwnProfile ? 'pointer' : 'default',
+              '--ring-color': theme.avatarRing,
+            }}
           >
-            <i className={following ? 'ri-user-unfollow-line' : 'ri-user-add-line'} />
-            {following ? 'Following' : 'Follow'}
-          </button>
-          <button
-            className={styles.msgBtn}
-            onClick={() => user ? (isHelpdeskEmail(profile?.email) ? router.push('/help-desk') : router.push(`/dm/${id}`)) : router.push('/login')}
-          >
-            <i className="ri-message-3-line" />
-            Message
-          </button>
-        </div>
-      )}
-      {isOwnProfile && (
-        <div className={styles.actions}>
-          <button className={styles.editBtn} onClick={() => setEditModal(true)}>
-            <i className="ri-edit-line" /> Edit Profile
-          </button>
-        </div>
-      )}
-
-      {/* Follow stats */}
-      <div className={styles.followRow}>
-        <div className={styles.followStat}><strong>{stats.followers}</strong><span>Followers</span></div>
-        <div className={styles.followStat}><strong>{stats.following}</strong><span>Following</span></div>
-      </div>
-
-      {/* Game stats */}
-      {!isHelpdesk && <div className={styles.statsRow}>
-        {[
-          { label: 'Wins',     value: profile.wins   ?? 0 },
-          { label: 'Losses',   value: profile.losses ?? 0 },
-          { label: 'Win Rate', value: winRate },
-          { label: 'Points',   value: (profile.points || 0).toLocaleString() },
-        ].map(s => (
-          <div key={s.label} className={styles.miniStat}>
-            <span className={styles.miniValue}>{s.value}</span>
-            <span className={styles.miniLabel}>{s.label}</span>
+            {avatarLoading ? (
+              <div className={styles.avatarInner}>
+                <i className="ri-loader-4-line" style={{ fontSize: 26, opacity: 0.5 }} />
+              </div>
+            ) : profile.avatar_url ? (
+              <img src={profile.avatar_url} className={styles.avatarImg} alt="" />
+            ) : (
+              <div className={styles.avatarInner}>{initials}</div>
+            )}
+            {isOwnProfile && (
+              <div className={styles.avatarCamera}><i className="ri-camera-line" /></div>
+            )}
+            <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarChange} />
           </div>
-        ))}
-      </div>}
 
-      {/* Bio */}
-      {profile.bio && (
-        <section className={styles.section}>
-          <p style={{ color: 'var(--text-dim)', fontSize: '0.9rem', lineHeight: 1.6 }}>{profile.bio}</p>
-        </section>
-      )}
+          {/* Name + meta */}
+          <div className={styles.heroMeta}>
+            <div className={styles.heroNameRow}>
+              <h1 className={styles.heroName}>{profile.username}</h1>
+              <UserBadges
+                email={profile.email}
+                countryFlag={profile.country_flag}
+                isSeasonWinner={profile.is_season_winner}
+                size={18}
+              />
+            </div>
 
-      {/* Achievements */}
-      {achievements.length > 0 && (
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Achievements</h2>
-          <div className={styles.achievements}>
+            {/* Tier badge + play style */}
+            <div className={styles.heroSubRow}>
+              <span
+                className={styles.tierBadge}
+                style={{ color: tierMeta.color, borderColor: tierMeta.color + '55', background: tierMeta.color + '18' }}
+              >
+                <i className={tierMeta.icon} />
+                {profile.tier || 'Gold'}
+              </span>
+              <span className={styles.heroDot}>·</span>
+              <span className={styles.heroLevel}>Lv.{profile.level ?? 1}</span>
+              {profile.play_style && (
+                <>
+                  <span className={styles.heroDot}>·</span>
+                  <span className={styles.heroPlayStyle}>{profile.play_style}</span>
+                </>
+              )}
+            </div>
+
+            {/* Game tags */}
+            {(profile.game_tags || []).length > 0 && (
+              <div className={styles.heroTags}>
+                {profile.game_tags.map(g => (
+                  <span key={g} className={styles.heroTag}>{g}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Body ── */}
+      <div className={styles.body}>
+
+        {/* ── Social stats + CTA row ── */}
+        <div className={styles.socialRow}>
+          <div className={styles.followStats}>
+            <button className={styles.followStat} onClick={() => {}}>
+              <strong>{stats.followers.toLocaleString()}</strong>
+              <span>Followers</span>
+            </button>
+            <div className={styles.followDivider} />
+            <button className={styles.followStat} onClick={() => {}}>
+              <strong>{stats.following.toLocaleString()}</strong>
+              <span>Following</span>
+            </button>
+          </div>
+
+          <div className={styles.ctaButtons}>
+            {!isOwnProfile ? (
+              <>
+                <button
+                  className={`${styles.followBtn} ${following ? styles.followingBtn : ''}`}
+                  onClick={toggleFollow}
+                  disabled={followLoading}
+                >
+                  {following ? 'Following' : 'Follow'}
+                </button>
+                <button
+                  className={styles.msgBtn}
+                  onClick={() => user
+                    ? (isHelpdeskEmail(profile?.email) ? router.push('/help-desk') : router.push(`/dm/${id}`))
+                    : router.push('/login')
+                  }
+                >
+                  <i className="ri-message-3-line" />
+                </button>
+              </>
+            ) : (
+              <button className={styles.editProfileBtn} onClick={() => setEditModal(true)}>
+                Edit Profile
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* ── Bio ── */}
+        {profile.bio && (
+          <p className={styles.bio}>{profile.bio}</p>
+        )}
+
+        {/* ── Stats bar ── */}
+        <div className={styles.statsBar}>
+          {[
+            { icon: 'ri-sword-line',       label: 'Wins',     value: profile.wins ?? 0 },
+            { icon: 'ri-close-circle-line', label: 'Losses',   value: profile.losses ?? 0 },
+            { icon: 'ri-percent-line',      label: 'Win Rate', value: winRate },
+            { icon: 'ri-star-line',         label: 'Points',   value: (profile.points || 0).toLocaleString() },
+          ].map(s => (
+            <div key={s.label} className={styles.statItem}>
+              <i className={s.icon} style={{ color: theme.primary }} />
+              <strong>{s.value}</strong>
+              <span>{s.label}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Achievements ── */}
+        {achievements.length > 0 && (
+          <div className={styles.achievementsScroll}>
             {achievements.map(a => (
-              <div key={a.id} className={styles.achievement}>
-                <i className={`${a.icon || 'ri-trophy-line'} ${styles.achIcon}`} />
-                <span className={styles.achLabel}>{a.label}</span>
+              <div key={a.id} className={styles.achievementPill}>
+                <i className={a.icon || 'ri-trophy-line'} style={{ color: theme.primary }} />
+                <span>{a.label}</span>
               </div>
             ))}
           </div>
-        </section>
-      )}
-
-      {/* Shop */}
-      <section className={styles.section}>
-        <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>Shop</h2>
-          {shopItems.length > 0 && (
-            <Link href="/shop" className={styles.sectionLink}>
-              View all <i className="ri-arrow-right-line" />
-            </Link>
-          )}
-        </div>
-        {!shopLoading && shopItems.length === 0 ? (
-          <div className={styles.shopEmpty}>
-            <i className="ri-store-2-line" />
-            <p>{profile.username} doesn&apos;t sell anything yet.</p>
-            <Link href="/shop" className={styles.shopEmptyBtn}>
-              <i className="ri-store-2-line" /> Go to Shop
-            </Link>
-          </div>
-        ) : (
-          <div className={styles.shopGrid}>
-            {shopItems.map(item => {
-              const img = item.shop_item_images?.sort((a,b) => a.sort_order - b.sort_order)[0]?.url
-              return (
-              <Link key={item.id} href={`/shop/${item.id}`} className={styles.shopCard}>
-                {img
-                  ? <img src={img} alt={item.title} className={styles.shopCardImg} />
-                  : <div className={styles.shopCardNoImg}><i className="ri-image-line" /></div>
-                }
-                <div className={styles.shopCardBody}>
-                  <span className={styles.shopCategory}>{item.category}</span>
-                  <span className={styles.shopTitle}>{item.title}</span>
-                  <span className={styles.shopPrice}>TZS {isNaN(Number(String(item.price).replace(/,/g, ''))) ? item.price : Number(String(item.price).replace(/,/g, '')).toLocaleString()}</span>
-                </div>
-              </Link>
-              )
-            })}
-          </div>
         )}
-      </section>
 
-      {/* Posts */}
-      <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>Posts ({posts.length})</h2>
-        {posts.length === 0 ? (
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No posts yet.</p>
-        ) : (
+        {/* ── Tab bar ── */}
+        <div className={styles.tabs}>
+          {[
+            { key: 'posts', label: 'Posts', count: posts.length },
+            { key: 'shop',  label: 'Shop',  count: shopItems.length },
+          ].map(t => (
+            <button
+              key={t.key}
+              className={`${styles.tab} ${activeTab === t.key ? styles.tabActive : ''}`}
+              onClick={() => setActiveTab(t.key)}
+            >
+              {t.label}
+              {t.count > 0 && <span className={styles.tabCount}>{t.count}</span>}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Tab: Posts ── */}
+        {activeTab === 'posts' && (
           <div className={styles.postList}>
-            {posts.map(post => (
+            {posts.length === 0 ? (
+              <div className={styles.emptyState}>
+                <i className="ri-quill-pen-line" />
+                <p>No posts yet</p>
+              </div>
+            ) : posts.map(post => (
               <div key={post.id} className={styles.postCard}>
-                {/* Post header */}
                 <div className={styles.postHeader}>
-                  <Link href={`/profile/${post.profiles?.id}`} className={styles.postAvatarLink}>
-                    <div className={styles.postAvatar}>
-                      {post.profiles?.avatar_url
-                        ? <img src={post.profiles.avatar_url} alt="" className={styles.postAvatarImg} />
-                        : <span>{(post.profiles?.username || 'P').slice(0, 2).toUpperCase()}</span>
-                      }
-                    </div>
+                  <Link href={`/profile/${post.profiles?.id}`} className={styles.postAvatar}>
+                    {post.profiles?.avatar_url
+                      ? <img src={post.profiles.avatar_url} alt="" />
+                      : <span>{(post.profiles?.username || 'P').slice(0, 2).toUpperCase()}</span>
+                    }
                   </Link>
                   <div className={styles.postMeta}>
                     <div className={styles.postUserRow}>
                       <Link href={`/profile/${post.profiles?.id}`} className={styles.postUser}>
                         {post.profiles?.username || 'Player'}
                       </Link>
-                      <UserBadges email={post.profiles?.email} countryFlag={post.profiles?.country_flag} isSeasonWinner={post.profiles?.is_season_winner} size={13} gap={2} />
+                      <UserBadges
+                        email={post.profiles?.email}
+                        countryFlag={post.profiles?.country_flag}
+                        isSeasonWinner={post.profiles?.is_season_winner}
+                        size={12}
+                        gap={2}
+                      />
                     </div>
                     <span className={styles.postTime}>
                       {post.profiles?.level ? `Lv.${post.profiles.level} · ` : ''}{timeAgo(post.created_at)}
                     </span>
                   </div>
                   {user && (user.id === post.user_id || isAdmin) && (
-                    <button className={styles.deleteBtn} onClick={() => deletePost(post)} title="Delete">
+                    <button className={styles.deleteBtn} onClick={() => deletePost(post)}>
                       <i className="ri-delete-bin-line" />
                     </button>
                   )}
                 </div>
 
-                {/* Content */}
                 <p className={styles.postContent}>{post.content}</p>
 
-                {/* Actions */}
                 <div className={styles.postActions}>
                   <button
-                    className={`${styles.action} ${liked[post.id] ? styles.liked : ''}`}
+                    className={`${styles.actionBtn} ${liked[post.id] ? styles.liked : ''}`}
                     onClick={() => toggleLike(post)}
                   >
                     <i className={liked[post.id] ? 'ri-heart-fill' : 'ri-heart-line'} />
-                    {post.likes || 0}
+                    <span>{post.likes || 0}</span>
                   </button>
-                  <button className={styles.action} onClick={() => openComments(post)}>
+                  <button className={styles.actionBtn} onClick={() => openComments(post)}>
                     <i className="ri-chat-1-line" />
-                    {post.comment_count || 0}
+                    <span>{post.comment_count || 0}</span>
                   </button>
                   <button
-                    className={styles.action}
+                    className={styles.actionBtn}
                     onClick={() => navigator.share?.({ text: post.content })}
                   >
                     <i className="ri-share-forward-line" />
@@ -526,9 +525,53 @@ export default function PublicProfile() {
             ))}
           </div>
         )}
-      </section>
 
-      {/* ── Edit Profile Modal (own profile) ── */}
+        {/* ── Tab: Shop ── */}
+        {activeTab === 'shop' && (
+          <div>
+            {!shopLoading && shopItems.length === 0 ? (
+              <div className={styles.emptyState}>
+                <i className="ri-store-2-line" />
+                <p>{profile.username} doesn&apos;t sell anything yet</p>
+                <Link href="/shop" className={styles.emptyStateBtn}>
+                  Browse Shop
+                </Link>
+              </div>
+            ) : (
+              <>
+                <div className={styles.shopGrid}>
+                  {shopItems.map(item => {
+                    const img = item.shop_item_images?.sort((a, b) => a.sort_order - b.sort_order)[0]?.url
+                    return (
+                      <Link key={item.id} href={`/shop/${item.id}`} className={styles.shopCard}>
+                        {img
+                          ? <img src={img} alt={item.title} className={styles.shopCardImg} />
+                          : <div className={styles.shopCardNoImg}><i className="ri-image-line" /></div>
+                        }
+                        <div className={styles.shopCardBody}>
+                          <span className={styles.shopCategory}>{item.category}</span>
+                          <span className={styles.shopTitle}>{item.title}</span>
+                          <span className={styles.shopPrice}>
+                            TZS {isNaN(Number(String(item.price).replace(/,/g, '')))
+                              ? item.price
+                              : Number(String(item.price).replace(/,/g, '')).toLocaleString()}
+                          </span>
+                        </div>
+                      </Link>
+                    )
+                  })}
+                </div>
+                <Link href="/shop" className={styles.shopViewAll}>
+                  View all in Shop <i className="ri-arrow-right-line" />
+                </Link>
+              </>
+            )}
+          </div>
+        )}
+
+      </div>
+
+      {/* ── Edit Profile Modal ── */}
       {isOwnProfile && (
         <Modal
           open={editModal}
@@ -582,7 +625,11 @@ export default function PublicProfile() {
             <div className={styles.editField}>
               <label>Phone Number</label>
               <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-                {[{ code: '254', flag: '/kenya.png', label: '+254' }, { code: '255', flag: '/tanzania.png', label: '+255' }, { code: '256', flag: '/uganda.png', label: '+256' }].map(c => (
+                {[
+                  { code: '254', flag: '/kenya.png',    label: '+254' },
+                  { code: '255', flag: '/tanzania.png', label: '+255' },
+                  { code: '256', flag: '/uganda.png',   label: '+256' },
+                ].map(c => (
                   <button key={c.code} type="button" onClick={() => setEditPhoneCode(c.code)} style={{
                     flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
                     padding: '7px 8px', borderRadius: 4,
@@ -599,9 +646,11 @@ export default function PublicProfile() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid var(--border-dark)', borderRadius: 4, background: 'var(--bg-2)', padding: '0 12px' }}>
                 <span style={{ color: 'var(--text-muted)', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>+{editPhoneCode}</span>
                 <div style={{ width: 1, height: 16, background: 'var(--border-dark)', flexShrink: 0 }} />
-                <input type="tel" placeholder="712 345 678" value={editPhoneLocal}
+                <input
+                  type="tel" placeholder="712 345 678" value={editPhoneLocal}
                   onChange={e => setEditPhoneLocal(e.target.value)}
-                  style={{ flex: 1, border: 'none', background: 'transparent', padding: '10px 0', fontSize: 13, color: 'var(--text)', outline: 'none', fontFamily: 'var(--font)' }} />
+                  style={{ flex: 1, border: 'none', background: 'transparent', padding: '10px 0', fontSize: 13, color: 'var(--text)', outline: 'none', fontFamily: 'var(--font)' }}
+                />
                 {editPhoneLocal && (
                   <button type="button" onClick={() => setEditPhoneLocal('')}
                     style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0, fontSize: 14 }}>
@@ -624,7 +673,7 @@ export default function PublicProfile() {
         </Modal>
       )}
 
-      {/* Comments Modal */}
+      {/* ── Comments Modal ── */}
       <Modal
         open={!!selected}
         onClose={() => { setSelected(null); setComment('') }}
