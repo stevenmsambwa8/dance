@@ -386,7 +386,7 @@ export default function Home() {
                     <h3 className={styles.tCardName}>{t.name}</h3>
                   </div>
                   <div className={styles.tCardStats}>
-                    {prize && <span><i className="ri-trophy-line" />{fmtAmt(prize)}</span>}
+                    {Number(prize) > 0 && <span><i className="ri-trophy-line" />{fmtAmt(Number(prize))}</span>}
                     {t.date && <span><i className="ri-calendar-event-line" />{t.date}</span>}
                     {t.format && <span><i className="ri-gamepad-line" />{t.format}</span>}
                   </div>

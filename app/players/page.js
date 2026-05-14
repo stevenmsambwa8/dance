@@ -122,7 +122,11 @@ export default function Contact() {
                 ? <span className={styles.rankNum}>Lv.{p.level ?? 1}</span>
                 : <span style={{ fontSize: 20, width: 36, textAlign: 'center' }}><i className="ri-customer-service-2-line" style={{ color: 'var(--accent)' }} /></span>
               }
-              <div className={styles.playerAvatar} style={isHelpdeskEmail(p.email) ? { border: '2px solid var(--accent)' } : {}}>
+              <div className={styles.playerAvatar} style={
+                isHelpdeskEmail(p.email) ? { border: '2px solid var(--accent)' } :
+                p.tier === 'Partner' ? { border: '2px solid #22c55e', boxShadow: '0 0 0 1px rgba(34,197,94,0.3)' } :
+                {}
+              }>
                 {p.avatar_url
                   ? <img src={p.avatar_url} alt="" />
                   : <span>{(p.username || '?').slice(0, 2).toUpperCase()}</span>
@@ -133,10 +137,22 @@ export default function Contact() {
                   {p.username}
                   <UserBadges email={p.email} countryFlag={p.country_flag} isSeasonWinner={p.is_season_winner} size={13} gap={2} />
                 </span>
-                {!isHelpdeskEmail(p.email)
-                  ? <span className={styles.playerMeta}>{p.tier} · Lv.{p.level ?? 1} · {p.wins}W · <i className="ri-user-follow-line" /> {p.followers_count || 0}</span>
-                  : <span className={styles.playerMeta} style={{ color: 'var(--accent)', fontWeight: 600 }}>Official Support · Tap to contact</span>
-                }
+                {!isHelpdeskEmail(p.email) ? (
+                  <span className={styles.playerMeta}>
+                    {p.tier === 'Partner' ? (
+                      <span style={{ color: '#22c55e', fontWeight: 800, fontSize: 10, letterSpacing: '0.06em' }}>
+                        <i className="ri-shield-star-fill" /> PARTNER
+                      </span>
+                    ) : (
+                      <span style={{ color: (RANK_META[p.tier] || RANK_META.Gold).color, fontWeight: 700 }}>
+                        {p.tier}
+                      </span>
+                    )}
+                    {' · '}Lv.{p.level ?? 1} · {p.wins}W · <i className="ri-user-follow-line" /> {p.followers_count || 0}
+                  </span>
+                ) : (
+                  <span className={styles.playerMeta} style={{ color: 'var(--accent)', fontWeight: 600 }}>Official Support · Tap to contact</span>
+                )}
               </div>
               <span className={`${styles.statusDot} ${onlineIds.has(p.id) ? styles.online : styles.offline}`} title={onlineIds.has(p.id) ? 'Online' : 'Offline'} />
               {user?.id !== p.id && (

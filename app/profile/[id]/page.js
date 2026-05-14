@@ -350,16 +350,17 @@ export default function PublicProfile() {
 
           {/* Tier badge + play style */}
           <div className={styles.heroSubRow}>
-            <span
-              className={`${styles.tierBadge} ${isPartner ? styles.tierBadgePartner : ''}`}
-              style={{ color: tierMeta.color, borderColor: tierMeta.color + '55', background: tierMeta.color + '18' }}
-            >
-              <i className={tierMeta.icon} />
-              {profile.tier || 'Gold'}
-            </span>
-            {isPartner && (
+            {isPartner ? (
               <span className={styles.partnerChip}>
                 <i className="ri-shield-star-fill" /> PARTNER
+              </span>
+            ) : (
+              <span
+                className={styles.tierBadge}
+                style={{ color: tierMeta.color, borderColor: tierMeta.color + '55', background: tierMeta.color + '18' }}
+              >
+                <i className={tierMeta.icon} />
+                {profile.tier || 'Gold'}
               </span>
             )}
             <span className={styles.heroDot}>·</span>

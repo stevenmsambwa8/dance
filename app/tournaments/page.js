@@ -408,7 +408,7 @@ export default function Tournaments() {
                 {/* Stats row */}
                 <div className={styles.cardStats}>
                   {t.format && <span><i className="ri-gamepad-line" />{t.format}</span>}
-                  <span><i className="ri-trophy-line" />{t.prize ? fmtAmt(Number(t.prize)) : 'N/A'}</span>
+                  <span><i className="ri-trophy-line" />{Number(t.prize) > 0 ? fmtAmt(Number(t.prize)) : <span style={{color:'var(--text-muted)'}}>No prize</span>}</span>
                   {t.date && <span><i className="ri-calendar-event-line" />{t.date}</span>}
                 </div>
 
