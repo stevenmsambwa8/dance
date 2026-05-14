@@ -210,8 +210,9 @@ function PaymentStatusModal({ status, onClose }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function Tournaments() {
-  const { user, isAdmin } = useAuth()
+  const { user, isAdmin, profile } = useAuth()
   const router = useRouter()
+  const { fmtAmt } = useCurrency(profile?.country_flag ?? null)
 
   const [tournaments, setTournaments] = useState([])
   const [loading,     setLoading]     = useState(true)
@@ -382,7 +383,7 @@ export default function Tournaments() {
                     {/* Entry fee badge */}
                     {hasFee && (
                       <span className={styles.feeBadge}>
-                        <i className="ri-money-dollar-circle-line" /> {fmtAmt(Number(String(t.entrance_fee).replace(/[^0-9.]/g,'')))||fmtFee(t.entrance_fee)}
+                        <i className="ri-money-dollar-circle-line" /> {fmtAmt(Number(t.entrance_fee) || 0)}
                       </span>
                     )}
                     {/* Registration / payment status */}
@@ -407,7 +408,7 @@ export default function Tournaments() {
                 {/* Stats row */}
                 <div className={styles.cardStats}>
                   {t.format && <span><i className="ri-gamepad-line" />{t.format}</span>}
-                  <span><i className="ri-trophy-line" />TZS {t.prize ? fmtAmt(Number(t.prize)) : 'N/A'}</span>
+                  <span><i className="ri-trophy-line" />{t.prize ? fmtAmt(Number(t.prize)) : 'N/A'}</span>
                   {t.date && <span><i className="ri-calendar-event-line" />{t.date}</span>}
                 </div>
 
@@ -450,7 +451,7 @@ export default function Tournaments() {
                   ) : (
                     <button className={styles.registerBtn} onClick={e => handleRegisterClick(e, t)}>
                       {hasFee
-                        ? <><i className="ri-money-dollar-circle-line" /> Register · {fmtAmt(Number(String(t.entrance_fee).replace(/[^0-9.]/g,'')))||fmtFee(t.entrance_fee)}</>
+                        ? <><i className="ri-money-dollar-circle-line" /> Register · {fmtAmt(Number(t.entrance_fee) || 0)}</>
                         : <><i className="ri-add-circle-line" /> Register Free</>}
                     </button>
                   )}
