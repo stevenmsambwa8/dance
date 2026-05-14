@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '../../components/AuthProvider'
 import { supabase } from '../../lib/supabase'
-import { useCurrency } from '../../lib/currency'
+import { useCurrency } from '../../lib/useCurrency'
 import styles from './page.module.css'
 import usePageLoading from '../../components/usePageLoading'
 

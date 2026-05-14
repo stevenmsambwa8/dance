@@ -7,7 +7,7 @@ import { supabase } from '../../../lib/supabase'
 import styles from './page.module.css'
 import UserBadges from '../../../components/UserBadges'
 import usePageLoading from '../../../components/usePageLoading'
-import { useCurrency } from '../../../lib/currency'
+import { useCurrency } from '../../../lib/useCurrency'
 
 export default function ShopItemDetail() {
   const { id } = useParams()

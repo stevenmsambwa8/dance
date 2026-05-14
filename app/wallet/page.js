@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../../components/AuthProvider'
 import { supabase } from '../../lib/supabase'
 import usePageLoading from '../../components/usePageLoading'
-import { useCurrency } from '../../lib/currency'
+import { useCurrency } from '../../lib/useCurrency'
 import styles from './page.module.css'
 
 const TYPE_META = {

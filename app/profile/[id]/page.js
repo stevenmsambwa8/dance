@@ -12,7 +12,7 @@ import UserBadges from '../../../components/UserBadges'
 import usePageLoading from '../../../components/usePageLoading'
 import { GAME_META, GAME_SLUGS } from '../../../lib/constants'
 import { RANK_TIERS, RANK_META } from '../../../lib/constants'
-import { useCurrency } from '../../../lib/currency'
+import { useCurrency } from '../../../lib/useCurrency'
 
 const ALL_GAMES = GAME_SLUGS.map(s => GAME_META[s].name)
 const PLAY_STYLES = ['Aggressive', 'Defensive', 'Support', 'Sniper', 'All-Round']

@@ -6,7 +6,7 @@ import { useAuth } from '../../components/AuthProvider'
 import { supabase } from '../../lib/supabase'
 import styles from './page.module.css'
 import usePageLoading from '../../components/usePageLoading'
-import { useCurrency } from '../../lib/currency'
+import { useCurrency } from '../../lib/useCurrency'
 import { GAME_SLUGS, GAME_META } from '../../lib/constants'
 import { getCurrentSeason } from '../../lib/seasons'
 

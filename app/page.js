@@ -8,7 +8,7 @@ import { getCurrentSeason, getDaysRemaining, TIER_ORDER, TIER_WIN_THRESHOLD, get
 import { GAME_META, GAME_SLUGS } from '../lib/constants'
 import UserBadges from '../components/UserBadges'
 import usePageLoading from '../components/usePageLoading'
-import { useCurrency } from '../lib/currency'
+import { useCurrency } from '../lib/useCurrency'
 
 export default function Home() {
   const { user, profile, isAdmin } = useAuth()
