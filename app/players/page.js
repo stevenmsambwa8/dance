@@ -9,6 +9,7 @@ import usePageLoading from '../../components/usePageLoading'
 import { getCurrentSeason, getSeasonDateRange, getDaysRemaining } from '../../lib/seasons'
 import UserBadges from '../../components/UserBadges'
 import { useOnlineUsers } from '../../lib/usePresence'
+import { RANK_META } from '../../lib/constants'
 
 const ADMIN_EMAIL = 'stevenmsambwa8@gmail.com'
 const GAME_MODES = ['Elimination', 'Capture', 'Deathmatch', 'Sniper', 'Team Battle']

@@ -317,7 +317,8 @@ export default function PublicProfile() {
       <div className={styles.hero}>
         {/* Avatar */}
         <div
-          className={`${styles.avatarWrap} ${isPartner ? styles.avatarWrapPartner : ''}`}
+          className={styles.avatarWrap}
+          data-tier={profile.tier || 'Gold'}
           onClick={profile.avatar_url ? () => setZoomedAvatar(true) : (isOwnProfile ? () => fileRef.current?.click() : undefined)}
           style={{ cursor: (isOwnProfile || profile.avatar_url) ? 'pointer' : 'default' }}
         >

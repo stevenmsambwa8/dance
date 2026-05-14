@@ -194,8 +194,8 @@ export default function AccountPage() {
       <div className={styles.hero}>
         {/* Avatar */}
         <div
-          className={`${styles.avatarWrap} ${isPartner ? styles.avatarWrapPartner : ''}`}
-          style={{ '--ring-color': theme.avatarRing.includes('gradient') ? 'transparent' : theme.avatarRing }}
+          className={styles.avatarWrap}
+          data-tier={profile?.tier || 'Gold'}
           onClick={() => {
             if (profile?.avatar_url) setZoomedAvatar(true)
             else fileRef.current?.click()
