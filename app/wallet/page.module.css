@@ -1,0 +1,218 @@
+.page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 24px 16px 100px;
+}
+
+.header {
+  margin-bottom: 20px;
+}
+
+.headerTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.title {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.totalBadge {
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--surface-2, var(--surface));
+  color: var(--text);
+  border: 1px solid var(--border-dark, var(--border));
+  border-radius: 999px;
+  padding: 4px 12px;
+  white-space: nowrap;
+}
+
+.sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 4px 0 0;
+}
+
+/* Stats */
+.statsRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.statCard {
+  background: var(--surface);
+  border: 1px solid var(--border-dark, var(--border));
+  border-radius: 12px;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.statVal {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1;
+}
+
+.statLabel {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Filters */
+.filters {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.filterBtn {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border-dark, var(--border));
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.filterBtn:hover {
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+.filterActive {
+  background: var(--text);
+  color: var(--bg, #0a0a0a);
+  border-color: var(--text);
+}
+
+/* Log list */
+.logList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.logRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid transparent;
+  transition: border-color 0.15s;
+}
+
+.logRow:hover {
+  border-color: var(--border-dark, var(--border));
+}
+
+.logIcon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.logInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.logLabel {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.logDesc {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.logDate {
+  font-size: 11px;
+  color: var(--text-dim, var(--text-muted));
+}
+
+.logPts {
+  font-size: 14px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.logPtsPos { color: #22c55e; }
+.logPtsNeg { color: var(--text-muted); }
+
+/* Empty */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 60px 20px;
+  color: var(--text-muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+.empty i {
+  font-size: 36px;
+  opacity: 0.4;
+}
+
+/* Skeleton */
+.skeletonList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.skeletonRow {
+  height: 62px;
+  border-radius: 12px;
+  background: var(--surface);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@media (max-width: 400px) {
+  .statsRow { grid-template-columns: repeat(2, 1fr); }
+}

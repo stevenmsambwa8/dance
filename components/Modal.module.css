@@ -1,0 +1,108 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fadeIn 0.18s ease;
+}
+
+@media (min-width: 640px) {
+  .overlay { align-items: center; }
+}
+
+.modal {
+  background: var(--bg);
+  border: 1px solid var(--border-dark);
+  width: 100%;
+  border-radius: 14px 14px 0 0;
+  overflow: hidden;
+  animation: slideUp 0.26s cubic-bezier(0.32,0.72,0,1);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+}
+
+@media (min-width: 640px) {
+  .modal {
+    border-radius: 8px;
+    animation: scaleIn 0.18s ease;
+  }
+  .sm { max-width: 360px; }
+  .md { max-width: 480px; }
+  .lg { max-width: 640px; }
+}
+
+/* Pull bar on mobile */
+.modal::before {
+  content: '';
+  display: block;
+  width: 32px;
+  height: 3px;
+  background: var(--border-dark);
+  border-radius: 2px;
+  margin: 10px auto 0;
+  flex-shrink: 0;
+}
+
+@media (min-width: 640px) {
+  .modal::before { display: none; }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.close {
+  width: 28px;
+  height: 28px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: 16px;
+  transition: all 0.1s;
+}
+
+.close:hover { background: var(--text); color: var(--bg); }
+
+.body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.footer {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; } to { opacity: 1; }
+}
+@keyframes slideUp {
+  from { transform: translateY(100%); } to { transform: translateY(0); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); }
+}
