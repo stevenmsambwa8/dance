@@ -42,6 +42,10 @@ export default function PublicProfile() {
   const [zoomedAvatar, setZoomedAvatar]   = useState(false)
   const [menuOpen, setMenuOpen]           = useState(false)
 
+  // Currency hook — must be unconditional (Rules of Hooks)
+  // profile may be null during load; hook handles null via optional chaining
+  const { fmtAmt } = useCurrency(profile?.country_flag ?? null)
+
   // Edit profile
   const { updateProfile, uploadAvatar } = useAuth()
   const fileRef = useRef()
@@ -239,7 +243,6 @@ export default function PublicProfile() {
   const theme          = getTierTheme(profile.tier)
   const tierMeta       = RANK_META[profile.tier] || RANK_META.Gold
   const isPartner      = profile.tier === 'Partner'
-  const { fmtAmt }     = useCurrency(profile.country_flag)
 
   // ── Helpdesk special profile ──
   if (isHelpdesk) return (
