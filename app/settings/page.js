@@ -66,6 +66,8 @@ export default function SettingsPage() {
   const [phoneError,  setPhoneError]  = useState('')
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [deleteInput, setDeleteInput] = useState('')
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
   const fileRef = useRef()
 
   // ── Password change ──
@@ -365,42 +367,86 @@ export default function SettingsPage() {
         </a>
       </Section>
 
-      {/* ── Danger Zone ── */}
+      {/* ── Account / Danger Zone ── */}
       <Section icon="ri-logout-box-r-line" title="Account">
         <button className={styles.signOutBtn} onClick={handleSignOut}>
           <i className="ri-logout-box-r-line" /> Sign Out
         </button>
-        <button className={styles.dangerBtn} onClick={() => setDeleteConfirm(v => !v)}>
+        <button className={styles.dangerBtn} onClick={() => { setDeleteConfirm(true); setDeleteInput(''); setDeleteError('') }}>
           <i className="ri-delete-bin-line" /> Delete Account
         </button>
-        {deleteConfirm && (
-          <div className={styles.deleteConfirm}>
-            <p>Type <strong>DELETE</strong> to confirm permanent deletion of your account.</p>
-            <input
-              value={deleteInput}
-              onChange={e => setDeleteInput(e.target.value)}
-              placeholder="DELETE"
-            />
-            <button
-              className={styles.dangerBtnFull}
-              disabled={deleteInput !== 'DELETE'}
-              onClick={async () => {
-                try {
-                  const { error } = await supabase.rpc('delete_my_account')
-                  if (error) throw error
-                } catch(e) {
-                  alert('Delete failed: ' + e.message)
-                  return
-                }
-                await supabase.auth.signOut()
-                router.push('/login')
-              }}
-            >
-              Permanently Delete Account
-            </button>
-          </div>
-        )}
       </Section>
+
+      {/* ── Delete confirmation modal ── */}
+      {deleteConfirm && (
+        <div className={styles.modalOverlay} onClick={() => { if (!deleteLoading) setDeleteConfirm(false) }}>
+          <div className={styles.modalBox} onClick={e => e.stopPropagation()}>
+            <div className={styles.modalIcon}><i className="ri-delete-bin-2-fill" /></div>
+            <h2 className={styles.modalTitle}>Delete Account?</h2>
+            <p className={styles.modalDesc}>
+              This will permanently erase your profile, matches, shop items, wallet, posts, and all other data.
+              <strong> This cannot be undone.</strong>
+            </p>
+            <div className={styles.modalField}>
+              <label>Type <strong>DELETE</strong> to confirm</label>
+              <input
+                value={deleteInput}
+                onChange={e => { setDeleteInput(e.target.value); setDeleteError('') }}
+                placeholder="DELETE"
+                autoCapitalize="characters"
+                disabled={deleteLoading}
+              />
+            </div>
+            {deleteError && (
+              <p className={styles.modalError}><i className="ri-error-warning-line" /> {deleteError}</p>
+            )}
+            <div className={styles.modalActions}>
+              <button
+                className={styles.modalCancelBtn}
+                onClick={() => setDeleteConfirm(false)}
+                disabled={deleteLoading}
+              >
+                Cancel
+              </button>
+              <button
+                className={styles.modalDeleteBtn}
+                disabled={deleteInput !== 'DELETE' || deleteLoading}
+                onClick={async () => {
+                  setDeleteLoading(true)
+                  setDeleteError('')
+                  try {
+                    // Get current session token to send to server
+                    const { data: { session } } = await supabase.auth.getSession()
+                    if (!session) throw new Error('No active session')
+
+                    const res = await fetch('/api/delete-account', {
+                      method: 'POST',
+                      headers: {
+                        'Authorization': `Bearer ${session.access_token}`,
+                        'Content-Type': 'application/json',
+                      },
+                    })
+                    const json = await res.json()
+                    if (!res.ok) throw new Error(json.error || 'Delete failed')
+
+                    // Success — sign out locally and redirect
+                    await supabase.auth.signOut()
+                    router.push('/login')
+                  } catch(e) {
+                    setDeleteError(e.message)
+                    setDeleteLoading(false)
+                  }
+                }}
+              >
+                {deleteLoading
+                  ? <><i className="ri-loader-4-line" style={{animation:'spin 1s linear infinite'}} /> Deleting…</>
+                  : <><i className="ri-delete-bin-line" /> Delete Forever</>
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <p className={styles.version}>Nabogaming · v1.0</p>
     </div>
