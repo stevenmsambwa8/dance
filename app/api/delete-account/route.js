@@ -34,7 +34,8 @@ export async function POST(request) {
     // 3. Delete all user data from public tables (in dependency order)
     const tables = [
       { table: 'post_likes',               col: 'user_id' },
-      { table: 'post_comments',            col: 'user_id' },
+      { table: 'comments',      
+      col: 'user_id' },
       { table: 'posts',                    col: 'user_id' },
       { table: 'notifications',            col: 'user_id' },
       { table: 'follows',                  col: 'follower_id' },
