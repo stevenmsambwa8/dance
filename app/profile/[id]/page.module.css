@@ -7,6 +7,9 @@
   min-height: 100dvh;
   background: var(--bg);
   padding-bottom: 96px;
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 /* ─────────────────────────────────────────────────
@@ -17,6 +20,9 @@
   align-items: center;
   justify-content: space-between;
   padding: 14px 16px 0;
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .backBtn {
@@ -100,28 +106,31 @@
 ───────────────────────────────────────────────── */
 .hero {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 18px;
-  padding: 20px 18px 18px;
+  gap: 10px;
+  padding: 24px 20px 16px;
+  text-align: center;
 }
 
 /* ── Avatar ── */
 .avatarWrap {
   position: relative;
   flex-shrink: 0;
-  width: 110px;
-  height: 110px;
-  border-radius: 22px;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
   border: none;
   background: transparent;
   box-shadow: none;
+  margin-bottom: 4px;
 }
 .avatarImg {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
-  border-radius: 19px; /* matches wrap radius minus border */
+  border-radius: 50%;
   overflow: hidden;
 }
 
@@ -134,8 +143,9 @@
   font-size: 26px;
   font-weight: 900;
   color: var(--text);
-  border-radius: 19px;
+  border-radius: 50%;
   overflow: hidden;
+  background: var(--bg-2);
 }
 .avatarCamera {
   position: absolute;
@@ -153,16 +163,17 @@
 
 /* ── Hero text ── */
 .heroMeta {
-  flex: 1;
-  min-width: 0;
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 6px;
+  width: 100%;
 }
 
 .heroNameRow {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 7px;
   flex-wrap: wrap;
 }
@@ -178,6 +189,7 @@
 .heroSubRow {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   flex-wrap: wrap;
 }
@@ -231,25 +243,27 @@
 ───────────────────────────────────────────────── */
 .body {
   padding: 0 16px;
-  max-width: 700px;
-  margin: 0 auto;
+  width: 100%;
 }
 
 /* ── Social / CTA row ── */
 .socialRow {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 18px 0 14px;
+  justify-content: center;
+  gap: 16px;
+  padding: 14px 0;
+  border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
   margin-bottom: 14px;
+  width: 100%;
 }
 
 .followStats {
   display: flex;
   align-items: center;
   gap: 0;
+  justify-content: center;
 }
 .followStat {
   display: flex;
@@ -343,7 +357,9 @@
   font-size: 13px;
   line-height: 1.65;
   color: var(--text-dim);
-  margin-bottom: 18px;
+  margin-bottom: 0;
+  text-align: center;
+  padding: 0 8px 14px;
 }
 
 /* ── Stats bar ── */
@@ -953,24 +969,12 @@
    RESPONSIVE
 ───────────────────────────────────────────────── */
 @media (max-width: 520px) {
-  .hero {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 16px 14px 12px;
-  }
-  .avatarWrap {
-    width: 80px;
-    height: 80px;
-    border-radius: 18px;
-  }
-  .avatarImg, .avatarInner { border-radius: 15px; }
+  .avatarWrap { width: 80px; height: 80px; }
   .heroName { font-size: 22px; }
   .statsBar { grid-template-columns: repeat(2, 1fr); }
-  .shopGrid { grid-template-columns: repeat(2, 1fr); }
-  .body { padding: 0 12px; }
+  .body { padding: 0 10px; }
   .socialRow { flex-wrap: wrap; gap: 10px; }
-  .tab { margin-right: 14px; font-size: 12px; }
+  .tab { margin-right: 12px; font-size: 12px; }
 }
 
 /* ═══════════════════════════════════════════════

@@ -385,7 +385,13 @@ export default function SettingsPage() {
               className={styles.dangerBtnFull}
               disabled={deleteInput !== 'DELETE'}
               onClick={async () => {
-                await supabase.from('profiles').delete().eq('id', user.id)
+                try {
+                  const { error } = await supabase.rpc('delete_my_account')
+                  if (error) throw error
+                } catch(e) {
+                  alert('Delete failed: ' + e.message)
+                  return
+                }
                 await supabase.auth.signOut()
                 router.push('/login')
               }}
