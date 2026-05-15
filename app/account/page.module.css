@@ -27,6 +27,7 @@
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.02em;
+  text-decoration: none;
   transition: border-color 0.12s, background 0.12s;
 }
 .editBtn:hover { border-color: var(--text); background: var(--bg-2); }

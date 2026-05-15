@@ -10,6 +10,11 @@ import styles from './Nav.module.css'
 export default function Nav() {
   const path = usePathname()
   const router = useRouter()
+
+  // Scroll to top on every route change
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' })
+  }, [path])
   const { theme, toggle } = useTheme()
   const { user, profile, signOut, isAdmin } = useAuth()
   const isPartner = profile?.tier === 'Partner'
@@ -401,6 +406,11 @@ export default function Nav() {
               <i className={theme === 'light' ? 'ri-moon-line' : 'ri-sun-line'} />
               {theme === 'light' ? 'Dark' : 'Light'}
             </button>
+            {user && (
+              <Link href="/settings" className={styles.sidebarFooterBtn} onClick={() => setSidebarOpen(false)}>
+                <i className="ri-settings-3-line" />Settings
+              </Link>
+            )}
             {user ? (
               <button className={styles.sidebarFooterBtn} onClick={handleSignOut}>
                 <i className="ri-logout-box-r-line" />Sign out

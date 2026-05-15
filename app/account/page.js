@@ -185,9 +185,11 @@ export default function AccountPage() {
       {/* ── Header bar ── */}
       <div className={styles.header}>
         <div />
-        <button className={styles.editBtn} onClick={() => setEditModal(true)}>
-          <i className="ri-edit-line" /> Edit Profile
-        </button>
+        <div style={{display:'flex',gap:8}}>
+          <a href="/settings" className={styles.editBtn}>
+            <i className="ri-settings-3-line" /> Settings
+          </a>
+        </div>
       </div>
 
       {/* ── Hero ── */}
