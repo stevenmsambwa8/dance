@@ -73,30 +73,33 @@ BEGIN
     RAISE EXCEPTION 'Not authenticated';
   END IF;
 
-  -- 1. Posts and their likes / comments
-  DELETE FROM post_likes    WHERE user_id = uid;
-  DELETE FROM post_comments WHERE user_id = uid;
-  DELETE FROM posts         WHERE user_id = uid;
+  -- 1. Comments and likes (children of posts)
+  DELETE FROM comments   WHERE user_id = uid;
+  DELETE FROM post_likes WHERE user_id = uid;
+  DELETE FROM posts      WHERE user_id = uid;
 
-  -- 2. Direct messages
-  DELETE FROM direct_messages WHERE sender_id = uid OR receiver_id = uid;
+  -- 2. Messages
+  DELETE FROM game_chat_messages WHERE user_id = uid;
+  DELETE FROM direct_messages    WHERE sender_id = uid OR receiver_id = uid;
+  DELETE FROM negotiation_messages WHERE sender_id = uid;
 
   -- 3. Shop — requests, then items
   DELETE FROM buy_requests WHERE buyer_id = uid OR seller_id = uid;
   DELETE FROM shop_item_images
     WHERE item_id IN (SELECT id FROM shop_items WHERE seller_id = uid);
-  DELETE FROM shop_items   WHERE seller_id = uid;
+  DELETE FROM shop_items WHERE seller_id = uid;
 
-  -- 4. Matches
+  -- 4. Matches & score requests
+  DELETE FROM score_requests WHERE requester_id = uid OR opponent_id = uid;
   DELETE FROM matches WHERE challenger_id = uid OR challenged_id = uid;
 
-  -- 5. Tournaments — remove participant rows only (don't delete the tournament itself)
+  -- 5. Tournaments
+  DELETE FROM tournament_payments     WHERE user_id = uid;
   DELETE FROM tournament_participants WHERE user_id = uid;
   DELETE FROM tournament_leaderboard  WHERE user_id = uid;
 
-  -- 6. Earnings / wallet
+  -- 6. Earnings
   DELETE FROM earnings_log WHERE user_id = uid;
-  DELETE FROM wallets      WHERE user_id = uid;
 
   -- 7. Follows
   DELETE FROM follows WHERE follower_id = uid OR following_id = uid;
@@ -105,14 +108,18 @@ BEGIN
   DELETE FROM notifications WHERE user_id = uid;
 
   -- 9. Achievements and season history
-  DELETE FROM achievements    WHERE user_id = uid;
-  DELETE FROM season_history  WHERE user_id = uid;
+  DELETE FROM achievements   WHERE user_id = uid;
+  DELETE FROM season_history WHERE user_id = uid;
 
-  -- 10. Profile row
+  -- 10. Game subscriptions
+  DELETE FROM game_subscriptions WHERE user_id = uid;
+
+  -- 11. Profile row
   DELETE FROM profiles WHERE id = uid;
 
-  -- 11. Remove from Supabase Auth (requires SECURITY DEFINER)
-  DELETE FROM auth.users WHERE id = uid;
+  -- NOTE: auth.users deletion is handled by the Next.js API route
+  -- using supabase.auth.admin.deleteUser() with the service_role key.
+  -- That is more reliable than deleting from auth.users directly.
 END;
 $$;
 

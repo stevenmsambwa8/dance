@@ -1,46 +1,41 @@
 # Delete Account — Setup Guide
 
-## 1. Add environment variables to `.env.local`
+## Only ONE environment variable needed
 
-The API route `/api/delete-account` uses the Supabase **service_role** key 
-(server-side only — never exposed to the browser). Add these to your `.env.local`:
+The URL and anon key are already hardcoded in `lib/supabase.js` — the API route
+reuses them directly. The only thing you need to add is the **service_role key**,
+which is the only credential that can delete from `auth.users`.
 
+### Add to `.env.local` (local dev):
 ```
-NEXT_PUBLIC_SUPABASE_URL=https://whnsrbxeqorolkjfcniy.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndobnNyYnhlcW9yb2xramZjbml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNjY3NzYsImV4cCI6MjA5MDY0Mjc3Nn0.7ZlmI1T8o-7Dm7BuUuG9wNWPaCU8yZ8O8pIFX5QBlx0
 SUPABASE_SERVICE_ROLE_KEY=<your service_role key here>
 ```
 
-### Where to find your service_role key:
-Supabase Dashboard → Project Settings → API → **service_role** (secret) key
+### Add to Vercel (production):
+Vercel Dashboard → Your Project → Settings → Environment Variables → Add:
+- Name: `SUPABASE_SERVICE_ROLE_KEY`
+- Value: your service_role key
+- Environment: Production + Preview + Development
 
-⚠️ Never put the service_role key in client-side code or commit it to Git.
+### Where to find the service_role key:
+Supabase Dashboard → Project Settings → API → **service_role** (the "secret" one, not anon)
 
----
-
-## 2. Run SETTINGS_SQL.sql in Supabase SQL Editor
-
-This adds the `notif_match`, `notif_shop`, `notif_tournament`, `phone` columns
-and sets up RLS policies. The `delete_my_account()` function is optional now
-since the API route handles deletion — but run it anyway for the RLS policies
-and indexes.
+⚠️ Never prefix it with `NEXT_PUBLIC_` — that would expose it to the browser.
 
 ---
 
-## 3. How the delete flow works
+## How deletion works
 
-1. User taps "Delete Account" → confirmation modal opens
-2. User types "DELETE" → "Delete Forever" button activates
-3. Client gets the current session JWT (`supabase.auth.getSession()`)
-4. Client POSTs to `/api/delete-account` with the JWT in Authorization header
-5. Server verifies the JWT, deletes all user data from public tables
-6. Server calls `supabase.auth.admin.deleteUser(uid)` — only possible server-side
-7. Client receives success → signs out locally → redirects to /login
-8. User cannot log back in because the auth record is permanently gone
+1. User taps "Delete Account" → confirmation modal
+2. User types DELETE → button activates
+3. Client sends JWT to `/api/delete-account`
+4. Server verifies JWT, deletes all rows from every table
+5. Server calls `auth.admin.deleteUser()` — permanently removes auth record
+6. User is signed out and redirected to /login — cannot log back in
 
 ---
 
-## 4. Deploy to Vercel
+## Run SETTINGS_SQL.sql in Supabase SQL Editor
 
-Add the environment variables in Vercel Dashboard → Project → Settings → Environment Variables.
-Do NOT add `SUPABASE_SERVICE_ROLE_KEY` as a `NEXT_PUBLIC_` variable.
+Adds `notif_match`, `notif_shop`, `notif_tournament`, `phone` columns to profiles,
+sets up RLS policies, and adds performance indexes.
