@@ -133,16 +133,34 @@ button {
   }
 }
 
-/* ── Page Overlay Loader ── */
-.page-loader-overlay {
-  position: fixed;
-  inset: 0;
-  background: var(--bg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
+/* ═══════════════════════════════════════════
+   SPA SLIDE TRANSITIONS — native app feel
+   New page slides in from right like iOS/Android
+═══════════════════════════════════════════ */
+
+/* Idle state — fully visible, no animation */
+.page-slide-idle {
+  transform: translateX(0);
 }
+
+/* Enter from right — iOS push navigation feel */
+.page-slide-enter {
+  animation: nativeSlideIn 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+  /* Shadow makes it feel like it's sliding on top */
+  box-shadow: -12px 0 32px rgba(0,0,0,0.14);
+}
+
+@keyframes nativeSlideIn {
+  0%   { transform: translateX(100%); }
+  100% { transform: translateX(0); }
+}
+
+/* Prevent body scroll during transition */
+.page-slide-enter * { pointer-events: none; }
+.page-slide-idle  * { pointer-events: auto; }
+
+/* ── Overlay loader hidden — we use slide transitions now ── */
+.page-loader-overlay { display: none; }
 
 /* ── Inline Loader Wrapper ── */
 .loader-wrap {

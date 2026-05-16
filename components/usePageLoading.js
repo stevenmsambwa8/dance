@@ -1,16 +1,9 @@
 'use client'
-import { useEffect } from 'react'
-import { useLoadingContext } from './LoadingContext'
-
-export default function usePageLoading(isLoading) {
-  const { setPageLoading } = useLoadingContext()
-
-  // Set synchronously during render so overlay shows before first paint
-  setPageLoading(!!isLoading)
-
-  useEffect(() => {
-    // Keep in sync after mount too
-    setPageLoading(!!isLoading)
-    return () => setPageLoading(false)
-  }, [isLoading, setPageLoading])
+/**
+ * usePageLoading — now a no-op.
+ * Page transitions use slide animation (PageTransition.js) instead of
+ * a loading overlay. This hook is kept so existing page imports don't break.
+ */
+export default function usePageLoading(_isLoading) {
+  // No-op — slide transition handles the UX
 }

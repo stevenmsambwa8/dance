@@ -1,64 +1,44 @@
 'use client'
 import { usePathname } from 'next/navigation'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { useLoadingContext } from './LoadingContext'
+import { useEffect, useRef, useState } from 'react'
 
+/**
+ * Native-feel SPA slide transition.
+ * Uses a keyed wrapper that re-animates on every route change.
+ * New page slides in from right; background dims leftward — like iOS.
+ */
 export default function PageTransition({ children }) {
-  const pathname               = usePathname()
-  const { loading: pageLoading } = useLoadingContext()
-  const prevPath               = useRef(pathname)
-  const [overlayOpacity, setOverlayOpacity] = useState(0)
-  const fallbackTimer = useRef(null)
-  const fadeOutTimer  = useRef(null)
+  const pathname  = usePathname()
+  const [key, setKey]         = useState(pathname)
+  const [animating, setAnimating] = useState(false)
+  const prevPath  = useRef(pathname)
+  const timerRef  = useRef(null)
+  const firstRender = useRef(true)
 
-  function show() {
-    clearTimeout(fadeOutTimer.current)
-    clearTimeout(fallbackTimer.current)
-    setOverlayOpacity(1)
-  }
-
-  function hide() {
-    clearTimeout(fallbackTimer.current)
-    // Small delay so content is painted before we fade the overlay away
-    fadeOutTimer.current = setTimeout(() => setOverlayOpacity(0), 80)
-  }
-
-  // useLayoutEffect fires synchronously BEFORE the browser paints.
-  // This means the overlay is already opaque before the new page is visible.
-  useLayoutEffect(() => {
-    if (prevPath.current === pathname) return
+  useEffect(() => {
+    if (firstRender.current) { firstRender.current = false; return }
+    if (pathname === prevPath.current) return
     prevPath.current = pathname
-    show()
-    // Hard fallback: never stay stuck longer than 2s
-    fallbackTimer.current = setTimeout(hide, 2000)
+
+    clearTimeout(timerRef.current)
+
+    // Trigger slide-in animation
+    setKey(pathname)
+    setAnimating(true)
+
+    // Remove animation class after it completes
+    timerRef.current = setTimeout(() => setAnimating(false), 340)
   }, [pathname])
 
-  // Page signals it finished loading
-  useEffect(() => {
-    if (!pageLoading) hide()
-  }, [pageLoading])
-
-  useEffect(() => () => {
-    clearTimeout(fallbackTimer.current)
-    clearTimeout(fadeOutTimer.current)
-  }, [])
+  useEffect(() => () => clearTimeout(timerRef.current), [])
 
   return (
-    <>
-      {/* Overlay is always in the DOM — no mount/unmount flicker */}
-      <div
-        className="page-loader-overlay"
-        style={{
-          opacity: overlayOpacity,
-          transition: overlayOpacity === 1
-            ? 'none'               // appear instantly
-            : 'opacity 0.25s ease', // fade out smoothly
-          pointerEvents: overlayOpacity > 0 ? 'all' : 'none',
-        }}
-      >
-        <div className="loader" />
-      </div>
+    <div
+      key={key}
+      className={animating ? 'page-slide-enter' : 'page-slide-idle'}
+      style={{ minHeight: '100dvh' }}
+    >
       {children}
-    </>
+    </div>
   )
 }
