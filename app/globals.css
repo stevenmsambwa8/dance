@@ -135,17 +135,11 @@ button {
   }
 }
 
-/* ── Page transition overlay ──
-   Sits over the page at opacity 0.6 — content visible beneath.
-   Shows spinner while data loads, fades in/out smoothly.
-─────────────────────────────────────── */
+/* ── Page Overlay Loader ── */
 .page-loader-overlay {
   position: fixed;
   inset: 0;
-  /* Semi-transparent — page shows through, no hard white block */
-  background: rgba(var(--bg-rgb, 255,255,255), 0.62);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  background: rgba(var(--bg-rgb, 255,255,255), 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
