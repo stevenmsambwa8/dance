@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTheme } from './ThemeProvider'
 import { useAuth } from './AuthProvider'
-import { useNavigate } from './PageTransition'
 import { supabase } from '../lib/supabase'
 import styles from './Nav.module.css'
 
@@ -87,17 +86,17 @@ export default function Nav() {
     if (!notif.read) await markRead(notif.id)
     const { item_id, request_id, tournament_id, sender_id, match_id, game_slug } = notif.meta || {}
     if (notif.type === 'direct_message' && sender_id) {
-      navigate(`/dm/${sender_id}`)
+      router.push(`/dm/${sender_id}`)
     } else if (notif.type === 'match_request_accepted' && match_id) {
-      navigate(`/matches/${match_id}`)
+      router.push(`/matches/${match_id}`)
     } else if (notif.type === 'group_chat' && game_slug) {
-      navigate(`/games/${game_slug}/chat`)
+      router.push(`/games/${game_slug}/chat`)
     } else if (tournament_id) {
-      navigate(`/tournaments/${tournament_id}`)
+      router.push(`/tournaments/${tournament_id}`)
     } else if (item_id && request_id) {
-      navigate(`/shop/${item_id}/request/${request_id}`)
+      router.push(`/shop/${item_id}/request/${request_id}`)
     } else if (item_id) {
-      navigate(`/shop/${item_id}`)
+      router.push(`/shop/${item_id}`)
     }
     setNotifOpen(false)
   }
