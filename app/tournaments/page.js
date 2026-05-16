@@ -9,6 +9,12 @@ import usePageLoading from '../../components/usePageLoading'
 import { useCurrency } from '../../lib/useCurrency'
 import { GAME_SLUGS, GAME_META } from '../../lib/constants'
 import { getCurrentSeason } from '../../lib/seasons'
+function parsePrize(raw) {
+  if (!raw) return null
+  const n = Number(String(raw).replace(/[^0-9.]/g, ''))
+  return isNaN(n) || n <= 0 ? null : n
+}
+
 
 const GAME_NAMES = Object.fromEntries(GAME_SLUGS.map(s => [s, GAME_META[s].name]))
 
@@ -383,7 +389,7 @@ export default function Tournaments() {
                     {/* Entry fee badge */}
                     {hasFee && (
                       <span className={styles.feeBadge}>
-                        <i className="ri-money-dollar-circle-line" /> {fmtAmt(Number(t.entrance_fee) || 0)}
+                        <i className="ri-money-dollar-circle-line" /> {fmtAmt(parsePrize(t.entrance_fee) || 0)}
                       </span>
                     )}
                     {/* Registration / payment status */}
@@ -408,11 +414,11 @@ export default function Tournaments() {
                 {/* Stats row */}
                 <div className={styles.cardStats}>
                   {t.format && <span><i className="ri-gamepad-line" />{t.format}</span>}
-                  {Number(t.entrance_fee) > 0
-                    ? <span style={{color:'#f59e0b'}}><i className="ri-money-dollar-circle-line" />{fmtAmt(Number(t.entrance_fee))}</span>
+                  {parsePrize(t.entrance_fee)
+                    ? <span style={{color:'#f59e0b'}}><i className="ri-money-dollar-circle-line" />{fmtAmt(parsePrize(t.entrance_fee))}</span>
                     : <span style={{color:'var(--text-muted)'}}><i className="ri-money-dollar-circle-line" />Free</span>
                   }
-                  <span><i className="ri-trophy-line" />{Number(t.prize) > 0 ? fmtAmt(Number(t.prize)) : <span style={{color:'var(--text-muted)'}}>No prize</span>}</span>
+                  <span><i className="ri-trophy-line" />{parsePrize(t.prize) ? fmtAmt(parsePrize(t.prize)) : <span style={{color:'var(--text-muted)'}}>No prize</span>}</span>
                   {t.date && <span><i className="ri-calendar-event-line" />{t.date}</span>}
                 </div>
 
@@ -455,7 +461,7 @@ export default function Tournaments() {
                   ) : (
                     <button className={styles.registerBtn} onClick={e => handleRegisterClick(e, t)}>
                       {hasFee
-                        ? <><i className="ri-money-dollar-circle-line" /> Register · {fmtAmt(Number(t.entrance_fee) || 0)}</>
+                        ? <><i className="ri-money-dollar-circle-line" /> Register · {fmtAmt(parsePrize(t.entrance_fee) || 0)}</>
                         : <><i className="ri-add-circle-line" /> Register Free</>}
                     </button>
                   )}
