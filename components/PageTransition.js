@@ -1,44 +1,62 @@
 'use client'
 import { usePathname } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
+import { useLoadingContext } from './LoadingContext'
 
-/**
- * Native-feel SPA slide transition.
- * Uses a keyed wrapper that re-animates on every route change.
- * New page slides in from right; background dims leftward — like iOS.
- */
 export default function PageTransition({ children }) {
-  const pathname  = usePathname()
-  const [key, setKey]         = useState(pathname)
-  const [animating, setAnimating] = useState(false)
-  const prevPath  = useRef(pathname)
-  const timerRef  = useRef(null)
-  const firstRender = useRef(true)
+  const pathname                   = usePathname()
+  const { loading: pageLoading }   = useLoadingContext()
+  const prevPath                   = useRef(pathname)
+  const [visible, setVisible]      = useState(false)
+  const hideTimer                  = useRef(null)
+  const fallbackTimer              = useRef(null)
 
+  function show() {
+    clearTimeout(hideTimer.current)
+    clearTimeout(fallbackTimer.current)
+    setVisible(true)
+    // Hard fallback — never stuck longer than 2.5s
+    fallbackTimer.current = setTimeout(hide, 2500)
+  }
+
+  function hide() {
+    clearTimeout(fallbackTimer.current)
+    hideTimer.current = setTimeout(() => setVisible(false), 120)
+  }
+
+  // Show on route change
   useEffect(() => {
-    if (firstRender.current) { firstRender.current = false; return }
-    if (pathname === prevPath.current) return
+    if (prevPath.current === pathname) return
     prevPath.current = pathname
-
-    clearTimeout(timerRef.current)
-
-    // Trigger slide-in animation
-    setKey(pathname)
-    setAnimating(true)
-
-    // Remove animation class after it completes
-    timerRef.current = setTimeout(() => setAnimating(false), 340)
+    show()
   }, [pathname])
 
-  useEffect(() => () => clearTimeout(timerRef.current), [])
+  // Hide when page signals ready
+  useEffect(() => {
+    if (!pageLoading) hide()
+  }, [pageLoading])
+
+  useEffect(() => () => {
+    clearTimeout(hideTimer.current)
+    clearTimeout(fallbackTimer.current)
+  }, [])
 
   return (
-    <div
-      key={key}
-      className={animating ? 'page-slide-enter' : 'page-slide-idle'}
-      style={{ minHeight: '100dvh' }}
-    >
+    <>
+      {/* Lightweight translucent overlay — page stays fully visible beneath */}
+      <div
+        className="page-loader-overlay"
+        style={{
+          opacity:        visible ? 1 : 0,
+          pointerEvents:  visible ? 'all' : 'none',
+          transition:     visible
+            ? 'opacity 0.12s ease'       // fade in fast
+            : 'opacity 0.22s ease',      // fade out a bit slower
+        }}
+      >
+        <div className="loader" />
+      </div>
       {children}
-    </div>
+    </>
   )
 }

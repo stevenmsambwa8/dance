@@ -26,6 +26,7 @@ input, textarea, [contenteditable] {
 /* ── Light Theme ── */
 :root {
   --bg: #ffffff;
+  --bg-rgb: 255,255,255;  /* used by overlay: rgba(var(--bg-rgb), 0.62) */
   --bg-2: #f5f5f7;
   --surface: #ffffff;
 
@@ -45,6 +46,7 @@ input, textarea, [contenteditable] {
 /* ── Dark Theme ── */
 [data-theme="dark"] {
   --bg: #18181a;
+  --bg-rgb: 10,10,10;
   --bg-2: #202022;
   --surface: #242426;
 
@@ -133,34 +135,22 @@ button {
   }
 }
 
-/* ═══════════════════════════════════════════
-   SPA SLIDE TRANSITIONS — native app feel
-   New page slides in from right like iOS/Android
-═══════════════════════════════════════════ */
-
-/* Idle state — fully visible, no animation */
-.page-slide-idle {
-  transform: translateX(0);
+/* ── Page transition overlay ──
+   Sits over the page at opacity 0.6 — content visible beneath.
+   Shows spinner while data loads, fades in/out smoothly.
+─────────────────────────────────────── */
+.page-loader-overlay {
+  position: fixed;
+  inset: 0;
+  /* Semi-transparent — page shows through, no hard white block */
+  background: rgba(var(--bg-rgb, 255,255,255), 0.62);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
 }
-
-/* Enter from right — iOS push navigation feel */
-.page-slide-enter {
-  animation: nativeSlideIn 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
-  /* Shadow makes it feel like it's sliding on top */
-  box-shadow: -12px 0 32px rgba(0,0,0,0.14);
-}
-
-@keyframes nativeSlideIn {
-  0%   { transform: translateX(100%); }
-  100% { transform: translateX(0); }
-}
-
-/* Prevent body scroll during transition */
-.page-slide-enter * { pointer-events: none; }
-.page-slide-idle  * { pointer-events: auto; }
-
-/* ── Overlay loader hidden — we use slide transitions now ── */
-.page-loader-overlay { display: none; }
 
 /* ── Inline Loader Wrapper ── */
 .loader-wrap {

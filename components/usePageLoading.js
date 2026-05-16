@@ -1,9 +1,14 @@
 'use client'
-/**
- * usePageLoading — now a no-op.
- * Page transitions use slide animation (PageTransition.js) instead of
- * a loading overlay. This hook is kept so existing page imports don't break.
- */
-export default function usePageLoading(_isLoading) {
-  // No-op — slide transition handles the UX
+import { useEffect } from 'react'
+import { useLoadingContext } from './LoadingContext'
+
+export default function usePageLoading(isLoading) {
+  const { setPageLoading } = useLoadingContext()
+
+  setPageLoading(!!isLoading)
+
+  useEffect(() => {
+    setPageLoading(!!isLoading)
+    return () => setPageLoading(false)
+  }, [isLoading, setPageLoading])
 }
