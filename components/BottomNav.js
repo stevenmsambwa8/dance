@@ -1,10 +1,10 @@
 'use client'
-import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { useAuth } from './AuthProvider'
 import { supabase } from '../lib/supabase'
 import styles from './BottomNav.module.css'
+import { useNavigate } from './PageTransition'
 
 const mainLinks = [
   { href: '/',        label: 'Home',    icon: 'ri-stack-line',     iconActive: 'ri-stack-fill' },
@@ -16,6 +16,7 @@ const mainLinks = [
 export default function BottomNav() {
   const path = usePathname()
   const { user } = useAuth()
+  const navigate   = useNavigate()
   const [unread, setUnread] = useState(0)
 
   useEffect(() => {
@@ -47,19 +48,26 @@ export default function BottomNav() {
         {mainLinks.map(({ href, label, icon, iconActive }) => {
           const isActive = href === '/' ? path === '/' : path.startsWith(href)
           return (
-            <Link key={href} href={href} className={`${styles.item} ${isActive ? styles.active : ''}`}>
+            <button
+              key={href}
+              className={`${styles.item} ${isActive ? styles.active : ''}`}
+              onClick={() => navigate(href)}
+            >
               <i className={isActive ? iconActive : icon} />
               <span className={styles.label}>{label}</span>
-            </Link>
+            </button>
           )
         })}
       </nav>
 
       {/* ── Games circle — same height as pill ── */}
-      <Link href="/games" className={`${styles.gamesBtn} ${isGamesActive ? styles.gamesBtnActive : ''}`}>
+      <button
+        className={`${styles.gamesBtn} ${isGamesActive ? styles.gamesBtnActive : ''}`}
+        onClick={() => navigate('/games')}
+      >
         <i className={isGamesActive ? 'ri-gamepad-fill' : 'ri-gamepad-line'} />
         <span className={styles.gamesLabel}>Games</span>
-      </Link>
+      </button>
 
     </div>
   )
