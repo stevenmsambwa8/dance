@@ -365,7 +365,7 @@ export default function Tournaments() {
             const pct       = fillPct(t)
             const isFull    = (t.registered_count || 0) >= t.slots
             const isReg     = registered[t.id]
-            const hasFee    = (t.entrance_fee || 0) > 0
+            const hasFee    = !!parsePrize(t.entrance_fee)
             const pmtStatus = paymentMap[t.id]
             const isPending = pmtStatus === 'payment_submitted'
 
@@ -373,98 +373,104 @@ export default function Tournaments() {
               <div key={t.id} className={styles.card}
                 onClick={() => router.push(`/tournaments/${t.slug || t.id}`)}>
 
-                {/* Top row */}
-                <div className={styles.cardTop}>
-                  <div className={styles.cardMeta}>
+                {/* ── Game image banner ── */}
+                <div className={styles.cardBanner}>
+                  {GAME_META[t.game_slug]?.image
+                    ? <img src={GAME_META[t.game_slug].image} alt={GAME_NAMES[t.game_slug]} className={styles.cardBannerImg} />
+                    : <div className={styles.cardBannerFallback}><i className="ri-gamepad-line" /></div>
+                  }
+                  {/* Overlay badges on image */}
+                  <div className={styles.cardBannerOverlay}>
+                    <span className={`${styles.statusBadge} ${styles[t.status]}`}>{t.status}</span>
+                    {t.is_test && <span className={styles.testBadge}><i className="ri-flask-line" /> Test</span>}
+                  </div>
+                  <div className={styles.cardBannerRight}>
+                    {isReg && <span className={styles.regBadge}><i className="ri-checkbox-circle-fill" /></span>}
+                    {isPending && !isReg && <span className={styles.pendingBadge}><i className="ri-time-line" /></span>}
+                    {isFull && !isReg && <span className={styles.fullBadge}><i className="ri-lock-line" /></span>}
+                  </div>
+                </div>
+
+                {/* ── Card body ── */}
+                <div className={styles.cardBody}>
+                  {/* Game label + name */}
+                  <div className={styles.cardGameLabel}>
                     <Link href={`/games/${t.game_slug}`} className={styles.gameTag}
                       onClick={e => e.stopPropagation()}>
                       {GAME_NAMES[t.game_slug] || t.game_slug}
                     </Link>
-                    <span className={`${styles.statusBadge} ${styles[t.status]}`}>{t.status}</span>
-
-                    {/* Test badge */}
-                    {t.is_test && (
-                      <span className={styles.testBadge}><i className="ri-flask-line" /> Test</span>
-                    )}
-                    {/* Entry fee badge */}
-                    {hasFee && (
-                      <span className={styles.feeBadge}>
-                        <i className="ri-money-dollar-circle-line" /> {fmtAmt(parsePrize(t.entrance_fee) || 0)}
-                      </span>
-                    )}
-                    {/* Registration / payment status */}
-                    {isReg && (
-                      <span className={styles.regBadge}>
-                        <i className="ri-checkbox-circle-fill" /> Registered
-                      </span>
-                    )}
-                    {isPending && !isReg && (
-                      <span className={styles.pendingBadge}>
-                        <i className="ri-time-line" /> Pending
-                      </span>
-                    )}
-                    {isFull && !isReg && (
-                      <span className={styles.fullBadge}><i className="ri-lock-line" /> Full</span>
-                    )}
                   </div>
                   <h3 className={styles.cardName}>{t.name}</h3>
                   {t.description && <p className={styles.cardDesc}>{t.description}</p>}
-                </div>
 
-                {/* Stats row */}
-                <div className={styles.cardStats}>
-                  {t.format && <span><i className="ri-gamepad-line" />{t.format}</span>}
-                  {parsePrize(t.entrance_fee)
-                    ? <span style={{color:'#f59e0b'}}><i className="ri-money-dollar-circle-line" />{fmtAmt(parsePrize(t.entrance_fee))}</span>
-                    : <span style={{color:'var(--text-muted)'}}><i className="ri-money-dollar-circle-line" />Free</span>
-                  }
-                  <span><i className="ri-trophy-line" />{parsePrize(t.prize) ? fmtAmt(parsePrize(t.prize)) : <span style={{color:'var(--text-muted)'}}>No prize</span>}</span>
-                  {t.date && <span><i className="ri-calendar-event-line" />{t.date}</span>}
-                </div>
-
-                {/* Slot bar */}
-                <div className={styles.slotBar}>
-                  <div className={styles.slotBarLabels}>
-                    <span className={styles.slotBarLeft}>
-                      <i className="ri-group-line" /> {t.registered_count || 0} / {t.slots} players
-                    </span>
-                    <span className={`${styles.slotBarPct} ${pct >= 80 ? styles.slotHot : ''}`}>
-                      {pct}%{pct >= 80 && <> <i className="ri-fire-line" /></>}
-                    </span>
+                  {/* ── Stats grid ── */}
+                  <div className={styles.cardStats}>
+                    <div className={styles.statCell}>
+                      <span className={styles.statLabel}><i className="ri-gamepad-line" /> Format</span>
+                      <span className={styles.statVal}>{t.format || '—'}</span>
+                    </div>
+                    <div className={styles.statCell}>
+                      <span className={styles.statLabel}><i className="ri-money-dollar-circle-line" /> Entry</span>
+                      <span className={styles.statVal} style={{color: hasFee ? '#f59e0b' : 'var(--text-muted)'}}>
+                        {hasFee ? fmtAmt(parsePrize(t.entrance_fee)) : 'Free'}
+                      </span>
+                    </div>
+                    <div className={styles.statCell}>
+                      <span className={styles.statLabel}><i className="ri-trophy-line" /> Prize</span>
+                      <span className={styles.statVal} style={{color: parsePrize(t.prize) ? '#22c55e' : 'var(--text-muted)'}}>
+                        {parsePrize(t.prize) ? fmtAmt(parsePrize(t.prize)) : 'No prize'}
+                      </span>
+                    </div>
+                    <div className={styles.statCell}>
+                      <span className={styles.statLabel}><i className="ri-calendar-line" /> Date</span>
+                      <span className={styles.statVal}>{t.date || '—'}</span>
+                    </div>
                   </div>
-                  <div className={styles.slotTrack}>
-                    <div
-                      className={`${styles.slotFill} ${isFull ? styles.slotFull : pct >= 80 ? styles.slotWarm : ''}`}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </div>
 
-                {/* Footer CTA */}
-                <div className={styles.cardFooter}>
-                  {isReg ? (
-                    <span className={styles.regBadge} style={{ fontSize: 12 }}>
-                      <i className="ri-checkbox-circle-fill" /> You&apos;re registered
-                    </span>
-                  ) : isPending ? (
-                    <span className={styles.pendingBadge} style={{ fontSize: 12 }}>
-                      <i className="ri-time-line" /> Payment awaiting approval
-                    </span>
-                  ) : isFull ? (
-                    <span className={styles.fullBadge} style={{ fontSize: 12 }}>
-                      <i className="ri-lock-line" /> Tournament full
-                    </span>
-                  ) : t.status !== 'active' ? (
-                    <span className={styles.viewLink}>
-                      View bracket &amp; details <i className="ri-arrow-right-line" />
-                    </span>
-                  ) : (
-                    <button className={styles.registerBtn} onClick={e => handleRegisterClick(e, t)}>
-                      {hasFee
-                        ? <><i className="ri-money-dollar-circle-line" /> Register · {fmtAmt(parsePrize(t.entrance_fee) || 0)}</>
-                        : <><i className="ri-add-circle-line" /> Register Free</>}
-                    </button>
-                  )}
+                  {/* ── Slot bar ── */}
+                  <div className={styles.slotBar}>
+                    <div className={styles.slotBarLabels}>
+                      <span className={styles.slotBarLeft}>
+                        <i className="ri-group-line" /> {t.registered_count || 0} / {t.slots} players
+                      </span>
+                      <span className={`${styles.slotBarPct} ${pct >= 80 ? styles.slotHot : ''}`}>
+                        {pct}%{pct >= 80 && <> <i className="ri-fire-line" /></>}
+                      </span>
+                    </div>
+                    <div className={styles.slotTrack}>
+                      <div
+                        className={`${styles.slotFill} ${isFull ? styles.slotFull : pct >= 80 ? styles.slotWarm : ''}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* ── Footer CTA ── */}
+                  <div className={styles.cardFooter}>
+                    {isReg ? (
+                      <span className={styles.regBadge}>
+                        <i className="ri-checkbox-circle-fill" /> You&apos;re registered
+                      </span>
+                    ) : isPending ? (
+                      <span className={styles.pendingBadge}>
+                        <i className="ri-time-line" /> Payment awaiting approval
+                      </span>
+                    ) : isFull ? (
+                      <span className={styles.fullBadge}>
+                        <i className="ri-lock-line" /> Tournament full
+                      </span>
+                    ) : t.status !== 'active' ? (
+                      <span className={styles.viewLink}>
+                        View details <i className="ri-arrow-right-line" />
+                      </span>
+                    ) : (
+                      <button className={styles.registerBtn} onClick={e => handleRegisterClick(e, t)}>
+                        {hasFee
+                          ? <><i className="ri-money-dollar-circle-line" /> Register · {fmtAmt(parsePrize(t.entrance_fee))}</>
+                          : <><i className="ri-add-circle-line" /> Register Free</>}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             )
