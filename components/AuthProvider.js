@@ -21,10 +21,45 @@ export const ADMIN_EMAIL = ADMIN_EMAILS[0] // backward compat
 export const HELPDESK_EMAILS = ['nabogamingss1@gmail.com']
 export const isHelpdeskEmail = (email) => HELPDESK_EMAILS.includes(email)
 
+// ── Read session synchronously from localStorage before first render ──────────
+// Supabase stores the session at this key (set in lib/supabase.js storageKey).
+// Parsing it here means the VERY FIRST render already knows user/profile,
+// so pages never flash a logged-out state for a logged-in user.
+function readCachedSession() {
+  if (typeof window === 'undefined') return { user: null, profile: null }
+  try {
+    const raw = localStorage.getItem('nabogaming-auth')
+    if (!raw) return { user: null, profile: null }
+    const parsed = JSON.parse(raw)
+    // Supabase v2 storage format: { currentSession: { user, ... }, ... }
+    const session = parsed?.currentSession ?? parsed
+    const u = session?.user ?? null
+    return { user: u, profile: null }
+  } catch {
+    return { user: null, profile: null }
+  }
+}
+
+// ── Second cache: profile is also stored after first fetch ────────────────────
+function readCachedProfile() {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = localStorage.getItem('nabogaming-profile')
+    if (!raw) return null
+    const p = JSON.parse(raw)
+    // Reject stale cache older than 5 minutes
+    if (!p?._cachedAt || Date.now() - p._cachedAt > 5 * 60 * 1000) return null
+    return p
+  } catch { return null }
+}
+
 export default function AuthProvider({ children }) {
-  const [user, setUser]       = useState(null)
-  const [profile, setProfile] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const cached = readCachedSession()
+  // Seed state synchronously — no null flash for logged-in users
+  const [user, setUser]       = useState(cached.user)
+  const [profile, setProfile] = useState(readCachedProfile())
+  // If we already have a cached user, loading starts false — pages render immediately
+  const [loading, setLoading] = useState(!cached.user)
 
   useEffect(() => {
     let mounted = true
@@ -178,6 +213,8 @@ export default function AuthProvider({ children }) {
       data.level         = data.level         ?? 1
     }
     setProfile(data)
+    // Persist profile so next cold load renders instantly without flash
+    try { localStorage.setItem('nabogaming-profile', JSON.stringify({ ...data, _cachedAt: Date.now() })) } catch {}
     setLoading(false)
   }
 
@@ -225,6 +262,7 @@ export default function AuthProvider({ children }) {
   }
 
   async function signOut() {
+    try { localStorage.removeItem('nabogaming-profile') } catch {}
     await supabase.auth.signOut()
   }
 
