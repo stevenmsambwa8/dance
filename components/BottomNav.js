@@ -58,7 +58,7 @@ export default function BottomNav() {
       {/* ── Games circle — same height as pill ── */}
       <Link href="/games" className={`${styles.gamesBtn} ${isGamesActive ? styles.gamesBtnActive : ''}`}>
         <i className={isGamesActive ? 'ri-gamepad-fill' : 'ri-gamepad-line'} />
-        
+        <span className={styles.gamesLabel}>Games</span>
       </Link>
 
     </div>
