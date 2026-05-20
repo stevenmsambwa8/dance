@@ -172,6 +172,14 @@
   gap: 2px;
 }
 
+/* Auth loading spinner in hero */
+.heroSpinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0 20px;
+}
+
 /* Guest hero */
 .heroGuest {
   display: flex;

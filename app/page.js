@@ -254,7 +254,10 @@ export default function Home() {
             )}
           </div>
 
-          {profile ? (
+          {/* While auth hasn't settled yet, show a centered spinner — no flash */}
+          {!profile && user ? (
+            <div className={styles.heroSpinner}><div className="loader" /></div>
+          ) : profile ? (
             <div className={styles.heroBody}>
               <div className={styles.heroName}>
                 {profile.username}

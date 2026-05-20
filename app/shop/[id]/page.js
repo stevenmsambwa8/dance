@@ -10,39 +10,38 @@ import usePageLoading from '../../../components/usePageLoading'
 import { useCurrency } from '../../../lib/useCurrency'
 
 export default function ShopItemDetail() {
-  const { id } = useParams()
-  const { user } = useAuth()
+  const { id }   = useParams()
   const router   = useRouter()
+  const { user, profile } = useAuth()
+  const { fmtAmt } = useCurrency(profile?.country_flag ?? null)
 
-  const [item, setItem]     = useState(null)
-  const [images, setImages] = useState([])
+  const [item,    setItem]    = useState(null)
+  const [images,  setImages]  = useState([])
   const [loading, setLoading] = useState(true)
   usePageLoading(loading)
 
   // Gallery
-  const [activeIdx, setActiveIdx]   = useState(0)
-  const [zoom, setZoom]             = useState(false)
-  const [zoomScale, setZoomScale]   = useState(1)
-  const [zoomOrigin, setZoomOrigin] = useState({ x: 50, y: 50 })
-  const [lightbox, setLightbox]     = useState(false)
-  const [lbIdx, setLbIdx]           = useState(0)
-  const [imgDims, setImgDims]       = useState({})
+  const [activeIdx,   setActiveIdx]   = useState(0)
+  const [zoom,        setZoom]        = useState(false)
+  const [zoomScale,   setZoomScale]   = useState(1)
+  const [zoomOrigin,  setZoomOrigin]  = useState({ x: 50, y: 50 })
+  const [lightbox,    setLightbox]    = useState(false)
+  const [lbIdx,       setLbIdx]       = useState(0)
+  const [imgDims,     setImgDims]     = useState({})
   const stripRef = useRef(null)
 
-  // Buyer's existing request
-  const [myRequest, setMyRequest]     = useState(null)
+  // Buyer state
+  const [myRequest,      setMyRequest]      = useState(null)
   const [requestChecked, setRequestChecked] = useState(false)
+  const [buying,         setBuying]         = useState(false)
 
   // Seller inbox
   const [allRequests, setAllRequests] = useState([])
-  const [updating, setUpdating]       = useState(false)
-
-  // Buy loading
-  const [buying, setBuying] = useState(false)
+  const [updating,    setUpdating]    = useState(false)
 
   const isSeller = item && user && user.id === item.seller_id
 
-  // Fetch item + images
+  // Load item + images
   useEffect(() => {
     async function load() {
       setLoading(true)
@@ -64,7 +63,7 @@ export default function ShopItemDetail() {
     load()
   }, [id])
 
-  // Check if buyer has an active request
+  // Check buyer's existing request
   useEffect(() => {
     if (!item || !user || isSeller) { setRequestChecked(true); return }
     supabase
@@ -79,11 +78,11 @@ export default function ShopItemDetail() {
       .then(({ data }) => { setMyRequest(data || null); setRequestChecked(true) })
   }, [item, user, isSeller])
 
-  // Seller realtime requests
+  // Seller realtime inbox
   useEffect(() => {
     if (!item || !user || !isSeller) return
     loadAllRequests()
-    const ch = supabase.channel(`buy-requests-${id}`)
+    const ch = supabase.channel(`shop-req-${id}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'buy_requests', filter: `item_id=eq.${id}` }, loadAllRequests)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'buy_requests', filter: `item_id=eq.${id}` }, loadAllRequests)
       .subscribe()
@@ -114,7 +113,6 @@ export default function ShopItemDetail() {
     setUpdating(false)
   }
 
-  // Auto-create request → go straight to chat
   async function handleBuyNow() {
     if (!user) { router.push('/login'); return }
     if (myRequest) { router.push(`/shop/${id}/request/${myRequest.id}`); return }
@@ -142,7 +140,7 @@ export default function ShopItemDetail() {
     router.push(`/shop/${id}/request/${req.id}`)
   }
 
-  // Zoom
+  // Zoom handlers
   function handleMainClick(e) {
     if (!zoom) {
       const rect = e.currentTarget.getBoundingClientRect()
@@ -156,6 +154,7 @@ export default function ShopItemDetail() {
     setZoomOrigin({ x: ((e.clientX - rect.left) / rect.width) * 100, y: ((e.clientY - rect.top) / rect.height) * 100 })
   }
 
+  // Image dimension detection
   useEffect(() => {
     const src = images[activeIdx]
     if (!src || imgDims[src]) return
@@ -164,6 +163,7 @@ export default function ShopItemDetail() {
     img.src = src
   }, [activeIdx, images])
 
+  // Lightbox keyboard
   useEffect(() => {
     if (!lightbox) return
     const h = (e) => {
@@ -180,8 +180,8 @@ export default function ShopItemDetail() {
     stripRef.current?.children[idx]?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
   }
 
-  const statusColor = (s) => ({ pending: '#f59e0b', accepted: '#22c55e', declined: '#ef4444', completed: '#6366f1' }[s] || '#888')
-  const fmtPrice    = (p) => { const n = Number(String(p || '').replace(/[^0-9.]/g, '')); return isNaN(n) || n <= 0 ? p : n.toLocaleString() }
+  const statusColor = s => ({ pending: '#f59e0b', accepted: '#22c55e', declined: '#ef4444', completed: '#6366f1' }[s] || '#888')
+  const fmtPrice    = p => { const n = Number(String(p || '').replace(/[^0-9.]/g, '')); return isNaN(n) || n <= 0 ? p : fmtAmt(n) }
 
   const activeSrc   = images[activeIdx]
   const dims        = activeSrc ? imgDims[activeSrc] : null
@@ -196,252 +196,221 @@ export default function ShopItemDetail() {
     </div>
   )
 
-  // Determine buyer CTA state
   const hasActiveRequest = !!myRequest
-  const ctaLabel = buying ? 'Opening chat…'
-    : hasActiveRequest ? 'View Request'
-    : 'Buy Now'
-  const ctaIcon  = buying ? 'ri-loader-4-line'
-    : hasActiveRequest ? 'ri-chat-3-line'
-    : 'ri-shopping-bag-line'
+  const ctaLabel = buying ? 'Opening…' : hasActiveRequest ? 'View Request' : 'Buy Now'
+  const ctaIcon  = buying ? 'ri-loader-4-line' : hasActiveRequest ? 'ri-chat-3-line' : 'ri-shopping-bag-line'
 
   return (
     <div className={styles.page}>
 
-      {/* Back nav */}
-      <Link href="/shop" className={styles.back}>
-        <i className="ri-arrow-left-line" /> All listings
-      </Link>
+      {/* Top bar */}
+      <div className={styles.topBar}>
+        <Link href="/shop" className={styles.back}>
+          <i className="ri-arrow-left-line" /> Shop
+        </Link>
+        <button className={styles.shareBtn} onClick={() => navigator.share?.({ title: item.title, url: window.location.href }).catch(() => {})}>
+          <i className="ri-share-forward-line" />
+        </button>
+      </div>
 
-      <div className={styles.layout}>
-
-        {/* ── LEFT ── */}
-        <div className={styles.left}>
-
-          {/* Hero gallery */}
-          <div className={styles.galleryWrap}>
-            {images.length > 0 ? (
-              <>
-                <div
-                  className={`${styles.mainImg} ${zoom ? styles.mainImgZoomed : ''}`}
-                  style={{ aspectRatio }}
-                  onClick={handleMainClick}
-                  onMouseMove={handleMainMove}
-                  onMouseLeave={() => { setZoom(false); setZoomScale(1) }}
-                >
-                  <img
-                    src={images[activeIdx]}
-                    alt={item.title}
-                    style={{
-                      transformOrigin: zoom ? `${zoomOrigin.x}% ${zoomOrigin.y}%` : 'center',
-                      transform: `scale(${zoomScale})`,
-                      transition: zoom ? 'transform 0.15s ease' : 'transform 0.2s ease',
-                    }}
-                  />
-                  {!zoom && <span className={styles.zoomHint}><i className="ri-zoom-in-line" /></span>}
-                  <button className={styles.expandBtn} onClick={e => { e.stopPropagation(); setLbIdx(activeIdx); setLightbox(true) }}>
-                    <i className="ri-fullscreen-line" />
+      {/* Gallery */}
+      <div className={styles.gallery}>
+        {images.length > 0 ? (
+          <>
+            <div
+              className={`${styles.mainImg} ${zoom ? styles.mainImgZoomed : ''}`}
+              style={{ aspectRatio }}
+              onClick={handleMainClick}
+              onMouseMove={handleMainMove}
+              onMouseLeave={() => { setZoom(false); setZoomScale(1) }}
+            >
+              <img
+                src={images[activeIdx]}
+                alt={item.title}
+                style={{
+                  transformOrigin: zoom ? `${zoomOrigin.x}% ${zoomOrigin.y}%` : 'center',
+                  transform: `scale(${zoomScale})`,
+                  transition: zoom ? 'transform 0.15s ease' : 'transform 0.2s ease',
+                }}
+              />
+              {!zoom && <span className={styles.zoomHint}><i className="ri-zoom-in-line" /></span>}
+              <button className={styles.expandBtn} onClick={e => { e.stopPropagation(); setLbIdx(activeIdx); setLightbox(true) }}>
+                <i className="ri-fullscreen-line" />
+              </button>
+              {images.length > 1 && (
+                <>
+                  <button className={`${styles.galleryArrow} ${styles.galleryArrowL}`} onClick={e => { e.stopPropagation(); scrollStripTo((activeIdx - 1 + images.length) % images.length) }}><i className="ri-arrow-left-s-line" /></button>
+                  <button className={`${styles.galleryArrow} ${styles.galleryArrowR}`} onClick={e => { e.stopPropagation(); scrollStripTo((activeIdx + 1) % images.length) }}><i className="ri-arrow-right-s-line" /></button>
+                </>
+              )}
+              {item.category && <span className={styles.catChip}>{item.category}</span>}
+            </div>
+            {images.length > 1 && (
+              <div className={styles.strip} ref={stripRef}>
+                {images.map((src, i) => (
+                  <button key={i} className={`${styles.thumb} ${i === activeIdx ? styles.thumbActive : ''}`} onClick={() => scrollStripTo(i)}>
+                    <img src={src} alt="" />
                   </button>
-                  {images.length > 1 && (
-                    <>
-                      <button className={`${styles.galleryArrow} ${styles.galleryArrowL}`} onClick={e => { e.stopPropagation(); scrollStripTo((activeIdx - 1 + images.length) % images.length) }}>
-                        <i className="ri-arrow-left-s-line" />
-                      </button>
-                      <button className={`${styles.galleryArrow} ${styles.galleryArrowR}`} onClick={e => { e.stopPropagation(); scrollStripTo((activeIdx + 1) % images.length) }}>
-                        <i className="ri-arrow-right-s-line" />
-                      </button>
-                    </>
-                  )}
-                  {/* category chip on image */}
-                  <span className={styles.imgCatChip}>{item.category}</span>
-                </div>
-
-                {images.length > 1 && (
-                  <div className={styles.strip} ref={stripRef}>
-                    {images.map((src, i) => (
-                      <button key={i} className={`${styles.thumb} ${i === activeIdx ? styles.thumbActive : ''}`} onClick={() => scrollStripTo(i)}>
-                        <img src={src} alt={`Photo ${i + 1}`} />
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className={styles.noImg}>
-                <i className="ri-image-line" />
-                <span>No photos</span>
+                ))}
               </div>
             )}
+          </>
+        ) : (
+          <div className={styles.noImg}>
+            <i className="ri-image-line" />
+            <span>No photos</span>
           </div>
+        )}
+      </div>
 
-          {/* Product info block */}
-          <div className={styles.productInfo}>
-            <div className={styles.titleRow}>
-              <h1 className={styles.title}>{item.title}</h1>
-              <span className={item.active ? styles.availBadge : styles.soldBadge}>
-                {item.active ? 'Available' : 'Sold'}
-              </span>
-            </div>
-
-            <p className={styles.bigPrice}>{fmtAmt(Number(String(item.price).replace(/[^0-9.]/g, '')))}</p>
-
-            {item.description && (
-              <div className={styles.descBlock}>
-                <p className={styles.blockLabel}>About this item</p>
-                <p className={styles.desc}>{item.description}</p>
-              </div>
-            )}
-
-            <div className={styles.divider} />
-
-            <p className={styles.blockLabel}>Seller</p>
-            <Link href={`/profile/${item.seller_id}`} className={styles.sellerCard}>
-              <div className={styles.sellerAvatar}>
-                {item.profiles?.avatar_url
-                  ? <img src={item.profiles.avatar_url} alt="" />
-                  : <span>{item.profiles?.username?.[0]?.toUpperCase() || '?'}</span>
-                }
-              </div>
-              <div className={styles.sellerInfo}>
-                <span className={styles.sellerName}>
-                  {item.profiles?.username || 'Unknown'}
-                  <UserBadges email={item.profiles?.email} countryFlag={item.profiles?.country_flag} isSeasonWinner={item.profiles?.is_season_winner} size={13} gap={2} />
-                </span>
-                {item.profiles?.tier && (
-                  <span className={styles.sellerMeta}>{item.profiles.tier} · Lv.{item.profiles.level ?? 1}</span>
-                )}
-              </div>
-              <i className="ri-arrow-right-s-line" style={{ color: 'var(--text-muted)', marginLeft: 'auto' }} />
-            </Link>
-          </div>
+      {/* Info */}
+      <div className={styles.info}>
+        <div className={styles.titleRow}>
+          <h1 className={styles.title}>{item.title}</h1>
+          <span className={item.active ? styles.availBadge : styles.soldBadge}>
+            {item.active ? 'Available' : 'Sold'}
+          </span>
         </div>
+        <p className={styles.bigPrice}>{fmtPrice(item.price)}</p>
 
-        {/* ── RIGHT ── */}
-        <div className={styles.right}>
+        {item.description && (
+          <>
+            <p className={styles.blockLabel}>About this item</p>
+            <p className={styles.desc}>{item.description}</p>
+          </>
+        )}
 
-          {/* Sticky buy panel */}
-          <div className={styles.panel}>
-            <div className={styles.panelTop}>
-              <div>
-                <p className={styles.panelPriceLabel}>Price</p>
-                <p className={styles.panelPrice}>{fmtAmt(Number(String(item.price).replace(/[^0-9.]/g, '')))}</p>
-              </div>
-              <span className={`${styles.panelStatus} ${item.active ? styles.panelStatusAvail : styles.panelStatusSold}`}>
-                {item.active ? '● Live' : '● Sold'}
-              </span>
-            </div>
+        <div className={styles.divider} />
 
-            {!isSeller && user && item.active && requestChecked && (
-              <>
-                {hasActiveRequest && (
-                  <div className={styles.requestTracker}>
-                    <div className={styles.trackerDot} style={{ background: statusColor(myRequest.status) }} />
-                    <div>
-                      <span className={styles.trackerLabel}>Your request</span>
-                      <span className={styles.trackerStatus} style={{ color: statusColor(myRequest.status) }}>
-                        {myRequest.status?.charAt(0).toUpperCase() + myRequest.status?.slice(1)}
-                      </span>
-                    </div>
-                  </div>
-                )}
-                <button
-                  className={`${styles.ctaBtn} ${hasActiveRequest ? styles.ctaBtnAlt : ''}`}
-                  onClick={handleBuyNow}
-                  disabled={buying}
-                >
-                  <i className={ctaIcon} style={buying ? { animation: 'spin .7s linear infinite' } : {}} />
-                  {ctaLabel}
-                </button>
-                {!hasActiveRequest && (
-                  <p className={styles.ctaHint}><i className="ri-shield-check-line" /> Instant request — seller will be notified</p>
-                )}
-              </>
-            )}
-
-            {isSeller && (
-              <div className={styles.ownerNote}>
-                <i className="ri-store-2-line" /> This is your listing
-              </div>
-            )}
-
-            {!user && (
-              <>
-                <p className={styles.panelSub}>Log in to buy this item or make an offer.</p>
-                <Link href="/login" className={styles.ctaBtn} style={{ textAlign: 'center', textDecoration: 'none' }}>
-                  <i className="ri-login-box-line" /> Log In to Buy
-                </Link>
-              </>
+        <p className={styles.blockLabel}>Seller</p>
+        <Link href={`/profile/${item.seller_id}`} className={styles.sellerCard}>
+          <div className={styles.sellerAvatar}>
+            {item.profiles?.avatar_url
+              ? <img src={item.profiles.avatar_url} alt="" />
+              : <span>{(item.profiles?.username || '?')[0].toUpperCase()}</span>
+            }
+          </div>
+          <div className={styles.sellerInfo}>
+            <span className={styles.sellerName}>
+              {item.profiles?.username || 'Unknown'}
+              <UserBadges email={item.profiles?.email} countryFlag={item.profiles?.country_flag} isSeasonWinner={item.profiles?.is_season_winner} size={12} gap={2} />
+            </span>
+            {item.profiles?.tier && (
+              <span className={styles.sellerMeta}>{item.profiles.tier} · Lv.{item.profiles.level ?? 1}</span>
             )}
           </div>
+          <i className="ri-arrow-right-s-line" style={{ color: 'var(--text-muted)', marginLeft: 'auto' }} />
+        </Link>
+      </div>
 
-          {/* Seller inbox */}
-          {isSeller && (
-            <div className={styles.panel}>
-              <p className={styles.panelTitle}>
-                <i className="ri-inbox-2-line" /> Requests
-                {allRequests.length > 0 && <span className={styles.reqCount}>{allRequests.length}</span>}
-              </p>
-
-              {allRequests.length === 0 ? (
-                <div className={styles.inboxEmpty}>
-                  <i className="ri-mail-open-line" />
-                  <p>No requests yet</p>
-                </div>
-              ) : allRequests.map(req => (
-                <div key={req.id} className={styles.requestCard}>
-                  <div className={styles.reqTop}>
-                    <div className={styles.reqBuyerRow}>
-                      <div className={styles.reqAvatar}>
-                        {req.profiles?.avatar_url
-                          ? <img src={req.profiles.avatar_url} alt="" className={styles.reqAvatarImg} />
-                          : <span>{req.profiles?.username?.[0]?.toUpperCase() || '?'}</span>
-                        }
-                      </div>
-                      <div>
-                        <span className={styles.reqBuyer}>{req.profiles?.username || 'Unknown'}</span>
-                        <span className={styles.reqTier}>{req.profiles?.tier || ''}</span>
-                      </div>
-                    </div>
-                    <span className={styles.reqStatusPill} style={{ color: statusColor(req.status), background: statusColor(req.status) + '18', borderColor: statusColor(req.status) + '40' }}>
-                      {req.status}
+      {/* Buy panel */}
+      <div className={styles.panel}>
+        <div className={styles.panelTop}>
+          <div>
+            <p className={styles.panelPriceLabel}>Price</p>
+            <p className={styles.panelPrice}>{fmtPrice(item.price)}</p>
+          </div>
+          <span className={item.active ? styles.panelStatusAvail : styles.panelStatusSold}>
+            {item.active ? '● Live' : '● Sold'}
+          </span>
+        </div>
+        <div className={styles.panelBody}>
+          {!isSeller && user && item.active && requestChecked && (
+            <>
+              {hasActiveRequest && (
+                <div className={styles.requestTracker}>
+                  <div className={styles.trackerDot} style={{ background: statusColor(myRequest.status) }} />
+                  <div>
+                    <span className={styles.trackerLabel}>Your request</span>
+                    <span className={styles.trackerStatus} style={{ color: statusColor(myRequest.status) }}>
+                      {myRequest.status?.charAt(0).toUpperCase() + myRequest.status?.slice(1)}
                     </span>
                   </div>
-                  <div className={styles.reqPrice}>{fmtAmt(req.offer_price)}</div>
-                  {req.note && <p className={styles.reqNote}>"{req.note}"</p>}
-                  <div className={styles.reqActions}>
-                    {req.status === 'pending' && (
-                      <>
-                        <button className={styles.acceptBtn} onClick={() => updateRequestStatus(req.id, 'accepted', req.buyer_id)} disabled={updating}>
-                          <i className="ri-check-line" /> Accept
-                        </button>
-                        <button className={styles.declineBtn} onClick={() => updateRequestStatus(req.id, 'declined', req.buyer_id)} disabled={updating}>
-                          <i className="ri-close-line" />
-                        </button>
-                      </>
-                    )}
-                    <Link href={`/shop/${id}/request/${req.id}`} className={styles.viewChatBtn}>
-                      <i className="ri-chat-3-line" /> Open Chat
-                    </Link>
-                  </div>
                 </div>
-              ))}
-            </div>
+              )}
+              <button
+                className={`${styles.ctaBtn} ${hasActiveRequest ? styles.ctaBtnAlt : ''}`}
+                onClick={handleBuyNow}
+                disabled={buying}
+              >
+                <i className={ctaIcon} style={buying ? { animation: 'spin .7s linear infinite' } : {}} />
+                {ctaLabel}
+              </button>
+              {!hasActiveRequest && (
+                <p className={styles.ctaHint}><i className="ri-shield-check-line" /> Seller will be notified instantly</p>
+              )}
+            </>
+          )}
+          {isSeller && <div className={styles.ownerNote}><i className="ri-store-2-line" /> This is your listing</div>}
+          {!user && (
+            <>
+              <p className={styles.panelSub}>Log in to buy or make an offer.</p>
+              <Link href="/login" className={styles.ctaBtn} style={{ textDecoration: 'none' }}>
+                <i className="ri-login-box-line" /> Log In to Buy
+              </Link>
+            </>
           )}
         </div>
       </div>
 
+      {/* Seller inbox */}
+      {isSeller && (
+        <div className={styles.inboxPanel}>
+          <p className={styles.inboxTitle}><i className="ri-inbox-2-line" /> Buy Requests ({allRequests.length})</p>
+          {allRequests.length === 0
+            ? <p className={styles.inboxEmpty}>No requests yet.</p>
+            : allRequests.map(req => (
+              <div key={req.id} className={styles.reqCard}>
+                <div className={styles.reqTop}>
+                  <div className={styles.reqAvatar}>
+                    {req.profiles?.avatar_url
+                      ? <img src={req.profiles.avatar_url} alt="" />
+                      : <span>{(req.profiles?.username || '?')[0].toUpperCase()}</span>
+                    }
+                  </div>
+                  <div>
+                    <div className={styles.reqName}>{req.profiles?.username || 'Buyer'}</div>
+                    <div className={styles.reqTier}>{req.profiles?.tier}</div>
+                  </div>
+                  <span className={styles.reqPrice}>{fmtAmt(req.offer_price)}</span>
+                </div>
+                {req.note && <p className={styles.reqNote}>{req.note}</p>}
+                <span className={styles.reqStatus} style={{ background: statusColor(req.status) + '20', color: statusColor(req.status) }}>
+                  {req.status?.replace(/_/g, ' ')}
+                </span>
+                <div className={styles.reqActions}>
+                  {req.status === 'pending' && (
+                    <>
+                      <button className={styles.reqAccept} onClick={() => updateRequestStatus(req.id, 'accepted', req.buyer_id)} disabled={updating}>
+                        <i className="ri-check-line" /> Accept
+                      </button>
+                      <button className={styles.reqDecline} onClick={() => updateRequestStatus(req.id, 'declined', req.buyer_id)} disabled={updating}>
+                        <i className="ri-close-line" /> Decline
+                      </button>
+                    </>
+                  )}
+                  <Link href={`/shop/${id}/request/${req.id}`} className={styles.reqChat}>
+                    <i className="ri-chat-3-line" /> Chat
+                  </Link>
+                </div>
+              </div>
+            ))
+          }
+        </div>
+      )}
+
       {/* Lightbox */}
       {lightbox && (
         <div className={styles.lightbox} onClick={() => setLightbox(false)}>
-          <button className={styles.lbClose} onClick={() => setLightbox(false)}><i className="ri-close-line" /></button>
+          <button className={styles.lightboxClose}><i className="ri-close-line" /></button>
+          <img src={images[lbIdx]} className={styles.lightboxImg} alt="" onClick={e => e.stopPropagation()} />
           {images.length > 1 && (
             <>
-              <button className={`${styles.lbArrow} ${styles.lbArrowL}`} onClick={e => { e.stopPropagation(); setLbIdx(i => (i - 1 + images.length) % images.length) }}><i className="ri-arrow-left-s-line" /></button>
-              <button className={`${styles.lbArrow} ${styles.lbArrowR}`} onClick={e => { e.stopPropagation(); setLbIdx(i => (i + 1) % images.length) }}><i className="ri-arrow-right-s-line" /></button>
+              <button className={`${styles.lightboxArrow} ${styles.lightboxArrowL}`} onClick={e => { e.stopPropagation(); setLbIdx(i => (i - 1 + images.length) % images.length) }}><i className="ri-arrow-left-s-line" /></button>
+              <button className={`${styles.lightboxArrow} ${styles.lightboxArrowR}`} onClick={e => { e.stopPropagation(); setLbIdx(i => (i + 1) % images.length) }}><i className="ri-arrow-right-s-line" /></button>
+              <span className={styles.lightboxCounter}>{lbIdx + 1} / {images.length}</span>
             </>
           )}
-          <img src={images[lbIdx]} alt="" className={styles.lbImg} onClick={e => e.stopPropagation()} />
-          <p className={styles.lbCounter}>{lbIdx + 1} / {images.length}</p>
         </div>
       )}
     </div>
