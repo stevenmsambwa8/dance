@@ -1500,6 +1500,13 @@ export default function TournamentDetail() {
 
       {/* Hero */}
       <div className={styles.hero}>
+        {/* Game image banner */}
+        {GAME_META[tournament.game_slug]?.image && (
+          <div className={styles.heroBanner}>
+            <img src={GAME_META[tournament.game_slug].image} className={styles.heroBannerImg} alt="" />
+            <div className={styles.heroBannerOverlay} />
+          </div>
+        )}
         <div className={styles.heroMeta}>
           <span className={styles.gameTag}>{gameLabel}</span>
           <span className={styles.statusBadge} style={{ color: statusColor(tournament.status), borderColor: statusColor(tournament.status) }}>
