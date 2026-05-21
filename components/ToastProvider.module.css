@@ -76,15 +76,6 @@
   animation: toastOut 0.32s cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
-/* ── Left accent bar ── */
-.toastAccent {
-  width: 4px;
-  align-self: stretch;
-  flex-shrink: 0;
-  border-radius: 0;
-  opacity: 0.85;
-}
-
 /* ── Icon ── */
 .toastIcon {
   display: flex;
@@ -95,7 +86,7 @@
   border-radius: 10px;
   font-size: 17px;
   flex-shrink: 0;
-  margin: 14px 0 14px 10px;
+  margin: 14px 0 14px 12px;
 }
 
 /* ── Body — clickable area ── */
@@ -172,25 +163,89 @@
   background: var(--border-dark);
 }
 
-/* ── Progress bar — shrinks left to right over auto-dismiss duration ── */
-@keyframes progress {
-  from { transform: scaleX(1); }
-  to   { transform: scaleX(0); }
-}
 
-.toastProgress {
+
+/* ── Swipe hint arrow ── */
+.swipeHint {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: var(--accent);
-  transform-origin: left;
-  animation: progress linear forwards;
-  opacity: 0.45;
+  right: 52px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 18px;
+  color: var(--text-muted);
+  pointer-events: none;
+  transition: opacity 0.1s;
 }
 
-/* Pause progress on hover */
-.toast:hover .toastProgress {
-  animation-play-state: paused;
+/* ── Bin / delete button ── */
+.toastDelete {
+  position: absolute;
+  bottom: 8px;
+  right: 10px;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 0.12s, color 0.12s;
+  padding: 0;
 }
+.toastDelete:hover { opacity: 1; color: #ef4444; }
+
+/* ── Inline confirm row ── */
+.toastConfirm {
+  position: absolute;
+  bottom: 6px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-dark);
+  border-radius: 8px;
+  padding: 3px 5px;
+  animation: fadeIn 0.15s ease;
+}
+
+.toastConfirmText {
+  font-size: 10px;
+  font-weight: 700;
+  color: #ef4444;
+  letter-spacing: 0.04em;
+  padding: 0 2px;
+}
+
+.toastConfirmYes {
+  width: 22px; height: 22px;
+  border-radius: 6px;
+  border: none;
+  background: #ef4444;
+  color: #fff;
+  font-size: 12px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: opacity 0.1s;
+  padding: 0;
+}
+.toastConfirmYes:hover   { opacity: 0.85; }
+.toastConfirmYes:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.toastConfirmNo {
+  width: 22px; height: 22px;
+  border-radius: 6px;
+  border: 1px solid var(--border-dark);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+.toastConfirmNo:hover { background: var(--bg-2); }

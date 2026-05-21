@@ -43,55 +43,150 @@ function getConfig(type) {
 
 /* ─── Single toast component ─────────────────────────────── */
 function Toast({ id, notif, onDismiss, onAction }) {
-  const cfg       = getConfig(notif.type)
-  const [leaving, setLeaving] = useState(false)
-  const timerRef  = useRef(null)
+  const cfg          = getConfig(notif.type)
+  const [leaving,       setLeaving]       = useState(false)
+  const [dragX,         setDragX]         = useState(0)
+  const [dragging,      setDragging]      = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting,      setDeleting]      = useState(false)
+  const startX    = useRef(null)
+  const startY    = useRef(null)
+  const axisLocked = useRef(false)
+  const dragXRef  = useRef(0)
 
   function dismiss() {
+    setDragX(0)
     setLeaving(true)
     setTimeout(() => onDismiss(id), 340)
   }
 
-  function startAutoDismiss() {
-    timerRef.current = setTimeout(dismiss, 5000)
+  async function deleteNotif() {
+    setDeleting(true)
+    await supabase.from('notifications').delete().eq('id', notif.id)
+    dismiss()
   }
 
-  useEffect(() => {
-    startAutoDismiss()
-    return () => clearTimeout(timerRef.current)
-  }, [])
+  function updateDrag(dx) {
+    const clamped = Math.max(0, dx)
+    dragXRef.current = clamped
+    setDragX(clamped)
+  }
+
+  function finishDrag() {
+    if (dragXRef.current > 80) {
+      setDragX(400)
+      dismiss()
+    } else {
+      setDragX(0)
+    }
+    setDragging(false)
+    startX.current   = null
+    startY.current   = null
+    axisLocked.current = false
+  }
+
+  /* ── Touch ── */
+  function onTouchStart(e) {
+    startX.current   = e.touches[0].clientX
+    startY.current   = e.touches[0].clientY
+    axisLocked.current = false
+    dragXRef.current = 0
+    setDragging(true)
+  }
+
+  function onTouchMove(e) {
+    if (startX.current === null) return
+    const dx = e.touches[0].clientX - startX.current
+    const dy = Math.abs(e.touches[0].clientY - startY.current)
+    if (!axisLocked.current) {
+      if (Math.abs(dx) < 5 && dy < 5) return
+      axisLocked.current = true
+      if (dy > Math.abs(dx)) { startX.current = null; setDragging(false); return }
+    }
+    if (dx > 0) { e.preventDefault(); updateDrag(dx) }
+  }
+
+  function onTouchEnd() { finishDrag() }
+
+  /* ── Mouse drag (desktop) ── */
+  function onMouseDown(e) {
+    if (e.button !== 0) return
+    startX.current   = e.clientX
+    dragXRef.current = 0
+    setDragging(true)
+
+    function onMove(ev) {
+      const dx = ev.clientX - startX.current
+      if (dx > 0) updateDrag(dx)
+    }
+    function onUp() {
+      finishDrag()
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup',   onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup',   onUp)
+  }
+
+  const opacity   = dragX > 0 ? Math.max(0, 1 - dragX / 180) : 1
+  const showHint  = dragX > 28
 
   return (
     <div
       className={`${styles.toast} ${leaving ? styles.toastLeave : styles.toastEnter}`}
-      onMouseEnter={() => clearTimeout(timerRef.current)}
-      onMouseLeave={startAutoDismiss}
+      style={{
+        transform:   `translateX(${dragX}px)`,
+        transition:  dragging ? 'none' : 'transform 0.28s cubic-bezier(0.25,1,0.5,1), opacity 0.28s ease',
+        opacity,
+        touchAction: 'pan-y',
+        userSelect:  'none',
+      }}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      onMouseDown={onMouseDown}
     >
-      {/* Left accent bar */}
-      <div className={styles.toastAccent} style={{ background: cfg.color || 'var(--text)' }} />
+      {/* Swipe hint — arrow appears when dragging right */}
+      {showHint && (
+        <div className={styles.swipeHint} style={{ opacity: Math.min(1, (dragX - 28) / 40) }}>
+          <i className="ri-arrow-right-line" />
+        </div>
+      )}
 
       {/* Icon */}
       <div className={styles.toastIcon} style={{ color: cfg.color || 'var(--text)', background: (cfg.color || '#888') + '18' }}>
         <i className={cfg.icon} />
       </div>
 
-      {/* Content */}
-      <div className={styles.toastBody} onClick={() => { onAction(notif); dismiss() }}>
+      {/* Content — only fires tap if not a drag */}
+      <div className={styles.toastBody} onClick={() => { if (dragX < 6) { onAction(notif); dismiss() } }}>
         <div className={styles.toastApp}>Nabogaming</div>
         <div className={styles.toastTitle}>{cfg.label}</div>
         <div className={styles.toastMsg}>{notif.body || notif.title}</div>
-        <div className={styles.toastAction}>
-          {cfg.action} <i className="ri-arrow-right-s-line" />
-        </div>
+        <div className={styles.toastAction}>{cfg.action} <i className="ri-arrow-right-s-line" /></div>
       </div>
 
-      {/* Dismiss */}
+      {/* Dismiss button (X) */}
       <button className={styles.toastClose} onClick={e => { e.stopPropagation(); dismiss() }}>
         <i className="ri-close-line" />
       </button>
 
-      {/* Progress bar */}
-      <div className={styles.toastProgress} style={{ animationDuration: '5000ms' }} />
+      {/* Delete notification button + confirmation */}
+      {!confirmDelete ? (
+        <button className={styles.toastDelete} onClick={e => { e.stopPropagation(); setConfirmDelete(true) }}>
+          <i className="ri-delete-bin-line" />
+        </button>
+      ) : (
+        <div className={styles.toastConfirm} onClick={e => e.stopPropagation()}>
+          <span className={styles.toastConfirmText}>Delete?</span>
+          <button className={styles.toastConfirmYes} onClick={deleteNotif} disabled={deleting}>
+            {deleting ? <i className="ri-loader-4-line" /> : <i className="ri-check-line" />}
+          </button>
+          <button className={styles.toastConfirmNo} onClick={() => setConfirmDelete(false)}>
+            <i className="ri-close-line" />
+          </button>
+        </div>
+      )}
     </div>
   )
 }
