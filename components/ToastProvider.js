@@ -216,10 +216,29 @@ export function ToastProvider({ children }) {
     supabase.from('notifications').update({ read: true }).eq('id', notif.id).then(() => {})
   }, [router])
 
-  // Realtime — listen for new notifications
+  // On sign-in: load all unread notifications and queue as toasts
   useEffect(() => {
     if (!user) return
 
+    // Reset seen set for this user session so fresh login shows all pending
+    seenIds.current = new Set()
+
+    supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('read', false)
+      .order('created_at', { ascending: true }) // oldest first so newest stacks on top
+      .limit(10)
+      .then(({ data }) => {
+        if (!data?.length) return
+        // Stagger them slightly so they don't all slam in at once
+        data.forEach((notif, i) => {
+          setTimeout(() => addToast(notif), i * 120)
+        })
+      })
+
+    // Realtime — listen for new notifications arriving while logged in
     const channel = supabase
       .channel(`toast-notif-${user.id}`)
       .on('postgres_changes', {
@@ -232,8 +251,10 @@ export function ToastProvider({ children }) {
       })
       .subscribe()
 
+    // Do NOT remove toasts on cleanup — they persist across page switches
+    // Only clean up the realtime channel
     return () => supabase.removeChannel(channel)
-  }, [user, addToast])
+  }, [user?.id, addToast]) // use user.id not user object to avoid re-runs on profile updates
 
   return (
     <ToastContext.Provider value={{ addToast }}>
