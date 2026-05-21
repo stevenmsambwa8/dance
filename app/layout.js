@@ -3,6 +3,7 @@ import NavWrapper from '../components/NavWrapper'
 import ThemeProvider from '../components/ThemeProvider'
 import PageTransition from '../components/PageTransition'
 import AuthProvider from '../components/AuthProvider'
+import { ToastProvider } from '../components/ToastProvider'
 import PhoneGate from '../components/PhoneGate'
 import LoadingProvider from '../components/LoadingContext'
 import ThemeScript from '../components/ThemeScript'
@@ -38,6 +39,7 @@ export default function RootLayout({ children }) {
       </head>
       <body>
         <AuthProvider>
+        <ToastProvider>
           <ThemeProvider>
             <LoadingProvider>
               <NavWrapper />
@@ -48,7 +50,8 @@ export default function RootLayout({ children }) {
               </PageTransition>
             </LoadingProvider>
           </ThemeProvider>
-        </AuthProvider>
+          </ToastProvider>
+      </AuthProvider>
       </body>
     </html>
   )
