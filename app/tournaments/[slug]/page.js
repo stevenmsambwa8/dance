@@ -311,6 +311,8 @@ export default function TournamentDetail() {
   const [leaving, setLeaving] = useState(false)
   const [bracketSaving, setBracketSaving] = useState(false)
   const [activeTab, setActiveTab] = useState('bracket')
+  // adminView: true = admin sees manage panel inline; false = user view mode
+  const [adminView, setAdminView] = useState(true)
   const [editMode, setEditMode] = useState(false)
   const [editForm, setEditForm] = useState({})
   const [saving, setSaving] = useState(false)
@@ -1487,16 +1489,114 @@ export default function TournamentDetail() {
           <i className="ri-arrow-left-line" /> Back
         </button>
         {canManage && tournament && (
-          <div className={styles.adminActions}>
-            <button className={styles.editBtn} onClick={() => setEditMode(true)}>
-              <i className="ri-edit-line" /> Edit
-            </button>
-            <button className={styles.deleteBtn} onClick={deleteTournament}>
-              <i className="ri-delete-bin-line" />
-            </button>
-          </div>
+          <button className={styles.deleteBtn} onClick={deleteTournament} title="Delete tournament">
+            <i className="ri-delete-bin-line" />
+          </button>
         )}
       </div>
+
+      {/* ── Admin quick bar — always visible for admins/creators ── */}
+      {canManage && tournament && (
+        <div className={styles.adminBar}>
+          <div className={styles.adminBarLeft}>
+            <span className={styles.adminBarBadge}>
+              {isAdmin ? <><i className="ri-shield-star-fill" /> Admin</> : <><i className="ri-user-star-line" /> Creator</>}
+            </span>
+            <span className={styles.adminBarName}>{tournament.name}</span>
+          </div>
+          <button
+            className={`${styles.viewToggleBtn} ${!adminView ? styles.viewToggleBtnActive : ''}`}
+            onClick={() => setAdminView(v => !v)}
+            title={adminView ? 'Switch to player view' : 'Switch to admin view'}
+          >
+            {adminView
+              ? <><i className="ri-user-line" /> Player View</>
+              : <><i className="ri-shield-star-line" /> Admin View</>
+            }
+          </button>
+        </div>
+      )}
+
+      {/* ── Inline admin panel (shown by default when canManage + adminView) ── */}
+      {canManage && adminView && tournament && (
+        <div className={styles.inlineAdminPanel}>
+
+          {/* Quick actions row */}
+          <div className={styles.inlineAdminActions}>
+            <button
+              className={styles.inlineActionBtn}
+              onClick={() => router.push(`/tournaments/${tournament.slug || tournament.id}/edit`)}
+            >
+              <i className="ri-edit-line" />
+              <span>Edit</span>
+            </button>
+            <button
+              className={styles.inlineActionBtn}
+              onClick={() => setActiveTab('manage')}
+            >
+              <i className="ri-node-tree" />
+              <span>Bracket</span>
+            </button>
+            <button
+              className={styles.inlineActionBtn}
+              onClick={() => setActiveTab('leaderboard')}
+            >
+              <i className="ri-bar-chart-line" />
+              <span>Leaderboard</span>
+            </button>
+            <button
+              className={styles.inlineActionBtn}
+              onClick={() => setActiveTab('players')}
+            >
+              <i className="ri-group-line" />
+              <span>Players</span>
+            </button>
+          </div>
+
+          {/* Quick stats for admin */}
+          <div className={styles.inlineAdminStats}>
+            <div className={styles.inlineAdminStat}>
+              <span className={styles.inlineAdminStatVal}>{participants.length}</span>
+              <span className={styles.inlineAdminStatLabel}>Registered</span>
+            </div>
+            <div className={styles.inlineAdminStat}>
+              <span className={styles.inlineAdminStatVal}>{tournament.slots - participants.length}</span>
+              <span className={styles.inlineAdminStatLabel}>Open Slots</span>
+            </div>
+            <div className={styles.inlineAdminStat}>
+              <span className={styles.inlineAdminStatVal} style={{ color: { active:'#22c55e', ongoing:'#6366f1', upcoming:'#f59e0b', completed:'#94a3b8' }[tournament.status] || 'var(--text)' }}>
+                {tournament.status?.charAt(0).toUpperCase() + tournament.status?.slice(1)}
+              </span>
+              <span className={styles.inlineAdminStatLabel}>Status</span>
+            </div>
+            <div className={styles.inlineAdminStat}>
+              <span className={styles.inlineAdminStatVal}>{bracketData && !bracketData.isEmpty ? '✓' : '—'}</span>
+              <span className={styles.inlineAdminStatLabel}>Bracket</span>
+            </div>
+          </div>
+
+          {/* Bracket quick actions */}
+          {!bracketData || bracketData.isEmpty ? (
+            <button
+              className={styles.inlinePrimaryBtn}
+              onClick={initBracket}
+              disabled={participants.length < 2}
+            >
+              <i className="ri-play-circle-line" /> Generate Bracket
+              {participants.length < 2 && <span style={{ opacity: 0.6, fontSize: 11 }}> (need 2+ players)</span>}
+            </button>
+          ) : (
+            <div className={styles.inlineBracketRow}>
+              <span className={styles.inlineBracketStatus}>
+                <i className="ri-checkbox-circle-fill" style={{ color: '#22c55e' }} /> Bracket active · {bracketData.rounds?.length ?? 0} rounds
+              </span>
+              <button className={styles.inlineResetBtn} onClick={resetBracket}>
+                <i className="ri-restart-line" /> Reset
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Hero */}
       <div className={styles.hero}>
@@ -2246,8 +2346,17 @@ export default function TournamentDetail() {
                         <div className={styles.lbCol_prize}>
                           {rowPrize && <span className={styles.lbPrizeAmt}>{fmtAmt(rowPrize)}</span>}
                         </div>
-                        <span className={`${styles.lbCol_pts} ${e.points === 0 ? styles.lbPtsDim : bStatus === 'out' ? styles.lbPtsElim : ''}`}>
-                          {e.points > 0 ? `${e.points} pts` : bStatus === 'out' ? '0 pts' : '—'}
+                        <span className={`${styles.lbCol_pts} ${bStatus === 'out' ? styles.lbPtsElim : e.points === 0 ? styles.lbPtsDim : ''}`}>
+                          {/* Show actual points for everyone:
+                              - Has points → "X pts"
+                              - Eliminated with 0 → "0 pts" dimmed
+                              - Active/no lb entry → "—" */}
+                          {e.points > 0
+                            ? `${e.points} pts`
+                            : (e.lbEntry || bStatus === 'out')
+                              ? <span style={{opacity:0.45}}>0 pts</span>
+                              : '—'
+                          }
                         </span>
                         <div className={styles.lbCol_action}>
                           {canManage && e.lbEntry && e.points > 0 ? (
