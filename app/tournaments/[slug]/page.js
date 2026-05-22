@@ -3,12 +3,12 @@ import { getCurrentSeason, computeLevelAfterWin } from '@/lib/seasons'
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '../../../components/AuthProvider'
-import { useCurrency } from '../../../lib/useCurrency'
 import { supabase } from '../../../lib/supabase'
 import { GAME_META } from '../../../lib/constants'
 import styles from './page.module.css'
 import UserBadges from '../../../components/UserBadges'
 import usePageLoading from '../../../components/usePageLoading'
+import { useCurrency } from '../../../lib/useCurrency'
 
 const ADMIN_EMAIL = 'stevenmsambwa8@gmail.com'
 
@@ -23,7 +23,6 @@ function parsePrize(raw) {
   return isNaN(n) || n <= 0 ? null : n
 }
 function fmtTZS(n) { return `TZS ${Number(n).toLocaleString('en-TZ')}` }
-// Note: fmtTZS kept for notifications/DB text. UI uses useCurrency hook.
 
 /** Smallest power-of-2 >= n */
 function nextPow2(n) {
@@ -293,7 +292,7 @@ export default function TournamentDetail() {
   const { slug } = useParams()
   const router = useRouter()
   const { user, isAdmin, profile } = useAuth()
-  const { fmtAmt } = useCurrency(profile?.country_flag)
+  const { fmtAmt } = useCurrency(profile?.country_flag ?? null)
 
   const [id, setId] = useState(null)
   const [tournament, setTournament] = useState(null)
@@ -311,7 +310,6 @@ export default function TournamentDetail() {
   const [leaving, setLeaving] = useState(false)
   const [bracketSaving, setBracketSaving] = useState(false)
   const [activeTab, setActiveTab] = useState('bracket')
-  // adminView: true = admin sees manage panel inline; false = user view mode
   const [adminView, setAdminView] = useState(true)
   const [editMode, setEditMode] = useState(false)
   const [editForm, setEditForm] = useState({})
@@ -1489,110 +1487,82 @@ export default function TournamentDetail() {
           <i className="ri-arrow-left-line" /> Back
         </button>
         {canManage && tournament && (
-          <button className={styles.deleteBtn} onClick={deleteTournament} title="Delete tournament">
-            <i className="ri-delete-bin-line" />
-          </button>
+          <div className={styles.adminActions}>
+            <button className={styles.editBtn} onClick={() => router.push(`/tournaments/${tournament?.slug || tournament?.id}/edit`)}>
+              <i className="ri-edit-line" /> Edit
+            </button>
+            <button className={styles.deleteBtn} onClick={deleteTournament}>
+              <i className="ri-delete-bin-line" />
+            </button>
+          </div>
         )}
       </div>
 
-      {/* ── Admin quick bar — always visible for admins/creators ── */}
+      {/* ── Admin bar ── */}
       {canManage && tournament && (
         <div className={styles.adminBar}>
-          <div className={styles.adminBarLeft}>
-            <span className={styles.adminBarBadge}>
-              {isAdmin ? <><i className="ri-shield-star-fill" /> Admin</> : <><i className="ri-user-star-line" /> Creator</>}
-            </span>
-            <span className={styles.adminBarName}>{tournament.name}</span>
-          </div>
+          <span className={styles.adminBarBadge}>
+            {isAdmin ? <><i className="ri-shield-star-fill" /> Admin</> : <><i className="ri-user-star-line" /> Creator</>}
+          </span>
+          <span className={styles.adminBarName}>{tournament.name}</span>
           <button
             className={`${styles.viewToggleBtn} ${!adminView ? styles.viewToggleBtnActive : ''}`}
             onClick={() => setAdminView(v => !v)}
-            title={adminView ? 'Switch to player view' : 'Switch to admin view'}
           >
-            {adminView
-              ? <><i className="ri-user-line" /> Player View</>
-              : <><i className="ri-shield-star-line" /> Admin View</>
-            }
+            {adminView ? <><i className="ri-user-line" /> Player View</> : <><i className="ri-shield-star-line" /> Admin View</>}
           </button>
         </div>
       )}
 
-      {/* ── Inline admin panel (shown by default when canManage + adminView) ── */}
+      {/* ── Inline admin quick panel ── */}
       {canManage && adminView && tournament && (
         <div className={styles.inlineAdminPanel}>
-
-          {/* Quick actions row */}
           <div className={styles.inlineAdminActions}>
-            <button
-              className={styles.inlineActionBtn}
-              onClick={() => router.push(`/tournaments/${tournament.slug || tournament.id}/edit`)}
-            >
-              <i className="ri-edit-line" />
-              <span>Edit</span>
+            <button className={styles.inlineActionBtn} onClick={() => router.push(`/tournaments/${tournament.slug || tournament.id}/edit`)}>
+              <i className="ri-edit-line" /><span>Edit</span>
             </button>
-            <button
-              className={styles.inlineActionBtn}
-              onClick={() => setActiveTab('manage')}
-            >
-              <i className="ri-node-tree" />
-              <span>Bracket</span>
+            <button className={styles.inlineActionBtn} onClick={() => { setAdminView(false); setActiveTab('bracket') }}>
+              <i className="ri-node-tree" /><span>Bracket</span>
             </button>
-            <button
-              className={styles.inlineActionBtn}
-              onClick={() => setActiveTab('leaderboard')}
-            >
-              <i className="ri-bar-chart-line" />
-              <span>Leaderboard</span>
+            <button className={styles.inlineActionBtn} onClick={() => { setAdminView(false); setActiveTab('leaderboard') }}>
+              <i className="ri-bar-chart-line" /><span>Scores</span>
             </button>
-            <button
-              className={styles.inlineActionBtn}
-              onClick={() => setActiveTab('players')}
-            >
-              <i className="ri-group-line" />
-              <span>Players</span>
+            <button className={styles.inlineActionBtn} onClick={() => { setAdminView(false); setActiveTab('players') }}>
+              <i className="ri-group-line" /><span>Players</span>
+            </button>
+            <button className={styles.inlineActionBtn} onClick={() => { setAdminView(false); setActiveTab('manage') }}>
+              <i className="ri-settings-3-line" /><span>Manage</span>
             </button>
           </div>
-
-          {/* Quick stats for admin */}
           <div className={styles.inlineAdminStats}>
             <div className={styles.inlineAdminStat}>
               <span className={styles.inlineAdminStatVal}>{participants.length}</span>
-              <span className={styles.inlineAdminStatLabel}>Registered</span>
+              <span className={styles.inlineAdminStatLabel}>Players</span>
             </div>
             <div className={styles.inlineAdminStat}>
-              <span className={styles.inlineAdminStatVal}>{tournament.slots - participants.length}</span>
-              <span className={styles.inlineAdminStatLabel}>Open Slots</span>
+              <span className={styles.inlineAdminStatVal}>{Math.max(0, (tournament.slots || 0) - participants.length)}</span>
+              <span className={styles.inlineAdminStatLabel}>Open</span>
             </div>
             <div className={styles.inlineAdminStat}>
-              <span className={styles.inlineAdminStatVal} style={{ color: { active:'#22c55e', ongoing:'#6366f1', upcoming:'#f59e0b', completed:'#94a3b8' }[tournament.status] || 'var(--text)' }}>
+              <span className={styles.inlineAdminStatVal} style={{ color: {active:'#22c55e',ongoing:'#6366f1',upcoming:'#f59e0b',completed:'#94a3b8'}[tournament.status] }}>
                 {tournament.status?.charAt(0).toUpperCase() + tournament.status?.slice(1)}
               </span>
               <span className={styles.inlineAdminStatLabel}>Status</span>
             </div>
             <div className={styles.inlineAdminStat}>
-              <span className={styles.inlineAdminStatVal}>{bracketData && !bracketData.isEmpty ? '✓' : '—'}</span>
-              <span className={styles.inlineAdminStatLabel}>Bracket</span>
+              <span className={styles.inlineAdminStatVal}>{leaderboard.length}</span>
+              <span className={styles.inlineAdminStatLabel}>Scored</span>
             </div>
           </div>
-
-          {/* Bracket quick actions */}
-          {!bracketData || bracketData.isEmpty ? (
-            <button
-              className={styles.inlinePrimaryBtn}
-              onClick={initBracket}
-              disabled={participants.length < 2}
-            >
+          {(!bracketData || bracketData.isEmpty) ? (
+            <button className={styles.inlinePrimaryBtn} onClick={initBracket} disabled={participants.length < 2}>
               <i className="ri-play-circle-line" /> Generate Bracket
-              {participants.length < 2 && <span style={{ opacity: 0.6, fontSize: 11 }}> (need 2+ players)</span>}
+              {participants.length < 2 && <span style={{fontSize:11,opacity:0.6}}> (need 2+)</span>}
             </button>
           ) : (
             <div className={styles.inlineBracketRow}>
-              <span className={styles.inlineBracketStatus}>
-                <i className="ri-checkbox-circle-fill" style={{ color: '#22c55e' }} /> Bracket active · {bracketData.rounds?.length ?? 0} rounds
-              </span>
-              <button className={styles.inlineResetBtn} onClick={resetBracket}>
-                <i className="ri-restart-line" /> Reset
-              </button>
+              <span className={styles.inlineBracketStatus}><i className="ri-checkbox-circle-fill" style={{color:'#22c55e'}} /> Bracket active · {bracketData.rounds?.length ?? 0} rounds</span>
+              <button className={styles.inlineResetBtn} onClick={resetBracket}><i className="ri-restart-line" /> Reset</button>
             </div>
           )}
         </div>
@@ -1600,13 +1570,6 @@ export default function TournamentDetail() {
 
       {/* Hero */}
       <div className={styles.hero}>
-        {/* Game image banner */}
-        {GAME_META[tournament.game_slug]?.image && (
-          <div className={styles.heroBanner}>
-            <img src={GAME_META[tournament.game_slug].image} className={styles.heroBannerImg} alt="" />
-            <div className={styles.heroBannerOverlay} />
-          </div>
-        )}
         <div className={styles.heroMeta}>
           <span className={styles.gameTag}>{gameLabel}</span>
           <span className={styles.statusBadge} style={{ color: statusColor(tournament.status), borderColor: statusColor(tournament.status) }}>
@@ -1648,7 +1611,7 @@ export default function TournamentDetail() {
             }
             return (
               <button className={styles.heroRegisterBtn} onClick={() => setShowPayModal(true)}>
-                <i className="ri-money-dollar-circle-line" /> Register · {fmtAmt(Number(tournament.entrance_fee))}
+                <i className="ri-money-dollar-circle-line" /> Register · TZS {Number(tournament.entrance_fee).toLocaleString()}
               </button>
             )
           })()}
@@ -1733,7 +1696,7 @@ export default function TournamentDetail() {
 
         {tournament.description && <p className={styles.heroDesc}>{tournament.description}</p>}
         <div className={styles.heroStats}>
-          <div className={styles.heroStat}><i className="ri-trophy-line" /><div><span className={styles.heroStatLabel}>Prize</span><span className={styles.heroStatVal}>{prizeTotal ? fmtAmt(prizeTotal) : 'None'}</span></div></div>
+          <div className={styles.heroStat}><i className="ri-trophy-line" /><div><span className={styles.heroStatLabel}>Prize</span><span className={styles.heroStatVal}>{prizeTotal ? fmtTZS(prizeTotal) : 'None'}</span></div></div>
           <div className={styles.heroStat}><i className="ri-group-line" /><div><span className={styles.heroStatLabel}>Players</span><span className={styles.heroStatVal}>{loadingParticipants ? '…' : `${realCount}/${tournament.slots}`}</span></div></div>
           <div className={styles.heroStat}><i className="ri-gamepad-line" /><div><span className={styles.heroStatLabel}>Format</span><span className={styles.heroStatVal}>{tournament.format || '—'}</span></div></div>
           {tournament.date && <div className={styles.heroStat}><i className="ri-calendar-event-line" /><div><span className={styles.heroStatLabel}>Date</span><span className={styles.heroStatVal}>{tournament.date}</span></div></div>}
@@ -1859,26 +1822,24 @@ export default function TournamentDetail() {
         )
       })()}
 
-      {/* Tabs — only show when in user view OR not canManage */}
       {(!canManage || !adminView) && (
-        <div className={styles.tabs}>
-          {[
-            { key: 'bracket',     icon: 'ri-node-tree',     title: 'Bracket'     },
-            { key: 'matches',     icon: 'ri-sword-line',    title: 'Matches'     },
-            { key: 'leaderboard', icon: 'ri-bar-chart-line',title: 'Leaderboard' },
-            { key: 'players',     icon: 'ri-group-line',    title: `Players (${loadingParticipants ? '…' : realCount})` },
-            ...(canManage ? [{ key: 'manage', icon: 'ri-settings-3-line', title: 'Manage' }] : []),
-          ].map(tab => (
-            <button
-              key={tab.key}
-              className={`${styles.tab} ${activeTab === tab.key ? styles.tabActive : ''}`}
-              onClick={() => setActiveTab(tab.key)}
-            >
-              <i className={tab.icon} />
-              <span className={styles.tabLabel}>{tab.title}</span>
-            </button>
-          ))}
-        </div>
+      <div className={styles.tabs}>
+        {[
+          { key: 'bracket',     icon: 'ri-node-tree',      title: 'Bracket'     },
+          { key: 'matches',     icon: 'ri-sword-line',     title: 'Matches'     },
+          { key: 'leaderboard', icon: 'ri-bar-chart-line', title: 'Scores'      },
+          { key: 'players',     icon: 'ri-group-line',     title: `Players (${loadingParticipants ? '…' : realCount})` },
+          ...(canManage ? [{ key: 'manage', icon: 'ri-settings-3-line', title: 'Manage' }] : []),
+        ].map(tab => (
+          <button key={tab.key}
+            className={`${styles.tab} ${activeTab === tab.key ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab(tab.key)}
+          >
+            <i className={tab.icon} />
+            <span className={styles.tabLabel}>{tab.title}</span>
+          </button>
+        ))}
+      </div>
       )}
 
       {/* ── BRACKET TAB ── */}
@@ -2266,7 +2227,7 @@ export default function TournamentDetail() {
                         <UserBadges {...getUserBadgeProps(podiumPlayers[1].user_id)} size={11} gap={2} />
                       </span>
                       {podiumPlayers[1].points > 0 && <span className={styles.podiumPts}>{podiumPlayers[1].points} pts</span>}
-                      {podiumPlayers[1].lbEntry?.prize_amount > 0 && <span className={styles.podiumPrize}>{fmtAmt(podiumPlayers[1].lbEntry.prize_amount)}</span>}
+                      {podiumPlayers[1].lbEntry?.prize_amount > 0 && <span className={styles.podiumPrize}>{fmtTZS(podiumPlayers[1].lbEntry.prize_amount)}</span>}
                       <div className={styles.podiumBlock} style={{ height: 54 }}><i className="ri-medal-fill" style={{ color: '#94a3b8', fontSize: 18 }} /><span>2nd</span></div>
                     </div>
                   )}
@@ -2280,7 +2241,7 @@ export default function TournamentDetail() {
                       <UserBadges {...getUserBadgeProps(podiumPlayers[0].user_id)} size={12} gap={2} />
                     </span>
                     {podiumPlayers[0].points > 0 && <span className={styles.podiumPts} style={{ color: '#f59e0b' }}>{podiumPlayers[0].points} pts</span>}
-                    {podiumPlayers[0].lbEntry?.prize_amount > 0 && <span className={styles.podiumPrize} style={{ color: '#f59e0b' }}>{fmtAmt(podiumPlayers[0].lbEntry.prize_amount)}</span>}
+                    {podiumPlayers[0].lbEntry?.prize_amount > 0 && <span className={styles.podiumPrize} style={{ color: '#f59e0b' }}>{fmtTZS(podiumPlayers[0].lbEntry.prize_amount)}</span>}
                     <div className={styles.podiumBlock} style={{ height: 80, background: 'linear-gradient(180deg,rgba(245,158,11,0.2),rgba(245,158,11,0.06))' }}>
                       <i className="ri-trophy-fill" style={{ color: '#f59e0b', fontSize: 22 }} /><span style={{ color: '#f59e0b' }}>1st</span>
                     </div>
@@ -2295,7 +2256,7 @@ export default function TournamentDetail() {
                         <UserBadges {...getUserBadgeProps(podiumPlayers[2].user_id)} size={11} gap={2} />
                       </span>
                       {podiumPlayers[2].points > 0 && <span className={styles.podiumPts}>{podiumPlayers[2].points} pts</span>}
-                      {podiumPlayers[2].lbEntry?.prize_amount > 0 && <span className={styles.podiumPrize}>{fmtAmt(podiumPlayers[2].lbEntry.prize_amount)}</span>}
+                      {podiumPlayers[2].lbEntry?.prize_amount > 0 && <span className={styles.podiumPrize}>{fmtTZS(podiumPlayers[2].lbEntry.prize_amount)}</span>}
                       <div className={styles.podiumBlock} style={{ height: 40 }}><i className="ri-award-fill" style={{ color: '#b45309', fontSize: 16 }} /><span>3rd</span></div>
                     </div>
                   )}
@@ -2345,13 +2306,9 @@ export default function TournamentDetail() {
                           {/* prize column slot kept for layout */}
                         </div>
                         <div className={styles.lbCol_prize}>
-                          {rowPrize && <span className={styles.lbPrizeAmt}>{fmtAmt(rowPrize)}</span>}
+                          {rowPrize && <span className={styles.lbPrizeAmt}>{fmtTZS(rowPrize)}</span>}
                         </div>
                         <span className={`${styles.lbCol_pts} ${bStatus === 'out' ? styles.lbPtsElim : e.points === 0 ? styles.lbPtsDim : ''}`}>
-                          {/* Show actual points for everyone:
-                              - Has points → "X pts"
-                              - Eliminated with 0 → "0 pts" dimmed
-                              - Active/no lb entry → "—" */}
                           {e.points > 0
                             ? `${e.points} pts`
                             : (e.lbEntry || bStatus === 'out')
@@ -2943,111 +2900,75 @@ function ChampDisplay({ entry, styles, isAdmin, onSetWinner, leaderboard, partic
             </>
         }
       </div>
-      )} {/* end !adminView tabContent */}
+      )} {/* end user-view tabContent */}
 
-      {/* ══════ ADMIN FULL DASHBOARD VIEW ══════ */}
+      {/* ══ ADMIN DASHBOARD VIEW ══ */}
       {canManage && adminView && tournament && (
         <div className={styles.adminDashboard}>
 
-          {/* ── Participants section ── */}
           <div className={styles.adminDashSection}>
-            <div className={styles.adminDashHead}>
-              <i className="ri-group-line" />
-              <span>Participants ({realCount}/{tournament.slots})</span>
-            </div>
-            <div className={styles.adminParticipantList}>
-              {loadingParticipants ? (
-                <p className={styles.adminEmpty}>Loading…</p>
-              ) : participants.length === 0 ? (
-                <p className={styles.adminEmpty}>No participants yet.</p>
-              ) : (
-                participants.map(p => (
-                  <div key={p.id} className={styles.adminParticipantRow}>
-                    <div className={styles.adminParticipantAvatar}>
-                      {p.profiles?.avatar_url
-                        ? <img src={p.profiles.avatar_url} alt="" />
-                        : <span>{(p.profiles?.username || '?')[0].toUpperCase()}</span>
-                      }
-                    </div>
-                    <div className={styles.adminParticipantInfo}>
-                      <span className={styles.adminParticipantName}>{p.profiles?.username || 'Unknown'}</span>
-                      <span className={styles.adminParticipantMeta}>{p.profiles?.tier} · Lv.{p.profiles?.level ?? 1}</span>
-                    </div>
-                    <span className={`${styles.adminParticipantStatus} ${p.bracket_status === 'out' ? styles.statusOut : p.bracket_status === 'champion' ? styles.statusChampion : styles.statusIn}`}>
-                      {p.bracket_status === 'out' ? '✗ Out' : p.bracket_status === 'champion' ? '🏆 Champion' : '● Active'}
-                    </span>
-                    {p.payment_status && (
-                      <span className={styles.adminPayBadge} style={{ color: p.payment_status === 'approved' ? '#22c55e' : '#f59e0b' }}>
-                        {p.payment_status === 'approved' ? '✓ Paid' : '⧗ Pending'}
-                      </span>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* ── Bracket section ── */}
-          <div className={styles.adminDashSection}>
-            <div className={styles.adminDashHead}>
-              <i className="ri-node-tree" />
-              <span>Bracket</span>
-            </div>
-            {!bracketData || bracketData.isEmpty ? (
-              <div className={styles.adminBracketEmpty}>
-                <i className="ri-node-tree" />
-                <p>No bracket generated yet.</p>
-                <button className={styles.adminGenBtn} onClick={initBracket} disabled={participants.length < 2}>
-                  <i className="ri-play-circle-line" /> Generate Bracket
-                  {participants.length < 2 && <span> (need 2+ players)</span>}
-                </button>
+            <div className={styles.adminDashHead}><i className="ri-group-line" /> Participants ({realCount}/{tournament.slots})</div>
+            {loadingParticipants ? <p className={styles.adminEmpty}>Loading…</p>
+            : participants.length === 0 ? <p className={styles.adminEmpty}>No participants yet.</p>
+            : participants.map(p => (
+              <div key={p.id} className={styles.adminParticipantRow}>
+                <div className={styles.adminParticipantAvatar}>
+                  {p.profiles?.avatar_url ? <img src={p.profiles.avatar_url} alt="" /> : <span>{(p.profiles?.username||'?')[0].toUpperCase()}</span>}
+                </div>
+                <div className={styles.adminParticipantInfo}>
+                  <span className={styles.adminParticipantName}>{p.profiles?.username || 'Unknown'}</span>
+                  <span className={styles.adminParticipantMeta}>{p.profiles?.tier} · Lv.{p.profiles?.level ?? 1}</span>
+                </div>
+                <span className={`${styles.adminParticipantStatus} ${p.bracket_status === 'out' ? styles.statusOut : p.bracket_status === 'champion' ? styles.statusChampion : styles.statusIn}`}>
+                  {p.bracket_status === 'out' ? '✗ Out' : p.bracket_status === 'champion' ? '🏆' : '● Active'}
+                </span>
+                {p.payment_status && (
+                  <span className={styles.adminPayBadge} style={{color: p.payment_status === 'approved' ? '#22c55e' : '#f59e0b'}}>
+                    {p.payment_status === 'approved' ? '✓ Paid' : '⧗ Pending'}
+                  </span>
+                )}
               </div>
-            ) : (
-              <div className={styles.adminBracketInfo}>
-                <div className={styles.adminBracketStat}>
-                  <span>{bracketData.rounds?.length ?? 0}</span>
-                  <span>Rounds</span>
-                </div>
-                <div className={styles.adminBracketStat}>
-                  <span>{bracketData.rounds?.flat()?.filter(m => m.winner)?.length ?? 0}</span>
-                  <span>Completed</span>
-                </div>
-                <div className={styles.adminBracketStat}>
-                  <span>{bracketData.rounds?.flat()?.filter(m => !m.winner && m.player1 && m.player2)?.length ?? 0}</span>
-                  <span>Pending</span>
-                </div>
-              </div>
-            )}
-            <button className={styles.adminViewTabBtn} onClick={() => { setAdminView(false); setActiveTab('bracket') }}>
-              <i className="ri-external-link-line" /> Open Full Bracket View
+            ))}
+            <button className={styles.adminViewTabBtn} onClick={() => { setAdminView(false); setActiveTab('players') }}>
+              <i className="ri-external-link-line" /> Full Players View
             </button>
           </div>
 
-          {/* ── Leaderboard snapshot ── */}
           <div className={styles.adminDashSection}>
-            <div className={styles.adminDashHead}>
-              <i className="ri-bar-chart-line" />
-              <span>Leaderboard Top 5</span>
-            </div>
-            {leaderboard.slice(0,5).map((e, i) => (
-              <div key={e.user_id} className={styles.adminLbRow}>
-                <span className={styles.adminLbPos}>#{i+1}</span>
-                <span className={styles.adminLbName}>{e.profiles?.username || '—'}</span>
-                <span className={styles.adminLbPts}>{e.points ?? 0} pts</span>
-              </div>
-            ))}
-            {leaderboard.length === 0 && <p className={styles.adminEmpty}>No scores yet.</p>}
+            <div className={styles.adminDashHead}><i className="ri-bar-chart-line" /> Top Scores</div>
+            {leaderboard.length === 0
+              ? <p className={styles.adminEmpty}>No scores yet.</p>
+              : leaderboard.slice(0,5).map((e,i) => (
+                <div key={e.user_id} className={styles.adminLbRow}>
+                  <span className={styles.adminLbPos}>#{i+1}</span>
+                  <span className={styles.adminLbName}>{e.profiles?.username || '—'}</span>
+                  <span className={styles.adminLbPts}>{e.points ?? 0} pts</span>
+                </div>
+              ))
+            }
             <button className={styles.adminViewTabBtn} onClick={() => { setAdminView(false); setActiveTab('leaderboard') }}>
               <i className="ri-external-link-line" /> Full Leaderboard
             </button>
           </div>
 
-          {/* ── Manage panel ── */}
           <div className={styles.adminDashSection}>
-            <div className={styles.adminDashHead}>
-              <i className="ri-settings-3-line" />
-              <span>Manage</span>
-            </div>
+            <div className={styles.adminDashHead}><i className="ri-node-tree" /> Bracket</div>
+            {!bracketData || bracketData.isEmpty ? (
+              <p className={styles.adminEmpty}>No bracket yet — use the Generate button above.</p>
+            ) : (
+              <div className={styles.adminBracketInfo}>
+                <div className={styles.adminBracketStat}><span>{bracketData.rounds?.length ?? 0}</span><span>Rounds</span></div>
+                <div className={styles.adminBracketStat}><span>{bracketData.rounds?.flat()?.filter(m=>m.winner)?.length ?? 0}</span><span>Done</span></div>
+                <div className={styles.adminBracketStat}><span>{bracketData.rounds?.flat()?.filter(m=>!m.winner&&m.player1&&m.player2)?.length ?? 0}</span><span>Pending</span></div>
+              </div>
+            )}
+            <button className={styles.adminViewTabBtn} onClick={() => { setAdminView(false); setActiveTab('bracket') }}>
+              <i className="ri-external-link-line" /> Open Bracket
+            </button>
+          </div>
+
+          <div className={styles.adminDashSection}>
+            <div className={styles.adminDashHead}><i className="ri-settings-3-line" /> Manage</div>
             <button className={styles.adminViewTabBtn} onClick={() => { setAdminView(false); setActiveTab('manage') }}>
               <i className="ri-external-link-line" /> Open Manage Tab
             </button>
@@ -3057,264 +2978,5 @@ function ChampDisplay({ entry, styles, isAdmin, onSetWinner, leaderboard, partic
       )}
 
     </div>
-  )
-}
-
-function MatchCard({ pair, styles, isAdmin, onSetStatus, onSwap, passPoints, leaderboard, participants, onJoin }) {
-  const [a, b] = pair
-  const [activeSheet, setActiveSheet] = useState(null)
-  // FIX #4: removed unused swapMode state
-  const router = useRouter()
-
-  const isByeMatch = a?.status === 'bye' || b?.status === 'bye'
-
-  function getEarnedPts(entry) {
-    if (!entry?.userId || !leaderboard) return null
-    return leaderboard.find(e => e.user_id === entry.userId)?.points ?? null
-  }
-  function getEntryProfile(entry) {
-    if (!entry?.userId) return null
-    return participants?.find(x => x.user_id === entry.userId)?.profiles || null
-  }
-  function openSheet(slotIdx, entry) {
-    if (!isAdmin || !entry?.userId || entry.status === 'pending' || entry.status === 'bye' || entry.status === 'open') return
-    setActiveSheet({ slotIdx, entry })
-  }
-  function closeSheet() { setActiveSheet(null) }
-  function handleAction(action) {
-    if (!activeSheet) return
-    const idx = activeSheet.slotIdx
-    closeSheet()
-    if (action === 'remove') { onSetStatus(idx, 'remove'); return }
-    onSetStatus(idx, action === 'pass' ? 'winner' : action === 'elim' ? 'eliminated' : 'disqualified')
-  }
-  function handleSwapWith(targetSIdx) {
-    if (!activeSheet || !onSwap) return
-    // Swap within this match: both slots in same pair, so pass targetSIdx as the target slot in the same pair
-    onSwap(activeSheet.slotIdx, targetSIdx)
-    closeSheet()
-  }
-
-  const sheetEntry = activeSheet?.entry
-  const sheetProfile = sheetEntry ? getEntryProfile(sheetEntry) : null
-  const sheetEarnedPts = sheetEntry ? getEarnedPts(sheetEntry) : null
-  // The "other" slot in this match (for in-match swap)
-  const otherSlotIdx = activeSheet?.slotIdx === 0 ? 1 : 0
-  const otherEntry = activeSheet ? (otherSlotIdx === 0 ? a : b) : null
-  const otherProfile = otherEntry ? getEntryProfile(otherEntry) : null
-
-  return (
-    <>
-      <div className={`${styles.matchCard} ${isByeMatch ? styles.matchCardBye : ''}`}>
-        <SlotRow
-          entry={a} styles={styles} isAdmin={isAdmin}
-          onOpen={() => openSheet(0, a)}
-          passPoints={passPoints} earnedPts={getEarnedPts(a)} entryProfile={getEntryProfile(a)}
-          onJoin={a?.status === 'open' && onJoin ? () => onJoin(0) : undefined}
-        />
-        <div className={styles.matchDivider}><span className={styles.vsLabel}>vs</span></div>
-        <SlotRow
-          entry={b} styles={styles} isAdmin={isAdmin}
-          onOpen={() => openSheet(1, b)}
-          passPoints={passPoints} earnedPts={getEarnedPts(b)} entryProfile={getEntryProfile(b)}
-          onJoin={b?.status === 'open' && onJoin ? () => onJoin(1) : undefined}
-        />
-      </div>
-
-      {activeSheet && (
-        <div className={styles.sheetOverlay} onClick={closeSheet}>
-          <div className={styles.sheetBox} onClick={e => e.stopPropagation()}>
-            <div className={styles.sheetHandle} />
-
-            {/* Player identity */}
-            <div className={styles.sheetPlayer}>
-              <SlotAvatar entry={sheetEntry} size="lg" liveProfile={sheetProfile} />
-              <div className={styles.sheetPlayerInfo}>
-                <span className={styles.sheetPlayerName}>
-                  {sheetProfile?.username || sheetEntry.name}
-                  <UserBadges email={sheetProfile?.email} countryFlag={sheetProfile?.country_flag} isSeasonWinner={sheetProfile?.is_season_winner} size={13} gap={2} />
-                </span>
-                <span className={styles.sheetPlayerMeta}>
-                  {sheetEntry.status === 'winner'      && <><i className="ri-arrow-right-circle-fill" style={{ color: '#f59e0b' }} /> Passing · {sheetEarnedPts != null ? `${sheetEarnedPts} pts` : ''}</>}
-                  {sheetEntry.status === 'eliminated'  && <><i className="ri-close-circle-fill" style={{ color: '#dc2626' }} /> Eliminated</>}
-                  {sheetEntry.status === 'disqualified'&& <><i className="ri-spam-2-fill" style={{ color: '#7c3aed' }} /> Disqualified</>}
-                  {sheetEntry.status === 'active'      && <><i className="ri-checkbox-circle-fill" style={{ color: 'var(--accent)' }} /> Active</>}
-                </span>
-              </div>
-            </div>
-
-            {/* Action buttons */}
-            <div className={styles.sheetActions}>
-              <button className={`${styles.sheetBtn} ${styles.sheetBtnPass}`} onClick={() => handleAction('pass')} disabled={sheetEntry.status === 'winner'}>
-                <div className={styles.sheetBtnIcon} style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}>
-                  <i className="ri-arrow-right-circle-fill" />
-                </div>
-                <div className={styles.sheetBtnText}>
-                  <span>Pass to next round</span>
-                  <span className={styles.sheetBtnSub}>+{passPoints} pts awarded</span>
-                </div>
-                {sheetEntry.status === 'winner' && <i className="ri-checkbox-circle-fill" style={{ color: '#f59e0b', marginLeft: 'auto', fontSize: 16 }} />}
-              </button>
-
-              <button className={`${styles.sheetBtn} ${styles.sheetBtnElim}`} onClick={() => handleAction('elim')} disabled={sheetEntry.status === 'eliminated'}>
-                <div className={styles.sheetBtnIcon} style={{ background: 'rgba(220,38,38,0.1)', color: '#dc2626' }}>
-                  <i className="ri-close-circle-fill" />
-                </div>
-                <div className={styles.sheetBtnText}>
-                  <span>Eliminate</span>
-                  <span className={styles.sheetBtnSub}>Remove from bracket</span>
-                </div>
-                {sheetEntry.status === 'eliminated' && <i className="ri-checkbox-circle-fill" style={{ color: '#dc2626', marginLeft: 'auto', fontSize: 16 }} />}
-              </button>
-
-              <button className={`${styles.sheetBtn} ${styles.sheetBtnDQ}`} onClick={() => handleAction('dq')} disabled={sheetEntry.status === 'disqualified'}>
-                <div className={styles.sheetBtnIcon} style={{ background: 'rgba(124,58,237,0.1)', color: '#7c3aed' }}>
-                  <i className="ri-spam-2-fill" />
-                </div>
-                <div className={styles.sheetBtnText}>
-                  <span>Disqualify</span>
-                  <span className={styles.sheetBtnSub}>Flag as rule violation</span>
-                </div>
-                {sheetEntry.status === 'disqualified' && <i className="ri-checkbox-circle-fill" style={{ color: '#7c3aed', marginLeft: 'auto', fontSize: 16 }} />}
-              </button>
-
-              {/* Swap with opponent in same match */}
-              {otherEntry?.userId && (
-                <button className={styles.sheetBtn} onClick={() => handleSwapWith(otherSlotIdx)}
-                  style={{ borderTop: '1px solid var(--border)', marginTop: 4 }}>
-                  <div className={styles.sheetBtnIcon} style={{ background: 'rgba(99,102,241,0.10)', color: '#6366f1' }}>
-                    <i className="ri-arrow-left-right-line" />
-                  </div>
-                  <div className={styles.sheetBtnText}>
-                    <span>Swap with {otherProfile?.username || otherEntry.name}</span>
-                    <span className={styles.sheetBtnSub}>Switch positions in this match</span>
-                  </div>
-                </button>
-              )}
-
-              <button className={`${styles.sheetBtn} ${styles.sheetBtnDQ}`} onClick={() => handleAction('remove')}
-                style={{ borderTop: '1px solid var(--border)', marginTop: 4 }}>
-                <div className={styles.sheetBtnIcon} style={{ background: 'rgba(239,68,68,0.08)', color: '#ef4444' }}>
-                  <i className="ri-user-unfollow-line" />
-                </div>
-                <div className={styles.sheetBtnText}>
-                  <span style={{ color: '#ef4444' }}>Remove from bracket</span>
-                  <span className={styles.sheetBtnSub}>Slot becomes open again</span>
-                </div>
-              </button>
-            </div>
-
-            {/* CTA row */}
-            <div className={styles.sheetCTARow}>
-              <button className={styles.sheetCTAProfile} onClick={() => { closeSheet(); router.push(`/profile/${sheetEntry.userId}`) }}>
-                <i className="ri-user-3-line" /> View Profile
-              </button>
-              <SheetFollowBtn userId={sheetEntry?.userId} />
-            </div>
-            <button className={styles.sheetCancel} onClick={closeSheet}>Cancel</button>
-          </div>
-        </div>
-      )}
-    </>
-  )
-}
-
-function SlotRow({ entry, styles, isAdmin, onOpen, passPoints, earnedPts, entryProfile, onJoin }) {
-  if (!entry || entry.status === 'bye') return (
-    <div className={`${styles.slotRow} ${styles.slotRowBye}`}>
-      <div className={styles.slotRowAvatarEmpty}><i className="ri-user-line" /></div>
-      <span className={styles.slotRowName}>BYE</span>
-    </div>
-  )
-  if (entry.status === 'open') return (
-    <div
-      className={`${styles.slotRow} ${styles.slotRowBye}`}
-      style={{ cursor: onJoin ? 'pointer' : 'default' }}
-      onClick={onJoin || undefined}
-    >
-      <div className={styles.slotRowAvatarEmpty} style={{ border: onJoin ? '1.5px dashed var(--accent)' : undefined, color: onJoin ? 'var(--accent)' : undefined }}>
-        <i className={onJoin ? 'ri-add-line' : 'ri-user-line'} />
-      </div>
-      <span className={styles.slotRowName} style={{ color: onJoin ? 'var(--accent)' : 'var(--text-muted)' }}>
-        {onJoin ? 'Join here' : 'Open'}
-      </span>
-      {onJoin && <span style={{ marginLeft: 'auto', fontSize: 10, background: 'var(--accent)', color: '#fff', padding: '2px 7px', borderRadius: 6, flexShrink: 0 }}>+ Join</span>}
-    </div>
-  )
-  const isPending = entry.status === 'pending'
-  const isWinner = entry.status === 'winner'
-  const isElim = entry.status === 'eliminated'
-  const isDQ = entry.status === 'disqualified'
-  const canEdit = isAdmin && !isPending && !!entry.userId
-  const displayName = entryProfile?.username || entry.name
-
-  return (
-    <div
-      className={`${styles.slotRow} ${isWinner ? styles.slotRowWinner : ''} ${isElim ? styles.slotRowEliminated : ''} ${isDQ ? styles.slotRowDQ : ''} ${isPending ? styles.slotRowPending : ''}`}
-      onClick={() => canEdit && onOpen()}
-      style={{ cursor: canEdit ? 'pointer' : 'default' }}
-    >
-      <SlotAvatar entry={entry} size="sm" liveProfile={entryProfile} />
-      <span className={styles.slotRowName} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-        {displayName}
-        <UserBadges email={entryProfile?.email} countryFlag={entryProfile?.country_flag} isSeasonWinner={entryProfile?.is_season_winner} size={10} gap={2} />
-      </span>
-      {isWinner && earnedPts != null && <span className={styles.slotPtsBadge}>{earnedPts} pts</span>}
-      {!isWinner && !isElim && !isDQ && passPoints != null && entry.userId && <span className={styles.slotPtsPreview}>+{passPoints}</span>}
-      {isWinner   && <i className={`ri-arrow-right-circle-fill ${styles.statusIconWin}`} />}
-      {isElim     && <i className={`ri-close-circle-fill ${styles.statusIconElim}`} />}
-      {isDQ       && <i className={`ri-spam-2-fill ${styles.statusIconDQ}`} />}
-      {isPending  && <span className={styles.pendingDot} />}
-      {canEdit    && <i className="ri-more-2-fill" style={{ fontSize: 12, color: 'var(--text-muted)', flexShrink: 0 }} />}
-    </div>
-  )
-}
-
-function SlotAvatar({ entry, size = 'sm', liveProfile = null }) {
-  const sz = size === 'lg' ? 40 : 22
-  const fs = size === 'lg' ? 13 : 8
-  if (!entry) return null
-  const avatarUrl = liveProfile?.avatar_url || entry?.avatar
-  const displayName = liveProfile?.username || entry?.name || '?'
-  return avatarUrl
-    ? <img src={avatarUrl} style={{ width: sz, height: sz, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} alt="" />
-    : <div style={{ width: sz, height: sz, borderRadius: '50%', background: 'var(--surface)', border: '1px solid var(--border-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: fs, fontWeight: 800, color: 'var(--text-dim)', flexShrink: 0 }}>
-        {displayName.slice(0, 2).toUpperCase()}
-      </div>
-}
-
-function SheetFollowBtn({ userId }) {
-  const { user } = useAuth()
-  const [following, setFollowing] = React.useState(false)
-  const [loading, setLoading] = React.useState(true)
-
-  React.useEffect(() => {
-    if (!user || !userId || user.id === userId) { setLoading(false); return }
-    supabase.from('follows').select('id').eq('follower_id', user.id).eq('following_id', userId).maybeSingle()
-      .then(({ data }) => { setFollowing(!!data); setLoading(false) })
-  }, [user, userId])
-
-  if (!user || user.id === userId) return null
-
-  async function toggle() {
-    if (loading) return
-    setLoading(true)
-    try {
-      if (following) {
-        await supabase.from('follows').delete().eq('follower_id', user.id).eq('following_id', userId)
-        setFollowing(false)
-      } else {
-        await supabase.from('follows').insert({ follower_id: user.id, following_id: userId })
-        setFollowing(true)
-      }
-    } catch (e) { console.error('SheetFollowBtn:', e) }
-    finally { setLoading(false) }
-  }
-
-  return (
-    <button className={`${styles.sheetCTAFollow} ${following ? styles.sheetCTAFollowing : ''}`} onClick={toggle} disabled={loading}>
-      <i className={following ? 'ri-user-follow-fill' : 'ri-user-add-line'} />
-      {following ? 'Following' : 'Follow'}
-    </button>
   )
 }
