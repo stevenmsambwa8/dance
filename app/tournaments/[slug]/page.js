@@ -2943,6 +2943,119 @@ function ChampDisplay({ entry, styles, isAdmin, onSetWinner, leaderboard, partic
             </>
         }
       </div>
+      )} {/* end !adminView tabContent */}
+
+      {/* ══════ ADMIN FULL DASHBOARD VIEW ══════ */}
+      {canManage && adminView && tournament && (
+        <div className={styles.adminDashboard}>
+
+          {/* ── Participants section ── */}
+          <div className={styles.adminDashSection}>
+            <div className={styles.adminDashHead}>
+              <i className="ri-group-line" />
+              <span>Participants ({realCount}/{tournament.slots})</span>
+            </div>
+            <div className={styles.adminParticipantList}>
+              {loadingParticipants ? (
+                <p className={styles.adminEmpty}>Loading…</p>
+              ) : participants.length === 0 ? (
+                <p className={styles.adminEmpty}>No participants yet.</p>
+              ) : (
+                participants.map(p => (
+                  <div key={p.id} className={styles.adminParticipantRow}>
+                    <div className={styles.adminParticipantAvatar}>
+                      {p.profiles?.avatar_url
+                        ? <img src={p.profiles.avatar_url} alt="" />
+                        : <span>{(p.profiles?.username || '?')[0].toUpperCase()}</span>
+                      }
+                    </div>
+                    <div className={styles.adminParticipantInfo}>
+                      <span className={styles.adminParticipantName}>{p.profiles?.username || 'Unknown'}</span>
+                      <span className={styles.adminParticipantMeta}>{p.profiles?.tier} · Lv.{p.profiles?.level ?? 1}</span>
+                    </div>
+                    <span className={`${styles.adminParticipantStatus} ${p.bracket_status === 'out' ? styles.statusOut : p.bracket_status === 'champion' ? styles.statusChampion : styles.statusIn}`}>
+                      {p.bracket_status === 'out' ? '✗ Out' : p.bracket_status === 'champion' ? '🏆 Champion' : '● Active'}
+                    </span>
+                    {p.payment_status && (
+                      <span className={styles.adminPayBadge} style={{ color: p.payment_status === 'approved' ? '#22c55e' : '#f59e0b' }}>
+                        {p.payment_status === 'approved' ? '✓ Paid' : '⧗ Pending'}
+                      </span>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* ── Bracket section ── */}
+          <div className={styles.adminDashSection}>
+            <div className={styles.adminDashHead}>
+              <i className="ri-node-tree" />
+              <span>Bracket</span>
+            </div>
+            {!bracketData || bracketData.isEmpty ? (
+              <div className={styles.adminBracketEmpty}>
+                <i className="ri-node-tree" />
+                <p>No bracket generated yet.</p>
+                <button className={styles.adminGenBtn} onClick={initBracket} disabled={participants.length < 2}>
+                  <i className="ri-play-circle-line" /> Generate Bracket
+                  {participants.length < 2 && <span> (need 2+ players)</span>}
+                </button>
+              </div>
+            ) : (
+              <div className={styles.adminBracketInfo}>
+                <div className={styles.adminBracketStat}>
+                  <span>{bracketData.rounds?.length ?? 0}</span>
+                  <span>Rounds</span>
+                </div>
+                <div className={styles.adminBracketStat}>
+                  <span>{bracketData.rounds?.flat()?.filter(m => m.winner)?.length ?? 0}</span>
+                  <span>Completed</span>
+                </div>
+                <div className={styles.adminBracketStat}>
+                  <span>{bracketData.rounds?.flat()?.filter(m => !m.winner && m.player1 && m.player2)?.length ?? 0}</span>
+                  <span>Pending</span>
+                </div>
+              </div>
+            )}
+            <button className={styles.adminViewTabBtn} onClick={() => { setAdminView(false); setActiveTab('bracket') }}>
+              <i className="ri-external-link-line" /> Open Full Bracket View
+            </button>
+          </div>
+
+          {/* ── Leaderboard snapshot ── */}
+          <div className={styles.adminDashSection}>
+            <div className={styles.adminDashHead}>
+              <i className="ri-bar-chart-line" />
+              <span>Leaderboard Top 5</span>
+            </div>
+            {leaderboard.slice(0,5).map((e, i) => (
+              <div key={e.user_id} className={styles.adminLbRow}>
+                <span className={styles.adminLbPos}>#{i+1}</span>
+                <span className={styles.adminLbName}>{e.profiles?.username || '—'}</span>
+                <span className={styles.adminLbPts}>{e.points ?? 0} pts</span>
+              </div>
+            ))}
+            {leaderboard.length === 0 && <p className={styles.adminEmpty}>No scores yet.</p>}
+            <button className={styles.adminViewTabBtn} onClick={() => { setAdminView(false); setActiveTab('leaderboard') }}>
+              <i className="ri-external-link-line" /> Full Leaderboard
+            </button>
+          </div>
+
+          {/* ── Manage panel ── */}
+          <div className={styles.adminDashSection}>
+            <div className={styles.adminDashHead}>
+              <i className="ri-settings-3-line" />
+              <span>Manage</span>
+            </div>
+            <button className={styles.adminViewTabBtn} onClick={() => { setAdminView(false); setActiveTab('manage') }}>
+              <i className="ri-external-link-line" /> Open Manage Tab
+            </button>
+          </div>
+
+        </div>
+      )}
+
     </div>
   )
 }

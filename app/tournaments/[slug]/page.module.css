@@ -2370,3 +2370,140 @@
   transition: background 0.12s;
 }
 .inlineResetBtn:hover { background: rgba(239,68,68,0.10); }
+
+/* ═══════════════════════════════════════════
+   ADMIN DASHBOARD VIEW
+═══════════════════════════════════════════ */
+
+.adminDashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px 20px;
+}
+
+.adminDashSection {
+  border: 1px solid rgba(34,197,94,0.20);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.adminDashHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 14px;
+  background: rgba(34,197,94,0.06);
+  border-bottom: 1px solid rgba(34,197,94,0.16);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #22c55e;
+}
+.adminDashHead i { font-size: 15px; }
+
+.adminEmpty {
+  padding: 14px 16px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Participant list */
+.adminParticipantList {
+  display: flex;
+  flex-direction: column;
+}
+.adminParticipantRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.adminParticipantRow:last-child { border-bottom: none; }
+.adminParticipantAvatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--bg-2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800; color: var(--text-muted);
+  flex-shrink: 0;
+}
+.adminParticipantAvatar img { width: 100%; height: 100%; object-fit: cover; }
+.adminParticipantInfo { flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.adminParticipantName { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.adminParticipantMeta { font-size: 10px; color: var(--text-muted); }
+.adminParticipantStatus { font-size: 10px; font-weight: 800; flex-shrink: 0; }
+.statusIn       { color: #22c55e; }
+.statusOut      { color: #94a3b8; }
+.statusChampion { color: #f59e0b; }
+.adminPayBadge  { font-size: 10px; font-weight: 700; flex-shrink: 0; }
+
+/* Bracket info */
+.adminBracketEmpty {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 8px; padding: 20px 16px; text-align: center;
+}
+.adminBracketEmpty i { font-size: 28px; color: var(--text-muted); opacity: 0.3; }
+.adminBracketEmpty p { font-size: 13px; color: var(--text-muted); margin: 0; }
+.adminGenBtn {
+  display: flex; align-items: center; gap: 6px;
+  height: 40px; padding: 0 18px;
+  background: var(--text); color: var(--bg);
+  border: none; border-radius: 10px;
+  font-size: 13px; font-weight: 800; cursor: pointer;
+  transition: opacity 0.12s;
+}
+.adminGenBtn:hover { opacity: 0.88; }
+.adminGenBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.adminBracketInfo {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-bottom: 1px solid var(--border);
+}
+.adminBracketStat {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 3px;
+  padding: 14px 8px;
+  border-right: 1px solid var(--border);
+}
+.adminBracketStat:last-child { border-right: none; }
+.adminBracketStat span:first-child { font-size: 22px; font-weight: 900; color: var(--text); }
+.adminBracketStat span:last-child  { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); }
+
+/* Leaderboard snapshot */
+.adminLbRow {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.adminLbRow:last-child { border-bottom: none; }
+.adminLbPos  { font-size: 12px; font-weight: 900; color: var(--text-muted); width: 24px; flex-shrink: 0; }
+.adminLbName { flex: 1; font-size: 13px; font-weight: 700; }
+.adminLbPts  { font-size: 13px; font-weight: 900; color: var(--accent); }
+
+/* View tab button */
+.adminViewTabBtn {
+  display: flex; align-items: center; gap: 6px;
+  width: 100%; padding: 11px 14px;
+  border: none; border-top: 1px solid var(--border);
+  background: var(--bg-2);
+  color: var(--text-muted);
+  font-size: 12px; font-weight: 700;
+  cursor: pointer; text-align: left;
+  transition: color 0.12s, background 0.12s;
+}
+.adminViewTabBtn:hover { color: var(--text); background: var(--surface); }
+.adminViewTabBtn i { font-size: 14px; }
+
+/* Tab label (added to user-view tabs) */
+.tabLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}

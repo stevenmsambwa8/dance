@@ -744,173 +744,9 @@ export default function Dashboard() {
             </div>
           )}
 
-        </>)}
-      </div>
 
-      {/* ── Edit Modals ── */}
-      {anyEdit && (
-        <div className={styles.modalOverlay} onClick={() => { setEditUser(null); setEditPost(null); setEditTournament(null); setEditBattle(null); setEditShop(null); setBattleModal(false) }}>
-          <div className={styles.modalBox} onClick={e => e.stopPropagation()}>
-
-            {/* Edit User */}
-            {editUser && <>
-              <div className={styles.modalHeader}><span>Edit User</span><button onClick={() => setEditUser(null)}><i className="ri-close-line" /></button></div>
-              <div className={styles.modalBody}>
-                <div className={styles.createField}>
-                  <label>Username</label>
-                  <input type="text" value={editUser.username || ''} onChange={e => setEditUser(x => ({ ...x, username: e.target.value }))} />
-                </div>
-                <div className={styles.createField}>
-                  <label>Rank Tier</label>
-                  <select value={editUser.tier || 'Gold'} onChange={e => setEditUser(x => ({ ...x, tier: e.target.value }))}>
-                    {RANK_TIERS.map(t => <option key={t}>{t}</option>)}
-                  </select>
-                </div>
-                {[['level','Level','number'],['wins','Wins','number'],['losses','Losses','number'],['points','Points','number']].map(([k,l,t]) => (
-                  <div key={k} className={styles.createField}>
-                    <label>{l}</label>
-                    <input type={t} value={editUser[k] || ''} onChange={e => setEditUser(x => ({ ...x, [k]: e.target.value }))} />
-                  </div>
-                ))}
-                <div className={styles.createField}><label>Bio</label><textarea rows={2} value={editUser.bio || ''} onChange={e => setEditUser(x => ({ ...x, bio: e.target.value }))} /></div>
-                <div className={styles.createField}>
-                  <label>Phone Number</label>
-                  <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-                    {[
-                      { code: '254', flag: '/kenya.png',    label: '+254' },
-                      { code: '255', flag: '/tanzania.png', label: '+255' },
-                      { code: '256', flag: '/uganda.png',   label: '+256' },
-                    ].map(c => (
-                      <button key={c.code} type="button" onClick={() => setEditUserPhoneCode(c.code)} style={{
-                        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-                        padding: '7px 8px', borderRadius: 4,
-                        border: `1px solid ${editUserPhoneCode === c.code ? 'var(--text)' : 'var(--border-dark)'}`,
-                        background: editUserPhoneCode === c.code ? 'var(--surface)' : 'var(--bg-2)',
-                        color: editUserPhoneCode === c.code ? 'var(--text)' : 'var(--text-muted)',
-                        fontWeight: 700, fontSize: 11, cursor: 'pointer', transition: 'all 0.15s',
-                      }}>
-                        <img src={c.flag} alt={c.code} style={{ width: 16, height: 16, borderRadius: 2, objectFit: 'cover' }} />
-                        {c.label}
-                      </button>
-                    ))}
-                  </div>
-                  <div style={{
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    border: '1px solid var(--border-dark)', borderRadius: 4,
-                    background: 'var(--bg-2)', padding: '0 12px',
-                  }}>
-                    <span style={{ color: 'var(--text-muted)', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>+{editUserPhoneCode}</span>
-                    <div style={{ width: 1, height: 16, background: 'var(--border-dark)', flexShrink: 0 }} />
-                    <input
-                      type="tel"
-                      placeholder="712 345 678"
-                      value={editUserPhoneLocal}
-                      onChange={e => setEditUserPhoneLocal(e.target.value)}
-                      style={{
-                        flex: 1, border: 'none', background: 'transparent',
-                        padding: '10px 0', fontSize: 13, color: 'var(--text)',
-                        outline: 'none', fontFamily: 'var(--font)',
-                      }}
-                    />
-                    {editUserPhoneLocal && (
-                      <button type="button" onClick={() => setEditUserPhoneLocal('')}
-                        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0, fontSize: 14 }}>
-                        <i className="ri-close-line" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <button className={styles.saveBtn} onClick={saveUser}><i className="ri-check-line" /> Save User</button>
-              </div>
-            </>}
-
-            {/* Edit Post */}
-            {editPost && <>
-              <div className={styles.modalHeader}><span>Edit Post</span><button onClick={() => setEditPost(null)}><i className="ri-close-line" /></button></div>
-              <div className={styles.modalBody}>
-                <div className={styles.createField}><label>Content</label><textarea rows={5} value={editPost.content || ''} onChange={e => setEditPost(x => ({ ...x, content: e.target.value }))} /></div>
-                <button className={styles.saveBtn} onClick={savePost}><i className="ri-check-line" /> Save Post</button>
-              </div>
-            </>}
-
-            {/* Edit Tournament */}
-            {editTournament && <>
-              <div className={styles.modalHeader}><span>Edit Tournament</span><button onClick={() => setEditTournament(null)}><i className="ri-close-line" /></button></div>
-              <div className={styles.modalBody}>
-                {[['name','Name','text'],['prize','Prize (TZS)','text'],['format','Format','text'],['slots','Max Slots','number'],['date','Date','text']].map(([k,l,t]) => (
-                  <div key={k} className={styles.createField}>
-                    <label>{l}</label>
-                    <input type={t} value={editTournament[k] || ''} onChange={e => setEditTournament(x => ({ ...x, [k]: e.target.value }))} />
-                  </div>
-                ))}
-                <div className={styles.createField}><label>Status</label>
-                  <select value={editTournament.status} onChange={e => setEditTournament(x => ({ ...x, status: e.target.value }))}>
-                    <option>active</option><option>completed</option><option>cancelled</option>
-                  </select>
-                </div>
-                <div className={styles.createField}><label>Description</label><textarea rows={3} value={editTournament.description || ''} onChange={e => setEditTournament(x => ({ ...x, description: e.target.value }))} /></div>
-                <button className={styles.saveBtn} onClick={saveTournament}><i className="ri-check-line" /> Save Tournament</button>
-              </div>
-            </>}
-
-            {/* Edit Battle */}
-            {editBattle && <>
-              <div className={styles.modalHeader}><span>Edit Battle</span><button onClick={() => setEditBattle(null)}><i className="ri-close-line" /></button></div>
-              <div className={styles.modalBody}>
-                <div className={styles.createField}><label>Game Mode</label>
-                  <input placeholder="e.g. Elimination, Deathmatch…" value={editBattle.game_mode || ''} onChange={e => setEditBattle(x => ({ ...x, game_mode: e.target.value }))} />
-                </div>
-                <div className={styles.createField}><label>Format</label>
-                  <input placeholder="e.g. Bo3, Bo5, Round Robin…" value={editBattle.format || ''} onChange={e => setEditBattle(x => ({ ...x, format: e.target.value }))} />
-                </div>
-                <div className={styles.createField}><label>Status</label>
-                  <select value={editBattle.status} onChange={e => setEditBattle(x => ({ ...x, status: e.target.value }))}>
-                    {['pending','confirmed','live','completed','declined','cancelled'].map(s => <option key={s}>{s}</option>)}
-                  </select>
-                </div>
-                <button className={styles.saveBtn} onClick={saveBattle}><i className="ri-check-line" /> Save Battle</button>
-              </div>
-            </>}
-
-            {/* Edit Shop Item */}
-            {editShop && <>
-              <div className={styles.modalHeader}><span>Edit Shop Item</span><button onClick={() => setEditShop(null)}><i className="ri-close-line" /></button></div>
-              <div className={styles.modalBody}>
-                <div className={styles.createField}><label>Title</label><input value={editShop.title || ''} onChange={e => setEditShop(x => ({ ...x, title: e.target.value }))} /></div>
-                <div className={styles.createField}><label>Price (TZS)</label><input value={editShop.price || ''} onChange={e => setEditShop(x => ({ ...x, price: e.target.value }))} /></div>
-                <div className={styles.createField}><label>Category</label>
-                  <select value={editShop.category} onChange={e => setEditShop(x => ({ ...x, category: e.target.value }))}>
-                    <option value="accounts">Account</option><option value="gear">Gear</option><option value="services">Service</option>
-                  </select>
-                </div>
-                <div className={styles.createField}><label>Description</label><textarea rows={3} value={editShop.description || ''} onChange={e => setEditShop(x => ({ ...x, description: e.target.value }))} /></div>
-                <button className={styles.saveBtn} onClick={saveShop}><i className="ri-check-line" /> Save Item</button>
-              </div>
-            </>}
-
-            {/* Create Battle */}
-            {battleModal && !editBattle && <>
-              <div className={styles.modalHeader}><span>Create Battle</span><button onClick={() => setBattleModal(false)}><i className="ri-close-line" /></button></div>
-              <div className={styles.modalBody}>
-                {[['player1','Player 1 Username'],['player2','Player 2 Username']].map(([k,l]) => (
-                  <div key={k} className={styles.createField}><label>{l}</label><input placeholder="username" value={battleForm[k]} onChange={e => setBattleForm(x => ({ ...x, [k]: e.target.value }))} /></div>
-                ))}
-                <div className={styles.createField}><label>Scheduled At</label><input type="datetime-local" value={battleForm.scheduled_at} onChange={e => setBattleForm(x => ({ ...x, scheduled_at: e.target.value }))} /></div>
-                <div className={styles.createField}><label>Game Mode</label>
-                  <input placeholder="e.g. Elimination, Deathmatch, Sniper…" value={battleForm.game_mode} onChange={e => setBattleForm(x => ({ ...x, game_mode: e.target.value }))} />
-                </div>
-                <div className={styles.createField}><label>Format</label>
-                  <input placeholder="e.g. Bo1, Bo3, Bo5, Round Robin…" value={battleForm.format} onChange={e => setBattleForm(x => ({ ...x, format: e.target.value }))} />
-                </div>
-                <button className={styles.saveBtn} onClick={createBattle} disabled={battleCreating}>
-                  {battleCreating ? 'Creating…' : <><i className="ri-sword-line" /> Create Battle</>}
-                </button>
-              </div>
-            </>}
-
-  
           {tab === 'Notifications' && (
-            <div className={styles.notifComposer}>
+<div className={styles.notifComposer}>
 
               {/* ── Target selector ── */}
               <div className={styles.notifSection}>
@@ -1093,6 +929,172 @@ export default function Dashboard() {
 
             </div>
           )}
+        </>)}
+      </div>
+
+      {/* ── Edit Modals ── */}
+      {anyEdit && (
+        <div className={styles.modalOverlay} onClick={() => { setEditUser(null); setEditPost(null); setEditTournament(null); setEditBattle(null); setEditShop(null); setBattleModal(false) }}>
+          <div className={styles.modalBox} onClick={e => e.stopPropagation()}>
+
+            {/* Edit User */}
+            {editUser && <>
+              <div className={styles.modalHeader}><span>Edit User</span><button onClick={() => setEditUser(null)}><i className="ri-close-line" /></button></div>
+              <div className={styles.modalBody}>
+                <div className={styles.createField}>
+                  <label>Username</label>
+                  <input type="text" value={editUser.username || ''} onChange={e => setEditUser(x => ({ ...x, username: e.target.value }))} />
+                </div>
+                <div className={styles.createField}>
+                  <label>Rank Tier</label>
+                  <select value={editUser.tier || 'Gold'} onChange={e => setEditUser(x => ({ ...x, tier: e.target.value }))}>
+                    {RANK_TIERS.map(t => <option key={t}>{t}</option>)}
+                  </select>
+                </div>
+                {[['level','Level','number'],['wins','Wins','number'],['losses','Losses','number'],['points','Points','number']].map(([k,l,t]) => (
+                  <div key={k} className={styles.createField}>
+                    <label>{l}</label>
+                    <input type={t} value={editUser[k] || ''} onChange={e => setEditUser(x => ({ ...x, [k]: e.target.value }))} />
+                  </div>
+                ))}
+                <div className={styles.createField}><label>Bio</label><textarea rows={2} value={editUser.bio || ''} onChange={e => setEditUser(x => ({ ...x, bio: e.target.value }))} /></div>
+                <div className={styles.createField}>
+                  <label>Phone Number</label>
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                    {[
+                      { code: '254', flag: '/kenya.png',    label: '+254' },
+                      { code: '255', flag: '/tanzania.png', label: '+255' },
+                      { code: '256', flag: '/uganda.png',   label: '+256' },
+                    ].map(c => (
+                      <button key={c.code} type="button" onClick={() => setEditUserPhoneCode(c.code)} style={{
+                        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                        padding: '7px 8px', borderRadius: 4,
+                        border: `1px solid ${editUserPhoneCode === c.code ? 'var(--text)' : 'var(--border-dark)'}`,
+                        background: editUserPhoneCode === c.code ? 'var(--surface)' : 'var(--bg-2)',
+                        color: editUserPhoneCode === c.code ? 'var(--text)' : 'var(--text-muted)',
+                        fontWeight: 700, fontSize: 11, cursor: 'pointer', transition: 'all 0.15s',
+                      }}>
+                        <img src={c.flag} alt={c.code} style={{ width: 16, height: 16, borderRadius: 2, objectFit: 'cover' }} />
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    border: '1px solid var(--border-dark)', borderRadius: 4,
+                    background: 'var(--bg-2)', padding: '0 12px',
+                  }}>
+                    <span style={{ color: 'var(--text-muted)', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>+{editUserPhoneCode}</span>
+                    <div style={{ width: 1, height: 16, background: 'var(--border-dark)', flexShrink: 0 }} />
+                    <input
+                      type="tel"
+                      placeholder="712 345 678"
+                      value={editUserPhoneLocal}
+                      onChange={e => setEditUserPhoneLocal(e.target.value)}
+                      style={{
+                        flex: 1, border: 'none', background: 'transparent',
+                        padding: '10px 0', fontSize: 13, color: 'var(--text)',
+                        outline: 'none', fontFamily: 'var(--font)',
+                      }}
+                    />
+                    {editUserPhoneLocal && (
+                      <button type="button" onClick={() => setEditUserPhoneLocal('')}
+                        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0, fontSize: 14 }}>
+                        <i className="ri-close-line" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <button className={styles.saveBtn} onClick={saveUser}><i className="ri-check-line" /> Save User</button>
+              </div>
+            </>}
+
+            {/* Edit Post */}
+            {editPost && <>
+              <div className={styles.modalHeader}><span>Edit Post</span><button onClick={() => setEditPost(null)}><i className="ri-close-line" /></button></div>
+              <div className={styles.modalBody}>
+                <div className={styles.createField}><label>Content</label><textarea rows={5} value={editPost.content || ''} onChange={e => setEditPost(x => ({ ...x, content: e.target.value }))} /></div>
+                <button className={styles.saveBtn} onClick={savePost}><i className="ri-check-line" /> Save Post</button>
+              </div>
+            </>}
+
+            {/* Edit Tournament */}
+            {editTournament && <>
+              <div className={styles.modalHeader}><span>Edit Tournament</span><button onClick={() => setEditTournament(null)}><i className="ri-close-line" /></button></div>
+              <div className={styles.modalBody}>
+                {[['name','Name','text'],['prize','Prize (TZS)','text'],['format','Format','text'],['slots','Max Slots','number'],['date','Date','text']].map(([k,l,t]) => (
+                  <div key={k} className={styles.createField}>
+                    <label>{l}</label>
+                    <input type={t} value={editTournament[k] || ''} onChange={e => setEditTournament(x => ({ ...x, [k]: e.target.value }))} />
+                  </div>
+                ))}
+                <div className={styles.createField}><label>Status</label>
+                  <select value={editTournament.status} onChange={e => setEditTournament(x => ({ ...x, status: e.target.value }))}>
+                    <option>active</option><option>completed</option><option>cancelled</option>
+                  </select>
+                </div>
+                <div className={styles.createField}><label>Description</label><textarea rows={3} value={editTournament.description || ''} onChange={e => setEditTournament(x => ({ ...x, description: e.target.value }))} /></div>
+                <button className={styles.saveBtn} onClick={saveTournament}><i className="ri-check-line" /> Save Tournament</button>
+              </div>
+            </>}
+
+            {/* Edit Battle */}
+            {editBattle && <>
+              <div className={styles.modalHeader}><span>Edit Battle</span><button onClick={() => setEditBattle(null)}><i className="ri-close-line" /></button></div>
+              <div className={styles.modalBody}>
+                <div className={styles.createField}><label>Game Mode</label>
+                  <input placeholder="e.g. Elimination, Deathmatch…" value={editBattle.game_mode || ''} onChange={e => setEditBattle(x => ({ ...x, game_mode: e.target.value }))} />
+                </div>
+                <div className={styles.createField}><label>Format</label>
+                  <input placeholder="e.g. Bo3, Bo5, Round Robin…" value={editBattle.format || ''} onChange={e => setEditBattle(x => ({ ...x, format: e.target.value }))} />
+                </div>
+                <div className={styles.createField}><label>Status</label>
+                  <select value={editBattle.status} onChange={e => setEditBattle(x => ({ ...x, status: e.target.value }))}>
+                    {['pending','confirmed','live','completed','declined','cancelled'].map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+                <button className={styles.saveBtn} onClick={saveBattle}><i className="ri-check-line" /> Save Battle</button>
+              </div>
+            </>}
+
+            {/* Edit Shop Item */}
+            {editShop && <>
+              <div className={styles.modalHeader}><span>Edit Shop Item</span><button onClick={() => setEditShop(null)}><i className="ri-close-line" /></button></div>
+              <div className={styles.modalBody}>
+                <div className={styles.createField}><label>Title</label><input value={editShop.title || ''} onChange={e => setEditShop(x => ({ ...x, title: e.target.value }))} /></div>
+                <div className={styles.createField}><label>Price (TZS)</label><input value={editShop.price || ''} onChange={e => setEditShop(x => ({ ...x, price: e.target.value }))} /></div>
+                <div className={styles.createField}><label>Category</label>
+                  <select value={editShop.category} onChange={e => setEditShop(x => ({ ...x, category: e.target.value }))}>
+                    <option value="accounts">Account</option><option value="gear">Gear</option><option value="services">Service</option>
+                  </select>
+                </div>
+                <div className={styles.createField}><label>Description</label><textarea rows={3} value={editShop.description || ''} onChange={e => setEditShop(x => ({ ...x, description: e.target.value }))} /></div>
+                <button className={styles.saveBtn} onClick={saveShop}><i className="ri-check-line" /> Save Item</button>
+              </div>
+            </>}
+
+            {/* Create Battle */}
+            {battleModal && !editBattle && <>
+              <div className={styles.modalHeader}><span>Create Battle</span><button onClick={() => setBattleModal(false)}><i className="ri-close-line" /></button></div>
+              <div className={styles.modalBody}>
+                {[['player1','Player 1 Username'],['player2','Player 2 Username']].map(([k,l]) => (
+                  <div key={k} className={styles.createField}><label>{l}</label><input placeholder="username" value={battleForm[k]} onChange={e => setBattleForm(x => ({ ...x, [k]: e.target.value }))} /></div>
+                ))}
+                <div className={styles.createField}><label>Scheduled At</label><input type="datetime-local" value={battleForm.scheduled_at} onChange={e => setBattleForm(x => ({ ...x, scheduled_at: e.target.value }))} /></div>
+                <div className={styles.createField}><label>Game Mode</label>
+                  <input placeholder="e.g. Elimination, Deathmatch, Sniper…" value={battleForm.game_mode} onChange={e => setBattleForm(x => ({ ...x, game_mode: e.target.value }))} />
+                </div>
+                <div className={styles.createField}><label>Format</label>
+                  <input placeholder="e.g. Bo1, Bo3, Bo5, Round Robin…" value={battleForm.format} onChange={e => setBattleForm(x => ({ ...x, format: e.target.value }))} />
+                </div>
+                <button className={styles.saveBtn} onClick={createBattle} disabled={battleCreating}>
+                  {battleCreating ? 'Creating…' : <><i className="ri-sword-line" /> Create Battle</>}
+                </button>
+              </div>
+            </>}
+
+  
+
         </div>
         </div>
       )}
