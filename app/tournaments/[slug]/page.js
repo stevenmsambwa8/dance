@@ -1859,26 +1859,27 @@ export default function TournamentDetail() {
         )
       })()}
 
-      {/* Tabs */}
-      <div className={styles.tabs}>
-        {[
-          { key: 'bracket',     icon: 'ri-node-tree',     title: 'Bracket' },
-          { key: 'matches',     icon: 'ri-sword-line',    title: 'Matches' },
-          { key: 'leaderboard', icon: 'ri-bar-chart-line',title: 'Leaderboard' },
-          { key: 'players',     icon: 'ri-group-line',    title: `Players (${loadingParticipants ? '…' : realCount})` },
-          ...(canManage ? [{ key: 'manage', icon: 'ri-settings-3-line', title: 'Manage' }] : []),
-        ].map(tab => (
-          <button
-            key={tab.key}
-            className={`${styles.tab} ${activeTab === tab.key ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab(tab.key)}
-            title={tab.title}
-            aria-label={tab.title}
-          >
-            <i className={tab.icon} />
-          </button>
-        ))}
-      </div>
+      {/* Tabs — only show when in user view OR not canManage */}
+      {(!canManage || !adminView) && (
+        <div className={styles.tabs}>
+          {[
+            { key: 'bracket',     icon: 'ri-node-tree',     title: 'Bracket'     },
+            { key: 'matches',     icon: 'ri-sword-line',    title: 'Matches'     },
+            { key: 'leaderboard', icon: 'ri-bar-chart-line',title: 'Leaderboard' },
+            { key: 'players',     icon: 'ri-group-line',    title: `Players (${loadingParticipants ? '…' : realCount})` },
+            ...(canManage ? [{ key: 'manage', icon: 'ri-settings-3-line', title: 'Manage' }] : []),
+          ].map(tab => (
+            <button
+              key={tab.key}
+              className={`${styles.tab} ${activeTab === tab.key ? styles.tabActive : ''}`}
+              onClick={() => setActiveTab(tab.key)}
+            >
+              <i className={tab.icon} />
+              <span className={styles.tabLabel}>{tab.title}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* ── BRACKET TAB ── */}
       {activeTab === 'bracket' && (

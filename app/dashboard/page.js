@@ -13,7 +13,7 @@ function makeMatchCode(id) {
   return ((clean[0] || '0') + (clean[2] || '0') + (clean[9] || '0') + (clean[14] || '0')).toLowerCase()
 }
 
-const TABS = ['Overview', 'Todos', 'Users', 'Posts', 'Tournaments', 'Battles', 'Shop']
+const TABS = ['Overview', 'Todos', 'Users', 'Posts', 'Tournaments', 'Battles', 'Shop', 'Notifications']
 
 export default function Dashboard() {
   const { user, isAdmin, loading: authLoading } = useAuth()
@@ -32,6 +32,24 @@ export default function Dashboard() {
   const [todosLoading, setTodosLoading] = useState(false)
   const [tournamentPayments, setTournamentPayments] = useState([])
   const [tournamentPaymentsLoading, setTournamentPaymentsLoading] = useState(false)
+
+  // Notification composer state
+  const [notifForm, setNotifForm] = useState({
+    target: 'all',        // 'all' | 'user'
+    targetUserId: '',     // when target='user'
+    targetUsername: '',   // display only
+    title: '',
+    body: '',
+    type: 'announcement',
+    ctaLabel: '',
+    ctaLink: '',
+  })
+  const [notifSending, setNotifSending]   = useState(false)
+  const [notifResult,  setNotifResult]    = useState(null)   // { sent, errors }
+  const [notifHistory, setNotifHistory]   = useState([])
+  const [userSearch,   setUserSearch]     = useState('')
+  const [userResults,  setUserResults]    = useState([])
+  const [searching,    setSearching]      = useState(false)
 
   // Edit states
   const [editUser, setEditUser] = useState(null)
@@ -304,6 +322,74 @@ export default function Dashboard() {
   if (!isAdmin) return null
 
   const anyEdit = editUser || editPost || editTournament || editBattle || editShop || battleModal
+
+  // Search users for targeting
+  async function searchUsers(q) {
+    if (!q.trim()) { setUserResults([]); return }
+    setSearching(true)
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, username, tier, avatar_url')
+      .ilike('username', `%${q}%`)
+      .limit(8)
+    setUserResults(data || [])
+    setSearching(false)
+  }
+
+  async function sendNotification() {
+    const { target, targetUserId, title, body, type, ctaLabel, ctaLink } = notifForm
+    if (!title.trim() || !body.trim()) return
+    setNotifSending(true)
+    setNotifResult(null)
+
+    const meta = {}
+    if (ctaLink.trim()) meta.cta_link  = ctaLink.trim()
+    if (ctaLabel.trim()) meta.cta_label = ctaLabel.trim()
+
+    let sent = 0, errors = 0
+    const insert = async (userId) => {
+      const { error } = await supabase.from('notifications').insert({
+        user_id: userId,
+        type,
+        title: title.trim(),
+        body: body.trim(),
+        meta,
+        read: false,
+      })
+      if (error) errors++; else sent++
+    }
+
+    if (target === 'user') {
+      if (!targetUserId) { setNotifSending(false); return }
+      await insert(targetUserId)
+    } else {
+      // Send to ALL users
+      const { data: allUsers } = await supabase.from('profiles').select('id')
+      if (allUsers) {
+        // Batch in chunks of 20 to avoid rate limits
+        for (let i = 0; i < allUsers.length; i += 20) {
+          await Promise.all(allUsers.slice(i, i + 20).map(u => insert(u.id)))
+        }
+      }
+    }
+
+    // Log to history
+    const historyEntry = {
+      id: Date.now(),
+      at: new Date().toISOString(),
+      target: target === 'all' ? 'All Users' : notifForm.targetUsername,
+      title: title.trim(),
+      body: body.trim(),
+      sent,
+      errors,
+    }
+    setNotifHistory(h => [historyEntry, ...h])
+    setNotifResult({ sent, errors })
+    setNotifSending(false)
+
+    // Reset form body/title but keep type/link for quick resend
+    setNotifForm(f => ({ ...f, title: '', body: '' }))
+  }
 
   return (
     <div className={styles.page}>
@@ -822,7 +908,192 @@ export default function Dashboard() {
               </div>
             </>}
 
-          </div>
+  
+          {tab === 'Notifications' && (
+            <div className={styles.notifComposer}>
+
+              {/* ── Target selector ── */}
+              <div className={styles.notifSection}>
+                <div className={styles.notifSectionLabel}><i className="ri-user-target-line" /> Send To</div>
+                <div className={styles.targetBtns}>
+                  <button
+                    className={`${styles.targetBtn} ${notifForm.target === 'all' ? styles.targetBtnActive : ''}`}
+                    onClick={() => setNotifForm(f => ({ ...f, target: 'all', targetUserId: '', targetUsername: '' }))}
+                  >
+                    <i className="ri-group-line" /> All Users
+                  </button>
+                  <button
+                    className={`${styles.targetBtn} ${notifForm.target === 'user' ? styles.targetBtnActive : ''}`}
+                    onClick={() => setNotifForm(f => ({ ...f, target: 'user' }))}
+                  >
+                    <i className="ri-user-line" /> Specific User
+                  </button>
+                </div>
+
+                {notifForm.target === 'user' && (
+                  <div className={styles.userSearchWrap}>
+                    <input
+                      className={styles.notifInput}
+                      placeholder="Search username…"
+                      value={userSearch}
+                      onChange={e => { setUserSearch(e.target.value); searchUsers(e.target.value) }}
+                    />
+                    {searching && <span className={styles.notifHint}><i className="ri-loader-4-line" /> Searching…</span>}
+                    {userResults.length > 0 && (
+                      <div className={styles.userResults}>
+                        {userResults.map(u => (
+                          <button
+                            key={u.id}
+                            className={`${styles.userResult} ${notifForm.targetUserId === u.id ? styles.userResultActive : ''}`}
+                            onClick={() => {
+                              setNotifForm(f => ({ ...f, targetUserId: u.id, targetUsername: u.username }))
+                              setUserSearch(u.username)
+                              setUserResults([])
+                            }}
+                          >
+                            <span className={styles.userResultName}>{u.username}</span>
+                            <span className={styles.userResultTier}>{u.tier}</span>
+                            {notifForm.targetUserId === u.id && <i className="ri-check-line" style={{ color: 'var(--accent)', marginLeft: 'auto' }} />}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {notifForm.targetUserId && (
+                      <div className={styles.selectedUser}>
+                        <i className="ri-checkbox-circle-fill" style={{ color: 'var(--accent)' }} />
+                        Sending to: <strong>{notifForm.targetUsername}</strong>
+                        <button onClick={() => setNotifForm(f => ({ ...f, targetUserId: '', targetUsername: '' }))} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>
+                          <i className="ri-close-line" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* ── Notification type ── */}
+              <div className={styles.notifSection}>
+                <div className={styles.notifSectionLabel}><i className="ri-tag-line" /> Type</div>
+                <div className={styles.typeGrid}>
+                  {[
+                    { val: 'announcement',  icon: 'ri-megaphone-line',      label: 'Announcement'  },
+                    { val: 'tournament',     icon: 'ri-node-tree',           label: 'Tournament'    },
+                    { val: 'tier_up',        icon: 'ri-shield-star-line',    label: 'Tier Up'       },
+                    { val: 'level_up',       icon: 'ri-bar-chart-fill',      label: 'Level Up'      },
+                    { val: 'season_ended',   icon: 'ri-calendar-check-line', label: 'Season'        },
+                    { val: 'direct_message', icon: 'ri-chat-private-line',   label: 'DM'            },
+                  ].map(t => (
+                    <button
+                      key={t.val}
+                      className={`${styles.typeBtn} ${notifForm.type === t.val ? styles.typeBtnActive : ''}`}
+                      onClick={() => setNotifForm(f => ({ ...f, type: t.val }))}
+                    >
+                      <i className={t.icon} />
+                      <span>{t.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* ── Message ── */}
+              <div className={styles.notifSection}>
+                <div className={styles.notifSectionLabel}><i className="ri-notification-3-line" /> Message</div>
+                <input
+                  className={styles.notifInput}
+                  placeholder="Title (bold headline)"
+                  value={notifForm.title}
+                  onChange={e => setNotifForm(f => ({ ...f, title: e.target.value }))}
+                />
+                <textarea
+                  className={styles.notifTextarea}
+                  placeholder="Body — tell users what this is about, what action to take, etc."
+                  rows={3}
+                  value={notifForm.body}
+                  onChange={e => setNotifForm(f => ({ ...f, body: e.target.value }))}
+                />
+              </div>
+
+              {/* ── CTA ── */}
+              <div className={styles.notifSection}>
+                <div className={styles.notifSectionLabel}><i className="ri-cursor-line" /> Call to Action (optional)</div>
+                <div className={styles.ctaRow}>
+                  <input
+                    className={styles.notifInput}
+                    placeholder="Button label e.g. View Bracket"
+                    value={notifForm.ctaLabel}
+                    onChange={e => setNotifForm(f => ({ ...f, ctaLabel: e.target.value }))}
+                    style={{ flex: 1 }}
+                  />
+                  <input
+                    className={styles.notifInput}
+                    placeholder="Link e.g. /tournaments/ss1"
+                    value={notifForm.ctaLink}
+                    onChange={e => setNotifForm(f => ({ ...f, ctaLink: e.target.value }))}
+                    style={{ flex: 2 }}
+                  />
+                </div>
+                <p className={styles.notifHint}>
+                  Link should be a path like <code>/tournaments/slug</code>, <code>/matches/id</code>, etc.
+                  This will be the route the toast navigates to when tapped.
+                </p>
+              </div>
+
+              {/* ── Preview ── */}
+              {(notifForm.title || notifForm.body) && (
+                <div className={styles.notifSection}>
+                  <div className={styles.notifSectionLabel}><i className="ri-eye-line" /> Preview</div>
+                  <div className={styles.notifPreview}>
+                    <div className={styles.previewApp}>Nabogaming</div>
+                    <div className={styles.previewTitle}>{notifForm.title || 'Title'}</div>
+                    <div className={styles.previewBody}>{notifForm.body || 'Message body…'}</div>
+                    {notifForm.ctaLabel && (
+                      <div className={styles.previewCta}>{notifForm.ctaLabel} →</div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Send ── */}
+              {notifResult && (
+                <div className={`${styles.notifResult} ${notifResult.errors > 0 ? styles.notifResultWarn : styles.notifResultOk}`}>
+                  <i className={notifResult.errors > 0 ? 'ri-error-warning-line' : 'ri-checkbox-circle-fill'} />
+                  Sent to {notifResult.sent} user{notifResult.sent !== 1 ? 's' : ''}
+                  {notifResult.errors > 0 && ` · ${notifResult.errors} failed`}
+                </div>
+              )}
+
+              <button
+                className={styles.sendBtn}
+                onClick={sendNotification}
+                disabled={notifSending || !notifForm.title.trim() || !notifForm.body.trim() || (notifForm.target === 'user' && !notifForm.targetUserId)}
+              >
+                {notifSending
+                  ? <><i className="ri-loader-4-line" style={{ animation: 'spin .7s linear infinite' }} /> Sending…</>
+                  : <><i className="ri-send-plane-fill" /> Send Notification {notifForm.target === 'all' ? '(All Users)' : `to ${notifForm.targetUsername}`}</>
+                }
+              </button>
+
+              {/* ── History ── */}
+              {notifHistory.length > 0 && (
+                <div className={styles.notifSection} style={{ marginTop: 8 }}>
+                  <div className={styles.notifSectionLabel}><i className="ri-history-line" /> Sent This Session</div>
+                  <div className={styles.historyList}>
+                    {notifHistory.map(h => (
+                      <div key={h.id} className={styles.historyRow}>
+                        <div className={styles.historyMeta}>
+                          <span className={styles.historyTitle}>{h.title}</span>
+                          <span className={styles.historyTarget}>→ {h.target}</span>
+                        </div>
+                        <span className={styles.historySent}>{h.sent} sent</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+            </div>
+          )}
+        </div>
         </div>
       )}
     </div>

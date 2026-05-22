@@ -31,19 +31,37 @@ const NOTIF_CONFIG = {
   level_up:               { icon: 'ri-bar-chart-fill',         color: '#06b6d4', label: 'Level Up! ⚡',       action: 'View Profile',   route: () => '/account'                                                                                       },
 }
 
-function getConfig(type) {
-  return NOTIF_CONFIG[type] || {
+function getConfig(type, meta) {
+  const base = NOTIF_CONFIG[type] || {
     icon:   'ri-notification-3-line',
     color:  null,
     label:  'Notification',
     action: 'View',
     route:  () => '/notifications',
   }
+  // Override action label and route if admin set a custom CTA
+  if (meta?.cta_link) {
+    return {
+      ...base,
+      action: meta.cta_label || base.action,
+      route:  () => meta.cta_link,
+    }
+  }
+  return base
+}
+
+// Announcement type not in NOTIF_CONFIG — add it
+NOTIF_CONFIG.announcement = {
+  icon:   'ri-megaphone-fill',
+  color:  '#6366f1',
+  label:  'Announcement',
+  action: 'Read',
+  route:  (n) => n.meta?.cta_link || '/notifications',
 }
 
 /* ─── Single toast component ─────────────────────────────── */
 function Toast({ id, notif, onDismiss, onAction }) {
-  const cfg          = getConfig(notif.type)
+  const cfg          = getConfig(notif.type, notif.meta)
   const [leaving,       setLeaving]       = useState(false)
   const [dragX,         setDragX]         = useState(0)
   const [dragging,      setDragging]      = useState(false)
