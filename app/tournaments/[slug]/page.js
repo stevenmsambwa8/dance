@@ -2837,6 +2837,9 @@ function MatchupPlanner({ participants, bracketData, onApply }) {
             Changes only affect {roundLabel(editRound)} slots. No points are changed.
           </p>
       </div>
+        </>
+      )}
+      </div>
       )} {/* end user-view tabContent */}
 
       {canManage && adminView && tournament && (
@@ -2894,13 +2897,12 @@ function MatchupPlanner({ participants, bracketData, onApply }) {
           </div>
         </div>
       )}
-        </>
-      )}
     </div>
   )
 }
 
 
+// ─── Sub-components
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function ChampDisplay({ entry, styles, isAdmin, onSetWinner, leaderboard, participants }) {
