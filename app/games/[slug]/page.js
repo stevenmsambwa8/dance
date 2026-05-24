@@ -9,6 +9,25 @@ import { GAME_META } from '../../../lib/constants'
 import styles from './page.module.css'
 import usePageLoading from '../../../components/usePageLoading'
 
+import { getTierTheme } from '../../../lib/tierTheme'
+
+function getTierColor(tier) {
+  return getTierTheme(tier)?.primary || '#f59e0b'
+}
+
+function formatMasterDate(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
+function weekLabel(dateStr) {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  const end = new Date(d); end.setDate(d.getDate() + 6)
+  return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })} – ${end.toLocaleDateString([], { month: 'short', day: 'numeric' })}`
+}
+
 function fmtFee(n) { return Number(n).toLocaleString() }
 
 function PaymentModal({ tournament, user, onClose, onSubmitted }) {
@@ -131,8 +150,32 @@ export default function GameDetail() {
   const [registered,  setRegistered]  = useState({})
   const [paymentMap,  setPaymentMap]  = useState({})
   const [payModal,    setPayModal]    = useState(null)
+  const [master,      setMaster]      = useState(null)
+  const [masterLoading, setMasterLoading] = useState(true)
+  const [pastMasters, setPastMasters] = useState([])
 
   useEffect(() => { loadData() }, [slug, user])
+  useEffect(() => { loadMaster() }, [slug])
+
+  async function loadMaster() {
+    setMasterLoading(true)
+    const { data } = await supabase.rpc('get_current_game_master', { p_game_slug: slug })
+    setMaster(data?.[0] || null)
+
+    // Load last 4 weeks of past masters (excluding current week)
+    const thisWeek = new Date()
+    thisWeek.setDate(thisWeek.getDate() - thisWeek.getDay() + 1) // Monday
+    thisWeek.setHours(0, 0, 0, 0)
+    const { data: past } = await supabase
+      .from('game_masters')
+      .select('*, profiles(username, avatar_url, tier, country_flag)')
+      .eq('game_slug', slug)
+      .lt('week_start', thisWeek.toISOString().split('T')[0])
+      .order('week_start', { ascending: false })
+      .limit(4)
+    setPastMasters(past || [])
+    setMasterLoading(false)
+  }
 
   async function loadData() {
     setLoading(true)
@@ -282,6 +325,97 @@ export default function GameDetail() {
           {subscribed ? 'Subscribed' : 'Subscribe'}
         </button>
         <Link href={`/games/${slug}/chat`} className={styles.chatBtn}><i className="ri-group-line" /> Group Chat</Link>
+      </div>
+
+      <div className={styles.section} style={{ marginBottom: 40 }}>
+        <div className={styles.sectionHead}>
+          <h2 className={styles.sectionTitle}><i className="ri-crown-line" /> Weekly Master</h2>
+          {master && <span className={styles.sectionMeta}>This Week</span>}
+        </div>
+
+        {masterLoading && (
+          <div className={styles.masterSkel}>
+            <div className={styles.masterSkelAvatar} />
+            <div className={styles.masterSkelLines}>
+              <div className={styles.masterSkelLine} style={{ width: '55%' }} />
+              <div className={styles.masterSkelLine} style={{ width: '35%' }} />
+            </div>
+          </div>
+        )}
+
+        {!masterLoading && !master && (
+          <div className={styles.masterEmpty}>
+            <i className="ri-sword-line" />
+            <p>No master crowned yet this week.</p>
+            <span>Win tournaments to claim the crown.</span>
+          </div>
+        )}
+
+        {!masterLoading && master && (
+          <div className={styles.masterCard}>
+            <div className={styles.masterCardGlow} />
+            <div className={styles.masterCrownBadge}><i className="ri-crown-fill" /></div>
+            <div className={styles.masterCardInner}>
+              <div className={styles.masterAvatarWrap}>
+                {master.avatar_url
+                  ? <img src={master.avatar_url} alt={master.username} className={styles.masterAvatar} />
+                  : <div className={styles.masterAvatarFallback}>{master.username?.[0]?.toUpperCase()}</div>
+                }
+                <span className={styles.masterTierDot} style={{ background: getTierColor(master.tier) }} />
+              </div>
+              <div className={styles.masterInfo}>
+                <div className={styles.masterName}>{master.username}</div>
+                <div className={styles.masterTierLabel} style={{ color: getTierColor(master.tier) }}>
+                  <i className="ri-vip-crown-line" /> {master.tier || 'Gold'}
+                </div>
+              </div>
+            </div>
+            <div className={styles.masterStats}>
+              <div className={styles.masterStat}>
+                <span className={styles.masterStatVal}>{master.total_wins}</span>
+                <span className={styles.masterStatLabel}>Wins</span>
+              </div>
+              <div className={styles.masterStatDiv} />
+              <div className={styles.masterStat}>
+                <span className={styles.masterStatVal}>{master.total_points}</span>
+                <span className={styles.masterStatLabel}>Points</span>
+              </div>
+              <div className={styles.masterStatDiv} />
+              <div className={styles.masterStat}>
+                <span className={styles.masterStatVal}>{master.tournaments_played}</span>
+                <span className={styles.masterStatLabel}>Played</span>
+              </div>
+            </div>
+            <div className={styles.masterFooter}>
+              <i className="ri-time-line" />
+              Crowned {formatMasterDate(master.crowned_at)}
+            </div>
+          </div>
+        )}
+
+        {pastMasters.length > 0 && (
+          <div className={styles.pastMasters}>
+            <p className={styles.pastMastersLabel}>Past Masters</p>
+            {pastMasters.map((pm, i) => (
+              <div key={pm.id} className={styles.pastRow}>
+                <div className={styles.pastAvatar}>
+                  {pm.profiles?.avatar_url
+                    ? <img src={pm.profiles.avatar_url} alt={pm.profiles.username} />
+                    : <span>{pm.profiles?.username?.[0]?.toUpperCase()}</span>
+                  }
+                </div>
+                <div className={styles.pastInfo}>
+                  <span className={styles.pastName}>{pm.profiles?.username}</span>
+                  <span className={styles.pastWeek}>{weekLabel(pm.week_start)}</span>
+                </div>
+                <div className={styles.pastStats}>
+                  <span><i className="ri-trophy-fill" /> {pm.total_wins}W</span>
+                  <span><i className="ri-star-line" /> {pm.total_points}pt</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className={styles.section}>

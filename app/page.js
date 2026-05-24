@@ -81,9 +81,35 @@ export default function Home() {
   const [recent,       setRecent]       = useState([])
   const [loadingUser,  setLoadingUser]  = useState(false)
 
+  /* ── Game Master Modal ── */
+  const [gameMasters,      setGameMasters]      = useState([])
+  const [masterModalIdx,   setMasterModalIdx]   = useState(0)
+  const [showMasterModal,  setShowMasterModal]  = useState(false)
+
   /* ── Load each section independently so they appear as they arrive ── */
   useEffect(() => {
-    // 1. Tournaments first — most important, smallest query
+    // 0. Game masters — show modal only to subscribers
+    supabase.rpc('get_all_current_game_masters').then(({ data }) => {
+      if (!data?.length) return
+      setGameMasters(data)
+      // Only show to logged-in users who subscribed to at least one of these games
+      if (user) {
+        supabase
+          .from('game_subscriptions')
+          .select('game_slug')
+          .eq('user_id', user.id)
+          .in('game_slug', data.map(m => m.game_slug))
+          .then(({ data: subs }) => {
+            if (subs?.length) {
+              const seen = sessionStorage.getItem('master_modal_seen')
+              if (!seen) {
+                setShowMasterModal(true)
+                sessionStorage.setItem('master_modal_seen', '1')
+              }
+            }
+          })
+      }
+    })
     supabase
       .from('tournaments')
       .select('id,name,slug,game_slug,status,slots,registered_count,date,prize,entrance_fee,is_test,created_by,created_at')
@@ -233,7 +259,76 @@ export default function Home() {
   return (
     <div className={styles.page}>
 
-      {/* ══════════════ HERO ══════════════ */}
+      {/* ── Game Master Modal ── */}
+      {showMasterModal && gameMasters.length > 0 && (() => {
+        const m = gameMasters[masterModalIdx]
+        const game = GAME_META[m?.game_slug]
+        return (
+          <div className={styles.masterModalBackdrop} onClick={() => setShowMasterModal(false)}>
+            <div className={styles.masterModalSheet} onClick={e => e.stopPropagation()}>
+              <button className={styles.masterModalClose} onClick={() => setShowMasterModal(false)}>
+                <i className="ri-close-line" />
+              </button>
+
+              {/* Game image bg */}
+              {game?.image && (
+                <div className={styles.masterModalBg} style={{ backgroundImage: `url(${game.image})` }} />
+              )}
+              <div className={styles.masterModalBgOverlay} />
+
+              <div className={styles.masterModalContent}>
+                <div className={styles.masterModalCrown}><i className="ri-crown-fill" /></div>
+                <p className={styles.masterModalPre}>Weekly Master</p>
+                <p className={styles.masterModalGame}>{game?.name || m?.game_slug}</p>
+
+                <div className={styles.masterModalAvatar}>
+                  {m?.avatar_url
+                    ? <img src={m.avatar_url} alt={m.username} />
+                    : <span>{m?.username?.[0]?.toUpperCase()}</span>
+                  }
+                </div>
+
+                <h2 className={styles.masterModalName}>{m?.username}</h2>
+                <p className={styles.masterModalTier}>{m?.tier || 'Gold'} · {m?.country_flag}</p>
+
+                <div className={styles.masterModalStats}>
+                  <div className={styles.masterModalStat}>
+                    <span>{m?.total_wins}</span>
+                    <small>Wins</small>
+                  </div>
+                  <div className={styles.masterModalStatDiv} />
+                  <div className={styles.masterModalStat}>
+                    <span>{m?.total_points}</span>
+                    <small>Points</small>
+                  </div>
+                  <div className={styles.masterModalStatDiv} />
+                  <div className={styles.masterModalStat}>
+                    <span>{m?.tournaments_played}</span>
+                    <small>Played</small>
+                  </div>
+                </div>
+
+                {/* Multi-game pagination */}
+                {gameMasters.length > 1 && (
+                  <div className={styles.masterModalNav}>
+                    {gameMasters.map((_, i) => (
+                      <button
+                        key={i}
+                        className={`${styles.masterModalDot} ${i === masterModalIdx ? styles.masterModalDotActive : ''}`}
+                        onClick={() => setMasterModalIdx(i)}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                <button className={styles.masterModalViewBtn} onClick={() => { setShowMasterModal(false); }}>
+                  <i className="ri-trophy-line" /> Awesome!
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
       <div className={styles.hero}>
         {profile?.avatar_url && (
           <div className={styles.heroBg} style={{ backgroundImage: `url(${profile.avatar_url})` }} />

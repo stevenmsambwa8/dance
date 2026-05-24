@@ -877,3 +877,143 @@
   .tGrid        { display: grid; grid-template-columns: repeat(2, 1fr); }
   .gamesGrid    { grid-template-columns: repeat(4, 1fr); }
 }
+
+/* ══════════ GAME MASTER MODAL ══════════ */
+.masterModalBackdrop {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  display: flex; align-items: flex-end; justify-content: center;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  animation: mmFade 0.25s ease;
+}
+@keyframes mmFade { from { opacity: 0; } to { opacity: 1; } }
+
+.masterModalSheet {
+  position: relative; overflow: hidden;
+  width: 100%; max-width: 480px;
+  border-radius: 26px 26px 0 0;
+  background: var(--bg);
+  padding: 0 0 env(safe-area-inset-bottom, 24px);
+  animation: mmSlide 0.3s cubic-bezier(0.32,0.72,0,1);
+  max-height: 92dvh;
+}
+@keyframes mmSlide { from { transform: translateY(80px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+.masterModalBg {
+  position: absolute; inset: 0 0 50% 0;
+  background-size: cover; background-position: center;
+  filter: blur(16px) saturate(1.6);
+  transform: scale(1.1);
+  opacity: 0.35;
+  pointer-events: none;
+}
+.masterModalBgOverlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(var(--bg-rgb,255,255,255),0.1) 0%,
+    rgba(var(--bg-rgb,255,255,255),0.7) 45%,
+    var(--bg) 70%
+  );
+  pointer-events: none;
+}
+
+.masterModalClose {
+  position: absolute; top: 16px; right: 16px; z-index: 10;
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.25);
+  background: rgba(0,0,0,0.35); color: #fff;
+  font-size: 18px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}
+
+.masterModalContent {
+  position: relative; z-index: 2;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 52px 24px 28px;
+  text-align: center;
+}
+
+.masterModalCrown {
+  width: 52px; height: 52px; border-radius: 50%;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; color: #fff;
+  box-shadow: 0 4px 24px rgba(251,191,36,0.55);
+  margin-bottom: 12px;
+}
+
+.masterModalPre {
+  font-size: 10px; font-weight: 800; letter-spacing: 0.2em;
+  text-transform: uppercase; color: #f59e0b; margin: 0 0 4px;
+}
+.masterModalGame {
+  font-size: 13px; font-weight: 700; color: var(--text-muted);
+  margin: 0 0 18px;
+}
+
+.masterModalAvatar {
+  width: 88px; height: 88px; border-radius: 50%; overflow: hidden;
+  border: 3px solid #fbbf24;
+  box-shadow: 0 0 0 6px rgba(251,191,36,0.15), 0 6px 28px rgba(0,0,0,0.2);
+  margin-bottom: 14px;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  display: flex; align-items: center; justify-content: center;
+}
+.masterModalAvatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.masterModalAvatar span { font-size: 32px; font-weight: 900; color: #fff; }
+
+.masterModalName {
+  font-size: 28px; font-weight: 900; color: var(--text);
+  letter-spacing: -0.03em; margin: 0 0 6px;
+}
+.masterModalTier {
+  font-size: 12px; font-weight: 700; color: var(--text-muted);
+  margin: 0 0 20px; text-transform: uppercase; letter-spacing: 0.06em;
+}
+
+.masterModalStats {
+  display: flex; align-items: center;
+  border: 1.5px solid rgba(251,191,36,0.25);
+  border-radius: 14px; overflow: hidden;
+  width: 100%; margin-bottom: 20px;
+  background: rgba(251,191,36,0.04);
+}
+.masterModalStat {
+  flex: 1; padding: 14px 8px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.masterModalStat span {
+  font-size: 24px; font-weight: 900; color: var(--text); letter-spacing: -0.03em; line-height: 1;
+}
+.masterModalStat small {
+  font-size: 10px; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.07em;
+}
+.masterModalStatDiv { width: 1px; height: 36px; background: rgba(251,191,36,0.2); flex-shrink: 0; }
+
+/* Multi-game dots */
+.masterModalNav {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 18px;
+}
+.masterModalDot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--border-dark); border: none; cursor: pointer; padding: 0;
+  transition: background 0.15s, transform 0.15s;
+}
+.masterModalDotActive {
+  background: #f59e0b !important; transform: scale(1.25);
+}
+
+.masterModalViewBtn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #fff; border: none; border-radius: 14px;
+  font-size: 15px; font-weight: 800; font-family: var(--font);
+  cursor: pointer; letter-spacing: -0.01em;
+  box-shadow: 0 4px 20px rgba(251,191,36,0.35);
+  transition: opacity 0.15s, transform 0.1s;
+}
+.masterModalViewBtn:hover { opacity: 0.88; transform: translateY(-1px); }

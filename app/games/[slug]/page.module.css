@@ -473,7 +473,171 @@
 }
 .joinBtn:hover { opacity: 0.82; }
 
-/* ── Mobile ── */
+/* ── Weekly Master Card ─────────────────────────────────── */
+.masterSkel {
+  display: flex; align-items: center; gap: 14px;
+  padding: 20px; margin-top: 8px;
+  border: 1px solid var(--border); border-radius: 16px;
+  background: var(--bg-2);
+  animation: masterPulse 1.4s ease-in-out infinite;
+}
+.masterSkelAvatar {
+  width: 56px; height: 56px; border-radius: 50%; background: var(--border-dark); flex-shrink: 0;
+}
+.masterSkelLines { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.masterSkelLine {
+  height: 10px; border-radius: 5px; background: var(--border-dark);
+}
+@keyframes masterPulse {
+  0%, 100% { opacity: 1; } 50% { opacity: 0.5; }
+}
+
+.masterEmpty {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 44px 20px; text-align: center;
+  border: 1.5px dashed var(--border-dark); border-radius: 16px; margin-top: 8px;
+}
+.masterEmpty > i { font-size: 32px; color: var(--text-muted); margin-bottom: 4px; }
+.masterEmpty > p { font-size: 14px; font-weight: 700; color: var(--text-dim); margin: 0; }
+.masterEmpty > span { font-size: 12px; color: var(--text-muted); }
+
+.masterCard {
+  position: relative; overflow: hidden;
+  margin-top: 10px; border-radius: 18px;
+  border: 1.5px solid rgba(251,191,36,0.4);
+  background: linear-gradient(135deg, rgba(251,191,36,0.06) 0%, rgba(251,191,36,0.02) 100%);
+  padding: 20px 18px 16px;
+}
+[data-theme="dark"] .masterCard {
+  background: linear-gradient(135deg, rgba(251,191,36,0.09) 0%, rgba(245,158,11,0.03) 100%);
+  border-color: rgba(251,191,36,0.3);
+}
+
+/* Radial glow behind the card */
+.masterCardGlow {
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(251,191,36,0.13), transparent 70%);
+  z-index: 0;
+}
+
+/* Crown badge top-right */
+.masterCrownBadge {
+  position: absolute; top: 14px; right: 14px; z-index: 2;
+  width: 32px; height: 32px; border-radius: 50%;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; color: #fff;
+  box-shadow: 0 2px 12px rgba(251,191,36,0.45);
+}
+
+.masterCardInner {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; gap: 14px; margin-bottom: 16px;
+}
+
+.masterAvatarWrap { position: relative; flex-shrink: 0; }
+.masterAvatar, .masterAvatarFallback {
+  width: 60px; height: 60px; border-radius: 50%;
+  border: 2.5px solid rgba(251,191,36,0.6);
+  box-shadow: 0 0 0 4px rgba(251,191,36,0.12), 0 4px 16px rgba(0,0,0,0.15);
+  object-fit: cover; display: block;
+}
+.masterAvatarFallback {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; font-weight: 900; color: #fff;
+}
+.masterTierDot {
+  position: absolute; bottom: 2px; right: 2px;
+  width: 12px; height: 12px; border-radius: 50%;
+  border: 2px solid var(--bg);
+}
+
+.masterInfo { flex: 1; min-width: 0; }
+.masterName {
+  font-size: 20px; font-weight: 900; color: var(--text);
+  letter-spacing: -0.02em; line-height: 1.1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.masterTierLabel {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; margin-top: 4px;
+}
+.masterTierLabel i { font-size: 13px; }
+
+.masterStats {
+  position: relative; z-index: 1;
+  display: flex; align-items: center;
+  background: rgba(var(--bg-rgb,255,255,255),0.55);
+  border: 1px solid rgba(251,191,36,0.2);
+  border-radius: 12px; overflow: hidden;
+  margin-bottom: 10px;
+}
+[data-theme="dark"] .masterStats {
+  background: rgba(0,0,0,0.25);
+}
+.masterStat {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  padding: 12px 8px; gap: 3px;
+}
+.masterStatVal {
+  font-size: 22px; font-weight: 900; color: var(--text);
+  letter-spacing: -0.03em; line-height: 1;
+}
+.masterStatLabel {
+  font-size: 10px; font-weight: 600; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.masterStatDiv { width: 1px; height: 32px; background: var(--border); flex-shrink: 0; }
+
+.masterFooter {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; color: var(--text-muted); font-weight: 500;
+}
+.masterFooter i { font-size: 13px; }
+
+/* ── Past Masters list ───────────────────────────────────── */
+.pastMasters { margin-top: 16px; }
+.pastMastersLabel {
+  font-size: 10px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-muted); margin-bottom: 8px; padding: 0 2px;
+}
+
+.pastRow {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 12px; margin: 0 -12px;
+  border-bottom: 1px solid var(--border);
+  border-radius: 10px; transition: background 0.1s;
+}
+.pastRow:hover { background: var(--bg-2); }
+.pastRow:last-child { border-bottom: none; }
+
+.pastAvatar {
+  width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+  overflow: hidden; border: 1.5px solid var(--border-dark);
+  background: var(--bg-2); display: flex; align-items: center; justify-content: center;
+}
+.pastAvatar img { width: 100%; height: 100%; object-fit: cover; }
+.pastAvatar span { font-size: 14px; font-weight: 800; color: var(--text-muted); }
+
+.pastInfo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pastName {
+  font-size: 13px; font-weight: 700; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.pastWeek { font-size: 11px; color: var(--text-muted); }
+
+.pastStats {
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+}
+.pastStats span {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 700; color: var(--text-dim);
+}
+.pastStats i { font-size: 12px; color: var(--text-muted); }
+
 @media (max-width: 560px) {
   .heroName { font-size: clamp(44px, 14vw, 72px); }
   .heroLogoWrap { width: 72px; height: 72px; }
