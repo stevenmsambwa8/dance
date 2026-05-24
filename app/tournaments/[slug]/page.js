@@ -1511,11 +1511,11 @@ export default function TournamentDetail() {
         <div className={styles.inlineAdminPanel}>
           <div className={styles.inlineAdminActions}>
             {[
-              { icon:'ri-edit-line',       label:'Edit',      fn:() => router.push(`/tournaments/${tournament.slug||tournament.id}/edit`) },
-              { icon:'ri-node-tree',       label:'Bracket',   fn:() => { setAdminView(false); setActiveTab('bracket') } },
-              { icon:'ri-bar-chart-line',  label:'Scores',    fn:() => { setAdminView(false); setActiveTab('leaderboard') } },
-              { icon:'ri-group-line',      label:'Players',   fn:() => { setAdminView(false); setActiveTab('players') } },
-              { icon:'ri-settings-3-line', label:'Manage',    fn:() => { setAdminView(false); setActiveTab('manage') } },
+              { icon:'ri-edit-line',       label:'Edit',    fn:() => router.push(`/tournaments/${tournament.slug||tournament.id}/edit`) },
+              { icon:'ri-node-tree',       label:'Bracket', fn:() => { setAdminView(false); setActiveTab('bracket') } },
+              { icon:'ri-bar-chart-line',  label:'Scores',  fn:() => { setAdminView(false); setActiveTab('leaderboard') } },
+              { icon:'ri-group-line',      label:'Players', fn:() => { setAdminView(false); setActiveTab('players') } },
+              { icon:'ri-settings-3-line', label:'Manage',  fn:() => { setAdminView(false); setActiveTab('manage') } },
             ].map(b => (
               <button key={b.label} className={styles.inlineActionBtn} onClick={b.fn}>
                 <i className={b.icon} /><span>{b.label}</span>
@@ -1526,18 +1526,20 @@ export default function TournamentDetail() {
             {[
               { val: participants.length, label: 'Players' },
               { val: Math.max(0,(tournament.slots||0)-participants.length), label: 'Open' },
-              { val: tournament.status?.charAt(0).toUpperCase()+tournament.status?.slice(1), label: 'Status', color: {active:'#22c55e',ongoing:'#6366f1',upcoming:'#f59e0b',completed:'#94a3b8'}[tournament.status] },
+              { val: tournament.status?.charAt(0).toUpperCase()+tournament.status?.slice(1), label: 'Status',
+                color: {active:'#22c55e',ongoing:'#6366f1',upcoming:'#f59e0b',completed:'#94a3b8'}[tournament.status] },
               { val: leaderboard.length, label: 'Scored' },
             ].map(s => (
               <div key={s.label} className={styles.inlineAdminStat}>
-                <span className={styles.inlineAdminStatVal} style={s.color ? {color:s.color} : {}}>{s.val}</span>
+                <span className={styles.inlineAdminStatVal} style={s.color?{color:s.color}:{}}>{s.val}</span>
                 <span className={styles.inlineAdminStatLabel}>{s.label}</span>
               </div>
             ))}
           </div>
           {(!bracketData||bracketData.isEmpty) ? (
             <button className={styles.inlinePrimaryBtn} onClick={initBracket} disabled={participants.length<2}>
-              <i className="ri-play-circle-line" /> Generate Bracket{participants.length<2 && <span style={{fontSize:11,opacity:0.6}}> (need 2+)</span>}
+              <i className="ri-play-circle-line" /> Generate Bracket
+              {participants.length<2 && <span style={{fontSize:11,opacity:0.6}}> (need 2+)</span>}
             </button>
           ) : (
             <div className={styles.inlineBracketRow}>
@@ -2287,7 +2289,7 @@ export default function TournamentDetail() {
                         <div className={styles.lbCol_prize}>
                           {rowPrize && <span className={styles.lbPrizeAmt}>{fmtTZS(rowPrize)}</span>}
                         </div>
-                        <span className={`${styles.lbCol_pts} ${bStatus === 'out' ? styles.lbPtsElim : e.points === 0 ? styles.lbPtsDim : ''}`}>
+                        <span className={`${styles.lbCol_pts} ${e.points === 0 ? styles.lbPtsDim : bStatus === 'out' ? styles.lbPtsElim : ''}`}>
                           {e.points > 0 ? `${e.points} pts` : (e.lbEntry || bStatus === 'out') ? <span style={{opacity:0.45}}>0 pts</span> : '—'}
                         </span>
                         <div className={styles.lbCol_action}>
@@ -2836,7 +2838,6 @@ function MatchupPlanner({ participants, bracketData, onApply }) {
           <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, textAlign: 'center' }}>
             Changes only affect {roundLabel(editRound)} slots. No points are changed.
           </p>
-      </div>
         </>
       )}
       </div>
@@ -2859,9 +2860,9 @@ function MatchupPlanner({ participants, bracketData, onApply }) {
                     <span className={styles.adminParticipantMeta}>{p.profiles?.tier} · Lv.{p.profiles?.level??1}</span>
                   </div>
                   <span className={`${styles.adminParticipantStatus} ${p.bracket_status==='out'?styles.statusOut:p.bracket_status==='champion'?styles.statusChampion:styles.statusIn}`}>
-                    {p.bracket_status==='out'?'✗ Out':p.bracket_status==='champion'?'🏆':' ● '}
+                    {p.bracket_status==='out'?'✗ Out':p.bracket_status==='champion'?'🏆':'● Active'}
                   </span>
-                  {p.payment_status && <span className={styles.adminPayBadge} style={{color:p.payment_status==='approved'?'#22c55e':'#f59e0b'}}>{p.payment_status==='approved'?'✓':' ⧗ '}</span>}
+                  {p.payment_status && <span className={styles.adminPayBadge} style={{color:p.payment_status==='approved'?'#22c55e':'#f59e0b'}}>{p.payment_status==='approved'?'✓ Paid':'⧗ Pending'}</span>}
                 </div>
               ))}
             </div>
@@ -2897,12 +2898,12 @@ function MatchupPlanner({ participants, bracketData, onApply }) {
           </div>
         </div>
       )}
+
     </div>
   )
 }
 
 
-// ─── Sub-components
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function ChampDisplay({ entry, styles, isAdmin, onSetWinner, leaderboard, participants }) {
