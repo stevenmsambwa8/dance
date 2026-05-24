@@ -1498,24 +1498,34 @@ export default function TournamentDetail() {
         )}
       </div>
 
+      {/* ── Admin bar ── */}
       {canManage && tournament && (
         <div className={styles.adminBar}>
-          <span className={styles.adminBarBadge}>{isAdmin ? <><i className="ri-shield-star-fill" /> Admin</> : <><i className="ri-user-star-line" /> Creator</>}</span>
+          <span className={styles.adminBarBadge}>
+            {isAdmin ? <><i className="ri-shield-star-fill" /> Admin</> : <><i className="ri-user-star-line" /> Creator</>}
+          </span>
           <span className={styles.adminBarName}>{tournament.name}</span>
-          <button className={`${styles.viewToggleBtn} ${!adminView ? styles.viewToggleBtnActive : ''}`} onClick={() => setAdminView(v => !v)}>
-            {adminView ? <><i className="ri-user-line" /> Player View</> : <><i className="ri-shield-star-line" /> Admin View</>}
+          <button
+            className={`${styles.viewToggleBtn} ${!adminView ? styles.viewToggleBtnActive : ''}`}
+            onClick={() => setAdminView(v => !v)}
+          >
+            {adminView
+              ? <><i className="ri-user-line" /> Player View</>
+              : <><i className="ri-shield-star-line" /> Admin View</>}
           </button>
         </div>
       )}
+
+      {/* ── Inline admin quick panel ── */}
       {canManage && adminView && tournament && (
         <div className={styles.inlineAdminPanel}>
           <div className={styles.inlineAdminActions}>
             {[
               { icon:'ri-edit-line',       label:'Edit',    fn:() => router.push(`/tournaments/${tournament.slug||tournament.id}/edit`) },
-              { icon:'ri-node-tree',       label:'Bracket', fn:() => { setAdminView(false); setActiveTab('bracket') } },
-              { icon:'ri-bar-chart-line',  label:'Scores',  fn:() => { setAdminView(false); setActiveTab('leaderboard') } },
-              { icon:'ri-group-line',      label:'Players', fn:() => { setAdminView(false); setActiveTab('players') } },
-              { icon:'ri-settings-3-line', label:'Manage',  fn:() => { setAdminView(false); setActiveTab('manage') } },
+              { icon:'ri-node-tree',       label:'Bracket', fn:() => setActiveTab('bracket') },
+              { icon:'ri-bar-chart-line',  label:'Scores',  fn:() => setActiveTab('leaderboard') },
+              { icon:'ri-group-line',      label:'Players', fn:() => setActiveTab('players') },
+              { icon:'ri-settings-3-line', label:'Manage',  fn:() => setActiveTab('manage') },
             ].map(b => (
               <button key={b.label} className={styles.inlineActionBtn} onClick={b.fn}>
                 <i className={b.icon} /><span>{b.label}</span>
@@ -1524,11 +1534,12 @@ export default function TournamentDetail() {
           </div>
           <div className={styles.inlineAdminStats}>
             {[
-              { val: participants.length, label: 'Players' },
-              { val: Math.max(0,(tournament.slots||0)-participants.length), label: 'Open' },
-              { val: tournament.status?.charAt(0).toUpperCase()+tournament.status?.slice(1), label: 'Status',
-                color: {active:'#22c55e',ongoing:'#6366f1',upcoming:'#f59e0b',completed:'#94a3b8'}[tournament.status] },
-              { val: leaderboard.length, label: 'Scored' },
+              { val: participants.length,                                        label:'Players' },
+              { val: Math.max(0,(tournament.slots||0)-participants.length),      label:'Open'    },
+              { val: tournament.status?.charAt(0).toUpperCase()+tournament.status?.slice(1),
+                color:{active:'#22c55e',ongoing:'#6366f1',upcoming:'#f59e0b',completed:'#94a3b8'}[tournament.status],
+                label:'Status' },
+              { val: leaderboard.length,                                         label:'Scored'  },
             ].map(s => (
               <div key={s.label} className={styles.inlineAdminStat}>
                 <span className={styles.inlineAdminStatVal} style={s.color?{color:s.color}:{}}>{s.val}</span>
@@ -1536,19 +1547,106 @@ export default function TournamentDetail() {
               </div>
             ))}
           </div>
-          {(!bracketData||bracketData.isEmpty) ? (
-            <button className={styles.inlinePrimaryBtn} onClick={initBracket} disabled={participants.length<2}>
+          {(!bracketData || bracketData.isEmpty) ? (
+            <button className={styles.inlinePrimaryBtn} onClick={initBracket} disabled={participants.length < 2}>
               <i className="ri-play-circle-line" /> Generate Bracket
-              {participants.length<2 && <span style={{fontSize:11,opacity:0.6}}> (need 2+)</span>}
+              {participants.length < 2 && <span style={{fontSize:11,opacity:0.6}}> (need 2+)</span>}
             </button>
           ) : (
             <div className={styles.inlineBracketRow}>
-              <span className={styles.inlineBracketStatus}><i className="ri-checkbox-circle-fill" style={{color:'#22c55e'}} /> Bracket · {bracketData.rounds?.length??0} rounds</span>
-              <button className={styles.inlineResetBtn} onClick={resetBracket}><i className="ri-restart-line" /> Reset</button>
+              <span className={styles.inlineBracketStatus}>
+                <i className="ri-checkbox-circle-fill" style={{color:'#22c55e'}} /> Bracket · {bracketData.rounds?.length??0} rounds
+              </span>
+              <button className={styles.inlineResetBtn} onClick={resetBracket}>
+                <i className="ri-restart-line" /> Reset
+              </button>
             </div>
           )}
         </div>
       )}
+
+      {/* ── Admin dashboard (replaces tab content visually when adminView) ── */}
+      {canManage && adminView && tournament && (
+        <div className={styles.adminDashboard}>
+
+          <div className={styles.adminDashSection}>
+            <div className={styles.adminDashHead}><i className="ri-group-line" /> Participants ({realCount}/{tournament.slots})</div>
+            {loadingParticipants
+              ? <p className={styles.adminEmpty}>Loading…</p>
+              : participants.length === 0
+                ? <p className={styles.adminEmpty}>No participants yet.</p>
+                : participants.map(p => (
+                    <div key={p.id} className={styles.adminParticipantRow}>
+                      <div className={styles.adminParticipantAvatar}>
+                        {p.profiles?.avatar_url
+                          ? <img src={p.profiles.avatar_url} alt="" />
+                          : <span>{(p.profiles?.username||'?')[0].toUpperCase()}</span>}
+                      </div>
+                      <div className={styles.adminParticipantInfo}>
+                        <span className={styles.adminParticipantName}>{p.profiles?.username||'Unknown'}</span>
+                        <span className={styles.adminParticipantMeta}>{p.profiles?.tier} · Lv.{p.profiles?.level??1}</span>
+                      </div>
+                      <span className={`${styles.adminParticipantStatus} ${
+                        p.bracket_status==='out' ? styles.statusOut
+                        : p.bracket_status==='champion' ? styles.statusChampion
+                        : styles.statusIn
+                      }`}>
+                        {p.bracket_status==='out' ? '✗ Out' : p.bracket_status==='champion' ? '🏆' : '● Active'}
+                      </span>
+                      {p.payment_status && (
+                        <span className={styles.adminPayBadge} style={{color:p.payment_status==='approved'?'#22c55e':'#f59e0b'}}>
+                          {p.payment_status==='approved' ? '✓ Paid' : '⧗ Pending'}
+                        </span>
+                      )}
+                    </div>
+                  ))
+            }
+          </div>
+
+          <div className={styles.adminDashSection}>
+            <div className={styles.adminDashHead}><i className="ri-bar-chart-line" /> Top Scores</div>
+            {leaderboard.length === 0
+              ? <p className={styles.adminEmpty}>No scores yet.</p>
+              : leaderboard.slice(0,5).map((e,i) => (
+                  <div key={e.user_id} className={styles.adminLbRow}>
+                    <span className={styles.adminLbPos}>#{i+1}</span>
+                    <span className={styles.adminLbName}>{e.profiles?.username||'—'}</span>
+                    <span className={styles.adminLbPts}>{e.points??0} pts</span>
+                  </div>
+                ))
+            }
+            <button className={styles.adminViewTabBtn} onClick={() => setActiveTab('leaderboard')}>
+              <i className="ri-external-link-line" /> Full Leaderboard
+            </button>
+          </div>
+
+          <div className={styles.adminDashSection}>
+            <div className={styles.adminDashHead}><i className="ri-node-tree" /> Bracket</div>
+            {(!bracketData || bracketData.isEmpty)
+              ? <p className={styles.adminEmpty}>No bracket yet — use Generate above.</p>
+              : (
+                <div className={styles.adminBracketInfo}>
+                  <div className={styles.adminBracketStat}><span>{bracketData.rounds?.length??0}</span><span>Rounds</span></div>
+                  <div className={styles.adminBracketStat}><span>{bracketData.rounds?.flat()?.filter(m=>m.winner)?.length??0}</span><span>Done</span></div>
+                  <div className={styles.adminBracketStat}><span>{bracketData.rounds?.flat()?.filter(m=>!m.winner&&m.player1&&m.player2)?.length??0}</span><span>Pending</span></div>
+                </div>
+              )
+            }
+            <button className={styles.adminViewTabBtn} onClick={() => setActiveTab('bracket')}>
+              <i className="ri-external-link-line" /> Open Bracket
+            </button>
+          </div>
+
+          <div className={styles.adminDashSection}>
+            <div className={styles.adminDashHead}><i className="ri-settings-3-line" /> Manage</div>
+            <button className={styles.adminViewTabBtn} onClick={() => setActiveTab('manage')}>
+              <i className="ri-external-link-line" /> Open Manage Tab
+            </button>
+          </div>
+
+        </div>
+      )}
+
       {/* Hero */}
       <div className={styles.hero}>
         <div className={styles.heroMeta}>
@@ -1803,25 +1901,27 @@ export default function TournamentDetail() {
         )
       })()}
 
-      {(!canManage || !adminView) && (
-        <div className={styles.tabs}>
-          {[
-            { key:'bracket',     icon:'ri-node-tree',      title:'Bracket'  },
-            { key:'matches',     icon:'ri-sword-line',     title:'Matches'  },
-            { key:'leaderboard', icon:'ri-bar-chart-line', title:'Scores'   },
-            { key:'players',     icon:'ri-group-line',     title:`Players (${loadingParticipants?'…':realCount})` },
-            ...(canManage ? [{ key:'manage', icon:'ri-settings-3-line', title:'Manage' }] : []),
-          ].map(tab => (
-            <button key={tab.key}
-              className={`${styles.tab} ${activeTab===tab.key ? styles.tabActive : ''}`}
-              onClick={() => setActiveTab(tab.key)}
-            >
-              <i className={tab.icon} />
-              <span className={styles.tabLabel}>{tab.title}</span>
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Tabs */}
+      <div className={styles.tabs}>
+        {[
+          { key: 'bracket',     icon: 'ri-node-tree',     title: 'Bracket' },
+          { key: 'matches',     icon: 'ri-sword-line',    title: 'Matches' },
+          { key: 'leaderboard', icon: 'ri-bar-chart-line',title: 'Leaderboard' },
+          { key: 'players',     icon: 'ri-group-line',    title: `Players (${loadingParticipants ? '…' : realCount})` },
+          ...(canManage ? [{ key: 'manage', icon: 'ri-settings-3-line', title: 'Manage' }] : []),
+        ].map(tab => (
+          <button
+            key={tab.key}
+            className={`${styles.tab} ${activeTab === tab.key ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab(tab.key)}
+            title={tab.title}
+            aria-label={tab.title}
+          >
+            <i className={tab.icon} />
+            <span className={styles.tabLabel}>{tab.title}</span>
+          </button>
+        ))}
+      </div>
 
       {/* ── BRACKET TAB ── */}
       {activeTab === 'bracket' && (
@@ -2840,65 +2940,6 @@ function MatchupPlanner({ participants, bracketData, onApply }) {
           </p>
         </>
       )}
-      </div>
-      )} {/* end user-view tabContent */}
-
-      {canManage && adminView && tournament && (
-        <div className={styles.adminDashboard}>
-          <div className={styles.adminDashSection}>
-            <div className={styles.adminDashHead}><i className="ri-group-line" /> Participants ({realCount}/{tournament.slots})</div>
-            <div style={{display:'flex',flexDirection:'column'}}>
-              {loadingParticipants ? <p className={styles.adminEmpty}>Loading…</p>
-               : participants.length===0 ? <p className={styles.adminEmpty}>No participants yet.</p>
-               : participants.map(p => (
-                <div key={p.id} className={styles.adminParticipantRow}>
-                  <div className={styles.adminParticipantAvatar}>
-                    {p.profiles?.avatar_url ? <img src={p.profiles.avatar_url} alt="" /> : <span>{(p.profiles?.username||'?')[0].toUpperCase()}</span>}
-                  </div>
-                  <div className={styles.adminParticipantInfo}>
-                    <span className={styles.adminParticipantName}>{p.profiles?.username||'Unknown'}</span>
-                    <span className={styles.adminParticipantMeta}>{p.profiles?.tier} · Lv.{p.profiles?.level??1}</span>
-                  </div>
-                  <span className={`${styles.adminParticipantStatus} ${p.bracket_status==='out'?styles.statusOut:p.bracket_status==='champion'?styles.statusChampion:styles.statusIn}`}>
-                    {p.bracket_status==='out'?'✗ Out':p.bracket_status==='champion'?'🏆':'● Active'}
-                  </span>
-                  {p.payment_status && <span className={styles.adminPayBadge} style={{color:p.payment_status==='approved'?'#22c55e':'#f59e0b'}}>{p.payment_status==='approved'?'✓ Paid':'⧗ Pending'}</span>}
-                </div>
-              ))}
-            </div>
-            <button className={styles.adminViewTabBtn} onClick={()=>{setAdminView(false);setActiveTab('players')}}><i className="ri-external-link-line" /> Full Players View</button>
-          </div>
-          <div className={styles.adminDashSection}>
-            <div className={styles.adminDashHead}><i className="ri-bar-chart-line" /> Top Scores</div>
-            {leaderboard.length===0 ? <p className={styles.adminEmpty}>No scores yet.</p>
-             : leaderboard.slice(0,5).map((e,i)=>(
-              <div key={e.user_id} className={styles.adminLbRow}>
-                <span className={styles.adminLbPos}>#{i+1}</span>
-                <span className={styles.adminLbName}>{e.profiles?.username||'—'}</span>
-                <span className={styles.adminLbPts}>{e.points??0} pts</span>
-              </div>
-            ))}
-            <button className={styles.adminViewTabBtn} onClick={()=>{setAdminView(false);setActiveTab('leaderboard')}}><i className="ri-external-link-line" /> Full Leaderboard</button>
-          </div>
-          <div className={styles.adminDashSection}>
-            <div className={styles.adminDashHead}><i className="ri-node-tree" /> Bracket</div>
-            {(!bracketData||bracketData.isEmpty) ? <p className={styles.adminEmpty}>No bracket yet.</p>
-             : (
-              <div className={styles.adminBracketInfo}>
-                <div className={styles.adminBracketStat}><span>{bracketData.rounds?.length??0}</span><span>Rounds</span></div>
-                <div className={styles.adminBracketStat}><span>{bracketData.rounds?.flat()?.filter(m=>m.winner)?.length??0}</span><span>Done</span></div>
-                <div className={styles.adminBracketStat}><span>{bracketData.rounds?.flat()?.filter(m=>!m.winner&&m.player1&&m.player2)?.length??0}</span><span>Pending</span></div>
-              </div>
-            )}
-            <button className={styles.adminViewTabBtn} onClick={()=>{setAdminView(false);setActiveTab('bracket')}}><i className="ri-external-link-line" /> Open Bracket</button>
-          </div>
-          <div className={styles.adminDashSection}>
-            <div className={styles.adminDashHead}><i className="ri-settings-3-line" /> Manage</div>
-            <button className={styles.adminViewTabBtn} onClick={()=>{setAdminView(false);setActiveTab('manage')}}><i className="ri-external-link-line" /> Open Manage Tab</button>
-          </div>
-        </div>
-      )}
-
     </div>
   )
 }
