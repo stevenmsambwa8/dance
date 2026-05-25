@@ -1017,3 +1017,15 @@
   transition: opacity 0.15s, transform 0.1s;
 }
 .masterModalViewBtn:hover { opacity: 0.88; transform: translateY(-1px); }
+
+.masterModalActions {
+  display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%;
+}
+
+.masterModalDontShow {
+  background: none; border: none; cursor: pointer;
+  font-size: 12px; font-weight: 600; color: var(--text-muted);
+  padding: 4px 0; font-family: var(--font);
+  transition: color 0.12s;
+}
+.masterModalDontShow:hover { color: var(--text); }

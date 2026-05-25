@@ -197,12 +197,14 @@ export default function Dashboard() {
     setCrownSaving(true)
     const weekStart = (() => {
       const d = new Date()
-      const day = d.getDay() // 0=Sun
-      const diff = day === 0 ? -6 : 1 - day // Sun→-6 days, else go back to Monday
+      const day = d.getDay()
+      const diff = day === 0 ? -6 : 1 - day
       d.setDate(d.getDate() + diff)
       d.setHours(0, 0, 0, 0)
       return d.toISOString().split('T')[0]
     })()
+    const gameName = GAME_META[crownModal.gameSlug]?.name || crownModal.gameSlug
+
     const { error } = await supabase.from('game_masters').upsert({
       game_slug: crownModal.gameSlug,
       user_id: crownSelected.id,
@@ -214,8 +216,41 @@ export default function Dashboard() {
     }, { onConflict: 'game_slug,week_start' })
     setCrownSaving(false)
     if (error) { alert(error.message); return }
-    setCrownSuccess(`${crownSelected.username} crowned as ${GAME_META[crownModal.gameSlug]?.name} Master!`)
-    setTimeout(() => setCrownSuccess(null), 3000)
+
+    // 1. Notify the crowned player
+    await supabase.from('notifications').insert({
+      user_id: crownSelected.id,
+      type: 'announcement',
+      title: `👑 You're the ${gameName} Weekly Master!`,
+      body: `Congratulations ${crownSelected.username}! You've been crowned this week's ${gameName} Master. Your achievement is now featured on the homepage.`,
+      meta: { game_slug: crownModal.gameSlug, cta_link: `/games/${crownModal.gameSlug}`, cta_label: 'View Your Crown' },
+      read: false,
+    })
+
+    // 2. Notify all subscribers of this game (excluding the master themselves)
+    const { data: subs } = await supabase
+      .from('game_subscriptions')
+      .select('user_id')
+      .eq('game_slug', crownModal.gameSlug)
+      .neq('user_id', crownSelected.id)
+
+    if (subs?.length) {
+      const notifs = subs.map(s => ({
+        user_id: s.user_id,
+        type: 'announcement',
+        title: `👑 New ${gameName} Weekly Master`,
+        body: `${crownSelected.username} has been crowned this week's ${gameName} Master! Check it out on the game page.`,
+        meta: { game_slug: crownModal.gameSlug, cta_link: `/games/${crownModal.gameSlug}`, cta_label: 'View Master' },
+        read: false,
+      }))
+      // Batch insert in chunks of 20
+      for (let i = 0; i < notifs.length; i += 20) {
+        await supabase.from('notifications').insert(notifs.slice(i, i + 20))
+      }
+    }
+
+    setCrownSuccess(`${crownSelected.username} crowned! Notified ${(subs?.length || 0) + 1} players.`)
+    setTimeout(() => setCrownSuccess(null), 4000)
     setCrownModal(null)
     setCrownSelected(null)
     setCrownSearch('')

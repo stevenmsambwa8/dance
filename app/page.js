@@ -88,22 +88,15 @@ export default function Home() {
 
   /* ── Load each section independently so they appear as they arrive ── */
   useEffect(() => {
-    // 0. Game masters — show modal to ALL users, keyed by week so new crowns show
+    // 0. Game masters — show modal every visit unless user dismissed (7-day suppress)
     supabase.rpc('get_all_current_game_masters').then(({ data }) => {
       if (!data?.length) return
       setGameMasters(data)
-      // Key by ISO week so a new crown this week still shows if not yet seen
-      const weekKey = (() => {
-        const d = new Date()
-        const day = d.getDay()
-        const diff = day === 0 ? -6 : 1 - day
-        d.setDate(d.getDate() + diff)
-        return 'master_seen_' + d.toISOString().split('T')[0]
-      })()
-      if (!sessionStorage.getItem(weekKey)) {
-        setShowMasterModal(true)
-        sessionStorage.setItem(weekKey, '1')
-      }
+      try {
+        const suppress = localStorage.getItem('master_modal_suppress')
+        const suppressed = suppress && Date.now() < Number(suppress)
+        if (!suppressed) setShowMasterModal(true)
+      } catch { setShowMasterModal(true) }
     })
     supabase
       .from('tournaments')
@@ -261,7 +254,7 @@ export default function Home() {
         return (
           <div className={styles.masterModalBackdrop} onClick={() => setShowMasterModal(false)}>
             <div className={styles.masterModalSheet} onClick={e => e.stopPropagation()}>
-              <button className={styles.masterModalClose} onClick={() => setShowMasterModal(false)}>
+              <button className={styles.masterModalClose} onClick={() => setShowMasterModal(false)} title="Close — shows again next visit">
                 <i className="ri-close-line" />
               </button>
 
@@ -316,9 +309,20 @@ export default function Home() {
                   </div>
                 )}
 
-                <button className={styles.masterModalViewBtn} onClick={() => { setShowMasterModal(false); }}>
-                  <i className="ri-trophy-line" /> Awesome!
-                </button>
+                <div className={styles.masterModalActions}>
+                  <button className={styles.masterModalViewBtn} onClick={() => {
+                    try { localStorage.setItem('master_modal_suppress', String(Date.now() + 7*24*60*60*1000)) } catch {}
+                    setShowMasterModal(false)
+                  }}>
+                    <i className="ri-trophy-line" /> Awesome!
+                  </button>
+                  <button className={styles.masterModalDontShow} onClick={() => {
+                    try { localStorage.setItem('master_modal_suppress', String(Date.now() + 7*24*60*60*1000)) } catch {}
+                    setShowMasterModal(false)
+                  }}>
+                    Don't show for 7 days
+                  </button>
+                </div>
               </div>
             </div>
           </div>
