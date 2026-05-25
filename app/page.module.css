@@ -880,207 +880,335 @@
 
 /* ══════════ GAME MASTER MODAL ══════════ */
 
-@keyframes mmFade { from { opacity:0 } to { opacity:1 } }
-@keyframes mmPop  { from { opacity:0; transform:scale(0.92) } to { opacity:1; transform:scale(1) } }
-@keyframes mmGlow { 0%,100%{opacity:.6} 50%{opacity:1} }
+@keyframes mmFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes mmPop {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes mmGlow {
+  0%, 100% { opacity: 0.6; }
+  50%       { opacity: 1; }
+}
 
+/* ── Backdrop ── */
 .mmBackdrop {
-  position: fixed; inset: 0; z-index: 9999;
-  background: rgba(0,0,0,0.78);
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-  display: flex; align-items: center; justify-content: center;
-  /* FIX: overflow so card never disappears off-screen on short devices */
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 20px;
+  /* scroll on very short screens — card itself stays overflow:hidden */
   overflow-y: auto;
   animation: mmFade 0.2s ease;
 }
 
-/* Compact banner card */
+/* ── Card shell ── */
+/* overflow:hidden is load-bearing — it clips the absolute bg layers.
+   Never set overflow-y:auto here; use mmBackdrop scroll instead. */
 .mmCard {
   position: relative;
-  /* overflow:hidden clips the absolute bg layers — do NOT change to auto.
-     Short-screen scroll is handled by mmBackdrop overflow-y:auto. */
   overflow: hidden;
-  width: 100%; max-width: 380px;
+  width: 100%;
+  max-width: 380px;
+  /* shrink to fit on short screens without scrolling internally */
+  flex-shrink: 0;
   border-radius: 20px;
   background: #111118;
   box-shadow:
-    0 0 0 1px rgba(251,191,36,0.25),
-    0 24px 64px rgba(0,0,0,0.8);
-  animation: mmPop 0.28s cubic-bezier(0.34,1.4,0.64,1);
+    0 0 0 1px rgba(251, 191, 36, 0.25),
+    0 24px 64px rgba(0, 0, 0, 0.8);
+  animation: mmPop 0.28s cubic-bezier(0.34, 1.4, 0.64, 1);
 }
 
-/* Game image — left half of bg */
+/* ── Background layers (all position:absolute, clipped by mmCard) ── */
 .mmBgGame {
-  position: absolute; inset: 0 50% 0 0;
-  background-size: cover; background-position: center;
+  position: absolute;
+  inset: 0 50% 0 0;
+  background-size: cover;
+  background-position: center;
   filter: blur(20px) saturate(1.4) brightness(0.5);
   transform: scale(1.2);
   pointer-events: none;
 }
 
-/* Avatar — right half of bg */
 .mmBgAvatar {
-  position: absolute; inset: 0 0 0 30%;
-  background-size: cover; background-position: center top;
+  position: absolute;
+  inset: 0 0 0 30%;
+  background-size: cover;
+  background-position: center top;
   filter: blur(22px) saturate(1.6) brightness(0.4);
   transform: scale(1.2);
   pointer-events: none;
 }
 
-/* Unified dark overlay */
 .mmBgOverlay {
-  position: absolute; inset: 0;
+  position: absolute;
+  inset: 0;
   background:
-    linear-gradient(to right, rgba(17,17,24,0.6) 0%, rgba(17,17,24,0.2) 50%, rgba(17,17,24,0.7) 100%),
+    linear-gradient(to right,  rgba(17,17,24,0.6) 0%, rgba(17,17,24,0.2) 50%, rgba(17,17,24,0.7) 100%),
     linear-gradient(to bottom, rgba(17,17,24,0.1) 0%, rgba(17,17,24,0.75) 60%, rgba(17,17,24,0.98) 100%);
   pointer-events: none;
 }
 
-/* Top row */
+/* ── Top row ── */
 .mmTopRow {
-  position: relative; z-index: 10;
-  display: flex; align-items: center; justify-content: space-between;
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 12px 12px 0;
 }
 
 .mmGameChip {
-  display: flex; align-items: center; gap: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   padding: 4px 10px 4px 4px;
-  background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 99px; backdrop-filter: blur(6px);
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 99px;
+  backdrop-filter: blur(6px);
 }
+
 .mmGameChipImg {
-  width: 20px; height: 20px; border-radius: 5px; object-fit: cover;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  object-fit: cover;
 }
+
 .mmGameChip span {
-  font-size: 10px; font-weight: 800; color: rgba(255,255,255,0.8);
-  letter-spacing: 0.08em; text-transform: uppercase;
+  font-size: 10px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.8);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .mmClose {
-  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
-  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.12);
-  color: rgba(255,255,255,0.6); font-size: 15px;
-  display: flex; align-items: center; justify-content: center; cursor: pointer;
-  transition: all 0.12s;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
 }
-.mmClose:hover { background: rgba(255,255,255,0.2); color: #fff; }
+.mmClose:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
 
-/* Body */
+/* ── Body ── */
 .mmBody {
-  position: relative; z-index: 10;
+  position: relative;
+  z-index: 10;
   padding: 14px 16px 16px;
-  display: flex; flex-direction: column;
-  /* FIX: tighter gap so content breathes without crowding on small screens */
+  display: flex;
+  flex-direction: column;
   gap: 10px;
 }
 
-/* Avatar + info row — the main banner */
+/* ── Avatar + info row ── */
 .mmRow {
-  display: flex; align-items: center; gap: 14px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
 
 .mmAvatar {
-  position: relative; flex-shrink: 0;
-  width: 72px; height: 72px; border-radius: 16px; overflow: hidden;
+  position: relative;
+  flex-shrink: 0;
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  overflow: hidden;
   background: linear-gradient(135deg, #fbbf24, #f59e0b);
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 0 0 2px rgba(251,191,36,0.35), 0 8px 24px rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.35), 0 8px 24px rgba(0, 0, 0, 0.4);
 }
-.mmAvatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.mmAvatar img  { width: 100%; height: 100%; object-fit: cover; display: block; }
 .mmAvatar span { font-size: 28px; font-weight: 900; color: #fff; }
 
-/* Crown pin on avatar corner */
 .mmCrownPin {
-  position: absolute; top: -5px; right: -5px;
-  width: 22px; height: 22px; border-radius: 6px;
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
   background: linear-gradient(135deg, #fbbf24, #f97316);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 11px; color: #fff;
-  box-shadow: 0 2px 8px rgba(251,191,36,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(251, 191, 36, 0.5);
   animation: mmGlow 2s ease-in-out infinite;
 }
 
-.mmInfo { flex: 1; min-width: 0; }
-.mmLabel {
-  font-size: 8px; font-weight: 900; letter-spacing: 0.22em;
-  color: #f59e0b; text-transform: uppercase; display: block; margin-bottom: 3px;
-}
-.mmName {
-  font-size: 22px; font-weight: 900; color: #fff;
-  letter-spacing: -0.03em; margin: 0 0 5px; line-height: 1.05;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.mmTier {
-  display: flex; align-items: center; gap: 5px;
-  font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.55);
-}
-.mmTier i { color: #f59e0b; font-size: 12px; }
-.mmFlag { font-size: 14px; margin-left: 2px; }
-
-/* Stats strip */
-.mmStats {
-  display: flex; gap: 0;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px; overflow: hidden;
-  /* FIX: prevent cells collapsing to 0 when loading */
-  min-height: 58px;
-}
-.mmStat {
-  flex: 1; display: flex; flex-direction: column; align-items: center;
-  gap: 1px; padding: 10px 6px;
-  border-right: 1px solid rgba(255,255,255,0.07);
-  /* FIX: prevent text overflow on narrow screens */
+.mmInfo {
+  flex: 1;
   min-width: 0;
 }
+
+.mmLabel {
+  display: block;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #f59e0b;
+  margin-bottom: 3px;
+}
+
+.mmName {
+  font-size: 22px;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -0.03em;
+  margin: 0 0 5px;
+  line-height: 1.05;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mmTier {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.55);
+}
+.mmTier i { color: #f59e0b; font-size: 12px; }
+.mmFlag    { font-size: 14px; margin-left: 2px; }
+
+/* ── Stats strip ── */
+.mmStats {
+  display: flex;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  overflow: hidden;
+  min-height: 58px;
+}
+
+.mmStat {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 10px 6px;
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+}
 .mmStat:last-child { border-right: none; }
-.mmStat > i { font-size: 12px; color: #f59e0b; }
+.mmStat > i      { font-size: 12px; color: #f59e0b; }
 .mmStat > strong { font-size: 17px; font-weight: 900; color: #fff; letter-spacing: -0.02em; line-height: 1; }
-.mmStat > span { font-size: 8px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.35); }
+.mmStat > span   { font-size: 8px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255, 255, 255, 0.35); }
 
-/* Multi-game dots */
-.mmDots { display: flex; justify-content: center; gap: 5px; margin-top: -4px; }
+/* ── Dots (multi-game) ── */
+.mmDots {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  margin-top: -4px;
+}
+
 .mmDot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: rgba(255,255,255,0.2); border: none; cursor: pointer; padding: 0;
-  transition: all 0.15s;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s, transform 0.15s;
 }
-.mmDotActive { background: #f59e0b; transform: scale(1.4); }
+.mmDotActive {
+  background: #f59e0b;
+  transform: scale(1.4);
+}
 
-/* Actions row */
+/* ── Action buttons ── */
 .mmActions {
-  display: flex; gap: 8px;
+  display: flex;
+  gap: 8px;
 }
+
 .mmViewBtn {
-  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 11px 14px; border-radius: 10px;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 11px 14px;
+  border-radius: 10px;
   background: linear-gradient(135deg, #f59e0b, #f97316);
-  color: #000; font-size: 12px; font-weight: 900;
-  text-decoration: none; letter-spacing: 0.02em;
-  box-shadow: 0 4px 16px rgba(245,158,11,0.35);
+  color: #000;
+  font-size: 12px;
+  font-weight: 900;
+  text-decoration: none;
+  letter-spacing: 0.02em;
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.35);
   transition: opacity 0.12s, transform 0.1s;
 }
 .mmViewBtn:hover { opacity: 0.88; transform: translateY(-1px); }
-.mmViewBtn i { font-size: 14px; }
+.mmViewBtn i     { font-size: 14px; }
 
 .mmAwesomeBtn {
-  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 11px 14px; border-radius: 10px;
-  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);
-  color: #fff; font-size: 12px; font-weight: 800;
-  font-family: var(--font); cursor: pointer; letter-spacing: 0.02em;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  font-family: var(--font);
+  cursor: pointer;
+  letter-spacing: 0.02em;
   transition: background 0.12s;
 }
-.mmAwesomeBtn:hover { background: rgba(255,255,255,0.14); }
-.mmAwesomeBtn i { font-size: 14px; color: #f97316; }
+.mmAwesomeBtn:hover { background: rgba(255, 255, 255, 0.14); }
+.mmAwesomeBtn i    { font-size: 14px; color: #f97316; }
 
+/* ── Don't show link ── */
 .mmDontShow {
-  background: none; border: none; cursor: pointer; text-align: center;
-  font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.25);
-  /* FIX: full width so it centres correctly and doesn't clip */
-  width: 100%; padding: 0;
-  font-family: var(--font); transition: color 0.12s; align-self: center;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.25);
+  padding: 0;
+  font-family: var(--font);
+  transition: color 0.12s;
 }
-.mmDontShow:hover { color: rgba(255,255,255,0.5); }
+.mmDontShow:hover { color: rgba(255, 255, 255, 0.5); }
