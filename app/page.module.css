@@ -889,7 +889,7 @@
   to   { opacity: 1; transform: scale(1)    translateY(0); }
 }
 
-/* ── Backdrop — centered ── */
+/* ── Backdrop — centered, column so dots sit below card ── */
 .mmBackdrop {
   position: fixed;
   inset: 0;
@@ -898,8 +898,10 @@
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 14px;
   padding: 20px;
   animation: mmFade 0.18s ease;
 }
@@ -1103,8 +1105,12 @@
   letter-spacing: 0.05em;
 }
 .mmFromFlag {
-  font-size: 16px;
-  line-height: 1;
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  object-fit: cover;
+  display: block;
+  flex-shrink: 0;
 }
 
 /* ── Stats strip ── */
@@ -1150,25 +1156,27 @@
   color: var(--text-muted);
 }
 
-/* ── Multi-game dots ── */
+/* ── Multi-game dots — sit outside/below the card in the backdrop ── */
 .mmDots {
   display: flex;
+  align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 7px;
 }
 .mmDot {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: var(--border-dark);
+  background: rgba(255, 255, 255, 0.35);
   border: none;
   padding: 0;
   cursor: pointer;
-  transition: background 0.15s, transform 0.15s;
+  transition: background 0.15s, width 0.2s, border-radius 0.2s;
 }
 .mmDotActive {
-  background: #f59e0b;
-  transform: scale(1.5);
+  width: 20px;
+  border-radius: 4px;
+  background: #ffffff;
 }
 
 /* ── View Profile button ── */

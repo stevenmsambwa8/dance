@@ -300,10 +300,23 @@ export default function Home() {
       {showMasterModal && gameMasters.length > 0 && (() => {
         const m = gameMasters[masterModalIdx]
         const game = GAME_META[m?.game_slug]
+        const total = gameMasters.length
+        let _touchX = 0
         return (
           <div className={styles.mmBackdrop} onClick={() => setShowMasterModal(false)}>
-            <div className={styles.mmCard} onClick={e => e.stopPropagation()}>
 
+            {/* Card — swipeable */}
+            <div
+              className={styles.mmCard}
+              onClick={e => e.stopPropagation()}
+              onTouchStart={e => { _touchX = e.touches[0].clientX }}
+              onTouchEnd={e => {
+                const dx = e.changedTouches[0].clientX - _touchX
+                if (Math.abs(dx) < 40) return
+                if (dx < 0) setMasterModalIdx(i => (i + 1) % total)
+                else        setMasterModalIdx(i => (i - 1 + total) % total)
+              }}
+            >
               {/* Game image background */}
               {game?.image && (
                 <div className={styles.mmBg} style={{ backgroundImage: `url(${game.image})` }} />
@@ -324,12 +337,11 @@ export default function Home() {
               {/* Body */}
               <div className={styles.mmBody}>
 
-                {/* Label */}
                 <p className={styles.mmLabel}>
                   <i className="ri-crown-fill" /> WEEKLY MASTER
                 </p>
 
-                {/* Avatar with rounded border */}
+                {/* Avatar */}
                 <div className={styles.mmAvatarWrap}>
                   {m?.avatar_url
                     ? <img src={m.avatar_url} alt={m.username} className={styles.mmAvatarImg} />
@@ -337,10 +349,9 @@ export default function Home() {
                   }
                 </div>
 
-                {/* Name */}
                 <h2 className={styles.mmName}>{m?.username}</h2>
 
-                {/* Tier + From flag */}
+                {/* Tier + From flag (PNG) */}
                 <div className={styles.mmMeta}>
                   <span className={styles.mmTier}>
                     <i className="ri-shield-star-fill" />{m?.tier || 'Gold'}
@@ -348,7 +359,11 @@ export default function Home() {
                   {m?.country_flag && (
                     <span className={styles.mmFrom}>
                       <span className={styles.mmFromLabel}>from</span>
-                      <span className={styles.mmFromFlag}>{m.country_flag}</span>
+                      <img
+                        src={`/${m.country_flag}.png`}
+                        alt={m.country_flag}
+                        className={styles.mmFromFlag}
+                      />
                     </span>
                   )}
                 </div>
@@ -374,17 +389,6 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Multi-game dots */}
-                {gameMasters.length > 1 && (
-                  <div className={styles.mmDots}>
-                    {gameMasters.map((_, i) => (
-                      <button key={i}
-                        className={`${styles.mmDot} ${i === masterModalIdx ? styles.mmDotActive : ''}`}
-                        onClick={() => setMasterModalIdx(i)} />
-                    ))}
-                  </div>
-                )}
-
                 {/* Actions */}
                 <a href={`/profile/${m?.user_id}`} className={styles.mmViewBtn}
                   onClick={() => {
@@ -408,6 +412,20 @@ export default function Home() {
 
               </div>
             </div>
+
+            {/* Dots — outside the card, below it */}
+            {total > 1 && (
+              <div className={styles.mmDots} onClick={e => e.stopPropagation()}>
+                {gameMasters.map((_, i) => (
+                  <button
+                    key={i}
+                    className={`${styles.mmDot} ${i === masterModalIdx ? styles.mmDotActive : ''}`}
+                    onClick={() => setMasterModalIdx(i)}
+                  />
+                ))}
+              </div>
+            )}
+
           </div>
         )
       })()}
