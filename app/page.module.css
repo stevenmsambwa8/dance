@@ -897,11 +897,11 @@
 
 /* Compact banner card */
 .mmCard {
-  position: relative; overflow: hidden;
+  position: relative;
+  /* overflow:hidden clips the absolute bg layers — do NOT change to auto.
+     Short-screen scroll is handled by mmBackdrop overflow-y:auto. */
+  overflow: hidden;
   width: 100%; max-width: 380px;
-  /* FIX: cap height on very short screens and allow internal scroll */
-  max-height: calc(100dvh - 40px);
-  overflow-y: auto;
   border-radius: 20px;
   background: #111118;
   box-shadow:
