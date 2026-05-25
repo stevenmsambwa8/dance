@@ -197,7 +197,9 @@ export default function Dashboard() {
     setCrownSaving(true)
     const weekStart = (() => {
       const d = new Date()
-      d.setDate(d.getDate() - ((d.getDay() + 6) % 7))
+      const day = d.getDay() // 0=Sun
+      const diff = day === 0 ? -6 : 1 - day // Sun→-6 days, else go back to Monday
+      d.setDate(d.getDate() + diff)
       d.setHours(0, 0, 0, 0)
       return d.toISOString().split('T')[0]
     })()
@@ -689,7 +691,7 @@ export default function Dashboard() {
                               <span className={styles.masterPlayerWeek}>{current.week_start}</span>
                             </div>
                             <button className={styles.btnDanger} onClick={() => removeMaster(current.id)} title="Remove crown">
-                              <i className="ri-crown-line" style={{ textDecoration: 'line-through', fontSize: 13 }} />
+                              <i className="ri-delete-bin-line" />
                             </button>
                           </div>
                         ) : (

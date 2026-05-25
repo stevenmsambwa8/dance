@@ -159,18 +159,60 @@ export default function GameDetail() {
 
   async function loadMaster() {
     setMasterLoading(true)
-    const { data } = await supabase.rpc('get_current_game_master', { p_game_slug: slug })
-    setMaster(data?.[0] || null)
 
-    // Load last 4 weeks of past masters (excluding current week)
-    const thisWeek = new Date()
-    thisWeek.setDate(thisWeek.getDate() - thisWeek.getDay() + 1) // Monday
-    thisWeek.setHours(0, 0, 0, 0)
+    // Compute current week's Monday (handles all days incl. Sunday)
+    const getMonday = () => {
+      const d = new Date()
+      const day = d.getDay()
+      const diff = day === 0 ? -6 : 1 - day
+      d.setDate(d.getDate() + diff)
+      d.setHours(0, 0, 0, 0)
+      return d.toISOString().split('T')[0]
+    }
+    const monday = getMonday()
+
+    // Try RPC first (matches exact Monday)
+    const { data: rpcData } = await supabase.rpc('get_current_game_master', { p_game_slug: slug })
+    let currentMaster = rpcData?.[0] || null
+
+    // Fallback: direct query for any master set within the current week window
+    // (covers manually-set masters that may have a slightly different week_start)
+    if (!currentMaster) {
+      const weekEnd = new Date(monday)
+      weekEnd.setDate(weekEnd.getDate() + 7)
+      const { data: fallback } = await supabase
+        .from('game_masters')
+        .select('*, profiles(username, avatar_url, tier, country_flag)')
+        .eq('game_slug', slug)
+        .gte('week_start', monday)
+        .lt('week_start', weekEnd.toISOString().split('T')[0])
+        .order('crowned_at', { ascending: false })
+        .limit(1)
+      if (fallback?.[0]) {
+        const r = fallback[0]
+        currentMaster = {
+          user_id: r.user_id,
+          username: r.profiles?.username,
+          avatar_url: r.profiles?.avatar_url,
+          tier: r.profiles?.tier,
+          country_flag: r.profiles?.country_flag,
+          total_wins: r.total_wins,
+          total_points: r.total_points,
+          tournaments_played: r.tournaments_played,
+          crowned_at: r.crowned_at,
+          week_start: r.week_start,
+        }
+      }
+    }
+
+    setMaster(currentMaster)
+
+    // Past masters: anything before this week's Monday
     const { data: past } = await supabase
       .from('game_masters')
       .select('*, profiles(username, avatar_url, tier, country_flag)')
       .eq('game_slug', slug)
-      .lt('week_start', thisWeek.toISOString().split('T')[0])
+      .lt('week_start', monday)
       .order('week_start', { ascending: false })
       .limit(4)
     setPastMasters(past || [])
