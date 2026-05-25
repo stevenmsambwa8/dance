@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import { useAuth } from '../components/AuthProvider'
 import { supabase } from '../lib/supabase'
@@ -26,6 +26,193 @@ function timeAgo(iso) {
   if (s < 3600) return `${Math.floor(s / 60)}m`
   if (s < 86400) return `${Math.floor(s / 3600)}h`
   return `${Math.floor(s / 86400)}d`
+}
+
+/* ── Game Master Modal ── */
+function MasterModal({ gameMasters, onClose }) {
+  const [idx, setIdx] = useState(0)
+  const total = gameMasters.length
+
+  // Drag / swipe state
+  const trackRef   = useRef(null)
+  const dragStart  = useRef(null)   // { x, time }
+  const dragOffset = useRef(0)      // live px offset while dragging
+  const [dragging, setDragging]   = useState(false)
+  const [liveOffset, setLiveOffset] = useState(0)   // px while finger is down
+  const [sliding,  setSliding]    = useState(false) // CSS transition active
+
+  const cardWidth = () => trackRef.current?.offsetWidth ?? 320
+
+  /* go to a specific index with a slide animation */
+  function goTo(next) {
+    next = ((next % total) + total) % total
+    setSliding(true)
+    setLiveOffset(0)
+    setIdx(next)
+    setTimeout(() => setSliding(false), 300)
+  }
+
+  /* ── pointer / touch handlers ── */
+  function onDragStart(clientX) {
+    dragStart.current = { x: clientX }
+    dragOffset.current = 0
+    setDragging(true)
+    setSliding(false)
+  }
+  function onDragMove(clientX) {
+    if (!dragStart.current) return
+    const dx = clientX - dragStart.current.x
+    dragOffset.current = dx
+    setLiveOffset(dx)
+  }
+  function onDragEnd(clientX) {
+    if (!dragStart.current) return
+    const dx = clientX - dragStart.current.x
+    dragStart.current = null
+    setDragging(false)
+    const threshold = cardWidth() * 0.25
+    if (dx < -threshold)      goTo(idx + 1)
+    else if (dx > threshold)  goTo(idx - 1)
+    else                      goTo(idx)   // snap back
+  }
+
+  /* translate = -(idx * 100%) + liveOffset px */
+  const trackStyle = {
+    transform: `translateX(calc(${-idx * 100}% + ${liveOffset}px))`,
+    transition: (dragging || !sliding) ? 'none' : 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)',
+    willChange: 'transform',
+  }
+
+  return (
+    <div className={styles.mmBackdrop} onClick={onClose}>
+
+      {/* Outer clip — defines the visible "window" */}
+      <div
+        className={styles.mmClip}
+        onClick={e => e.stopPropagation()}
+        onMouseDown={e  => onDragStart(e.clientX)}
+        onMouseMove={e  => dragging && onDragMove(e.clientX)}
+        onMouseUp={e    => dragging && onDragEnd(e.clientX)}
+        onMouseLeave={e => dragging && onDragEnd(e.clientX)}
+        onTouchStart={e => onDragStart(e.touches[0].clientX)}
+        onTouchMove={e  => onDragMove(e.touches[0].clientX)}
+        onTouchEnd={e   => onDragEnd(e.changedTouches[0].clientX)}
+      >
+        {/* Sliding track — all cards side by side */}
+        <div className={styles.mmTrack} style={trackStyle} ref={trackRef}>
+          {gameMasters.map((m, i) => {
+            const game = GAME_META[m?.game_slug]
+            return (
+              <div className={styles.mmCard} key={i}>
+
+                {/* Game bg */}
+                {game?.image && (
+                  <div className={styles.mmBg} style={{ backgroundImage: `url(${game.image})` }} />
+                )}
+                <div className={styles.mmBgOverlay} />
+
+                {/* Top bar */}
+                <div className={styles.mmTopBar}>
+                  <div className={styles.mmGameChip}>
+                    {game?.image && <img src={game.image} alt={game?.name} className={styles.mmGameChipImg} />}
+                    <span>{game?.name || m?.game_slug}</span>
+                  </div>
+                  <button className={styles.mmClose} onClick={onClose}>
+                    <i className="ri-close-line" />
+                  </button>
+                </div>
+
+                {/* Body */}
+                <div className={styles.mmBody}>
+
+                  <p className={styles.mmLabel}>
+                    <i className="ri-crown-fill" /> WEEKLY MASTER
+                  </p>
+
+                  {/* Avatar — no border, clean circle */}
+                  <div className={styles.mmAvatarWrap}>
+                    {m?.avatar_url
+                      ? <img src={m.avatar_url} alt={m.username} className={styles.mmAvatarImg} />
+                      : <span className={styles.mmAvatarFallback}>{m?.username?.[0]?.toUpperCase()}</span>
+                    }
+                  </div>
+
+                  <h2 className={styles.mmName}>{m?.username}</h2>
+
+                  <div className={styles.mmMeta}>
+                    <span className={styles.mmTier}>
+                      <i className="ri-shield-star-fill" />{m?.tier || 'Gold'}
+                    </span>
+                    {m?.country_flag && (
+                      <span className={styles.mmFrom}>
+                        <span className={styles.mmFromLabel}>from</span>
+                        <img src={`/${m.country_flag}.png`} alt={m.country_flag} className={styles.mmFromFlag} />
+                      </span>
+                    )}
+                  </div>
+
+                  <div className={styles.mmStats}>
+                    <div className={styles.mmStat}>
+                      <i className="ri-sword-fill" />
+                      <span className={styles.mmStatVal}>{m?.total_wins ?? 0}</span>
+                      <span className={styles.mmStatLabel}>WINS</span>
+                    </div>
+                    <div className={styles.mmStatDiv} />
+                    <div className={styles.mmStat}>
+                      <i className="ri-star-fill" />
+                      <span className={styles.mmStatVal}>{m?.total_points ?? 0}</span>
+                      <span className={styles.mmStatLabel}>PTS</span>
+                    </div>
+                    <div className={styles.mmStatDiv} />
+                    <div className={styles.mmStat}>
+                      <i className="ri-node-tree" />
+                      <span className={styles.mmStatVal}>{m?.tournaments_played ?? 0}</span>
+                      <span className={styles.mmStatLabel}>PLAYED</span>
+                    </div>
+                  </div>
+
+                  <a href={`/profile/${m?.user_id}`} className={styles.mmViewBtn}
+                    onClick={() => {
+                      try { localStorage.setItem('master_modal_suppress', String(Date.now() + 7*24*60*60*1000)) } catch {}
+                      onClose()
+                    }}>
+                    <i className="ri-user-3-line" /> View Profile <i className="ri-arrow-right-line" />
+                  </a>
+
+                  <button className={styles.mmAwesome} onClick={() => {
+                    try { localStorage.setItem('master_modal_suppress', String(Date.now() + 7*24*60*60*1000)) } catch {}
+                    onClose()
+                  }}>
+                    <i className="ri-fire-fill" /> Awesome!
+                  </button>
+
+                  <button className={styles.mmDontShow} onClick={() => {
+                    try { localStorage.setItem('master_modal_suppress', String(Date.now() + 7*24*60*60*1000)) } catch {}
+                    onClose()
+                  }}>Don't show for 7 days</button>
+
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Dots below */}
+      {total > 1 && (
+        <div className={styles.mmDots} onClick={e => e.stopPropagation()}>
+          {gameMasters.map((_, i) => (
+            <button
+              key={i}
+              className={`${styles.mmDot} ${i === idx ? styles.mmDotActive : ''}`}
+              onClick={() => goTo(i)}
+            />
+          ))}
+        </div>
+      )}
+
+    </div>
+  )
 }
 
 /* ── Skeleton primitives ── */
@@ -297,138 +484,9 @@ export default function Home() {
     <div className={styles.page}>
 
       {/* ── Game Master Modal ── */}
-      {showMasterModal && gameMasters.length > 0 && (() => {
-        const m = gameMasters[masterModalIdx]
-        const game = GAME_META[m?.game_slug]
-        const total = gameMasters.length
-        let _touchX = 0
-        return (
-          <div className={styles.mmBackdrop} onClick={() => setShowMasterModal(false)}>
-
-            {/* Card — swipeable */}
-            <div
-              className={styles.mmCard}
-              onClick={e => e.stopPropagation()}
-              onTouchStart={e => { _touchX = e.touches[0].clientX }}
-              onTouchEnd={e => {
-                const dx = e.changedTouches[0].clientX - _touchX
-                if (Math.abs(dx) < 40) return
-                if (dx < 0) setMasterModalIdx(i => (i + 1) % total)
-                else        setMasterModalIdx(i => (i - 1 + total) % total)
-              }}
-            >
-              {/* Game image background */}
-              {game?.image && (
-                <div className={styles.mmBg} style={{ backgroundImage: `url(${game.image})` }} />
-              )}
-              <div className={styles.mmBgOverlay} />
-
-              {/* Top bar */}
-              <div className={styles.mmTopBar}>
-                <div className={styles.mmGameChip}>
-                  {game?.image && <img src={game.image} alt={game?.name} className={styles.mmGameChipImg} />}
-                  <span>{game?.name || m?.game_slug}</span>
-                </div>
-                <button className={styles.mmClose} onClick={() => setShowMasterModal(false)}>
-                  <i className="ri-close-line" />
-                </button>
-              </div>
-
-              {/* Body */}
-              <div className={styles.mmBody}>
-
-                <p className={styles.mmLabel}>
-                  <i className="ri-crown-fill" /> WEEKLY MASTER
-                </p>
-
-                {/* Avatar */}
-                <div className={styles.mmAvatarWrap}>
-                  {m?.avatar_url
-                    ? <img src={m.avatar_url} alt={m.username} className={styles.mmAvatarImg} />
-                    : <span className={styles.mmAvatarFallback}>{m?.username?.[0]?.toUpperCase()}</span>
-                  }
-                </div>
-
-                <h2 className={styles.mmName}>{m?.username}</h2>
-
-                {/* Tier + From flag (PNG) */}
-                <div className={styles.mmMeta}>
-                  <span className={styles.mmTier}>
-                    <i className="ri-shield-star-fill" />{m?.tier || 'Gold'}
-                  </span>
-                  {m?.country_flag && (
-                    <span className={styles.mmFrom}>
-                      <span className={styles.mmFromLabel}>from</span>
-                      <img
-                        src={`/${m.country_flag}.png`}
-                        alt={m.country_flag}
-                        className={styles.mmFromFlag}
-                      />
-                    </span>
-                  )}
-                </div>
-
-                {/* Stats */}
-                <div className={styles.mmStats}>
-                  <div className={styles.mmStat}>
-                    <i className="ri-sword-fill" />
-                    <span className={styles.mmStatVal}>{m?.total_wins ?? 0}</span>
-                    <span className={styles.mmStatLabel}>WINS</span>
-                  </div>
-                  <div className={styles.mmStatDiv} />
-                  <div className={styles.mmStat}>
-                    <i className="ri-star-fill" />
-                    <span className={styles.mmStatVal}>{m?.total_points ?? 0}</span>
-                    <span className={styles.mmStatLabel}>PTS</span>
-                  </div>
-                  <div className={styles.mmStatDiv} />
-                  <div className={styles.mmStat}>
-                    <i className="ri-node-tree" />
-                    <span className={styles.mmStatVal}>{m?.tournaments_played ?? 0}</span>
-                    <span className={styles.mmStatLabel}>PLAYED</span>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <a href={`/profile/${m?.user_id}`} className={styles.mmViewBtn}
-                  onClick={() => {
-                    try { localStorage.setItem('master_modal_suppress', String(Date.now() + 7*24*60*60*1000)) } catch {}
-                    setShowMasterModal(false)
-                  }}>
-                  <i className="ri-user-3-line" /> View Profile <i className="ri-arrow-right-line" />
-                </a>
-
-                <button className={styles.mmAwesome} onClick={() => {
-                  try { localStorage.setItem('master_modal_suppress', String(Date.now() + 7*24*60*60*1000)) } catch {}
-                  setShowMasterModal(false)
-                }}>
-                  <i className="ri-fire-fill" /> Awesome!
-                </button>
-
-                <button className={styles.mmDontShow} onClick={() => {
-                  try { localStorage.setItem('master_modal_suppress', String(Date.now() + 7*24*60*60*1000)) } catch {}
-                  setShowMasterModal(false)
-                }}>Don't show for 7 days</button>
-
-              </div>
-            </div>
-
-            {/* Dots — outside the card, below it */}
-            {total > 1 && (
-              <div className={styles.mmDots} onClick={e => e.stopPropagation()}>
-                {gameMasters.map((_, i) => (
-                  <button
-                    key={i}
-                    className={`${styles.mmDot} ${i === masterModalIdx ? styles.mmDotActive : ''}`}
-                    onClick={() => setMasterModalIdx(i)}
-                  />
-                ))}
-              </div>
-            )}
-
-          </div>
-        )
-      })()}
+      {showMasterModal && gameMasters.length > 0 && (
+        <MasterModal gameMasters={gameMasters} onClose={() => setShowMasterModal(false)} />
+      )}
       <div className={styles.hero}>
         {profile?.avatar_url && (
           <div className={styles.heroBg} style={{ backgroundImage: `url(${profile.avatar_url})` }} />
