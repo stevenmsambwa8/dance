@@ -301,77 +301,110 @@ export default function Home() {
         const m = gameMasters[masterModalIdx]
         const game = GAME_META[m?.game_slug]
         return (
-          <div className={styles.masterModalBackdrop} onClick={() => setShowMasterModal(false)}>
-            <div className={styles.masterModalSheet} onClick={e => e.stopPropagation()}>
-              <button className={styles.masterModalClose} onClick={() => setShowMasterModal(false)} title="Close — shows again next visit">
+          <div className={styles.mmBackdrop} onClick={() => setShowMasterModal(false)}>
+            <div className={styles.mmCard} onClick={e => e.stopPropagation()}>
+
+              {/* Full blurred avatar background */}
+              <div className={styles.mmBg}
+                style={{ backgroundImage: `url(${m?.avatar_url || game?.image || ''})` }} />
+              <div className={styles.mmBgOverlay} />
+
+              {/* Scanline texture */}
+              <div className={styles.mmScanlines} />
+
+              {/* Close */}
+              <button className={styles.mmClose} onClick={() => setShowMasterModal(false)}>
                 <i className="ri-close-line" />
               </button>
 
-              {/* Game image bg */}
-              {game?.image && (
-                <div className={styles.masterModalBg} style={{ backgroundImage: `url(${game.image})` }} />
-              )}
-              <div className={styles.masterModalBgOverlay} />
+              {/* Game badge top-left */}
+              <div className={styles.mmGameBadge}>
+                {game?.image && <img src={game.image} alt={game?.name} className={styles.mmGameImg} />}
+                <span>{game?.name || m?.game_slug}</span>
+              </div>
 
-              <div className={styles.masterModalContent}>
-                <div className={styles.masterModalCrown}><i className="ri-crown-fill" /></div>
-                <p className={styles.masterModalPre}>Weekly Master</p>
-                <p className={styles.masterModalGame}>{game?.name || m?.game_slug}</p>
-
-                <div className={styles.masterModalAvatar}>
-                  {m?.avatar_url
-                    ? <img src={m.avatar_url} alt={m.username} />
-                    : <span>{m?.username?.[0]?.toUpperCase()}</span>
-                  }
-                </div>
-
-                <h2 className={styles.masterModalName}>{m?.username}</h2>
-                <p className={styles.masterModalTier}>{m?.tier || 'Gold'} · {m?.country_flag}</p>
-
-                <div className={styles.masterModalStats}>
-                  <div className={styles.masterModalStat}>
-                    <span>{m?.total_wins}</span>
-                    <small>Wins</small>
-                  </div>
-                  <div className={styles.masterModalStatDiv} />
-                  <div className={styles.masterModalStat}>
-                    <span>{m?.total_points}</span>
-                    <small>Points</small>
-                  </div>
-                  <div className={styles.masterModalStatDiv} />
-                  <div className={styles.masterModalStat}>
-                    <span>{m?.tournaments_played}</span>
-                    <small>Played</small>
+              <div className={styles.mmBody}>
+                {/* Crown + label */}
+                <div className={styles.mmCrownRow}>
+                  <div className={styles.mmCrownIcon}><i className="ri-crown-fill" /></div>
+                  <div className={styles.mmCrownLabel}>
+                    <span className={styles.mmWeeklyText}>WEEKLY MASTER</span>
                   </div>
                 </div>
 
-                {/* Multi-game pagination */}
+                {/* Avatar — no border, just glow */}
+                <div className={styles.mmAvatarWrap}>
+                  <div className={styles.mmAvatarRing} />
+                  <div className={styles.mmAvatar}>
+                    {m?.avatar_url
+                      ? <img src={m.avatar_url} alt={m.username} />
+                      : <span>{m?.username?.[0]?.toUpperCase()}</span>
+                    }
+                  </div>
+                  {/* Tier badge */}
+                  <div className={styles.mmTierBadge}>
+                    <i className="ri-shield-star-fill" />
+                    <span>{m?.tier || 'Gold'}</span>
+                  </div>
+                </div>
+
+                {/* Name */}
+                <h2 className={styles.mmName}>{m?.username}</h2>
+                {m?.country_flag && <p className={styles.mmFlag}>{m.country_flag}</p>}
+
+                {/* Stats row — gamified cards */}
+                <div className={styles.mmStats}>
+                  <div className={styles.mmStat}>
+                    <i className="ri-sword-fill" />
+                    <span className={styles.mmStatVal}>{m?.total_wins ?? 0}</span>
+                    <span className={styles.mmStatLabel}>WINS</span>
+                  </div>
+                  <div className={styles.mmStatDiv} />
+                  <div className={styles.mmStat}>
+                    <i className="ri-star-fill" />
+                    <span className={styles.mmStatVal}>{m?.total_points ?? 0}</span>
+                    <span className={styles.mmStatLabel}>PTS</span>
+                  </div>
+                  <div className={styles.mmStatDiv} />
+                  <div className={styles.mmStat}>
+                    <i className="ri-node-tree" />
+                    <span className={styles.mmStatVal}>{m?.tournaments_played ?? 0}</span>
+                    <span className={styles.mmStatLabel}>PLAYED</span>
+                  </div>
+                </div>
+
+                {/* Multi-game dots */}
                 {gameMasters.length > 1 && (
-                  <div className={styles.masterModalNav}>
+                  <div className={styles.mmDots}>
                     {gameMasters.map((_, i) => (
-                      <button
-                        key={i}
-                        className={`${styles.masterModalDot} ${i === masterModalIdx ? styles.masterModalDotActive : ''}`}
-                        onClick={() => setMasterModalIdx(i)}
-                      />
+                      <button key={i}
+                        className={`${styles.mmDot} ${i === masterModalIdx ? styles.mmDotActive : ''}`}
+                        onClick={() => setMasterModalIdx(i)} />
                     ))}
                   </div>
                 )}
 
-                <div className={styles.masterModalActions}>
-                  <button className={styles.masterModalViewBtn} onClick={() => {
+                {/* View profile CTA */}
+                <a href={`/profile/${m?.user_id}`} className={styles.mmViewProfile}
+                  onClick={() => {
                     try { localStorage.setItem('master_modal_suppress', String(Date.now() + 7*24*60*60*1000)) } catch {}
                     setShowMasterModal(false)
                   }}>
-                    <i className="ri-trophy-line" /> Awesome!
-                  </button>
-                  <button className={styles.masterModalDontShow} onClick={() => {
-                    try { localStorage.setItem('master_modal_suppress', String(Date.now() + 7*24*60*60*1000)) } catch {}
-                    setShowMasterModal(false)
-                  }}>
-                    Don't show for 7 days
-                  </button>
-                </div>
+                  <i className="ri-user-3-line" /> View Profile
+                  <i className="ri-arrow-right-line" style={{ marginLeft: 'auto' }} />
+                </a>
+
+                <button className={styles.mmAwesome} onClick={() => {
+                  try { localStorage.setItem('master_modal_suppress', String(Date.now() + 7*24*60*60*1000)) } catch {}
+                  setShowMasterModal(false)
+                }}>
+                  <i className="ri-fire-fill" /> Awesome!
+                </button>
+
+                <button className={styles.mmDontShow} onClick={() => {
+                  try { localStorage.setItem('master_modal_suppress', String(Date.now() + 7*24*60*60*1000)) } catch {}
+                  setShowMasterModal(false)
+                }}>Don't show for 7 days</button>
               </div>
             </div>
           </div>
