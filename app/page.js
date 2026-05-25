@@ -86,18 +86,67 @@ export default function Home() {
   const [masterModalIdx,   setMasterModalIdx]   = useState(0)
   const [showMasterModal,  setShowMasterModal]  = useState(false)
 
-  /* ── Load each section independently so they appear as they arrive ── */
+  /* ── Load game masters — separate effect, runs on every mount ── */
   useEffect(() => {
-    // 0. Game masters — show modal every visit unless user dismissed (7-day suppress)
-    supabase.rpc('get_all_current_game_masters').then(({ data }) => {
-      if (!data?.length) return
-      setGameMasters(data)
+    async function loadGameMasters() {
+      // Try RPC first
+      let masters = null
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('get_all_current_game_masters')
+      if (!rpcErr && rpcData?.length) {
+        masters = rpcData
+      } else {
+        // Fallback: direct table query for current week window
+        const monday = (() => {
+          const d = new Date()
+          const day = d.getDay()
+          d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day))
+          d.setHours(0,0,0,0)
+          return d.toISOString().split('T')[0]
+        })()
+        const nextMonday = (() => {
+          const d = new Date(monday)
+          d.setDate(d.getDate() + 7)
+          return d.toISOString().split('T')[0]
+        })()
+        const { data: fallback } = await supabase
+          .from('game_masters')
+          .select('*, profiles(username, avatar_url, tier, country_flag)')
+          .gte('week_start', monday)
+          .lt('week_start', nextMonday)
+          .order('crowned_at', { ascending: false })
+        if (fallback?.length) {
+          masters = fallback.map(r => ({
+            game_slug: r.game_slug,
+            master_id: r.id,
+            user_id: r.user_id,
+            username: r.profiles?.username,
+            avatar_url: r.profiles?.avatar_url,
+            tier: r.profiles?.tier,
+            country_flag: r.profiles?.country_flag,
+            total_wins: r.total_wins,
+            total_points: r.total_points,
+            tournaments_played: r.tournaments_played,
+            crowned_at: r.crowned_at,
+          }))
+        }
+      }
+      if (!masters?.length) return
+      setGameMasters(masters)
+      // Always show — user must explicitly dismiss (Awesome! or Don't show 7d)
       try {
         const suppress = localStorage.getItem('master_modal_suppress')
-        const suppressed = suppress && Date.now() < Number(suppress)
-        if (!suppressed) setShowMasterModal(true)
-      } catch { setShowMasterModal(true) }
-    })
+        if (!suppress || Date.now() >= Number(suppress)) {
+          setShowMasterModal(true)
+        }
+      } catch {
+        setShowMasterModal(true)
+      }
+    }
+    loadGameMasters()
+  }, [])
+
+  /* ── Load each section independently so they appear as they arrive ── */
+  useEffect(() => {
     supabase
       .from('tournaments')
       .select('id,name,slug,game_slug,status,slots,registered_count,date,prize,entrance_fee,is_test,created_by,created_at')
