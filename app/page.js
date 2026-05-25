@@ -304,70 +304,49 @@ export default function Home() {
           <div className={styles.mmBackdrop} onClick={() => setShowMasterModal(false)}>
             <div className={styles.mmCard} onClick={e => e.stopPropagation()}>
 
-              {/* Full blurred avatar background */}
-              <div className={styles.mmBg}
-                style={{ backgroundImage: `url(${m?.avatar_url || game?.image || ''})` }} />
-              <div className={styles.mmBgOverlay} />
+              {/* LEFT — content panel */}
+              <div className={styles.mmLeft}>
 
-              {/* Scanline texture */}
-              <div className={styles.mmScanlines} />
-
-              {/* Close */}
-              <button className={styles.mmClose} onClick={() => setShowMasterModal(false)}>
-                <i className="ri-close-line" />
-              </button>
-
-              {/* Game badge top-left */}
-              <div className={styles.mmGameBadge}>
-                {game?.image && <img src={game.image} alt={game?.name} className={styles.mmGameImg} />}
-                <span>{game?.name || m?.game_slug}</span>
-              </div>
-
-              <div className={styles.mmBody}>
-                {/* Crown + label */}
-                <div className={styles.mmCrownRow}>
-                  <div className={styles.mmCrownIcon}><i className="ri-crown-fill" /></div>
-                  <div className={styles.mmCrownLabel}>
-                    <span className={styles.mmWeeklyText}>WEEKLY MASTER</span>
+                {/* Top: game chip + close */}
+                <div className={styles.mmTopBar}>
+                  <div className={styles.mmGameChip}>
+                    {game?.image && <img src={game.image} alt={game?.name} className={styles.mmGameChipImg} />}
+                    <span>{game?.name || m?.game_slug}</span>
                   </div>
+                  <button className={styles.mmClose} onClick={() => setShowMasterModal(false)}>
+                    <i className="ri-close-line" />
+                  </button>
                 </div>
 
-                {/* Avatar — no border, just glow */}
-                <div className={styles.mmAvatarWrap}>
-                  <div className={styles.mmAvatarRing} />
-                  <div className={styles.mmAvatar}>
-                    {m?.avatar_url
-                      ? <img src={m.avatar_url} alt={m.username} />
-                      : <span>{m?.username?.[0]?.toUpperCase()}</span>
-                    }
-                  </div>
-                  {/* Tier badge */}
-                  <div className={styles.mmTierBadge}>
-                    <i className="ri-shield-star-fill" />
-                    <span>{m?.tier || 'Gold'}</span>
-                  </div>
-                </div>
+                {/* Label */}
+                <p className={styles.mmLabel}>
+                  <i className="ri-crown-fill" /> WEEKLY MASTER
+                </p>
 
                 {/* Name */}
                 <h2 className={styles.mmName}>{m?.username}</h2>
-                {m?.country_flag && <p className={styles.mmFlag}>{m.country_flag}</p>}
 
-                {/* Stats row — gamified cards */}
+                {/* Tier + flag */}
+                <div className={styles.mmMeta}>
+                  <span className={styles.mmTier}>
+                    <i className="ri-shield-star-fill" />{m?.tier || 'Gold'}
+                  </span>
+                  {m?.country_flag && <span className={styles.mmFlag}>{m.country_flag}</span>}
+                </div>
+
+                {/* Stats */}
                 <div className={styles.mmStats}>
                   <div className={styles.mmStat}>
-                    <i className="ri-sword-fill" />
                     <span className={styles.mmStatVal}>{m?.total_wins ?? 0}</span>
                     <span className={styles.mmStatLabel}>WINS</span>
                   </div>
                   <div className={styles.mmStatDiv} />
                   <div className={styles.mmStat}>
-                    <i className="ri-star-fill" />
                     <span className={styles.mmStatVal}>{m?.total_points ?? 0}</span>
                     <span className={styles.mmStatLabel}>PTS</span>
                   </div>
                   <div className={styles.mmStatDiv} />
                   <div className={styles.mmStat}>
-                    <i className="ri-node-tree" />
                     <span className={styles.mmStatVal}>{m?.tournaments_played ?? 0}</span>
                     <span className={styles.mmStatLabel}>PLAYED</span>
                   </div>
@@ -384,28 +363,39 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* View profile CTA */}
-                <a href={`/profile/${m?.user_id}`} className={styles.mmViewProfile}
-                  onClick={() => {
+                {/* Actions */}
+                <div className={styles.mmActions}>
+                  <a href={`/profile/${m?.user_id}`} className={styles.mmViewBtn}
+                    onClick={() => {
+                      try { localStorage.setItem('master_modal_suppress', String(Date.now() + 7*24*60*60*1000)) } catch {}
+                      setShowMasterModal(false)
+                    }}>
+                    View Profile <i className="ri-arrow-right-line" />
+                  </a>
+                  <button className={styles.mmAwesome} onClick={() => {
                     try { localStorage.setItem('master_modal_suppress', String(Date.now() + 7*24*60*60*1000)) } catch {}
                     setShowMasterModal(false)
                   }}>
-                  <i className="ri-user-3-line" /> View Profile
-                  <i className="ri-arrow-right-line" style={{ marginLeft: 'auto' }} />
-                </a>
-
-                <button className={styles.mmAwesome} onClick={() => {
-                  try { localStorage.setItem('master_modal_suppress', String(Date.now() + 7*24*60*60*1000)) } catch {}
-                  setShowMasterModal(false)
-                }}>
-                  <i className="ri-fire-fill" /> Awesome!
-                </button>
+                    <i className="ri-fire-fill" /> Awesome!
+                  </button>
+                </div>
 
                 <button className={styles.mmDontShow} onClick={() => {
                   try { localStorage.setItem('master_modal_suppress', String(Date.now() + 7*24*60*60*1000)) } catch {}
                   setShowMasterModal(false)
                 }}>Don't show for 7 days</button>
+
               </div>
+
+              {/* RIGHT — avatar image bleeding to edge */}
+              <div className={styles.mmRight}>
+                <div className={styles.mmFade} />
+                {m?.avatar_url
+                  ? <img src={m.avatar_url} alt={m.username} className={styles.mmAvatarImg} />
+                  : <div className={styles.mmAvatarFallback}>{m?.username?.[0]?.toUpperCase()}</div>
+                }
+              </div>
+
             </div>
           </div>
         )
