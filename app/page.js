@@ -88,26 +88,14 @@ export default function Home() {
 
   /* ── Load each section independently so they appear as they arrive ── */
   useEffect(() => {
-    // 0. Game masters — show modal only to subscribers
+    // 0. Game masters — show modal to ALL users once per session
     supabase.rpc('get_all_current_game_masters').then(({ data }) => {
       if (!data?.length) return
       setGameMasters(data)
-      // Only show to logged-in users who subscribed to at least one of these games
-      if (user) {
-        supabase
-          .from('game_subscriptions')
-          .select('game_slug')
-          .eq('user_id', user.id)
-          .in('game_slug', data.map(m => m.game_slug))
-          .then(({ data: subs }) => {
-            if (subs?.length) {
-              const seen = sessionStorage.getItem('master_modal_seen')
-              if (!seen) {
-                setShowMasterModal(true)
-                sessionStorage.setItem('master_modal_seen', '1')
-              }
-            }
-          })
+      const seen = sessionStorage.getItem('master_modal_seen')
+      if (!seen) {
+        setShowMasterModal(true)
+        sessionStorage.setItem('master_modal_seen', '1')
       }
     })
     supabase
