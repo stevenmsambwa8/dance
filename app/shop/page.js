@@ -300,11 +300,11 @@ export default function Shop() {
                   </div>
 
                   <div className={styles.cardBody}>
-                    <div className={styles.cardMeta}>
+                    <div className={styles.cardTop}>
                       <span className={styles.seller}><i className="ri-user-line" />{item.profiles?.username || 'Unknown'}</span>
+                      <h3 className={styles.itemTitle}>{item.title}</h3>
+                      {item.description && <p className={styles.itemDesc}>{item.description}</p>}
                     </div>
-                    <h3 className={styles.itemTitle}>{item.title}</h3>
-                    {item.description && <p className={styles.itemDesc}>{item.description}</p>}
 
                     <div className={styles.cardFooter}>
                       <span className={styles.itemPrice}>{fmtAmt(Number(String(item.price).replace(/[^0-9.]/g,'')))}</span>

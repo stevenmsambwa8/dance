@@ -1,11 +1,9 @@
-/* Shop Item Detail — redesigned */
+/* Shop Item Detail — raw, clean, gaming-native */
 
 .page {
-  min-height: 100dvh;
-  background: var(--bg);
-  padding-bottom: 100px;
-  max-width: 600px;
+  max-width: 680px;
   margin: 0 auto;
+  padding-bottom: 80px;
 }
 
 .notFound {
@@ -13,16 +11,16 @@
   justify-content: center; min-height: 60vh; gap: 12px;
   color: var(--text-muted); text-align: center;
 }
-.notFound i { font-size: 40px; opacity: 0.3; }
-.notFound h2 { font-size: 18px; font-weight: 800; margin: 0; color: var(--text); }
+.notFound i { font-size: 36px; opacity: 0.3; }
+.notFound h2 { font-size: 18px; font-weight: 800; color: var(--text); }
 .notFound a { font-size: 13px; color: var(--text-muted); text-decoration: none; }
 
-/* ── Back bar ── */
+/* ── Top bar ── */
 .topBar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px 0;
+  padding: 16px 20px 0;
 }
 .back {
   display: flex; align-items: center; gap: 5px;
@@ -31,127 +29,109 @@
 }
 .back:hover { color: var(--text); }
 .shareBtn {
-  width: 34px; height: 34px;
+  width: 32px; height: 32px;
   border: 1px solid var(--border-dark);
   border-radius: 50%;
   background: none;
   display: flex; align-items: center; justify-content: center;
-  font-size: 15px; color: var(--text-muted);
+  font-size: 14px; color: var(--text-muted);
   cursor: pointer; transition: background 0.1s;
 }
 .shareBtn:hover { background: var(--bg-2); }
 
-/* ── Gallery ── */
+/* ── Gallery — full bleed, landscape ── */
 .gallery {
-  position: relative;
-  margin: 12px 16px 0;
-  border-radius: 16px;
+  margin: 14px 20px 0;
+  border-radius: 10px;
   overflow: hidden;
-  background: var(--bg-2);
+  background: var(--surface);
   border: 1px solid var(--border);
 }
 
 .mainImg {
   width: 100%;
+  aspect-ratio: 16 / 9;
   display: block;
   overflow: hidden;
   cursor: zoom-in;
   position: relative;
 }
-.mainImg.mainImgZoomed { cursor: zoom-out; overflow: hidden; }
+.mainImg.mainImgZoomed { cursor: zoom-out; }
 .mainImg img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   display: block;
-  background: var(--bg-2);
+  transition: transform 0.15s ease;
 }
 
 .noImg {
-  aspect-ratio: 4/3;
+  aspect-ratio: 16 / 9;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   gap: 8px; color: var(--text-muted);
-  font-size: 14px;
 }
-.noImg i { font-size: 36px; opacity: 0.3; }
+.noImg i { font-size: 30px; opacity: 0.25; }
+.noImg span { font-size: 12px; }
 
 .zoomHint {
-  position: absolute;
-  bottom: 10px; right: 10px;
-  background: rgba(0,0,0,0.45);
-  color: #fff;
-  border-radius: 6px;
-  padding: 4px 6px;
-  font-size: 13px;
-  pointer-events: none;
-  backdrop-filter: blur(4px);
+  position: absolute; bottom: 8px; right: 8px;
+  background: rgba(0,0,0,0.5); color: #fff;
+  border-radius: 5px; padding: 3px 7px;
+  font-size: 12px; pointer-events: none;
 }
-
 .expandBtn {
-  position: absolute;
-  top: 10px; right: 10px;
-  width: 32px; height: 32px;
-  border-radius: 8px;
-  background: rgba(0,0,0,0.45);
+  position: absolute; top: 8px; right: 8px;
+  width: 30px; height: 30px;
+  border-radius: 6px;
+  background: rgba(0,0,0,0.5);
   border: none; color: #fff;
   display: flex; align-items: center; justify-content: center;
-  font-size: 15px; cursor: pointer;
-  backdrop-filter: blur(4px);
-  transition: background 0.1s;
+  font-size: 14px; cursor: pointer;
 }
-.expandBtn:hover { background: rgba(0,0,0,0.65); }
-
 .galleryArrow {
-  position: absolute;
-  top: 50%; transform: translateY(-50%);
-  width: 32px; height: 32px;
-  border-radius: 50%;
-  background: rgba(0,0,0,0.45);
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 30px; height: 30px; border-radius: 50%;
+  background: rgba(0,0,0,0.5);
   border: none; color: #fff;
   display: flex; align-items: center; justify-content: center;
   font-size: 18px; cursor: pointer;
-  backdrop-filter: blur(4px);
 }
-.galleryArrowL { left: 10px; }
-.galleryArrowR { right: 10px; }
+.galleryArrowL { left: 8px; }
+.galleryArrowR { right: 8px; }
 
 .catChip {
-  position: absolute;
-  top: 10px; left: 10px;
-  font-size: 9px; font-weight: 800;
-  letter-spacing: 0.1em; text-transform: uppercase;
-  background: rgba(0,0,0,0.5); color: #fff;
-  padding: 3px 8px; border-radius: 6px;
-  backdrop-filter: blur(4px);
+  position: absolute; top: 8px; left: 8px;
+  font-size: 8px; font-weight: 800;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  background: rgba(0,0,0,0.6); color: #fff;
+  padding: 2px 8px; border-radius: 3px;
 }
 
 /* Thumbnail strip */
 .strip {
-  display: flex;
-  gap: 6px;
-  padding: 8px 10px;
+  display: flex; gap: 4px;
+  padding: 6px 8px;
   overflow-x: auto;
   scrollbar-width: none;
   border-top: 1px solid var(--border);
 }
 .strip::-webkit-scrollbar { display: none; }
-
 .thumb {
   flex-shrink: 0;
-  width: 52px; height: 52px;
-  border-radius: 8px;
+  width: 48px; height: 36px;
+  border-radius: 4px;
   overflow: hidden;
   border: 2px solid transparent;
   padding: 0; background: none;
-  cursor: pointer; transition: border-color 0.12s;
+  cursor: pointer; transition: border-color 0.1s;
 }
 .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .thumbActive { border-color: var(--text) !important; }
 
-/* ── Info block ── */
+/* ── Info ── */
 .info {
-  padding: 16px 16px 0;
+  padding: 18px 20px 0;
 }
 
 .titleRow {
@@ -159,264 +139,242 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 .title {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 900;
   letter-spacing: -0.02em;
   color: var(--text);
-  margin: 0;
   flex: 1;
 }
 .availBadge {
   flex-shrink: 0;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.08em;
-  padding: 3px 9px;
+  padding: 3px 8px;
   border-radius: 20px;
-  background: rgba(34,197,94,0.12);
+  background: rgba(34,197,94,0.1);
   color: #22c55e;
-  border: 1px solid rgba(34,197,94,0.3);
-  margin-top: 4px;
+  border: 1px solid rgba(34,197,94,0.25);
+  margin-top: 5px;
 }
 .soldBadge {
   flex-shrink: 0;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.08em;
-  padding: 3px 9px;
+  padding: 3px 8px;
   border-radius: 20px;
-  background: rgba(148,163,184,0.12);
+  background: rgba(148,163,184,0.1);
   color: var(--text-muted);
   border: 1px solid var(--border-dark);
-  margin-top: 4px;
+  margin-top: 5px;
 }
 
 .bigPrice {
-  font-size: 26px;
+  font-size: 28px;
   font-weight: 900;
   letter-spacing: -0.03em;
   color: var(--accent);
-  margin: 0 0 14px;
+  margin: 2px 0 14px;
+}
+
+.blockLabel {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 6px;
 }
 
 .desc {
   font-size: 13px;
   line-height: 1.65;
   color: var(--text-dim);
-  margin: 0;
   white-space: pre-line;
-}
-
-.blockLabel {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin: 0 0 8px;
 }
 
 .divider { height: 1px; background: var(--border); margin: 16px 0; }
 
-/* ── Seller card ── */
-.sellerCard {
+/* ── Seller row — flat, no nested card ── */
+.sellerRow {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
   text-decoration: none;
   color: inherit;
-  background: var(--bg-2);
-  transition: border-color 0.12s, background 0.12s;
-  margin-bottom: 16px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  transition: opacity 0.1s;
 }
-.sellerCard:hover { border-color: var(--border-dark); background: var(--surface); }
-
+.sellerRow:hover { opacity: 0.7; }
 .sellerAvatar {
-  width: 40px; height: 40px;
+  width: 36px; height: 36px;
   border-radius: 50%;
   overflow: hidden;
-  background: var(--bg);
-  border: 2px solid var(--border);
+  background: var(--surface);
+  border: 1px solid var(--border-dark);
   display: flex; align-items: center; justify-content: center;
-  font-size: 14px; font-weight: 800; color: var(--text-muted);
+  font-size: 13px; font-weight: 800; color: var(--text-muted);
   flex-shrink: 0;
 }
 .sellerAvatar img { width: 100%; height: 100%; object-fit: cover; }
-.sellerInfo { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.sellerInfo { flex: 1; display: flex; flex-direction: column; gap: 1px; }
 .sellerName {
   font-size: 13px; font-weight: 700;
   display: flex; align-items: center; gap: 5px;
 }
 .sellerMeta { font-size: 11px; color: var(--text-muted); }
 
-/* ── Buy panel ── */
-.panel {
-  margin: 0 16px 12px;
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  overflow: hidden;
-  background: var(--bg);
+/* ── Buy strip — flat bar at bottom of info ── */
+.buyStrip {
+  padding: 16px 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.panelTop {
+.buyStripTop {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border);
 }
-.panelPriceLabel { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 2px; }
-.panelPrice { font-size: 22px; font-weight: 900; letter-spacing: -0.02em; color: var(--accent); margin: 0; }
-.panelStatus {
-  font-size: 10px; font-weight: 800; letter-spacing: 0.08em;
-  padding: 4px 10px; border-radius: 20px; border: 1px solid;
+.buyStripPrice {
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
 }
-.panelStatusAvail { color: #22c55e; border-color: rgba(34,197,94,0.3); background: rgba(34,197,94,0.10); }
-.panelStatusSold  { color: var(--text-muted); border-color: var(--border-dark); background: var(--bg-2); }
-
-.panelBody { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.panelStatusAvail { font-size: 10px; font-weight: 700; color: #22c55e; }
+.panelStatusSold  { font-size: 10px; font-weight: 700; color: var(--text-muted); }
 
 .requestTracker {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 12px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
   background: var(--bg-2);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 6px;
 }
-.trackerDot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.trackerLabel { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); display: block; }
-.trackerStatus { font-size: 13px; font-weight: 800; }
+.trackerDot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.trackerLabel { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); display: block; }
+.trackerStatus { font-size: 12px; font-weight: 800; }
 
 .ctaBtn {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 7px;
   width: 100%;
-  height: 46px;
+  height: 44px;
   background: var(--text);
   color: var(--bg);
   border: none;
-  border-radius: 12px;
+  border-radius: 8px;
   font-size: 14px;
   font-weight: 800;
+  letter-spacing: 0.01em;
   cursor: pointer;
   text-decoration: none;
-  transition: opacity 0.12s;
+  transition: opacity 0.1s;
 }
-.ctaBtn:hover { opacity: 0.88; }
-.ctaBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.ctaBtn:hover { opacity: 0.85; }
+.ctaBtn:disabled { opacity: 0.45; cursor: not-allowed; }
 .ctaBtnAlt {
   background: transparent !important;
   color: var(--text) !important;
-  border: 1.5px solid var(--border-dark) !important;
+  border: 1px solid var(--border-dark) !important;
 }
 .ctaHint {
-  font-size: 11px; color: var(--text-muted);
+  font-size: 10px; color: var(--text-muted);
   display: flex; align-items: center; gap: 4px;
-  justify-content: center; margin: 0;
+  justify-content: center;
 }
 
 .ownerNote {
-  padding: 14px 16px;
-  font-size: 13px; font-weight: 600;
+  font-size: 12px; font-weight: 600;
   color: var(--text-muted);
-  display: flex; align-items: center; gap: 6px;
+  display: flex; align-items: center; gap: 5px;
+  padding: 10px 0;
 }
+.panelSub { font-size: 12px; color: var(--text-muted); text-align: center; }
 
-.panelSub { font-size: 12px; color: var(--text-muted); margin: 0; text-align: center; }
-
-/* ── Seller inbox (buy requests) ── */
+/* ── Inbox — flat list, no double border ── */
 .inboxPanel {
-  margin: 0 16px 12px;
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  overflow: hidden;
+  margin: 24px 20px 0;
+  border-top: 1px solid var(--border);
 }
 .inboxTitle {
-  font-size: 11px; font-weight: 800;
-  letter-spacing: 0.1em; text-transform: uppercase;
+  font-size: 10px; font-weight: 800;
+  letter-spacing: 0.12em; text-transform: uppercase;
   color: var(--text-muted);
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border);
-  margin: 0;
+  padding: 14px 0 10px;
   display: flex; align-items: center; gap: 6px;
 }
 .inboxEmpty {
-  padding: 20px 16px;
   font-size: 13px; color: var(--text-muted);
-  text-align: center;
+  padding: 16px 0;
 }
 
 .reqCard {
-  padding: 12px 14px;
+  padding: 12px 0;
   border-bottom: 1px solid var(--border);
 }
 .reqCard:last-child { border-bottom: none; }
 
 .reqTop {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  margin-bottom: 8px;
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 6px;
 }
 .reqAvatar {
-  width: 34px; height: 34px;
+  width: 32px; height: 32px;
   border-radius: 50%;
   overflow: hidden;
   background: var(--bg-2);
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
   display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 800; color: var(--text-muted);
+  font-size: 11px; font-weight: 800; color: var(--text-muted);
   flex-shrink: 0;
 }
 .reqAvatar img { width: 100%; height: 100%; object-fit: cover; }
 .reqName { font-size: 13px; font-weight: 700; }
 .reqTier { font-size: 10px; color: var(--text-muted); }
-.reqPrice { font-size: 15px; font-weight: 900; color: var(--accent); margin-left: auto; }
-.reqNote {
-  font-size: 12px; color: var(--text-dim);
-  margin: 0 0 8px;
-  line-height: 1.5;
-}
+.reqPrice { font-size: 14px; font-weight: 900; color: var(--accent); margin-left: auto; }
+.reqNote { font-size: 12px; color: var(--text-dim); margin: 0 0 6px; line-height: 1.5; }
 .reqStatus {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: 10px; font-weight: 800; letter-spacing: 0.06em;
-  padding: 3px 8px; border-radius: 6px; margin-bottom: 8px;
+  display: inline-flex; align-items: center;
+  font-size: 9px; font-weight: 800; letter-spacing: 0.06em;
+  padding: 2px 7px; border-radius: 3px; margin-bottom: 8px;
 }
 .reqActions { display: flex; gap: 6px; }
 .reqAccept {
-  flex: 1; height: 36px;
+  flex: 1; height: 34px;
   background: #22c55e; color: #fff;
-  border: none; border-radius: 8px;
+  border: none; border-radius: 6px;
   font-size: 12px; font-weight: 800;
-  cursor: pointer; transition: opacity 0.12s;
-  display: flex; align-items: center; justify-content: center; gap: 5px;
+  cursor: pointer; transition: opacity 0.1s;
+  display: flex; align-items: center; justify-content: center; gap: 4px;
 }
-.reqAccept:hover { opacity: 0.88; }
+.reqAccept:hover { opacity: 0.85; }
 .reqDecline {
-  flex: 1; height: 36px;
+  flex: 1; height: 34px;
   background: transparent; color: var(--text-muted);
-  border: 1px solid var(--border-dark); border-radius: 8px;
+  border: 1px solid var(--border-dark); border-radius: 6px;
   font-size: 12px; font-weight: 700;
-  cursor: pointer; transition: background 0.12s;
-  display: flex; align-items: center; justify-content: center; gap: 5px;
+  cursor: pointer; transition: background 0.1s;
+  display: flex; align-items: center; justify-content: center; gap: 4px;
 }
 .reqDecline:hover { background: var(--bg-2); }
 .reqChat {
-  flex: 1; height: 36px;
+  flex: 1; height: 34px;
   background: transparent; color: var(--text);
-  border: 1px solid var(--border-dark); border-radius: 8px;
+  border: 1px solid var(--border-dark); border-radius: 6px;
   font-size: 12px; font-weight: 700;
   cursor: pointer; text-decoration: none;
-  display: flex; align-items: center; justify-content: center; gap: 5px;
-  transition: background 0.12s;
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+  transition: background 0.1s;
 }
 .reqChat:hover { background: var(--bg-2); }
 
@@ -430,30 +388,29 @@
 }
 @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
 .lightboxImg {
-  max-width: 92vw; max-height: 86vh;
-  object-fit: contain; border-radius: 10px;
+  max-width: 92vw; max-height: 88vh;
+  object-fit: contain; border-radius: 8px;
 }
 .lightboxClose {
-  position: absolute; top: 16px; right: 16px;
-  width: 38px; height: 38px; border-radius: 50%;
-  background: rgba(255,255,255,0.12); border: none;
-  color: #fff; font-size: 20px; cursor: pointer;
+  position: absolute; top: 14px; right: 14px;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: rgba(255,255,255,0.1); border: none;
+  color: #fff; font-size: 18px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
 }
-.lightboxClose:hover { background: rgba(255,255,255,0.2); }
 .lightboxArrow {
   position: absolute; top: 50%; transform: translateY(-50%);
-  width: 40px; height: 40px; border-radius: 50%;
-  background: rgba(255,255,255,0.12); border: none;
+  width: 38px; height: 38px; border-radius: 50%;
+  background: rgba(255,255,255,0.1); border: none;
   color: #fff; font-size: 20px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
 }
-.lightboxArrowL { left: 16px; }
-.lightboxArrowR { right: 16px; }
+.lightboxArrowL { left: 14px; }
+.lightboxArrowR { right: 14px; }
 .lightboxCounter {
-  position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
-  font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.7);
-  background: rgba(0,0,0,0.4); padding: 4px 10px; border-radius: 20px;
+  position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
+  font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.6);
+  background: rgba(0,0,0,0.4); padding: 3px 9px; border-radius: 20px;
 }
 
 @keyframes spin { to { transform: rotate(1turn) } }
