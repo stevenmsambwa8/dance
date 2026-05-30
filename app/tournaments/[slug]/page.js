@@ -55,9 +55,59 @@ function getRoundLabel(rIdx, totalRounds, bracketSize) {
  *    real player auto-advances; the bracket displays it transparently.
  *  - If the slot count exactly equals a power-of-2 (e.g. 32 players → 32
  *    slots) there are zero BYEs and nothing needs padding.
+ *  - When teamSize > 1, players are grouped into teams. Each bracket slot
+ *    is a TEAM (array of player slots). Matches are team vs team.
  */
-function buildBracket(parts) {
+function buildBracket(parts, teamSize = 1) {
   if (!parts || parts.length < 2) return null
+
+  // ── Team mode: group participants into teams ──────────────────────────
+  if (teamSize > 1) {
+    const shuffled = [...parts].sort(() => Math.random() - 0.5)
+    // Group into teams of teamSize
+    const teams = []
+    for (let i = 0; i < shuffled.length; i += teamSize) {
+      const members = shuffled.slice(i, i + teamSize).map(p => ({
+        userId: p.user_id,
+        name: p.profiles?.username || '?',
+        avatar: p.profiles?.avatar_url || null,
+        status: 'active',
+      }))
+      // Pad team with empty slots if not enough members
+      while (members.length < teamSize) {
+        members.push({ userId: null, name: '—', avatar: null, status: 'empty' })
+      }
+      teams.push({ members, status: 'active', teamId: `team_${i}` })
+    }
+    if (teams.length < 2) return null
+
+    const size = nextPow2(teams.length)
+    const byeCount = size - teams.length
+    for (let i = 0; i < byeCount; i++) {
+      teams.push({
+        members: Array.from({ length: teamSize }, () => ({ userId: null, name: 'BYE', avatar: null, status: 'bye' })),
+        status: 'bye', teamId: `bye_${i}`,
+      })
+    }
+
+    const rounds = []
+    let current = teams
+    while (current.length > 1) {
+      const pairs = []
+      for (let i = 0; i < current.length; i += 2) {
+        pairs.push([{ ...current[i] }, { ...current[i + 1] }])
+      }
+      rounds.push(pairs)
+      current = pairs.map(() => ({
+        members: Array.from({ length: teamSize }, () => ({ userId: null, name: '?', avatar: null, status: 'pending' })),
+        status: 'pending', teamId: null,
+      }))
+    }
+    rounds.push([[{ members: Array.from({ length: teamSize }, () => ({ userId: null, name: 'TBD', avatar: null, status: 'pending' })), status: 'pending', teamId: null }, null]])
+    return { rounds, bracketSize: size, byeCount, teamSize, isTeamBattle: true }
+  }
+
+  // ── Solo mode (original logic) ────────────────────────────────────────
   const size = nextPow2(parts.length)
   const byeCount = size - parts.length
 
@@ -99,9 +149,36 @@ function buildBracket(parts) {
  * Size is locked to the tournament's configured slot count (not power-of-2)
  * so it displays correctly before the admin generates the real bracket.
  */
-function buildLobbyBracket(maxSlots) {
+function buildLobbyBracket(maxSlots, teamSize = 1) {
   if (!maxSlots || maxSlots < 2) return null
   const size = nextPow2(maxSlots)
+
+  // ── Team lobby mode ───────────────────────────────────────────────────
+  if (teamSize > 1) {
+    const teamCount = Math.ceil(size / teamSize)
+    const openTeam = () => ({
+      members: Array.from({ length: teamSize }, () => ({ userId: null, name: 'Open', avatar: null, status: 'open' })),
+      status: 'open', teamId: null,
+    })
+    const teams = Array.from({ length: teamCount }, openTeam)
+    const rounds = []
+    let current = teams
+    while (current.length > 1) {
+      const pairs = []
+      for (let i = 0; i < current.length; i += 2) {
+        pairs.push([{ ...current[i] }, { ...current[i + 1] }])
+      }
+      rounds.push(pairs)
+      current = pairs.map(() => ({
+        members: Array.from({ length: teamSize }, () => ({ userId: null, name: '?', avatar: null, status: 'pending' })),
+        status: 'pending', teamId: null,
+      }))
+    }
+    rounds.push([[{ members: Array.from({ length: teamSize }, () => ({ userId: null, name: 'TBD', avatar: null, status: 'pending' })), status: 'pending', teamId: null }, null]])
+    return { rounds, bracketSize: size, isEmpty: true, teamSize, isTeamBattle: true }
+  }
+
+  // ── Solo lobby mode (original) ────────────────────────────────────────
   const open = Array.from({ length: size }, () => ({
     userId: null, name: 'Open', avatar: null, status: 'open',
   }))
@@ -370,7 +447,7 @@ export default function TournamentDetail() {
     setId(t.id)
     setTournament(t)
     setEditForm(t)
-    setBracketData(parseBracketData(t.bracket_data) ?? (t.slots >= 2 ? buildLobbyBracket(t.slots) : null))
+    setBracketData(parseBracketData(t.bracket_data) ?? (t.slots >= 2 ? buildLobbyBracket(t.slots, t.team_size || 1) : null))
     setLoadingTournament(false)
 
     if (t.created_by) {
@@ -468,7 +545,7 @@ export default function TournamentDetail() {
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tournaments', filter: `id=eq.${id}` }, payload => {
         const t = payload.new
         setTournament(t)
-        setBracketData(parseBracketData(t.bracket_data) ?? (t.slots >= 2 ? buildLobbyBracket(t.slots) : null))
+        setBracketData(parseBracketData(t.bracket_data) ?? (t.slots >= 2 ? buildLobbyBracket(t.slots, t.team_size || 1) : null))
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tournament_participants', filter: `tournament_id=eq.${id}` }, () => {
         supabase.from('tournament_participants')
@@ -820,7 +897,8 @@ export default function TournamentDetail() {
   // ── Bracket management ────────────────────────────────────────────────────
 
   async function initBracket() {
-    const bd = buildBracket(participants)
+    const teamSize = tournament?.team_size || 1
+    const bd = buildBracket(participants, teamSize)
     if (!bd) { showToast('Need at least 2 players.', 'error'); return }
 
     const { error } = await supabase.from('tournaments').update({ bracket_data: bd }).eq('id', id)
@@ -843,7 +921,7 @@ export default function TournamentDetail() {
     setConfirmModal({
       message: 'Reset the entire bracket? All match progress and points will be lost.',
       onConfirm: async () => {
-        const bd = buildBracket(participants)
+        const bd = buildBracket(participants, tournament?.team_size || 1)
         if (!bd) return
         await supabase.from('tournament_leaderboard').delete().eq('tournament_id', id)
         setBracketData(bd)
@@ -1651,6 +1729,12 @@ export default function TournamentDetail() {
       <div className={styles.hero}>
         <div className={styles.heroMeta}>
           <span className={styles.gameTag}>{gameLabel}</span>
+          {(tournament.team_size || 1) > 1 && (
+            <span className={styles.gameTag} style={{ background: 'rgba(99,102,241,0.15)', color: '#6366f1', borderColor: 'rgba(99,102,241,0.3)' }}>
+              <i className="ri-team-line" style={{ marginRight: 4 }} />
+              {tournament.team_size}v{tournament.team_size}
+            </span>
+          )}
           <span className={styles.statusBadge} style={{ color: statusColor(tournament.status), borderColor: statusColor(tournament.status) }}>
             <i className={`ri-${statusIcon(tournament.status)}`} />
             {tournament.status}
@@ -1954,14 +2038,20 @@ export default function TournamentDetail() {
               <div className={styles.bracketHeader}>
                 <div className={styles.bracketInfo}>
                   <span className={styles.bracketSize}>
-                    <i className="ri-node-tree" />{bracketData.bracketSize}-player bracket
+                    <i className="ri-node-tree" />{bracketData.bracketSize}-{bracketData.isTeamBattle ? 'team' : 'player'} bracket
                   </span>
-                  {realByeCount > 0 && (
+                  {bracketData.isTeamBattle && (
+                    <span className={styles.bracketPlayers} style={{ background: 'rgba(99,102,241,0.12)', color: '#6366f1', border: '1px solid rgba(99,102,241,0.3)', borderRadius: 6, padding: '2px 8px', fontWeight: 700 }}>
+                      <i className="ri-team-line" style={{ marginRight: 4 }} />
+                      {bracketData.teamSize}v{bracketData.teamSize} Team Battle
+                    </span>
+                  )}
+                  {!bracketData.isTeamBattle && realByeCount > 0 && (
                     <span className={styles.bracketPlayers}>
                       {participants.length} registered · {realByeCount} BYE{realByeCount !== 1 ? 's' : ''}
                     </span>
                   )}
-                  {realByeCount === 0 && participants.length > 0 && (
+                  {!bracketData.isTeamBattle && realByeCount === 0 && participants.length > 0 && (
                     <span className={styles.bracketPlayers}>{participants.length} players · no BYEs</span>
                   )}
                 </div>
@@ -2000,7 +2090,20 @@ export default function TournamentDetail() {
                                   leaderboard={leaderboard}
                                   participants={participants}
                                 />
-                              : (
+                              : bracketData.isTeamBattle
+                                ? (
+                                  <div key={pIdx} className={styles.matchPairWrap}>
+                                    <TeamMatchCard
+                                      pair={pair}
+                                      styles={styles}
+                                      isAdmin={canManage}
+                                      teamSize={bracketData.teamSize}
+                                      onSetStatus={(slotIdx, status) => adminSetSlotStatus(rIdx, pIdx, slotIdx, status)}
+                                      passPoints={getPassPoints(rIdx)}
+                                    />
+                                  </div>
+                                )
+                                : (
                                 <div key={pIdx} className={styles.matchPairWrap}>
                                   <MatchCard
                                     pair={pair}
@@ -2040,11 +2143,22 @@ export default function TournamentDetail() {
               </div>
 
               <div className={styles.bracketLegend}>
-                <span className={styles.legendItem}><span className={styles.dot} style={{ background: 'var(--accent)' }} /> Active</span>
-                <span className={styles.legendItem}><span className={styles.dot} style={{ background: '#f59e0b' }} /> Winner</span>
-                <span className={styles.legendItem}><span className={styles.dot} style={{ background: '#dc2626' }} /> Eliminated</span>
-                <span className={styles.legendItem}><span className={styles.dot} style={{ background: '#7c3aed' }} /> Disqualified</span>
-                {canManage && <span className={styles.legendHint}><i className="ri-cursor-line" /> Tap player to manage</span>}
+                {bracketData.isTeamBattle
+                  ? <>
+                      <span className={styles.legendItem}><span className={styles.dot} style={{ background: 'var(--accent)' }} /> Active</span>
+                      <span className={styles.legendItem}><span className={styles.dot} style={{ background: '#f59e0b' }} /> Winning Team</span>
+                      <span className={styles.legendItem}><span className={styles.dot} style={{ background: '#dc2626' }} /> Eliminated</span>
+                      <span className={styles.legendItem}><span className={styles.dot} style={{ background: '#7c3aed' }} /> Disqualified</span>
+                      {canManage && <span className={styles.legendHint}><i className="ri-cursor-line" /> Tap team to manage</span>}
+                    </>
+                  : <>
+                      <span className={styles.legendItem}><span className={styles.dot} style={{ background: 'var(--accent)' }} /> Active</span>
+                      <span className={styles.legendItem}><span className={styles.dot} style={{ background: '#f59e0b' }} /> Winner</span>
+                      <span className={styles.legendItem}><span className={styles.dot} style={{ background: '#dc2626' }} /> Eliminated</span>
+                      <span className={styles.legendItem}><span className={styles.dot} style={{ background: '#7c3aed' }} /> Disqualified</span>
+                      {canManage && <span className={styles.legendHint}><i className="ri-cursor-line" /> Tap player to manage</span>}
+                    </>
+                }
               </div>
             </>
           )}
@@ -2977,6 +3091,139 @@ function ChampDisplay({ entry, styles, isAdmin, onSetWinner, leaderboard, partic
         }
       </div>
     </div>
+  )
+}
+
+// ─── TeamMatchCard — renders a team vs team match ──────────────────────────
+// Each "slot" in the pair is a team object: { members: [...], status, teamId }
+function TeamMatchCard({ pair, styles, isAdmin, teamSize, onSetStatus, passPoints }) {
+  const [teamA, teamB] = pair
+  const [activeSheet, setActiveSheet] = useState(null)
+
+  const isByeMatch = teamA?.status === 'bye' || teamB?.status === 'bye'
+  const isPending = (t) => !t?.teamId && t?.status !== 'open' && t?.status !== 'bye' && t?.status !== 'active'
+
+  function statusColor(status) {
+    if (status === 'winner') return '#f59e0b'
+    if (status === 'eliminated') return '#dc2626'
+    if (status === 'disqualified') return '#7c3aed'
+    if (status === 'bye') return 'var(--text-muted)'
+    if (status === 'open') return 'var(--accent)'
+    return 'var(--text)'
+  }
+  function statusBorder(status) {
+    if (status === 'winner') return '2px solid #f59e0b'
+    if (status === 'eliminated') return '2px solid #dc2626'
+    if (status === 'disqualified') return '2px solid #7c3aed'
+    return '1.5px solid var(--border-dark)'
+  }
+
+  function TeamSlot({ team, slotIdx }) {
+    if (!team) return null
+    const isBye = team.status === 'bye'
+    const isOpen = team.status === 'open'
+    const pend = isPending(team)
+    const won = team.status === 'winner'
+    const lost = team.status === 'eliminated' || team.status === 'disqualified'
+
+    return (
+      <div
+        style={{
+          display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 10px',
+          background: won ? 'rgba(245,158,11,0.08)' : 'var(--surface)',
+          borderLeft: `3px solid ${statusColor(team.status)}`,
+          opacity: lost ? 0.45 : 1,
+          cursor: isAdmin && !isBye && !pend ? 'pointer' : 'default',
+        }}
+        onClick={() => isAdmin && !isBye && !pend && !isOpen && setActiveSheet({ slotIdx, team })}
+      >
+        {/* Team label */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+          <i className="ri-team-line" style={{ fontSize: 11, color: statusColor(team.status) }} />
+          <span style={{ fontSize: 11, fontWeight: 700, color: statusColor(team.status), textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            {isBye ? 'BYE' : isOpen ? 'Open Team' : pend ? 'TBD' : `Team ${slotIdx + 1}`}
+          </span>
+          {won && <span style={{ fontSize: 9, fontWeight: 800, color: '#f59e0b', background: 'rgba(245,158,11,0.12)', padding: '1px 5px', borderRadius: 4, marginLeft: 'auto' }}>WINNER</span>}
+          {team.status === 'disqualified' && <span style={{ fontSize: 9, fontWeight: 800, color: '#7c3aed', background: 'rgba(124,58,237,0.1)', padding: '1px 5px', borderRadius: 4, marginLeft: 'auto' }}>DQ</span>}
+        </div>
+        {/* Member avatars */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+          {(team.members || []).map((m, mi) => (
+            <div key={mi} style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              background: 'var(--surface-raised)', borderRadius: 6, padding: '3px 6px 3px 3px',
+            }}>
+              <div style={{
+                width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+                border: statusBorder(m.status),
+                background: 'var(--surface-card)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                overflow: 'hidden', fontSize: 9, fontWeight: 800,
+              }}>
+                {m.avatar
+                  ? <img src={m.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : <span style={{ color: 'var(--text-dim)' }}>{(m.name || '?').slice(0, 2).toUpperCase()}</span>
+                }
+              </div>
+              <span style={{ fontSize: 11, color: m.status === 'pending' || m.status === 'empty' ? 'var(--text-muted)' : 'var(--text)', maxWidth: 70, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {m.name || '?'}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <div className={`${styles.matchCard} ${isByeMatch ? styles.matchCardBye : ''}`} style={{ padding: 0, overflow: 'hidden' }}>
+        <TeamSlot team={teamA} slotIdx={0} />
+        <div className={styles.matchDivider}><span className={styles.vsLabel}>vs</span></div>
+        <TeamSlot team={teamB} slotIdx={1} />
+      </div>
+
+      {/* Admin action sheet */}
+      {activeSheet && (
+        <div className={styles.sheetOverlay} onClick={() => setActiveSheet(null)}>
+          <div className={styles.sheetBox} onClick={e => e.stopPropagation()}>
+            <div className={styles.sheetHandle} />
+            <div className={styles.sheetPlayer}>
+              <div style={{ width: 44, height: 44, borderRadius: 10, background: 'rgba(99,102,241,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: '#6366f1' }}>
+                <i className="ri-team-line" />
+              </div>
+              <div className={styles.sheetPlayerInfo}>
+                <span className={styles.sheetPlayerName}>Team {activeSheet.slotIdx + 1}</span>
+                <span className={styles.sheetPlayerMeta}>{teamSize}v{teamSize} · {activeSheet.team.members?.filter(m => m.userId).length || 0} members</span>
+              </div>
+            </div>
+            <div className={styles.sheetActions}>
+              <button className={`${styles.sheetBtn} ${styles.sheetBtnPass}`}
+                onClick={() => { onSetStatus(activeSheet.slotIdx, 'winner'); setActiveSheet(null) }}
+                disabled={activeSheet.team.status === 'winner'}>
+                <div className={styles.sheetBtnIcon} style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}><i className="ri-arrow-right-circle-fill" /></div>
+                <div className={styles.sheetBtnText}><span>Pass team to next round</span><span className={styles.sheetBtnSub}>+{passPoints} pts per member</span></div>
+                {activeSheet.team.status === 'winner' && <i className="ri-checkbox-circle-fill" style={{ color: '#f59e0b', marginLeft: 'auto', fontSize: 16 }} />}
+              </button>
+              <button className={`${styles.sheetBtn} ${styles.sheetBtnElim}`}
+                onClick={() => { onSetStatus(activeSheet.slotIdx, 'eliminated'); setActiveSheet(null) }}
+                disabled={activeSheet.team.status === 'eliminated'}>
+                <div className={styles.sheetBtnIcon} style={{ background: 'rgba(220,38,38,0.1)', color: '#dc2626' }}><i className="ri-close-circle-fill" /></div>
+                <div className={styles.sheetBtnText}><span>Eliminate team</span><span className={styles.sheetBtnSub}>Remove from bracket</span></div>
+                {activeSheet.team.status === 'eliminated' && <i className="ri-checkbox-circle-fill" style={{ color: '#dc2626', marginLeft: 'auto', fontSize: 16 }} />}
+              </button>
+              <button className={`${styles.sheetBtn} ${styles.sheetBtnDQ}`}
+                onClick={() => { onSetStatus(activeSheet.slotIdx, 'disqualified'); setActiveSheet(null) }}
+                disabled={activeSheet.team.status === 'disqualified'}>
+                <div className={styles.sheetBtnIcon} style={{ background: 'rgba(124,58,237,0.1)', color: '#7c3aed' }}><i className="ri-spam-2-fill" /></div>
+                <div className={styles.sheetBtnText}><span>Disqualify team</span><span className={styles.sheetBtnSub}>Flag as rule violation</span></div>
+                {activeSheet.team.status === 'disqualified' && <i className="ri-checkbox-circle-fill" style={{ color: '#7c3aed', marginLeft: 'auto', fontSize: 16 }} />}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 
