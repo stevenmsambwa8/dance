@@ -22,6 +22,14 @@ const SLOT_OPTIONS = [4, 8, 16, 32, 64]
 
 const FORMATS = ['Solo', 'Duo', 'Squad', 'Bo3', 'Bo5', 'Round Robin', 'Double Elim']
 
+// Team size options: 1 = 1v1 (solo), 2 = 2v2, 4 = 4v4, 8 = 8v8
+const TEAM_SIZE_OPTIONS = [
+  { value: 1, label: '1v1', sub: 'Solo' },
+  { value: 2, label: '2v2', sub: 'Team Battle' },
+  { value: 4, label: '4v4', sub: 'Team Battle' },
+  { value: 8, label: '8v8', sub: 'Team Battle' },
+]
+
 export default function CreateTournament() {
   const { user } = useAuth()
   const router = useRouter()
@@ -32,20 +40,18 @@ export default function CreateTournament() {
     format: '', prize: '', slots: 32,
     date: '', description: '',
     entrance_fee: '',
-    is_test: false,           // NEW
+    team_size: 1,       // 1=1v1, 2=2v2, 4=4v4, 8=8v8
+    is_test: false,
   })
   const [errors, setErrors] = useState({})
 
-  // Upload / submit state
   const [submitting, setSubmitting] = useState(false)
-  const [progress, setProgress] = useState(0)   // 0–100
+  const [progress, setProgress] = useState(0)
   const [progressLabel, setProgressLabel] = useState('')
   const [done, setDone] = useState(false)
   const [createdSlug, setCreatedSlug] = useState(null)
 
   function set(key, val) { setForm(f => ({ ...f, [key]: val })); setErrors(e => ({ ...e, [key]: null })) }
-
-  // ── Validation ────────────────────────────────────────────────────────────
 
   function validateStep(idx) {
     const e = {}
@@ -63,15 +69,12 @@ export default function CreateTournament() {
   function next() { if (validateStep(step)) setStep(s => Math.min(s + 1, STEPS.length - 1)) }
   function back() { setStep(s => Math.max(s - 1, 0)) }
 
-  // ── Submit with staged progress ───────────────────────────────────────────
-
   async function submit() {
     if (!user || submitting) return
     setSubmitting(true)
     setProgress(0)
     setProgressLabel('Preparing tournament…')
 
-    // Stage 1 — insert
     await tick(15, 'Creating tournament…')
     const fee = form.entrance_fee
       ? Number(String(form.entrance_fee).replace(/,/g, ''))
@@ -86,6 +89,7 @@ export default function CreateTournament() {
       date: form.date,
       description: form.description,
       entrance_fee: fee,
+      team_size: form.team_size || 1,
       is_test: form.is_test,
       status: 'active',
       registered_count: 0,
@@ -101,7 +105,6 @@ export default function CreateTournament() {
 
     await tick(50, 'Tournament created!')
 
-    // Stage 2 — skip notifications for test runs
     if (form.is_test) {
       setProgressLabel('Test run ready — no notifications sent.')
     } else {
@@ -151,8 +154,6 @@ export default function CreateTournament() {
     })
   }
 
-  // ── Done screen ───────────────────────────────────────────────────────────
-
   if (done) {
     return (
       <div className={styles.page}>
@@ -175,8 +176,6 @@ export default function CreateTournament() {
     )
   }
 
-  // ── Submitting screen ─────────────────────────────────────────────────────
-
   if (submitting) {
     return (
       <div className={styles.page}>
@@ -194,8 +193,6 @@ export default function CreateTournament() {
       </div>
     )
   }
-
-  // ── Wizard ────────────────────────────────────────────────────────────────
 
   return (
     <div className={styles.page}>
@@ -306,6 +303,28 @@ export default function CreateTournament() {
               {errors.slots && <span className={styles.errMsg}>{errors.slots}</span>}
             </div>
 
+            {/* ── Match Type / Team Size picker ── */}
+            <div className={styles.field}>
+              <label>Match Type</label>
+              <div className={styles.chipRow}>
+                {TEAM_SIZE_OPTIONS.map(opt => (
+                  <button key={opt.value} type="button"
+                    className={`${styles.chip} ${form.team_size === opt.value ? styles.chipActive : ''}`}
+                    onClick={() => set('team_size', opt.value)}
+                    style={{ flexDirection: 'column', gap: 2, minWidth: 60, paddingTop: 8, paddingBottom: 8 }}
+                  >
+                    <span style={{ fontWeight: 800, fontSize: 14 }}>{opt.label}</span>
+                    <span style={{ fontSize: 10, opacity: 0.7 }}>{opt.sub}</span>
+                  </button>
+                ))}
+              </div>
+              {form.team_size > 1 && (
+                <span className={styles.feeHint} style={{ marginTop: 6 }}>
+                  <i className="ri-team-line" /> Team Battle — players are grouped into teams of {form.team_size}. Each bracket slot represents a full team.
+                </span>
+              )}
+            </div>
+
             <div className={styles.fieldRow}>
               <div className={styles.field}>
                 <label>Prize Pool (TZS)</label>
@@ -384,6 +403,14 @@ export default function CreateTournament() {
               <div className={styles.reviewRow}>
                 <span className={styles.reviewLabel}><i className="ri-group-line" /> Slots</span>
                 <span className={styles.reviewVal}>{form.slots}</span>
+              </div>
+              <div className={styles.reviewRow}>
+                <span className={styles.reviewLabel}><i className="ri-team-line" /> Match Type</span>
+                <span className={styles.reviewVal}>
+                  {form.team_size === 1
+                    ? '1v1 — Solo'
+                    : `${form.team_size}v${form.team_size} — Team Battle`}
+                </span>
               </div>
               <div className={styles.reviewRow}>
                 <span className={styles.reviewLabel}><i className="ri-money-dollar-circle-line" /> Prize</span>
