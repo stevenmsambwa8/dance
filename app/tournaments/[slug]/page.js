@@ -1143,6 +1143,26 @@ export default function TournamentDetail() {
     await load()
   }
 
+  // ── Admin: rename a team (one-time, stored in bracket_data) ─────────────────
+  async function adminRenameTeam(rIdx, pIdx, slotIdx, newName) {
+    const { data: freshT } = await supabase.from('tournaments').select('bracket_data').eq('id', id).single()
+    const freshBd = parseBracketData(freshT?.bracket_data) ?? bracketData
+    if (!freshBd) return
+    const team = freshBd.rounds[rIdx]?.[pIdx]?.[slotIdx]
+    if (!team || team.teamName) return  // already named — don't overwrite
+    const newRounds = freshBd.rounds.map((r, ri) =>
+      ri !== rIdx ? r : r.map((pair, pi) =>
+        pi !== pIdx ? pair : pair.map((slot, si) =>
+          si !== slotIdx ? slot : { ...slot, teamName: newName.trim().slice(0, 12) }
+        )
+      )
+    )
+    const newBd = { ...freshBd, rounds: newRounds }
+    setBracketData(newBd)
+    await saveBracket(newBd)
+    showToast(`Team renamed to "${newName}"`, 'success')
+  }
+
   // ── Admin: swap two players between bracket slots ───────────────────────────
   async function adminSwapSlots(r1, p1, s1, r2, p2, s2) {
     const { data: freshT } = await supabase.from('tournaments').select('bracket_data').eq('id', id).single()
@@ -2099,7 +2119,10 @@ export default function TournamentDetail() {
                                       isAdmin={canManage}
                                       teamSize={bracketData.teamSize}
                                       onSetStatus={(slotIdx, status) => adminSetSlotStatus(rIdx, pIdx, slotIdx, status)}
+                                      onRenameTeam={canManage ? (slotIdx, name) => adminRenameTeam(rIdx, pIdx, slotIdx, name) : null}
                                       passPoints={getPassPoints(rIdx)}
+                                      currentUserId={user?.id}
+                                      globalPairIdx={pIdx}
                                     />
                                   </div>
                                 )
@@ -3095,13 +3118,42 @@ function ChampDisplay({ entry, styles, isAdmin, onSetWinner, leaderboard, partic
 }
 
 // ─── TeamMatchCard — renders a team vs team match ──────────────────────────
-// Each "slot" in the pair is a team object: { members: [...], status, teamId }
-function TeamMatchCard({ pair, styles, isAdmin, teamSize, onSetStatus, passPoints }) {
+// Each "slot" in the pair is a team object: { members: [...], status, teamId, teamName? }
+//
+// Team name logic (priority order):
+//   1. team.teamName  — admin has explicitly named this team (saved in bracket_data)
+//   2. Auto-generated — first 3 chars of each real member's username, joined, max 8 chars
+//      e.g. members [Steve, Kalib] → "SteKal"
+//   3. Fallback       — "Team 1" / "Team 2" (no members joined yet)
+//
+// Admin can rename a team once via the action sheet. The new name is saved
+// into bracket_data by calling onRenameTeam(slotIdx, newName).
+
+function autoTeamName(team, globalIdx) {
+  // If admin already set a name, use it
+  if (team?.teamName) return team.teamName
+  const realMembers = (team?.members || []).filter(m => m?.userId && m.name && m.name !== '?' && m.name !== 'Open' && m.name !== 'BYE')
+  if (realMembers.length === 0) return `Team ${globalIdx + 1}`
+  // Take first 3 chars of each member name, concatenate, cap at 8 chars
+  const combined = realMembers.map(m => m.name.slice(0, 3)).join('').slice(0, 8)
+  return combined.charAt(0).toUpperCase() + combined.slice(1)
+}
+
+function TeamMatchCard({ pair, styles, isAdmin, teamSize, onSetStatus, onRenameTeam, passPoints, currentUserId, globalPairIdx }) {
   const [teamA, teamB] = pair
   const [activeSheet, setActiveSheet] = useState(null)
+  const [renamingTeam, setRenamingTeam] = useState(null) // { slotIdx, value }
 
   const isByeMatch = teamA?.status === 'bye' || teamB?.status === 'bye'
   const isPending = (t) => !t?.teamId && t?.status !== 'open' && t?.status !== 'bye' && t?.status !== 'active'
+
+  // Figure out which team the current user is in (if any)
+  const userTeamSlot = (() => {
+    if (!currentUserId) return null
+    if (teamA?.members?.some(m => m?.userId === currentUserId)) return 0
+    if (teamB?.members?.some(m => m?.userId === currentUserId)) return 1
+    return null
+  })()
 
   function statusColor(status) {
     if (status === 'winner') return '#f59e0b'
@@ -3111,12 +3163,6 @@ function TeamMatchCard({ pair, styles, isAdmin, teamSize, onSetStatus, passPoint
     if (status === 'open') return 'var(--accent)'
     return 'var(--text)'
   }
-  function statusBorder(status) {
-    if (status === 'winner') return '2px solid #f59e0b'
-    if (status === 'eliminated') return '2px solid #dc2626'
-    if (status === 'disqualified') return '2px solid #7c3aed'
-    return '1.5px solid var(--border-dark)'
-  }
 
   function TeamSlot({ team, slotIdx }) {
     if (!team) return null
@@ -3125,78 +3171,175 @@ function TeamMatchCard({ pair, styles, isAdmin, teamSize, onSetStatus, passPoint
     const pend = isPending(team)
     const won = team.status === 'winner'
     const lost = team.status === 'eliminated' || team.status === 'disqualified'
+    const isMyTeam = userTeamSlot === slotIdx
+    const tName = isBye ? 'BYE' : pend ? 'TBD' : autoTeamName(team, globalPairIdx * 2 + slotIdx)
+    const hasAdminNamedOnce = !!team?.teamName
 
     return (
       <div
         style={{
-          display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 10px',
-          background: won ? 'rgba(245,158,11,0.08)' : 'var(--surface)',
-          borderLeft: `3px solid ${statusColor(team.status)}`,
+          display: 'flex', flexDirection: 'column', gap: 6, padding: '10px 12px',
+          background: won
+            ? 'rgba(245,158,11,0.07)'
+            : isMyTeam
+              ? 'rgba(var(--accent-rgb,99,102,241),0.07)'
+              : 'var(--surface)',
+          borderRadius: 0,
           opacity: lost ? 0.45 : 1,
           cursor: isAdmin && !isBye && !pend ? 'pointer' : 'default',
+          position: 'relative',
         }}
         onClick={() => isAdmin && !isBye && !pend && !isOpen && setActiveSheet({ slotIdx, team })}
       >
-        {/* Team label */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-          <i className="ri-team-line" style={{ fontSize: 11, color: statusColor(team.status) }} />
-          <span style={{ fontSize: 11, fontWeight: 700, color: statusColor(team.status), textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            {isBye ? 'BYE' : isOpen ? 'Open Team' : pend ? 'TBD' : `Team ${slotIdx + 1}`}
+        {/* ── Team name row ── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <i className="ri-team-line" style={{ fontSize: 12, color: isOpen ? 'var(--text-muted)' : statusColor(team.status), flexShrink: 0 }} />
+          <span style={{
+            fontSize: 13, fontWeight: 800,
+            color: isOpen ? 'var(--text-muted)' : won ? '#f59e0b' : isMyTeam ? 'var(--accent)' : 'var(--text)',
+            letterSpacing: '0.02em', flex: 1, minWidth: 0,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {tName}
           </span>
-          {won && <span style={{ fontSize: 9, fontWeight: 800, color: '#f59e0b', background: 'rgba(245,158,11,0.12)', padding: '1px 5px', borderRadius: 4, marginLeft: 'auto' }}>WINNER</span>}
-          {team.status === 'disqualified' && <span style={{ fontSize: 9, fontWeight: 800, color: '#7c3aed', background: 'rgba(124,58,237,0.1)', padding: '1px 5px', borderRadius: 4, marginLeft: 'auto' }}>DQ</span>}
+          {/* Status badges */}
+          {won && (
+            <span style={{ fontSize: 9, fontWeight: 800, color: '#f59e0b', background: 'rgba(245,158,11,0.12)', padding: '2px 6px', borderRadius: 4, flexShrink: 0 }}>WINNER</span>
+          )}
+          {team.status === 'disqualified' && (
+            <span style={{ fontSize: 9, fontWeight: 800, color: '#7c3aed', background: 'rgba(124,58,237,0.1)', padding: '2px 6px', borderRadius: 4, flexShrink: 0 }}>DQ</span>
+          )}
+          {/* "You" badge */}
+          {isMyTeam && (
+            <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--accent)', background: 'rgba(var(--accent-rgb,99,102,241),0.12)', padding: '2px 6px', borderRadius: 4, flexShrink: 0 }}>YOU</span>
+          )}
         </div>
-        {/* Member avatars */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-          {(team.members || []).map((m, mi) => (
-            <div key={mi} style={{
-              display: 'flex', alignItems: 'center', gap: 4,
-              background: 'var(--surface-raised)', borderRadius: 6, padding: '3px 6px 3px 3px',
-            }}>
-              <div style={{
-                width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
-                border: statusBorder(m.status),
-                background: 'var(--surface-card)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                overflow: 'hidden', fontSize: 9, fontWeight: 800,
-              }}>
-                {m.avatar
-                  ? <img src={m.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  : <span style={{ color: 'var(--text-dim)' }}>{(m.name || '?').slice(0, 2).toUpperCase()}</span>
-                }
-              </div>
-              <span style={{ fontSize: 11, color: m.status === 'pending' || m.status === 'empty' ? 'var(--text-muted)' : 'var(--text)', maxWidth: 70, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {m.name || '?'}
-              </span>
-            </div>
-          ))}
-        </div>
+
+        {/* ── Members row ── */}
+        {!isBye && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+            {(team.members || []).map((m, mi) => {
+              const isEmpty = !m?.userId || m.status === 'open' || m.status === 'empty' || m.status === 'pending'
+              const isMe = m?.userId === currentUserId
+              return (
+                <div key={mi} style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  background: isMe ? 'rgba(var(--accent-rgb,99,102,241),0.10)' : 'var(--bg)',
+                  border: isMe ? '1px solid rgba(var(--accent-rgb,99,102,241),0.3)' : '1px solid var(--border)',
+                  borderRadius: 20, padding: '3px 8px 3px 4px',
+                }}>
+                  {/* Mini avatar */}
+                  <div style={{
+                    width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+                    background: isEmpty ? 'var(--surface)' : 'var(--surface-raised)',
+                    border: isEmpty ? '1px dashed var(--border-dark)' : '1px solid var(--border-dark)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    overflow: 'hidden', fontSize: 8, fontWeight: 800,
+                  }}>
+                    {isEmpty
+                      ? <i className="ri-user-line" style={{ fontSize: 9, color: 'var(--text-muted)' }} />
+                      : m.avatar
+                        ? <img src={m.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : <span style={{ color: 'var(--text-dim)' }}>{(m.name || '?').slice(0, 2).toUpperCase()}</span>
+                    }
+                  </div>
+                  <span style={{
+                    fontSize: 11, fontWeight: isMe ? 700 : 500,
+                    color: isEmpty ? 'var(--text-muted)' : isMe ? 'var(--accent)' : 'var(--text)',
+                    maxWidth: 68, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>
+                    {isEmpty ? 'Open' : isMe ? 'You' : (m.name || '?')}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     )
   }
 
   return (
     <>
-      <div className={`${styles.matchCard} ${isByeMatch ? styles.matchCardBye : ''}`} style={{ padding: 0, overflow: 'hidden' }}>
+      <div className={`${styles.matchCard} ${isByeMatch ? styles.matchCardBye : ''}`} style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--border)' }}>
         <TeamSlot team={teamA} slotIdx={0} />
         <div className={styles.matchDivider}><span className={styles.vsLabel}>vs</span></div>
         <TeamSlot team={teamB} slotIdx={1} />
       </div>
 
-      {/* Admin action sheet */}
+      {/* ── Admin action sheet ── */}
       {activeSheet && (
-        <div className={styles.sheetOverlay} onClick={() => setActiveSheet(null)}>
+        <div className={styles.sheetOverlay} onClick={() => { setActiveSheet(null); setRenamingTeam(null) }}>
           <div className={styles.sheetBox} onClick={e => e.stopPropagation()}>
             <div className={styles.sheetHandle} />
+
+            {/* Team identity */}
             <div className={styles.sheetPlayer}>
               <div style={{ width: 44, height: 44, borderRadius: 10, background: 'rgba(99,102,241,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: '#6366f1' }}>
                 <i className="ri-team-line" />
               </div>
               <div className={styles.sheetPlayerInfo}>
-                <span className={styles.sheetPlayerName}>Team {activeSheet.slotIdx + 1}</span>
-                <span className={styles.sheetPlayerMeta}>{teamSize}v{teamSize} · {activeSheet.team.members?.filter(m => m.userId).length || 0} members</span>
+                <span className={styles.sheetPlayerName}>
+                  {autoTeamName(activeSheet.team, globalPairIdx * 2 + activeSheet.slotIdx)}
+                </span>
+                <span className={styles.sheetPlayerMeta}>
+                  {teamSize}v{teamSize} · {activeSheet.team.members?.filter(m => m?.userId).length || 0} / {teamSize} members
+                </span>
               </div>
             </div>
+
+            {/* ── Rename field (admin, one-time if not already named) ── */}
+            {onRenameTeam && (
+              <div style={{ margin: '0 0 12px', padding: '10px 14px', background: 'var(--bg)', borderRadius: 10, border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  <i className="ri-edit-line" style={{ marginRight: 4 }} />
+                  {activeSheet.team?.teamName ? 'Team Name (locked — already renamed)' : 'Set Team Name (one time)'}
+                </div>
+                {activeSheet.team?.teamName
+                  ? (
+                    <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>{activeSheet.team.teamName}</span>
+                  )
+                  : renamingTeam?.slotIdx === activeSheet.slotIdx
+                    ? (
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <input
+                          autoFocus
+                          maxLength={12}
+                          value={renamingTeam.value}
+                          onChange={e => setRenamingTeam(r => ({ ...r, value: e.target.value }))}
+                          placeholder="e.g. SteKal"
+                          style={{ flex: 1, padding: '7px 10px', borderRadius: 8, border: '1.5px solid var(--accent)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13, fontWeight: 700, outline: 'none' }}
+                        />
+                        <button
+                          onClick={() => {
+                            const name = renamingTeam.value.trim()
+                            if (name) { onRenameTeam(activeSheet.slotIdx, name); setActiveSheet(null); setRenamingTeam(null) }
+                          }}
+                          style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: '#fff', fontWeight: 800, fontSize: 12, cursor: 'pointer' }}
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={() => setRenamingTeam(null)}
+                          style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-muted)', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )
+                    : (
+                      <button
+                        onClick={() => setRenamingTeam({ slotIdx: activeSheet.slotIdx, value: autoTeamName(activeSheet.team, globalPairIdx * 2 + activeSheet.slotIdx) })}
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 8, border: '1px dashed var(--border-dark)', background: 'transparent', color: 'var(--accent)', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+                      >
+                        <i className="ri-edit-line" /> Rename team
+                      </button>
+                    )
+                }
+              </div>
+            )}
+
+            {/* Match actions */}
             <div className={styles.sheetActions}>
               <button className={`${styles.sheetBtn} ${styles.sheetBtnPass}`}
                 onClick={() => { onSetStatus(activeSheet.slotIdx, 'winner'); setActiveSheet(null) }}
