@@ -940,36 +940,78 @@ export default function TournamentDetail() {
   async function leave() {
     if (!user) return
     setConfirmModal({
-      message: 'Leave this tournament? Your spot and bracket history will be removed.',
+      message: 'Leave this tournament? Your bracket slot, points, and all records will be permanently removed.',
       onConfirm: async () => {
         setLeaving(true)
+
+        // 1. Remove from participants + leaderboard
         await supabase.from('tournament_participants').delete().eq('tournament_id', id).eq('user_id', user.id)
         await supabase.from('tournament_leaderboard').delete().eq('tournament_id', id).eq('user_id', user.id)
-        if (bracketData) {
-          // Always restore the leaving player's slot(s) to 'open' so they can be claimed again.
-          // For a generated bracket, also clear any advanced copies of the player in later rounds.
-          const openSlot = { userId: null, name: 'Open', avatar: null, status: 'open' }
 
-          const scrubbed = {
-            ...bracketData,
-            rounds: bracketData.rounds.map((round) =>
-              round.map(pair =>
-                pair.map(s => s?.userId === user.id ? openSlot : s)
-              )
-            ),
+        // 2. Also remove any payment records so they can re-register cleanly
+        await supabase.from('tournament_payments').delete().eq('tournament_id', id).eq('user_id', user.id)
+
+        // 3. Scrub user from bracket_data — works for both solo and team mode
+        if (bracketData) {
+          let scrubbed
+
+          if (bracketData.isTeamBattle) {
+            // Team mode: remove user from any member slot across all rounds
+            const openMember = { userId: null, name: 'Open', avatar: null, status: 'open' }
+            scrubbed = {
+              ...bracketData,
+              rounds: bracketData.rounds.map(round =>
+                round.map(pair =>
+                  pair.map(team => {
+                    if (!team || !team.members) return team
+                    const hadUser = team.members.some(m => m?.userId === user.id)
+                    if (!hadUser) return team
+                    const newMembers = team.members.map(m =>
+                      m?.userId === user.id ? openMember : m
+                    )
+                    // If all members gone → team reverts to open
+                    const anyReal = newMembers.some(m => m?.userId)
+                    return {
+                      ...team,
+                      members: newMembers,
+                      status: anyReal ? 'open' : 'open',
+                      teamId: anyReal ? team.teamId : null,
+                    }
+                  })
+                )
+              ),
+            }
+          } else {
+            // Solo mode: replace any slot containing this user with open
+            const openSlot = { userId: null, name: 'Open', avatar: null, status: 'open' }
+            scrubbed = {
+              ...bracketData,
+              rounds: bracketData.rounds.map(round =>
+                round.map(pair =>
+                  pair.map(s => s?.userId === user.id ? openSlot : s)
+                )
+              ),
+            }
           }
 
-          // If all round-0 slots are open/empty again, mark bracket as isEmpty
-          const anyRealPlayer = scrubbed.rounds[0]?.some(pair => pair.some(s => s?.userId))
+          // Mark isEmpty if round 0 has no real players left
+          const anyRealPlayer = scrubbed.rounds[0]?.some(pair =>
+            bracketData.isTeamBattle
+              ? pair.some(team => team?.members?.some(m => m?.userId))
+              : pair.some(s => s?.userId)
+          )
           if (!anyRealPlayer) scrubbed.isEmpty = true
 
           await supabase.from('tournaments').update({ bracket_data: scrubbed }).eq('id', id)
           setBracketData(scrubbed)
         }
+
         const count = await syncCount()
         setRegistered(false)
+        setPaymentStatus(null)
         setTournament(t => ({ ...t, registered_count: count }))
         setLeaving(false)
+        showToast('You have left the tournament.', 'info')
         load()
       },
     })
@@ -1057,9 +1099,126 @@ export default function TournamentDetail() {
 
     const totalRounds = freshBd.rounds.length
     const isFinalRound = rIdx === totalRounds - 2
+    const tName = tournament?.name || 'the tournament'
+
+    // ── TEAM MODE branch ──────────────────────────────────────────────────
+    if (isTeamSlot) {
+      const actedTeam = currentSlot
+      const oppositeTeam = freshBd.rounds[rIdx]?.[pIdx]?.[loserIdx]
+
+      // 1. Mark current team's status; auto-eliminate opponent on pass
+      let newRounds = freshBd.rounds.map((r, ri) => {
+        if (ri !== rIdx) return r
+        return r.map((pair, pi) => {
+          if (pi !== pIdx) return pair
+          return pair.map((team, ti) => {
+            if (ti === slotIdx) return { ...team, status }
+            if (status === 'winner' && team && team.status !== 'bye' && team.status !== 'open')
+              return { ...team, status: 'eliminated' }
+            return team
+          })
+        })
+      })
+
+      // 2. Advance winning team into next round slot
+      if (status === 'winner') {
+        const advancedTeam = {
+          ...newRounds[rIdx][pIdx][slotIdx],
+          status: 'active',
+          teamId: actedTeam.teamId,
+          teamName: actedTeam.teamName,
+        }
+        const destRound = isFinalRound ? totalRounds - 1 : rIdx + 1
+        const destPair  = Math.floor(pIdx / 2)
+        const destSlot  = pIdx % 2
+        newRounds = newRounds.map((r, ri) => {
+          if (ri !== destRound) return r
+          return r.map((pair, pi) => {
+            if (pi !== destPair) return pair
+            return pair.map((slot, si) => si === destSlot ? advancedTeam : slot)
+          })
+        })
+      }
+
+      const newBd = { ...freshBd, rounds: newRounds }
+      setBracketData(newBd)
+      await saveBracket(newBd)
+
+      // 3. Notify every real member of both teams
+      const { winnerPts, loserPts } = getRoundPts(rIdx, totalRounds)
+      const roundName = getRoundLabelSimple(rIdx, totalRounds, freshBd.bracketSize)
+      const notifRows = []
+      const realMembers = (t) => (t?.members || []).filter(m => m?.userId)
+
+      if (status === 'winner') {
+        realMembers(actedTeam).forEach(m => {
+          awardAchievement(m.userId, 'ri-sword-fill', 'First Win', 'Won your first tournament match')
+          if (isFinalRound) awardAchievement(m.userId, 'ri-trophy-fill', 'Finalist', 'Reached the Final')
+          notifRows.push({
+            user_id: m.userId,
+            title: isFinalRound ? `Final won — ${tName}` : `Team advanced from ${roundName} — ${tName}`,
+            body: isFinalRound
+              ? `Your team won the Final! +${winnerPts} pts each.`
+              : `Your team beat the opponents and advances! +${winnerPts} pts each.`,
+            type: isFinalRound ? 'tournament_win' : 'tournament_advance',
+            meta: { tournament_id: id }, read: false,
+          })
+        })
+        realMembers(oppositeTeam).forEach(m => {
+          notifRows.push({
+            user_id: m.userId,
+            title: `Team eliminated in ${roundName} — ${tName}`,
+            body: `Your team was knocked out. +${loserPts} pts for reaching this stage.`,
+            type: 'tournament_eliminate', meta: { tournament_id: id }, read: false,
+          })
+        })
+        // Award points to all members
+        for (const m of realMembers(actedTeam)) await awardBracketPoints(m.userId, winnerPts)
+        for (const m of realMembers(oppositeTeam)) await awardBracketPoints(m.userId, loserPts)
+      } else if (status === 'eliminated') {
+        realMembers(actedTeam).forEach(m => {
+          notifRows.push({
+            user_id: m.userId,
+            title: `Team eliminated — ${tName}`,
+            body: `Your team was eliminated in ${roundName}.`,
+            type: 'tournament_eliminate', meta: { tournament_id: id }, read: false,
+          })
+        })
+        realMembers(oppositeTeam).forEach(m => {
+          notifRows.push({
+            user_id: m.userId,
+            title: `Opponents eliminated — ${tName}`,
+            body: `The opposing team was eliminated in ${roundName}. Your team advances!`,
+            type: 'tournament_advance', meta: { tournament_id: id }, read: false,
+          })
+        })
+        for (const m of realMembers(actedTeam)) await awardBracketPoints(m.userId, loserPts)
+      } else if (status === 'disqualified') {
+        realMembers(actedTeam).forEach(m => {
+          notifRows.push({
+            user_id: m.userId,
+            title: `Team disqualified — ${tName}`,
+            body: `Your team has been disqualified in ${roundName}.`,
+            type: 'tournament', meta: { tournament_id: id }, read: false,
+          })
+        })
+        realMembers(oppositeTeam).forEach(m => {
+          notifRows.push({
+            user_id: m.userId,
+            title: `Opponents DQ'd — ${tName}`,
+            body: `The opposing team was disqualified. Your team advances!`,
+            type: 'tournament_advance', meta: { tournament_id: id }, read: false,
+          })
+        })
+      }
+      if (notifRows.length) await supabase.from('notifications').insert(notifRows)
+      await load()
+      return
+    }
+
+    // ── SOLO MODE (original logic below) ─────────────────────────────────
     const actedSlot = currentSlot
     const oppositeSlot = freshBd.rounds[rIdx]?.[pIdx]?.[loserIdx]
-    const tName = tournament?.name || 'the tournament'
     const hasOpp = !!(oppositeSlot?.userId
       && oppositeSlot.status !== 'bye'
       && oppositeSlot.status !== 'eliminated'
