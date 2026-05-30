@@ -1080,7 +1080,39 @@ export default function TournamentDetail() {
 
   // ── Bracket management ────────────────────────────────────────────────────
 
+  /**
+   * Server-side authority check.
+   * Re-reads the tournament created_by from DB and verifies the current
+   * session email against the hard-coded ADMIN_EMAILS list — the same
+   * source of truth used by AuthProvider. This means bypassing the UI
+   * via browser console / raw fetch still gets rejected at the app layer,
+   * in addition to Supabase RLS policies.
+   */
+  async function verifyCanManage() {
+    if (!user) { showToast('You must be logged in.', 'error'); return false }
+    try {
+      const ADMIN_EMAILS = ['stevenmsambwa8@gmail.com', 'nabogamingss1@gmail.com']
+      const [{ data: { user: freshUser } }, { data: tFresh }] = await Promise.all([
+        supabase.auth.getUser(),                                                    // live session — can't be faked client-side
+        supabase.from('tournaments').select('created_by').eq('id', id).maybeSingle(), // fresh from DB
+      ])
+      const serverIsAdmin   = ADMIN_EMAILS.includes(freshUser?.email)
+      const serverIsCreator = tFresh?.created_by === user.id
+      if (!serverIsAdmin && !serverIsCreator) {
+        showToast('Permission denied.', 'error')
+        console.warn('verifyCanManage: rejected for user', user.id)
+        return false
+      }
+      return true
+    } catch (e) {
+      console.error('verifyCanManage: error', e)
+      showToast('Could not verify permissions. Please try again.', 'error')
+      return false
+    }
+  }
+
   async function initBracket() {
+    if (!await verifyCanManage()) return
     const teamSize = tournament?.team_size || 1
     const bd = buildBracket(participants, teamSize)
     if (!bd) { showToast('Need at least 2 players.', 'error'); return }
@@ -1102,6 +1134,7 @@ export default function TournamentDetail() {
   }
 
   async function resetBracket() {
+    if (!await verifyCanManage()) return
     setConfirmModal({
       message: 'Reset the entire bracket? All match progress and points will be lost.',
       onConfirm: async () => {
@@ -1118,6 +1151,7 @@ export default function TournamentDetail() {
   // ── Admin: set slot status (pass / eliminate / DQ) ────────────────────────
 
   async function adminSetSlotStatus(rIdx, pIdx, slotIdx, status) {
+    if (!await verifyCanManage()) return
     const loserIdx = slotIdx === 0 ? 1 : 0
 
     // Always read fresh from DB to avoid stale-state overwrite bugs
@@ -1405,6 +1439,7 @@ export default function TournamentDetail() {
 
   // ── Admin: add registered participant to an open bracket slot ───────────────
   async function adminAddToBracket(userId) {
+    if (!await verifyCanManage()) return
     if (!bracketData) { showToast('No bracket yet. Generate it first.', 'error'); return }
     // Check not already in bracket
     let alreadyIn = false
@@ -1471,6 +1506,7 @@ export default function TournamentDetail() {
 
   // ── Admin: rename a team (one-time, stored in bracket_data) ─────────────────
   async function adminRenameTeam(rIdx, pIdx, slotIdx, newName) {
+    if (!await verifyCanManage()) return
     const { data: freshT } = await supabase.from('tournaments').select('bracket_data').eq('id', id).single()
     const freshBd = parseBracketData(freshT?.bracket_data) ?? bracketData
     if (!freshBd) return
@@ -1491,6 +1527,7 @@ export default function TournamentDetail() {
 
   // ── Admin: swap two players between bracket slots ───────────────────────────
   async function adminSwapSlots(r1, p1, s1, r2, p2, s2) {
+    if (!await verifyCanManage()) return
     const { data: freshT } = await supabase.from('tournaments').select('bracket_data').eq('id', id).single()
     const freshBd = parseBracketData(freshT?.bracket_data) ?? bracketData
     if (!freshBd) return
@@ -1518,6 +1555,7 @@ export default function TournamentDetail() {
   // ── Admin: crown champion ─────────────────────────────────────────────────
 
   async function adminSetChampion(rIdx, pIdx) {
+    if (!await verifyCanManage()) return
     if (!bracketData) return
     const { data: freshT } = await supabase.from('tournaments').select('bracket_data').eq('id', id).single()
     const freshBd = parseBracketData(freshT?.bracket_data) ?? bracketData
@@ -1725,6 +1763,7 @@ export default function TournamentDetail() {
   }
 
   async function adminDQWinner(entry) {
+    if (!await verifyCanManage()) return
     setConfirmModal({
       message: `Disqualify ${entry.profiles?.username}? Points reset to 0 and bracket marked DQ.`,
       onConfirm: async () => {
@@ -1781,6 +1820,7 @@ export default function TournamentDetail() {
   }
 
   async function savePrizeDistrib() {
+    if (!await verifyCanManage()) return
     setPrizeDistribSaving(true)
     const tName = tournament?.name || 'the tournament'
     for (const [userId, amtStr] of Object.entries(prizeDistrib)) {
@@ -1805,6 +1845,7 @@ export default function TournamentDetail() {
   // ── Tournament edit / delete ──────────────────────────────────────────────
 
   async function saveEdit() {
+    if (!await verifyCanManage()) return
     setSaving(true)
     const newSlug = slugify(editForm.name)
     const { error } = await supabase.from('tournaments').update({
@@ -1821,6 +1862,7 @@ export default function TournamentDetail() {
   }
 
   async function deleteTournament() {
+    if (!await verifyCanManage()) return
     setConfirmModal({
       message: 'Permanently delete this tournament? Cannot be undone.',
       onConfirm: async () => {
