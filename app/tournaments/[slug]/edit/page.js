@@ -11,6 +11,15 @@ const GAME_NAMES = { pubgm:'PUBGM', freefire:'Free Fire', codm:'Call of Duty', b
 const FORMATS    = ['Solo','Duo','Squad','Team','League','Round Robin']
 const STATUSES   = ['active','ongoing','upcoming','completed']
 
+// Team size options — only upgrade is allowed (solo → team), never downgrade.
+// Downgrading would corrupt existing bracket_data member slots.
+const TEAM_SIZE_OPTIONS = [
+  { value: 1, label: '1v1', sub: 'Solo' },
+  { value: 2, label: '2v2', sub: 'Team Battle' },
+  { value: 4, label: '4v4', sub: 'Team Battle' },
+  { value: 8, label: '8v8', sub: 'Team Battle' },
+]
+
 function Field({ label, hint, children }) {
   return (
     <div className={styles.field}>
@@ -33,6 +42,7 @@ export default function TournamentEditPage() {
   const [form, setForm] = useState({
     name: '', description: '', game_slug: 'pubgm', format: 'Solo',
     slots: '', entrance_fee: '', prize: '', date: '', status: 'active',
+    team_size: 1,
   })
   const [saving,    setSaving]    = useState(false)
   const [saved,     setSaved]     = useState(false)
@@ -64,6 +74,7 @@ export default function TournamentEditPage() {
         prize:        data.prize         ?? '',
         date:         data.date          || '',
         status:       data.status        || 'active',
+        team_size:    data.team_size      || 1,
       })
       setLoading(false)
     }
@@ -91,6 +102,7 @@ export default function TournamentEditPage() {
         prize:        form.prize !== '' ? String(form.prize) : null,
         date:         form.date || null,
         status:       form.status,
+        team_size:    form.team_size || 1,
       })
       .eq('id', tournament.id)
     setSaving(false)
@@ -219,6 +231,55 @@ export default function TournamentEditPage() {
             />
           </Field>
         </div>
+
+        {/* ── Match Type — only upgrade from solo is allowed ── */}
+        <Field
+          label="Match Type"
+          hint={
+            (tournament.team_size || 1) > 1
+              ? `Currently ${tournament.team_size}v${tournament.team_size} Team Battle — cannot downgrade to protect existing bracket data.`
+              : 'You can upgrade from 1v1 to a team format. This only affects new brackets — existing solo data is preserved.'
+          }
+        >
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {TEAM_SIZE_OPTIONS.map(opt => {
+              const currentSize = tournament.team_size || 1
+              // Disable options that would be a downgrade
+              const isDowngrade = opt.value < currentSize
+              const isActive    = form.team_size === opt.value
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  disabled={isDowngrade}
+                  onClick={() => !isDowngrade && set('team_size', opt.value)}
+                  style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center',
+                    gap: 2, padding: '8px 14px', borderRadius: 10, border: 'none',
+                    background: isActive
+                      ? 'var(--accent)'
+                      : isDowngrade
+                        ? 'var(--surface)'
+                        : 'var(--surface-raised)',
+                    color: isActive ? '#fff' : isDowngrade ? 'var(--text-muted)' : 'var(--text)',
+                    opacity: isDowngrade ? 0.35 : 1,
+                    cursor: isDowngrade ? 'not-allowed' : 'pointer',
+                    minWidth: 60, fontFamily: 'inherit',
+                  }}
+                >
+                  <span style={{ fontWeight: 800, fontSize: 14 }}>{opt.label}</span>
+                  <span style={{ fontSize: 10, opacity: 0.75 }}>{opt.sub}</span>
+                </button>
+              )
+            })}
+          </div>
+          {form.team_size > 1 && (tournament.team_size || 1) === 1 && (
+            <p style={{ marginTop: 8, fontSize: 12, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <i className="ri-information-line" />
+              Upgrading to {form.team_size}v{form.team_size} — the next generated bracket will group players into teams of {form.team_size}.
+            </p>
+          )}
+        </Field>
 
         <Field label="Date" hint="Shown on the tournament card">
           <input
