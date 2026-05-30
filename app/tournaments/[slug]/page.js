@@ -210,7 +210,14 @@ function computeMVP(bracketData, participants) {
   bracketData.rounds.slice(0, totalRounds - 1).forEach(pairs => {
     pairs.forEach(pair => {
       pair.forEach(slot => {
-        if (slot?.userId && slot.status === 'winner') wins[slot.userId] = (wins[slot.userId] || 0) + 1
+        if (!slot || slot.status !== 'winner') return
+        if (bracketData.isTeamBattle) {
+          ;(slot.members || []).forEach(m => {
+            if (m?.userId) wins[m.userId] = (wins[m.userId] || 0) + 1
+          })
+        } else {
+          if (slot.userId) wins[slot.userId] = (wins[slot.userId] || 0) + 1
+        }
       })
     })
   })
@@ -230,11 +237,22 @@ function getPlayerBracketStatus(userId, bracketData) {
   bracketData.rounds.forEach((pairs, rIdx) => {
     pairs.forEach(pair => {
       pair.forEach(slot => {
-        if (!slot || slot.userId !== userId || slot.status === 'bye') return
-        found = true
-        const isOut = slot.status === 'eliminated' || slot.status === 'disqualified'
-        if (!isOut && rIdx > deepestActive) deepestActive = rIdx
-        if (isOut) isEliminated = true
+        if (!slot || slot.status === 'bye') return
+        // Team mode: check inside members array
+        if (bracketData.isTeamBattle) {
+          const member = (slot.members || []).find(m => m?.userId === userId)
+          if (!member) return
+          found = true
+          const isOut = slot.status === 'eliminated' || slot.status === 'disqualified'
+          if (!isOut && rIdx > deepestActive) deepestActive = rIdx
+          if (isOut) isEliminated = true
+        } else {
+          if (slot.userId !== userId) return
+          found = true
+          const isOut = slot.status === 'eliminated' || slot.status === 'disqualified'
+          if (!isOut && rIdx > deepestActive) deepestActive = rIdx
+          if (isOut) isEliminated = true
+        }
       })
     })
   })
@@ -242,7 +260,6 @@ function getPlayerBracketStatus(userId, bracketData) {
   if (!found) return null
   if (isEliminated && deepestActive === -1) return 'out'
 
-  // Return stage label based on deepest active round
   const fromEnd = (totalRounds - 1) - deepestActive
   if (fromEnd === 0) return 'champion'
   if (fromEnd === 1) return 'final'
@@ -257,14 +274,29 @@ function buildMatchHistory(userId, bracketData) {
   const totalRounds = bracketData.rounds.length
   bracketData.rounds.slice(0, totalRounds - 1).forEach((pairs, rIdx) => {
     pairs.forEach(pair => {
-      const me = pair.find(s => s?.userId === userId)
-      const opp = pair.find(s => s?.userId !== userId)
-      if (!me) return
-      history.push({
-        round: getRoundLabelSimple(rIdx, totalRounds, bracketData.bracketSize),
-        opponentName: opp?.name || 'BYE',
-        status: me.status,
-      })
+      let me, opp
+      if (bracketData.isTeamBattle) {
+        me  = pair.find(t => t?.members?.some(m => m?.userId === userId))
+        opp = pair.find(t => !t?.members?.some(m => m?.userId === userId))
+        if (!me) return
+        const myName = me.teamName || (me.members || []).filter(m => m?.userId).map(m => m.name.slice(0, 3)).join('').slice(0, 8) || 'My Team'
+        const oppName = opp ? (opp.teamName || (opp.members || []).filter(m => m?.userId).map(m => m.name.slice(0, 3)).join('').slice(0, 8) || 'Opponents') : 'BYE'
+        history.push({
+          round: getRoundLabelSimple(rIdx, totalRounds, bracketData.bracketSize),
+          opponentName: oppName,
+          status: me.status,
+          isTeam: true,
+        })
+      } else {
+        me  = pair.find(s => s?.userId === userId)
+        opp = pair.find(s => s?.userId !== userId)
+        if (!me) return
+        history.push({
+          round: getRoundLabelSimple(rIdx, totalRounds, bracketData.bracketSize),
+          opponentName: opp?.name || 'BYE',
+          status: me.status,
+        })
+      }
     })
   })
   return history
@@ -292,8 +324,15 @@ function buildBracketShareText(tournament, bracketData, participants) {
     lines.push(`── ${label} ──`)
     pairs.forEach((pair) => {
       const [a, b] = pair
-      const aName = a?.name || '?'
-      const bName = b?.name || (b?.status === 'bye' ? 'BYE' : '?')
+      let aName, bName
+      if (bracketData.isTeamBattle) {
+        const tName = (t) => t?.teamName || (t?.members || []).filter(m => m?.userId).map(m => m.name.slice(0,3)).join('').slice(0,8) || (t?.status === 'bye' ? 'BYE' : 'TBD')
+        aName = tName(a)
+        bName = tName(b)
+      } else {
+        aName = a?.name || '?'
+        bName = b?.name || (b?.status === 'bye' ? 'BYE' : '?')
+      }
       const aStatus = a?.status === 'winner' ? ' ✅' : a?.status === 'eliminated' ? ' ❌' : ''
       const bStatus = b?.status === 'winner' ? ' ✅' : b?.status === 'eliminated' ? ' ❌' : ''
       lines.push(`  ${aName}${aStatus} vs ${bName}${bStatus}`)
@@ -636,8 +675,18 @@ export default function TournamentDetail() {
 
   async function saveBracket(newBd) {
     setBracketSaving(true)
-    await supabase.from('tournaments').update({ bracket_data: newBd }).eq('id', id)
-    setBracketSaving(false)
+    try {
+      const { error } = await supabase.from('tournaments').update({ bracket_data: newBd }).eq('id', id)
+      if (error) {
+        showToast('Failed to save bracket. Please try again.', 'error')
+        console.error('saveBracket error:', error)
+      }
+    } catch (e) {
+      showToast('Network error saving bracket.', 'error')
+      console.error('saveBracket exception:', e)
+    } finally {
+      setBracketSaving(false)
+    }
   }
 
   // ── FIX #2 & #3: isFull declared early so it's available to joinViaSlot
@@ -670,15 +719,20 @@ export default function TournamentDetail() {
       if (!bracketData?.rounds || !userId) return 99
       const totalRounds = bracketData.rounds.length
 
-      // Scan every round to find the deepest round the player reached
-      // and whether they were eliminated or are still active there.
-      let deepestActiveRound = -1   // highest rIdx where player is still active
-      let eliminatedAtRound  = -1   // rIdx where player was eliminated/DQ'd
+      let deepestActiveRound = -1
+      let eliminatedAtRound  = -1
 
       bracketData.rounds.forEach((pairs, rIdx) => {
         pairs.forEach(pair => {
           pair.forEach(slot => {
-            if (!slot || slot.userId !== userId || slot.status === 'bye') return
+            if (!slot || slot.status === 'bye') return
+            let userInSlot = false
+            if (bracketData.isTeamBattle) {
+              userInSlot = (slot.members || []).some(m => m?.userId === userId)
+            } else {
+              userInSlot = slot.userId === userId
+            }
+            if (!userInSlot) return
             const isOut = slot.status === 'eliminated' || slot.status === 'disqualified'
             if (isOut) {
               if (rIdx > eliminatedAtRound) eliminatedAtRound = rIdx
@@ -835,14 +889,21 @@ export default function TournamentDetail() {
         }
 
         if (updatedBd) {
-          await supabase.from('tournaments').update({ bracket_data: updatedBd }).eq('id', id)
-          setBracketData(updatedBd)
+          try {
+            await supabase.from('tournaments').update({ bracket_data: updatedBd }).eq('id', id)
+            setBracketData(updatedBd)
+          } catch (e) {
+            console.error('register: bracket update failed', e)
+            // Non-fatal — user is registered but not yet in bracket display
+          }
         }
       }
 
       await sendNotification(user.id, `Joined — ${tournament?.name}`,
         `You've registered and been placed in the bracket!`, 'tournament', { tournament_id: id })
       awardAchievement(user.id, 'ri-group-line', 'Tournament Player', 'Registered for your first tournament')
+    } else {
+      showToast('Registration failed. Please try again.', 'error')
     }
     setRegistering(false)
     load()
@@ -1048,7 +1109,7 @@ export default function TournamentDetail() {
         if (!bd) return
         await supabase.from('tournament_leaderboard').delete().eq('tournament_id', id)
         setBracketData(bd)
-        saveBracket(bd)
+        await saveBracket(bd)
         load()
       },
     })
@@ -1173,8 +1234,8 @@ export default function TournamentDetail() {
           })
         })
         // Award points to all members
-        for (const m of realMembers(actedTeam)) await awardBracketPoints(m.userId, winnerPts)
-        for (const m of realMembers(oppositeTeam)) await awardBracketPoints(m.userId, loserPts)
+        await Promise.all(realMembers(actedTeam).map(m => awardBracketPoints(m.userId, winnerPts)))
+        await Promise.all(realMembers(oppositeTeam).map(m => awardBracketPoints(m.userId, loserPts)))
       } else if (status === 'eliminated') {
         realMembers(actedTeam).forEach(m => {
           notifRows.push({
@@ -1192,7 +1253,7 @@ export default function TournamentDetail() {
             type: 'tournament_advance', meta: { tournament_id: id }, read: false,
           })
         })
-        for (const m of realMembers(actedTeam)) await awardBracketPoints(m.userId, loserPts)
+        await Promise.all(realMembers(actedTeam).map(m => awardBracketPoints(m.userId, loserPts)))
       } else if (status === 'disqualified') {
         realMembers(actedTeam).forEach(m => {
           notifRows.push({
@@ -1357,21 +1418,43 @@ export default function TournamentDetail() {
     const { data: profile } = await supabase.from('profiles').select('username, avatar_url').eq('id', userId).maybeSingle()
     const playerSlot = { userId, name: profile?.username || 'Player', avatar: profile?.avatar_url || null, status: 'active' }
 
-    // Find first open slot in round 0
-    let pick = null
-    freshBd.rounds[0]?.forEach((pair, pi) => {
-      pair.forEach((s, si) => {
-        if (!pick && !s?.userId && (s?.status === 'open' || s?.status === 'bye')) pick = { pi, si }
+    let newRounds, newBd
+
+    if (freshBd.isTeamBattle) {
+      // Team mode: place the player into the first open member slot
+      const { data: profile2 } = await supabase.from('profiles').select('username, avatar_url').eq('id', userId).maybeSingle()
+      const memberSlot = { userId, name: profile2?.username || 'Player', avatar: profile2?.avatar_url || null, status: 'active' }
+      let placed = false
+      newRounds = freshBd.rounds.map((r, ri) => {
+        if (ri !== 0 || placed) return r
+        return r.map(pair =>
+          pair.map(team => {
+            if (placed || !team || team.status === 'bye') return team
+            const mi = (team.members || []).findIndex(m => !m?.userId || m.status === 'open' || m.status === 'empty' || m.status === 'pending')
+            if (mi === -1) return team
+            placed = true
+            const newMembers = team.members.map((m, idx) => idx === mi ? memberSlot : m)
+            return { ...team, members: newMembers, status: newMembers.every(m => m?.userId) ? 'active' : 'open' }
+          })
+        )
       })
-    })
-
-    if (!pick) { showToast('No open slots in the bracket.', 'error'); return }
-
-    const newRounds = freshBd.rounds.map((r, ri) => ri !== 0 ? r : r.map((pair, pi) => {
-      if (pi !== pick.pi) return pair
-      return pair.map((s, si) => si === pick.si ? playerSlot : s)
-    }))
-    const newBd = { ...freshBd, rounds: newRounds, isEmpty: false }
+      if (!placed) { showToast('No open member slots in the bracket.', 'error'); return }
+      newBd = { ...freshBd, rounds: newRounds, isEmpty: false }
+    } else {
+      // Solo mode: find first open slot in round 0
+      let pick = null
+      freshBd.rounds[0]?.forEach((pair, pi) => {
+        pair.forEach((s, si) => {
+          if (!pick && !s?.userId && (s?.status === 'open' || s?.status === 'bye')) pick = { pi, si }
+        })
+      })
+      if (!pick) { showToast('No open slots in the bracket.', 'error'); return }
+      newRounds = freshBd.rounds.map((r, ri) => ri !== 0 ? r : r.map((pair, pi) => {
+        if (pi !== pick.pi) return pair
+        return pair.map((s, si) => si === pick.si ? playerSlot : s)
+      }))
+      newBd = { ...freshBd, rounds: newRounds, isEmpty: false }
+    }
     setBracketData(newBd)
     await saveBracket(newBd)
     showToast(`${profile?.username || 'Player'} added to bracket!`, 'success')
@@ -1438,7 +1521,73 @@ export default function TournamentDetail() {
     if (!bracketData) return
     const { data: freshT } = await supabase.from('tournaments').select('bracket_data').eq('id', id).single()
     const freshBd = parseBracketData(freshT?.bracket_data) ?? bracketData
-    const champion = freshBd.rounds[rIdx]?.[pIdx]?.[0]
+    const champSlot = freshBd.rounds[rIdx]?.[pIdx]?.[0]
+
+    // ── Team mode champion ────────────────────────────────────────────────
+    if (freshBd.isTeamBattle) {
+      if (!champSlot || !champSlot.members?.some(m => m?.userId)) {
+        showToast('No team in the champion slot yet.', 'error'); return
+      }
+      const newRounds = freshBd.rounds.map((r, ri) =>
+        ri !== rIdx ? r : r.map((pair, pi) =>
+          pi !== pIdx ? pair : [{ ...pair[0], status: 'winner' }, null]
+        )
+      )
+      const newBd = { ...freshBd, rounds: newRounds }
+      setBracketData(newBd)
+      await saveBracket(newBd)
+      await supabase.from('tournaments').update({ status: 'completed' }).eq('id', id)
+      setTournament(t => ({ ...t, status: 'completed' }))
+
+      const CHAMPION_BONUS = 30
+      const currentSeason = getCurrentSeason()
+      const champMembers = (champSlot.members || []).filter(m => m?.userId)
+      await Promise.all(champMembers.map(m => awardBracketPoints(m.userId, CHAMPION_BONUS)))
+      await Promise.all(champMembers.map(m => supabase.from('profiles').update({ is_season_winner: true }).eq('id', m.userId)))
+      await Promise.all(champMembers.map(m => awardAchievement(m.userId, 'ri-vip-crown-fill', 'Tournament Champion', `Won ${tournament?.name || 'a tournament'}`)))
+
+      const { data: finalLb } = await supabase
+        .from('tournament_leaderboard').select('user_id, position, points').eq('tournament_id', id)
+        .order('position', { ascending: true }).limit(3)
+
+      async function applySeasonWinsTeam(userId, bonus) {
+        const { data: prof } = await supabase.from('profiles').select('wins, season_wins, level, current_season').eq('id', userId).single()
+        if (!prof) return
+        const registeredSeason = prof.current_season ?? currentSeason
+        const newSeasonWins = registeredSeason < currentSeason ? 1 : (prof.season_wins ?? 0) + bonus
+        const newWins = (prof.wins ?? 0) + bonus
+        let newLevel = prof.level ?? 1
+        for (let i = 0; i < bonus; i++) newLevel = computeLevelAfterWin(newLevel, (prof.season_wins ?? 0) + i + 1)
+        await supabase.from('profiles').update({ wins: newWins, season_wins: newSeasonWins, level: newLevel, current_season: currentSeason }).eq('id', userId)
+      }
+
+      await Promise.all(champMembers.map(m => applySeasonWinsTeam(m.userId, 3)))
+
+      const tName = tournament?.name || 'the tournament'
+      const champTeamName = champSlot.teamName || champMembers.map(m => m.name.slice(0,3)).join('').slice(0,8) || 'Champions'
+      const allNotifs = champMembers.map(m => ({
+        user_id: m.userId,
+        title: `CHAMPIONS — ${tName}`,
+        body: `Your team "${champTeamName}" won the tournament! +${CHAMPION_BONUS} bonus pts each. Check your wallet!`,
+        type: 'tournament_champion', meta: { tournament_id: id }, read: false,
+      }))
+      const { data: allParts } = await supabase.from('tournament_participants').select('user_id').eq('tournament_id', id)
+      const champIds = new Set(champMembers.map(m => m.userId))
+      const broadcasts = (allParts || []).filter(p => p.user_id && !champIds.has(p.user_id)).map(p => ({
+        user_id: p.user_id,
+        title: `Tournament complete — ${tName}`,
+        body: `Team "${champTeamName}" has been crowned Champions! See the final standings.`,
+        type: 'tournament', meta: { tournament_id: id }, read: false,
+      }))
+      if ([...allNotifs, ...broadcasts].length) await supabase.from('notifications').insert([...allNotifs, ...broadcasts])
+      await Promise.all(champMembers.map(m => supabase.rpc('log_earning', { p_user_id: m.userId, p_type: 'tournament_champion', p_points: CHAMPION_BONUS, p_description: `Champion — ${tName}`, p_ref_id: id })))
+      await recalcPositions()
+      await load()
+      return
+    }
+
+    // ── Solo mode champion (original) ─────────────────────────────────────
+    const champion = champSlot
     if (!champion?.userId) { showToast('No player in the champion slot yet.', 'error'); return }
 
     const newRounds = freshBd.rounds.map((r, ri) =>
@@ -1456,7 +1605,6 @@ export default function TournamentDetail() {
     const currentSeason = getCurrentSeason()
     await awardBracketPoints(champion.userId, CHAMPION_BONUS)
     await supabase.from('profiles').update({ is_season_winner: true }).eq('id', champion.userId)
-    // Award champion achievement
     await awardAchievement(champion.userId, 'ri-vip-crown-fill', 'Tournament Champion', `Won ${tournament?.name || 'a tournament'}`)
 
     // Season wins: champion +3, runner-up +2, 3rd +1
@@ -1591,9 +1739,17 @@ export default function TournamentDetail() {
         }
         if (bracketData) {
           const newRounds = bracketData.rounds.map(pairs =>
-            pairs.map(pair => pair.map(s =>
-              s?.userId === entry.user_id && s.status === 'winner' ? { ...s, status: 'disqualified' } : s
-            ))
+            pairs.map(pair =>
+              bracketData.isTeamBattle
+                ? pair.map(team => {
+                    if (!team || team.status !== 'winner') return team
+                    const hasMember = (team.members || []).some(m => m?.userId === entry.user_id)
+                    return hasMember ? { ...team, status: 'disqualified' } : team
+                  })
+                : pair.map(s =>
+                    s?.userId === entry.user_id && s.status === 'winner' ? { ...s, status: 'disqualified' } : s
+                  )
+            )
           )
           const newBd = { ...bracketData, rounds: newRounds }
           await supabase.from('tournaments').update({ bracket_data: newBd }).eq('id', id)
@@ -1655,6 +1811,7 @@ export default function TournamentDetail() {
       name: editForm.name, slug: newSlug, description: editForm.description,
       prize: editForm.prize, slots: Number(editForm.slots), date: editForm.date,
       format: editForm.format, status: editForm.status,
+      team_size: editForm.team_size || 1,
     }).eq('id', id)
     setSaving(false)
     if (error) { showToast(error.message, 'error'); return }
@@ -1669,6 +1826,7 @@ export default function TournamentDetail() {
       onConfirm: async () => {
         await supabase.from('tournament_leaderboard').delete().eq('tournament_id', id)
         await supabase.from('tournament_participants').delete().eq('tournament_id', id)
+        await supabase.from('tournament_payments').delete().eq('tournament_id', id)
         await supabase.from('tournaments').delete().eq('id', id)
         router.replace('/tournaments')
       },
@@ -2352,6 +2510,7 @@ export default function TournamentDetail() {
                                   onSetWinner={() => adminSetChampion(rIdx, pIdx)}
                                   leaderboard={leaderboard}
                                   participants={participants}
+                                  isTeamBattle={bracketData.isTeamBattle}
                                 />
                               : bracketData.isTeamBattle
                                 ? (
@@ -2904,7 +3063,13 @@ export default function TournamentDetail() {
           {/* ── Add unplaced participants ── */}
           {bracketData && (() => {
             const inBracket = new Set()
-            bracketData.rounds[0]?.forEach(pair => pair.forEach(s => { if (s?.userId) inBracket.add(s.userId) }))
+            bracketData.rounds[0]?.forEach(pair => pair.forEach(s => {
+              if (bracketData.isTeamBattle) {
+                ;(s?.members || []).forEach(m => { if (m?.userId) inBracket.add(m.userId) })
+              } else {
+                if (s?.userId) inBracket.add(s.userId)
+              }
+            }))
             const unplaced = participants.filter(p => !inBracket.has(p.user_id))
             if (unplaced.length === 0) return null
             return (
@@ -3343,7 +3508,56 @@ function MatchupPlanner({ participants, bracketData, onApply }) {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function ChampDisplay({ entry, styles, isAdmin, onSetWinner, leaderboard, participants }) {
+function ChampDisplay({ entry, styles, isAdmin, onSetWinner, leaderboard, participants, isTeamBattle }) {
+  // entry is either a solo slot { userId, name, ... } or a team { members, teamName, ... }
+  const isTeam = isTeamBattle && entry?.members !== undefined
+
+  // ── Team champion ─────────────────────────────────────────────────────
+  if (isTeam) {
+    const isPending = !entry || entry.status === 'pending' || entry.status === 'bye' || !entry.members?.some(m => m?.userId)
+    const isWinner = entry?.status === 'winner'
+    const realMembers = (entry?.members || []).filter(m => m?.userId)
+    const teamName = entry?.teamName || realMembers.map(m => m.name.slice(0,3)).join('').slice(0,8) || 'TBD'
+    const totalPts = realMembers.reduce((sum, m) => {
+      const lb = leaderboard?.find(e => e.user_id === m.userId)
+      return sum + (lb?.points || 0)
+    }, 0)
+    return (
+      <div className={`${styles.champDisplay} ${isWinner ? styles.champDisplayWinner : ''}`}>
+        <div className={styles.champCrown}><i className="ri-vip-crown-fill" /></div>
+        <div className={styles.champSlot}>
+          {isPending
+            ? <span className={styles.champTBD}>TBD</span>
+            : <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <i className="ri-team-line" style={{ fontSize: 16, color: isWinner ? '#f59e0b' : 'var(--text-muted)' }} />
+                  <span className={styles.champName}>{teamName}</span>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'center' }}>
+                  {realMembers.map((m, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: '2px 8px 2px 4px' }}>
+                      <div style={{ width: 18, height: 18, borderRadius: '50%', overflow: 'hidden', background: 'var(--surface-raised)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 7, fontWeight: 800 }}>
+                        {m.avatar ? <img src={m.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : m.name.slice(0,2).toUpperCase()}
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)' }}>{m.name}</span>
+                    </div>
+                  ))}
+                </div>
+                {isWinner && totalPts > 0 && <span className={styles.champPtsBadge}><i className="ri-star-fill" /> {totalPts} total pts</span>}
+                {isWinner && <span className={styles.champWinnerBadge}><i className="ri-trophy-fill" /> Champions</span>}
+                {isAdmin && !isWinner && (
+                  <button className={`${styles.slotAction} ${styles.slotActionWin}`} style={{ marginTop: 6 }} onClick={onSetWinner}>
+                    <i className="ri-trophy-fill" /> Crown Champions (+30 pts each)
+                  </button>
+                )}
+              </>
+          }
+        </div>
+      </div>
+    )
+  }
+
+  // ── Solo champion (original) ──────────────────────────────────────────
   const isPending = !entry || entry.status === 'pending' || entry.status === 'bye'
   const isWinner = entry?.status === 'winner'
   const champPts = leaderboard?.find(e => e.user_id === entry?.userId)?.points ?? null
@@ -3389,11 +3603,16 @@ function ChampDisplay({ entry, styles, isAdmin, onSetWinner, leaderboard, partic
 // into bracket_data by calling onRenameTeam(slotIdx, newName).
 
 function autoTeamName(team, globalIdx) {
-  // If admin already set a name, use it
   if (team?.teamName) return team.teamName
   const realMembers = (team?.members || []).filter(m => m?.userId && m.name && m.name !== '?' && m.name !== 'Open' && m.name !== 'BYE')
-  if (realMembers.length === 0) return `Team ${globalIdx + 1}`
-  // Take first 3 chars of each member name, concatenate, cap at 8 chars
+  if (realMembers.length === 0) {
+    // Use stable teamId number if available (e.g. "team_4" → "Team 3")
+    if (team?.teamId && team.teamId.startsWith('team_')) {
+      const n = parseInt(team.teamId.replace('team_', ''), 10)
+      if (!isNaN(n)) return `Team ${Math.floor(n / (team.members?.length || 1)) + 1}`
+    }
+    return `Team ${globalIdx + 1}`
+  }
   const combined = realMembers.map(m => m.name.slice(0, 3)).join('').slice(0, 8)
   return combined.charAt(0).toUpperCase() + combined.slice(1)
 }
