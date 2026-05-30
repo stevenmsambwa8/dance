@@ -781,28 +781,60 @@ export default function TournamentDetail() {
       setRegistered(true)
       setTournament(t => ({ ...t, registered_count: count }))
 
-      // Place user in an open bracket slot (works for both lobby and generated brackets)
       if (bracketData) {
         const { data: profile } = await supabase.from('profiles').select('username, avatar_url').eq('id', user.id).maybeSingle()
-        const playerSlot = { userId: user.id, name: profile?.username || 'Player', avatar: profile?.avatar_url || null, status: 'active' }
+        const memberSlot = { userId: user.id, name: profile?.username || 'Player', avatar: profile?.avatar_url || null, status: 'active' }
 
-        // Collect all open slots in round 0
-        const openSlots = []
-        bracketData.rounds[0]?.forEach((pair, pi) => {
-          pair.forEach((s, si) => {
-            if (!s?.userId && (s?.status === 'open' || s?.status === 'bye')) {
-              openSlots.push({ pi, si })
-            }
+        let updatedBd = null
+
+        if (bracketData.isTeamBattle) {
+          // ── Team mode: find a team in round 0 that has an open member slot ──
+          const round0 = bracketData.rounds[0] || []
+          let placed = false
+          const newRounds = bracketData.rounds.map((r, ri) => {
+            if (ri !== 0 || placed) return r
+            return r.map(pair =>
+              pair.map(team => {
+                if (placed || !team || team.status === 'bye') return team
+                const openMemberIdx = (team.members || []).findIndex(
+                  m => !m?.userId || m.status === 'open' || m.status === 'empty' || m.status === 'pending'
+                )
+                if (openMemberIdx === -1) return team
+                placed = true
+                const newMembers = team.members.map((m, mi) =>
+                  mi === openMemberIdx ? memberSlot : m
+                )
+                // Check if team is now full
+                const allFilled = newMembers.every(m => m?.userId)
+                return { ...team, members: newMembers, status: allFilled ? 'active' : 'open' }
+              })
+            )
           })
-        })
+          if (placed) {
+            updatedBd = { ...bracketData, rounds: newRounds, isEmpty: false }
+          }
+        } else {
+          // ── Solo mode: find any open slot in round 0 ──────────────────────
+          const playerSlot = { userId: user.id, name: profile?.username || 'Player', avatar: profile?.avatar_url || null, status: 'active' }
+          const openSlots = []
+          bracketData.rounds[0]?.forEach((pair, pi) => {
+            pair.forEach((s, si) => {
+              if (!s?.userId && (s?.status === 'open' || s?.status === 'bye')) {
+                openSlots.push({ pi, si })
+              }
+            })
+          })
+          if (openSlots.length > 0) {
+            const pick = openSlots[Math.floor(Math.random() * openSlots.length)]
+            const newRounds = bracketData.rounds.map((r, ri) => ri !== 0 ? r : r.map((pair, pi) => {
+              if (pi !== pick.pi) return pair
+              return pair.map((s, si) => si === pick.si ? playerSlot : s)
+            }))
+            updatedBd = { ...bracketData, rounds: newRounds, isEmpty: false }
+          }
+        }
 
-        if (openSlots.length > 0) {
-          const pick = openSlots[Math.floor(Math.random() * openSlots.length)]
-          const newRounds = bracketData.rounds.map((r, ri) => ri !== 0 ? r : r.map((pair, pi) => {
-            if (pi !== pick.pi) return pair
-            return pair.map((s, si) => si === pick.si ? playerSlot : s)
-          }))
-          const updatedBd = { ...bracketData, rounds: newRounds, isEmpty: false }
+        if (updatedBd) {
           await supabase.from('tournaments').update({ bracket_data: updatedBd }).eq('id', id)
           setBracketData(updatedBd)
         }
@@ -810,15 +842,18 @@ export default function TournamentDetail() {
 
       await sendNotification(user.id, `Joined — ${tournament?.name}`,
         `You've registered and been placed in the bracket!`, 'tournament', { tournament_id: id })
-      // Award participant achievement
       awardAchievement(user.id, 'ri-group-line', 'Tournament Player', 'Registered for your first tournament')
     }
     setRegistering(false)
     load()
   }
 
-  /** Register + immediately claim an open slot in round-0 */
-  async function joinViaSlot(targetPIdx, targetSIdx) {
+  /** Register + immediately claim an open slot in round-0.
+   *  In team mode: targetPIdx = pair index, targetSIdx = team slot (0 or 1),
+   *  targetMIdx = member index inside that team (passed by TeamMatchCard onJoin).
+   *  In solo mode: targetMIdx is undefined — behaves exactly as before.
+   */
+  async function joinViaSlot(targetPIdx, targetSIdx, targetMIdx) {
     if (!user) { router.push('/login'); return }
     if (!isAdmin && tournament?.created_by === user.id) {
       showToast("You can't join your own tournament.", 'error'); return
@@ -827,13 +862,59 @@ export default function TournamentDetail() {
     if (isFull) { showToast('Tournament is full.', 'error'); return }
     if (!bracketData) return
 
-    // Guard: verify the slot is still open (race condition safety)
-    const targetSlot = bracketData.rounds[0]?.[targetPIdx]?.[targetSIdx]
-    if (targetSlot?.userId || (targetSlot?.status !== 'open' && targetSlot?.status !== 'bye')) {
-      showToast('That slot was just taken. Pick another.', 'error'); return
+    setRegistering(true)
+
+    if (bracketData.isTeamBattle) {
+      // ── Team mode ────────────────────────────────────────────────────────
+      const team = bracketData.rounds[0]?.[targetPIdx]?.[targetSIdx]
+      if (!team || team.status === 'bye') {
+        showToast('That slot is not available.', 'error'); setRegistering(false); return
+      }
+
+      // Find the open member slot — use targetMIdx if given, else first open one
+      const members = team.members || []
+      const mIdx = targetMIdx !== undefined
+        ? targetMIdx
+        : members.findIndex(m => !m?.userId || m.status === 'open' || m.status === 'empty' || m.status === 'pending')
+
+      if (mIdx === -1 || (members[mIdx]?.userId && members[mIdx].status !== 'open' && members[mIdx].status !== 'empty' && members[mIdx].status !== 'pending')) {
+        showToast('That spot was just taken. Try another.', 'error'); setRegistering(false); return
+      }
+
+      const { error: regErr } = await supabase.from('tournament_participants').insert({ tournament_id: id, user_id: user.id })
+      if (regErr) { showToast('Failed to register. Try again.', 'error'); setRegistering(false); return }
+
+      const { data: profile } = await supabase.from('profiles').select('username, avatar_url').eq('id', user.id).maybeSingle()
+      const memberSlot = { userId: user.id, name: profile?.username || 'Player', avatar: profile?.avatar_url || null, status: 'active' }
+
+      const newRounds = bracketData.rounds.map((r, ri) => ri !== 0 ? r : r.map((pair, pi) => {
+        if (pi !== targetPIdx) return pair
+        return pair.map((team, ti) => {
+          if (ti !== targetSIdx) return team
+          const newMembers = team.members.map((m, mi) => mi === mIdx ? memberSlot : m)
+          const allFilled = newMembers.every(m => m?.userId)
+          return { ...team, members: newMembers, status: allFilled ? 'active' : 'open' }
+        })
+      }))
+      const updatedBd = { ...bracketData, rounds: newRounds, isEmpty: false }
+      await supabase.from('tournaments').update({ bracket_data: updatedBd }).eq('id', id)
+      setBracketData(updatedBd)
+
+      const count = await syncCount()
+      setRegistered(true)
+      setTournament(t => ({ ...t, registered_count: count }))
+      await sendNotification(user.id, `Joined — ${tournament?.name}`, `You've joined a team slot in the bracket!`, 'tournament', { tournament_id: id })
+      setRegistering(false)
+      load()
+      return
     }
 
-    setRegistering(true)
+    // ── Solo mode (original) ──────────────────────────────────────────────
+    const targetSlot = bracketData.rounds[0]?.[targetPIdx]?.[targetSIdx]
+    if (targetSlot?.userId || (targetSlot?.status !== 'open' && targetSlot?.status !== 'bye')) {
+      showToast('That slot was just taken. Pick another.', 'error'); setRegistering(false); return
+    }
+
     const { error: regErr } = await supabase.from('tournament_participants').insert({ tournament_id: id, user_id: user.id })
     if (regErr) { showToast('Failed to register. Try again.', 'error'); setRegistering(false); return }
 
@@ -942,7 +1023,10 @@ export default function TournamentDetail() {
     if (!freshBd) return
 
     const currentSlot = freshBd.rounds[rIdx]?.[pIdx]?.[slotIdx]
-    if (!currentSlot?.userId) return          // nothing to act on
+    // Team mode: slot is a team object; solo mode: slot has userId
+    const isTeamSlot = freshBd.isTeamBattle
+    if (!isTeamSlot && !currentSlot?.userId) return  // solo: nothing to act on
+    if (isTeamSlot && (!currentSlot || currentSlot.status === 'open' || currentSlot.status === 'bye')) return // team: no active team
     if (currentSlot.status === status) return // no-op
 
     // ── Remove from bracket — reset slot to open ──────────────────────────
@@ -2123,6 +2207,22 @@ export default function TournamentDetail() {
                                       passPoints={getPassPoints(rIdx)}
                                       currentUserId={user?.id}
                                       globalPairIdx={pIdx}
+                                      onJoin={
+                                        rIdx === 0 && !registered && !isFull && !isOwnTournament && tournament?.status === 'active'
+                                          ? (() => {
+                                              const hasFee = (tournament.entrance_fee || 0) > 0
+                                              if (!hasFee) return (teamSlotIdx, memberIdx) => joinViaSlot(pIdx, teamSlotIdx, memberIdx)
+                                              if (paymentStatus === 'approved') return (teamSlotIdx, memberIdx) => joinViaSlot(pIdx, teamSlotIdx, memberIdx)
+                                              return () => {
+                                                if (paymentStatus === 'payment_submitted') {
+                                                  showToast('Payment awaiting approval — you cannot join yet.', 'info')
+                                                } else {
+                                                  setShowPayModal(true)
+                                                }
+                                              }
+                                            })()
+                                          : undefined
+                                      }
                                     />
                                   </div>
                                 )
@@ -3139,7 +3239,7 @@ function autoTeamName(team, globalIdx) {
   return combined.charAt(0).toUpperCase() + combined.slice(1)
 }
 
-function TeamMatchCard({ pair, styles, isAdmin, teamSize, onSetStatus, onRenameTeam, passPoints, currentUserId, globalPairIdx }) {
+function TeamMatchCard({ pair, styles, isAdmin, teamSize, onSetStatus, onRenameTeam, passPoints, currentUserId, globalPairIdx, onJoin }) {
   const [teamA, teamB] = pair
   const [activeSheet, setActiveSheet] = useState(null)
   const [renamingTeam, setRenamingTeam] = useState(null) // { slotIdx, value }
@@ -3221,13 +3321,27 @@ function TeamMatchCard({ pair, styles, isAdmin, teamSize, onSetStatus, onRenameT
             {(team.members || []).map((m, mi) => {
               const isEmpty = !m?.userId || m.status === 'open' || m.status === 'empty' || m.status === 'pending'
               const isMe = m?.userId === currentUserId
+              const canJoinSpot = isEmpty && !!onJoin
               return (
-                <div key={mi} style={{
-                  display: 'flex', alignItems: 'center', gap: 5,
-                  background: isMe ? 'rgba(var(--accent-rgb,99,102,241),0.10)' : 'var(--bg)',
-                  border: isMe ? '1px solid rgba(var(--accent-rgb,99,102,241),0.3)' : '1px solid var(--border)',
-                  borderRadius: 20, padding: '3px 8px 3px 4px',
-                }}>
+                <div key={mi}
+                  onClick={e => { if (canJoinSpot) { e.stopPropagation(); onJoin(slotIdx, mi) } }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    background: isMe
+                      ? 'rgba(var(--accent-rgb,99,102,241),0.10)'
+                      : canJoinSpot
+                        ? 'rgba(var(--accent-rgb,99,102,241),0.04)'
+                        : 'var(--bg)',
+                    border: isMe
+                      ? '1px solid rgba(var(--accent-rgb,99,102,241),0.3)'
+                      : canJoinSpot
+                        ? '1px dashed rgba(var(--accent-rgb,99,102,241),0.4)'
+                        : '1px solid var(--border)',
+                    borderRadius: 20, padding: '3px 8px 3px 4px',
+                    cursor: canJoinSpot ? 'pointer' : 'default',
+                    transition: 'opacity 0.15s',
+                  }}
+                >
                   {/* Mini avatar */}
                   <div style={{
                     width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
@@ -3237,18 +3351,20 @@ function TeamMatchCard({ pair, styles, isAdmin, teamSize, onSetStatus, onRenameT
                     overflow: 'hidden', fontSize: 8, fontWeight: 800,
                   }}>
                     {isEmpty
-                      ? <i className="ri-user-line" style={{ fontSize: 9, color: 'var(--text-muted)' }} />
+                      ? <i className="ri-add-line" style={{ fontSize: 10, color: canJoinSpot ? 'var(--accent)' : 'var(--text-muted)' }} />
                       : m.avatar
                         ? <img src={m.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         : <span style={{ color: 'var(--text-dim)' }}>{(m.name || '?').slice(0, 2).toUpperCase()}</span>
                     }
                   </div>
                   <span style={{
-                    fontSize: 11, fontWeight: isMe ? 700 : 500,
-                    color: isEmpty ? 'var(--text-muted)' : isMe ? 'var(--accent)' : 'var(--text)',
+                    fontSize: 11, fontWeight: isMe ? 700 : canJoinSpot ? 600 : 500,
+                    color: isEmpty
+                      ? (canJoinSpot ? 'var(--accent)' : 'var(--text-muted)')
+                      : isMe ? 'var(--accent)' : 'var(--text)',
                     maxWidth: 68, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   }}>
-                    {isEmpty ? 'Open' : isMe ? 'You' : (m.name || '?')}
+                    {isEmpty ? (canJoinSpot ? 'Join' : 'Open') : isMe ? 'You' : (m.name || '?')}
                   </span>
                 </div>
               )
