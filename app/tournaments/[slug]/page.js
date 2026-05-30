@@ -584,7 +584,21 @@ export default function TournamentDetail() {
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tournaments', filter: `id=eq.${id}` }, payload => {
         const t = payload.new
         setTournament(t)
-        setBracketData(parseBracketData(t.bracket_data) ?? (t.slots >= 2 ? buildLobbyBracket(t.slots, t.team_size || 1) : null))
+        setEditForm(t)   // keep inline edit form in sync with latest DB state (incl. team_size)
+        // Always rebuild the lobby bracket from fresh t.team_size so a
+        // solo→team upgrade on the edit page is immediately reflected here
+        setBracketData(prev => {
+          const fresh = parseBracketData(t.bracket_data)
+          if (fresh) return fresh                              // generated bracket — use as-is
+          if ((t.slots || 0) < 2) return null
+          // Lobby bracket: rebuild only if team_size changed or no bracket yet
+          const prevTeamSize = prev?.teamSize || 1
+          const newTeamSize  = t.team_size   || 1
+          if (!prev || prev.isEmpty || prevTeamSize !== newTeamSize) {
+            return buildLobbyBracket(t.slots, newTeamSize)
+          }
+          return prev
+        })
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tournament_participants', filter: `tournament_id=eq.${id}` }, () => {
         supabase.from('tournament_participants')
@@ -3191,6 +3205,46 @@ export default function TournamentDetail() {
                 <label>Description</label>
                 <textarea rows={3} value={editForm.description || ''} onChange={e => setEditForm(x => ({ ...x, description: e.target.value }))} />
               </div>
+
+              {/* ── Match Type — upgrade only ── */}
+              <div className={styles.editField}>
+                <label>Match Type</label>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                  {[
+                    { value: 1, label: '1v1' },
+                    { value: 2, label: '2v2' },
+                    { value: 4, label: '4v4' },
+                    { value: 8, label: '8v8' },
+                  ].map(opt => {
+                    const currentSize = tournament?.team_size || 1
+                    const isDowngrade = opt.value < currentSize
+                    const isActive    = (editForm.team_size || 1) === opt.value
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        disabled={isDowngrade}
+                        onClick={() => !isDowngrade && setEditForm(x => ({ ...x, team_size: opt.value }))}
+                        style={{
+                          padding: '6px 12px', borderRadius: 8, border: 'none', fontFamily: 'inherit',
+                          fontWeight: 800, fontSize: 13, cursor: isDowngrade ? 'not-allowed' : 'pointer',
+                          background: isActive ? 'var(--accent)' : 'var(--surface-raised)',
+                          color: isActive ? '#fff' : isDowngrade ? 'var(--text-muted)' : 'var(--text)',
+                          opacity: isDowngrade ? 0.35 : 1,
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    )
+                  })}
+                </div>
+                {(editForm.team_size || 1) > (tournament?.team_size || 1) && (
+                  <p style={{ marginTop: 6, fontSize: 11, color: '#f59e0b' }}>
+                    <i className="ri-information-line" /> Upgrading to {editForm.team_size}v{editForm.team_size} — next generated bracket will use teams of {editForm.team_size}.
+                  </p>
+                )}
+              </div>
+
               <button className={styles.saveBtn} onClick={saveEdit} disabled={saving}>
                 {saving ? 'Saving…' : <><i className="ri-check-line" /> Save Changes</>}
               </button>
