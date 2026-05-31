@@ -2107,163 +2107,24 @@ export default function TournamentDetail() {
         )}
       </div>
 
-      {/* ── COMMAND CENTRE — admin/creator only ── */}
+      {/* ── Admin manage button ── */}
       {canManage && tournament && (
-        <div className={styles.cmdCentre}>
-
-          {/* ── Identity strip ── */}
-          <div className={styles.cmdStrip}>
-            <div className={styles.cmdRole}>
-              {isAdmin
-                ? <><i className="ri-shield-star-fill" style={{color:'#f59e0b'}} /> ADMIN</>
-                : <><i className="ri-vip-crown-fill" style={{color:'#a78bfa'}} /> CREATOR</>}
-            </div>
-            <div className={styles.cmdTournamentName}>{tournament.name}</div>
-            <button className={styles.cmdViewToggle} onClick={() => setAdminView(v => !v)}>
-              {adminView
-                ? <><i className="ri-eye-off-line" /> Player View</>
-                : <><i className="ri-shield-star-line" /> Command</>}
-            </button>
-          </div>
-
-          {adminView && (
-            <>
-              {/* ── KPI row ── */}
-              <div className={styles.cmdKpis}>
-                {[
-                  { val: participants.length, max: tournament.slots, label: 'PLAYERS', icon: 'ri-group-fill',
-                    sub: `${Math.max(0,(tournament.slots||0)-participants.length)} slots open`,
-                    color: '#22c55e' },
-                  { val: bracketData?.rounds?.length ?? 0, label: 'ROUNDS', icon: 'ri-node-tree',
-                    sub: bracketData && !bracketData.isEmpty ? 'bracket live' : 'no bracket',
-                    color: '#6366f1' },
-                  { val: leaderboard.length, label: 'SCORED', icon: 'ri-bar-chart-fill',
-                    sub: `top: ${leaderboard[0]?.profiles?.username || '—'}`,
-                    color: '#f59e0b' },
-                  { val: tournament.status?.toUpperCase(), label: 'STATUS', icon: 'ri-live-line',
-                    sub: tournament.entrance_fee > 0 ? `Fee: TZS ${Number(tournament.entrance_fee).toLocaleString()}` : 'Free entry',
-                    color: {active:'#22c55e',ongoing:'#6366f1',upcoming:'#f59e0b',completed:'#94a3b8'}[tournament.status] || 'var(--text-muted)' },
-                ].map(k => (
-                  <div key={k.label} className={styles.cmdKpi}>
-                    <div className={styles.cmdKpiTop}>
-                      <i className={k.icon} style={{color: k.color, fontSize: 13}} />
-                      <span className={styles.cmdKpiLabel}>{k.label}</span>
-                    </div>
-                    <div className={styles.cmdKpiVal} style={{color: k.color}}>{k.val}</div>
-                    <div className={styles.cmdKpiSub}>{k.sub}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* ── Bracket command ── */}
-              <div className={styles.cmdBracketRow}>
-                <div className={styles.cmdBracketInfo}>
-                  <i className="ri-node-tree" style={{color:'#6366f1', fontSize:15}} />
-                  <span>
-                    {(!bracketData || bracketData.isEmpty)
-                      ? `No bracket · ${participants.length} player${participants.length!==1?'s':''} registered`
-                      : `${bracketData.isTeamBattle ? bracketData.teamSize+'v'+bracketData.teamSize+' Team' : '1v1 Solo'} · ${bracketData.rounds?.length??0} rounds · ${bracketData.bracketSize} slots`}
-                  </span>
-                </div>
-                <div className={styles.cmdBracketBtns}>
-                  {(!bracketData || bracketData.isEmpty)
-                    ? <button className={styles.cmdBtnPrimary} onClick={initBracket} disabled={participants.length < 2}>
-                        <i className="ri-play-fill" /> Generate
-                        {participants.length < 2 && <span style={{fontSize:10,opacity:0.6}}> (2+ needed)</span>}
-                      </button>
-                    : <button className={styles.cmdBtnDanger} onClick={resetBracket}>
-                        <i className="ri-restart-line" /> Reset
-                      </button>
-                  }
-                  <button className={styles.cmdBtnGhost} onClick={() => setActiveTab('bracket')}>
-                    <i className="ri-eye-line" /> View
-                  </button>
-                </div>
-              </div>
-
-              {/* ── Quick nav ── */}
-              <div className={styles.cmdNav}>
-                {[
-                  { icon:'ri-node-tree',        label:'Bracket',     tab:'bracket',     accent:'#6366f1' },
-                  { icon:'ri-bar-chart-fill',   label:'Scores',      tab:'leaderboard', accent:'#f59e0b' },
-                  { icon:'ri-group-fill',        label:'Players',     tab:'players',     accent:'#22c55e' },
-                  { icon:'ri-settings-3-fill',   label:'Manage',      tab:'manage',      accent:'#a78bfa' },
-                  { icon:'ri-edit-fill',         label:'Edit',        tab:null,          accent:'#94a3b8',
-                    fn:() => router.push(`/tournaments/${tournament.slug||tournament.id}/edit`) },
-                ].map(n => (
-                  <button
-                    key={n.label}
-                    className={`${styles.cmdNavBtn} ${activeTab===n.tab && !n.fn ? styles.cmdNavBtnActive : ''}`}
-                    onClick={n.fn || (() => setActiveTab(n.tab))}
-                    style={activeTab===n.tab && !n.fn ? {'--nav-accent': n.accent} : {}}
-                  >
-                    <i className={n.icon} style={{color: activeTab===n.tab && !n.fn ? n.accent : 'var(--text-muted)'}} />
-                    <span>{n.label}</span>
-                  </button>
-                ))}
-              </div>
-
-              {/* ── Participants list ── */}
-              <div className={styles.cmdPlayersSection}>
-                <div className={styles.cmdSectionHead}>
-                  <span>ROSTER</span>
-                  <span style={{color:'var(--text-muted)', fontWeight:500}}>{participants.length} / {tournament.slots}</span>
-                </div>
-                {loadingParticipants
-                  ? <p className={styles.cmdEmpty}>Loading…</p>
-                  : participants.length === 0
-                    ? <p className={styles.cmdEmpty}>No players yet</p>
-                    : <div className={styles.cmdPlayerList}>
-                        {participants.map(p => {
-                          const bStatus = p.bracket_status
-                          const statusDot = bStatus==='champion' ? '#f59e0b' : bStatus==='out' ? '#dc2626' : '#22c55e'
-                          return (
-                            <div key={p.id} className={styles.cmdPlayerRow}>
-                              <div className={styles.cmdPlayerAvatar}>
-                                {p.profiles?.avatar_url
-                                  ? <img src={p.profiles.avatar_url} alt="" />
-                                  : <span>{(p.profiles?.username||'?')[0].toUpperCase()}</span>}
-                                <span className={styles.cmdPlayerDot} style={{background: statusDot}} />
-                              </div>
-                              <div className={styles.cmdPlayerInfo}>
-                                <span className={styles.cmdPlayerName}>{p.profiles?.username||'Unknown'}</span>
-                                <span className={styles.cmdPlayerMeta}>Lv.{p.profiles?.level??1}</span>
-                              </div>
-                              <div className={styles.cmdPlayerBadges}>
-                                {bStatus==='champion' && <span className={styles.cmdBadgeChamp}>🏆</span>}
-                                {bStatus==='out'      && <span className={styles.cmdBadgeOut}>OUT</span>}
-                                {p.payment_status==='approved'         && <span className={styles.cmdBadgePaid}>PAID</span>}
-                                {p.payment_status==='payment_submitted'&& <span className={styles.cmdBadgePending}>PEND</span>}
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                }
-              </div>
-
-              {/* ── Top scores ── */}
-              {leaderboard.length > 0 && (
-                <div className={styles.cmdScoresSection}>
-                  <div className={styles.cmdSectionHead}>
-                    <span>TOP SCORES</span>
-                    <button className={styles.cmdSeeAll} onClick={() => setActiveTab('leaderboard')}>See all →</button>
-                  </div>
-                  {leaderboard.slice(0,5).map((e,i) => (
-                    <div key={e.user_id} className={styles.cmdScoreRow}>
-                      <span className={styles.cmdScoreRank}
-                        style={{color: i===0?'#f59e0b':i===1?'#94a3b8':i===2?'#b45309':'var(--text-muted)'}}>
-                        {i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`}
-                      </span>
-                      <span className={styles.cmdScoreName}>{e.profiles?.username||'—'}</span>
-                      <span className={styles.cmdScorePts}>{e.points??0}<span style={{fontSize:10,opacity:0.6}}> pts</span></span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-            </>
-          )}
+        <div style={{ padding: '0 16px 12px' }}>
+          <button
+            onClick={() => router.push(`/tournaments/${tournament.slug || tournament.id}/manage`)}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              gap: 8, padding: '11px 16px', borderRadius: 12,
+              background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)',
+              border: '1px solid rgba(99,102,241,0.4)', color: '#a5b4fc',
+              fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit',
+              letterSpacing: '0.02em',
+            }}
+          >
+            <i className="ri-shield-star-fill" style={{ fontSize: 16, color: '#818cf8' }} />
+            Open Command Centre
+            <i className="ri-arrow-right-line" style={{ marginLeft: 'auto', opacity: 0.5 }} />
+          </button>
         </div>
       )}
 
