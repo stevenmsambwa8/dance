@@ -2507,3 +2507,345 @@
   font-weight: 700;
   letter-spacing: 0.04em;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   COMMAND CENTRE — admin/creator interface
+   Deliberately distinct from the user UI:
+   dark glass panels, sharp geometry, data-dense layout
+═══════════════════════════════════════════════════════════ */
+
+/* ── Outer container ── */
+.cmdCentre {
+  margin: 0 0 20px;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #0f1117 0%, #151821 100%);
+  border: 1px solid rgba(255,255,255,0.07);
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+/* ── Identity strip ── */
+.cmdStrip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(255,255,255,0.03);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.cmdRole {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: #f59e0b;
+  background: rgba(245,158,11,0.1);
+  border: 1px solid rgba(245,158,11,0.2);
+  padding: 3px 8px;
+  border-radius: 5px;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+.cmdTournamentName {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.7);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.01em;
+}
+.cmdViewToggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 7px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: transparent;
+  color: rgba(255,255,255,0.5);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.cmdViewToggle:hover {
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.85);
+}
+
+/* ── KPI row ── */
+.cmdKpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.cmdKpi {
+  padding: 12px 10px;
+  border-right: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cmdKpi:last-child { border-right: none; }
+.cmdKpiTop {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+.cmdKpiLabel {
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  color: rgba(255,255,255,0.3);
+  text-transform: uppercase;
+}
+.cmdKpiVal {
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.cmdKpiSub {
+  font-size: 9px;
+  color: rgba(255,255,255,0.3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Bracket command row ── */
+.cmdBracketRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(99,102,241,0.05);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.cmdBracketInfo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.55);
+  flex: 1;
+  min-width: 0;
+}
+.cmdBracketBtns {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.cmdBtnPrimary {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: none;
+  background: #6366f1;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.15s;
+}
+.cmdBtnPrimary:disabled { opacity: 0.4; cursor: not-allowed; }
+.cmdBtnPrimary:not(:disabled):hover { opacity: 0.85; }
+.cmdBtnDanger {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(220,38,38,0.35);
+  background: rgba(220,38,38,0.1);
+  color: #f87171;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.cmdBtnDanger:hover { background: rgba(220,38,38,0.2); }
+.cmdBtnGhost {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: transparent;
+  color: rgba(255,255,255,0.45);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.cmdBtnGhost:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.8); }
+
+/* ── Quick nav ── */
+.cmdNav {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.cmdNavBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 4px;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.35);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-family: inherit;
+  border-right: 1px solid rgba(255,255,255,0.06);
+  transition: all 0.15s;
+  position: relative;
+}
+.cmdNavBtn:last-child { border-right: none; }
+.cmdNavBtn i { font-size: 16px; }
+.cmdNavBtn:hover { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.7); }
+.cmdNavBtnActive {
+  color: rgba(255,255,255,0.9) !important;
+  background: rgba(255,255,255,0.05);
+}
+.cmdNavBtnActive::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 20%; right: 20%;
+  height: 2px;
+  background: var(--nav-accent, #6366f1);
+  border-radius: 2px 2px 0 0;
+}
+
+/* ── Section head ── */
+.cmdSectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px 6px;
+}
+.cmdSectionHead > span:first-child {
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: rgba(255,255,255,0.25);
+  text-transform: uppercase;
+}
+.cmdSeeAll {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6366f1;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+}
+
+/* ── Players list ── */
+.cmdPlayersSection {
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.cmdPlayerList {
+  display: flex;
+  flex-direction: column;
+  padding: 0 10px 10px;
+  gap: 2px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.cmdPlayerRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px;
+  border-radius: 8px;
+  transition: background 0.1s;
+}
+.cmdPlayerRow:hover { background: rgba(255,255,255,0.04); }
+.cmdPlayerAvatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.08);
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: rgba(255,255,255,0.6);
+  position: relative;
+}
+.cmdPlayerAvatar img { width: 100%; height: 100%; object-fit: cover; }
+.cmdPlayerDot {
+  position: absolute;
+  bottom: 1px; right: 1px;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid #0f1117;
+}
+.cmdPlayerInfo { flex: 1; min-width: 0; }
+.cmdPlayerName {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cmdPlayerMeta {
+  display: block;
+  font-size: 10px;
+  color: rgba(255,255,255,0.3);
+}
+.cmdPlayerBadges { display: flex; gap: 4px; flex-shrink: 0; }
+.cmdBadgeChamp  { font-size: 13px; }
+.cmdBadgeOut    { font-size: 9px; font-weight: 900; color: #f87171; background: rgba(220,38,38,0.12); padding: 2px 5px; border-radius: 4px; letter-spacing: 0.05em; }
+.cmdBadgePaid   { font-size: 9px; font-weight: 900; color: #4ade80; background: rgba(34,197,94,0.1);  padding: 2px 5px; border-radius: 4px; letter-spacing: 0.05em; }
+.cmdBadgePending{ font-size: 9px; font-weight: 900; color: #fbbf24; background: rgba(245,158,11,0.1); padding: 2px 5px; border-radius: 4px; letter-spacing: 0.05em; }
+
+/* ── Scores section ── */
+.cmdScoresSection {
+  padding-bottom: 10px;
+}
+.cmdScoreRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px;
+  transition: background 0.1s;
+}
+.cmdScoreRow:hover { background: rgba(255,255,255,0.03); }
+.cmdScoreRank  { font-size: 13px; width: 24px; flex-shrink: 0; text-align: center; }
+.cmdScoreName  { flex: 1; font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.75); }
+.cmdScorePts   { font-size: 14px; font-weight: 900; color: #f59e0b; }
+
+/* ── Empty state ── */
+.cmdEmpty {
+  font-size: 12px;
+  color: rgba(255,255,255,0.25);
+  padding: 10px 14px;
+  margin: 0;
+}
