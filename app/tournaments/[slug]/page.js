@@ -1862,14 +1862,25 @@ export default function TournamentDetail() {
     if (!await verifyCanManage()) return
     setSaving(true)
     const newSlug = slugify(editForm.name)
+    const newTeamSize = editForm.team_size || 1
     const { error } = await supabase.from('tournaments').update({
       name: editForm.name, slug: newSlug, description: editForm.description,
       slots: Number(editForm.slots), date: editForm.date,
       format: editForm.format, status: editForm.status,
-      team_size: editForm.team_size || 1,
+      team_size: newTeamSize,
     }).eq('id', id)
     setSaving(false)
     if (error) { showToast(error.message, 'error'); return }
+    // Immediately update tournament state so hero badge reflects new team_size
+    setTournament(t => ({ ...t, ...editForm, slug: newSlug, team_size: newTeamSize }))
+    // If lobby bracket's team_size no longer matches, rebuild it immediately
+    // without waiting for the realtime event — covers same-tab saves
+    setBracketData(prev => {
+      if (!prev || !prev.isEmpty) return prev
+      const prevTeamSize = prev.teamSize || 1
+      if (prevTeamSize === newTeamSize) return prev
+      return buildLobbyBracket(Number(editForm.slots) || 32, newTeamSize)
+    })
     setEditMode(false)
     if (newSlug !== slug) router.replace(`/tournaments/${newSlug}`)
     else load()
