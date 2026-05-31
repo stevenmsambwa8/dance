@@ -1149,14 +1149,24 @@ export default function TournamentDetail() {
 
   async function resetBracket() {
     if (!await verifyCanManage()) return
+    const teamSize = tournament?.team_size || 1
+    const slots    = tournament?.slots    || 32
     setConfirmModal({
-      message: 'Reset the entire bracket? All match progress and points will be lost.',
+      message: `Reset the entire bracket to a fresh ${teamSize > 1 ? teamSize + 'v' + teamSize + ' team' : '1v1'} lobby? All placements, match progress, and points will be cleared. Players will need to re-join their slots.`,
       onConfirm: async () => {
-        const bd = buildBracket(participants, tournament?.team_size || 1)
-        if (!bd) return
+        // 1. Delete leaderboard entries
         await supabase.from('tournament_leaderboard').delete().eq('tournament_id', id)
-        setBracketData(bd)
-        await saveBracket(bd)
+
+        // 2. Build a fresh empty lobby bracket with the CURRENT team_size
+        const freshLobby = buildLobbyBracket(slots, teamSize)
+
+        // 3. Save the fresh lobby to DB (clears all old bracket_data)
+        await supabase.from('tournaments').update({ bracket_data: freshLobby }).eq('id', id)
+
+        // 4. Update local state immediately
+        setBracketData(freshLobby)
+
+        showToast(`Bracket reset to fresh ${teamSize > 1 ? teamSize + 'v' + teamSize : '1v1'} lobby.`, 'success')
         load()
       },
     })
@@ -2537,9 +2547,22 @@ export default function TournamentDetail() {
                     <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
                       {'This bracket was built as ' + (bracketData.isTeamBattle ? bracketData.teamSize + 'v' + bracketData.teamSize + ' Team Battle' : '1v1 Solo') + '.'}
                       {canManage
-                        ? ' Use Reset Bracket to regenerate in the new format.'
+                        ? ' Tap Reset below to apply the new format.'
                         : ' The admin will reset and regenerate before the tournament starts.'}
                     </div>
+                    {canManage && (
+                      <button
+                        onClick={resetBracket}
+                        style={{
+                          marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 6,
+                          padding: '7px 14px', borderRadius: 8, border: 'none',
+                          background: '#f59e0b', color: '#fff',
+                          fontSize: 12, fontWeight: 800, cursor: 'pointer',
+                        }}
+                      >
+                        <i className="ri-restart-line" /> Reset Bracket Now
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
