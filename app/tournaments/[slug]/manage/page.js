@@ -6,6 +6,34 @@ import { supabase } from '../../../../lib/supabase'
 import styles from './page.module.css'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+function getPlayerBracketStatus(userId, bracketData) {
+  if (!bracketData?.rounds || !userId) return null
+  const totalRounds = bracketData.rounds.length
+  let deepestActive = -1, isEliminated = false, found = false
+  bracketData.rounds.forEach((pairs, rIdx) => {
+    pairs.forEach(pair => {
+      pair.forEach(slot => {
+        if (!slot || slot.status === 'bye') return
+        let inSlot = false
+        if (bracketData.isTeamBattle) inSlot = (slot.members || []).some(m => m?.userId === userId)
+        else inSlot = slot.userId === userId
+        if (!inSlot) return
+        found = true
+        const isOut = slot.status === 'eliminated' || slot.status === 'disqualified'
+        if (!isOut && rIdx > deepestActive) deepestActive = rIdx
+        if (isOut) isEliminated = true
+      })
+    })
+  })
+  if (!found) return null
+  if (isEliminated && deepestActive === -1) return 'out'
+  const fromEnd = (totalRounds - 1) - deepestActive
+  if (fromEnd === 0) return 'champion'
+  if (fromEnd === 1) return 'final'
+  if (fromEnd === 2) return 'semi'
+  return 'in'
+}
+
 function parseBracketData(raw) {
   if (!raw) return null
   try { return typeof raw === 'string' ? JSON.parse(raw) : raw } catch { return null }
@@ -157,16 +185,24 @@ export default function TournamentManage() {
     id.current = t.id
     setTournament(t)
 
-    const [{ data: parts }, { data: lb }] = await Promise.all([
+    const [{ data: parts }, { data: lb }, { data: pmts }] = await Promise.all([
       supabase.from('tournament_participants')
-        .select('*, profiles(username, avatar_url, level, tier), payment:tournament_payments(status)')
+        .select('*, profiles(username, avatar_url, level, tier)')
         .eq('tournament_id', t.id),
       supabase.from('tournament_leaderboard')
         .select('*, profiles(username, avatar_url)')
         .eq('tournament_id', t.id)
         .order('position', { ascending: true }),
+      supabase.from('tournament_payments')
+        .select('user_id, status')
+        .eq('tournament_id', t.id),
     ])
-    setParticipants(parts || [])
+
+    // Merge payment status onto each participant
+    const payMap = Object.fromEntries((pmts || []).map(p => [p.user_id, p.status]))
+    const partsWithPayment = (parts || []).map(p => ({ ...p, payment_status: payMap[p.user_id] || null }))
+
+    setParticipants(partsWithPayment)
     setLeaderboard(lb || [])
 
     const parsed = parseBracketData(t.bracket_data)
@@ -554,12 +590,14 @@ export default function TournamentManage() {
             : participants.map(p => {
                 const bStatus  = p.bracket_status
                 const dotColor = bStatus==='champion'?'#f59e0b':bStatus==='out'?'#dc2626':'#22c55e'
-                const payStatus = p.payment?.[0]?.status
+                const payStatus = p.payment_status
+                const bStatus = getPlayerBracketStatus(p.user_id, bracketData)
+                const dotColor2 = bStatus==='champion'?'#f59e0b':bStatus==='out'?'#dc2626':'#22c55e'
                 return (
                   <div key={p.id} className={styles.playerRow}>
                     <div className={styles.playerAvatar}>
                       <Avatar src={p.profiles?.avatar_url} name={p.profiles?.username} size={36} radius={10} />
-                      <span className={styles.playerDot} style={{ background: dotColor }} />
+                      <span className={styles.playerDot} style={{ background: dotColor2 }} />
                     </div>
                     <div className={styles.playerInfo}>
                       <span className={styles.playerName}>{p.profiles?.username || 'Unknown'}</span>
@@ -630,26 +668,23 @@ export default function TournamentManage() {
 
         {/* ════ PAYMENTS ════ */}
         {activeTab === 'payments' && <>
-          {participants.filter(p => p.payment?.[0]).length === 0
+          {participants.filter(p => p.payment_status).length === 0
             ? <p className={styles.empty}>No payment records</p>
-            : participants.filter(p => p.payment?.[0]).map(p => {
-                const pay = p.payment[0]
-                return (
-                  <div key={p.id} className={`${styles.payCard} ${pay.status === 'approved' ? styles.payApprovedBorder : pay.status === 'payment_submitted' ? styles.payPendingBorder : ''}`}>
-                    <Avatar src={p.profiles?.avatar_url} name={p.profiles?.username} size={36} radius={10} />
-                    <div className={styles.playerInfo}>
-                      <span className={styles.playerName}>{p.profiles?.username || 'Unknown'}</span>
-                      <span className={styles.playerMeta}>{fmtTZS(tournament.entrance_fee)} entry fee</span>
-                    </div>
-                    {pay.status === 'approved'
-                      ? <span className={styles.badgePaid}>APPROVED</span>
-                      : pay.status === 'payment_submitted'
-                        ? <button className={styles.btnAmber} onClick={() => approvePayment(p.user_id)}>Approve</button>
-                        : <span className={styles.playerMeta}>{pay.status}</span>
-                    }
+            : participants.filter(p => p.payment_status).map(p => (
+                <div key={p.id} className={`${styles.payCard} ${p.payment_status === 'approved' ? styles.payApprovedBorder : p.payment_status === 'payment_submitted' ? styles.payPendingBorder : ''}`}>
+                  <Avatar src={p.profiles?.avatar_url} name={p.profiles?.username} size={36} radius={10} />
+                  <div className={styles.playerInfo}>
+                    <span className={styles.playerName}>{p.profiles?.username || 'Unknown'}</span>
+                    <span className={styles.playerMeta}>{fmtTZS(tournament.entrance_fee)} entry fee</span>
                   </div>
-                )
-              })
+                  {p.payment_status === 'approved'
+                    ? <span className={styles.badgePaid}>APPROVED</span>
+                    : p.payment_status === 'payment_submitted'
+                      ? <button className={styles.btnAmber} onClick={() => approvePayment(p.user_id)}>Approve</button>
+                      : <span className={styles.playerMeta}>{p.payment_status}</span>
+                  }
+                </div>
+              ))
           }
         </>}
 
