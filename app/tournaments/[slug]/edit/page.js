@@ -219,54 +219,65 @@ export default function TournamentEditPage() {
           />
         </Field>
 
-        {/* ── Match Type — only upgrade from solo is allowed ── */}
-        <Field
-          label="Match Type"
-          hint={
-            (tournament.team_size || 1) > 1
-              ? `Currently ${tournament.team_size}v${tournament.team_size} Team Battle — cannot downgrade to protect existing bracket data.`
-              : 'You can upgrade from 1v1 to a team format. This only affects new brackets — existing solo data is preserved.'
-          }
-        >
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {TEAM_SIZE_OPTIONS.map(opt => {
-              const currentSize = tournament.team_size || 1
-              // Disable options that would be a downgrade
-              const isDowngrade = opt.value < currentSize
-              const isActive    = form.team_size === opt.value
-              return (
+        {/* ── Match Type — only shown when an upgrade is still possible ── */}
+        {(() => {
+          const currentSize = tournament.team_size || 1
+          const maxSize = 8
+          // If already at max (8v8), nothing to upgrade — hide the field entirely
+          if (currentSize >= maxSize) return null
+          const upgradeable = TEAM_SIZE_OPTIONS.filter(opt => opt.value >= currentSize)
+          return (
+            <Field
+              label="Match Type"
+              hint={currentSize === 1
+                ? 'Upgrade from 1v1 to a team format. Only affects newly generated brackets.'
+                : `Currently ${currentSize}v${currentSize} — you can upgrade further.`}
+            >
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {upgradeable.map(opt => {
+                  const isActive = form.team_size === opt.value
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => set('team_size', opt.value)}
+                      style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'center',
+                        gap: 2, padding: '8px 14px', borderRadius: 10, border: 'none',
+                        background: isActive ? 'var(--accent)' : 'var(--surface-raised)',
+                        color: isActive ? '#fff' : 'var(--text)',
+                        cursor: 'pointer', minWidth: 60, fontFamily: 'inherit',
+                      }}
+                    >
+                      <span style={{ fontWeight: 800, fontSize: 14 }}>{opt.label}</span>
+                      <span style={{ fontSize: 10, opacity: 0.75 }}>{opt.sub}</span>
+                    </button>
+                  )
+                })}
+              </div>
+              {form.team_size > currentSize && (
+                <p style={{ marginTop: 8, fontSize: 12, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <i className="ri-information-line" />
+                  Upgrading to {form.team_size}v{form.team_size} — next generated bracket will use teams of {form.team_size}.
+                </p>
+              )}
+              {currentSize > 1 && (
                 <button
-                  key={opt.value}
                   type="button"
-                  disabled={isDowngrade}
-                  onClick={() => !isDowngrade && set('team_size', opt.value)}
+                  onClick={() => set('team_size', 1)}
                   style={{
-                    display: 'flex', flexDirection: 'column', alignItems: 'center',
-                    gap: 2, padding: '8px 14px', borderRadius: 10, border: 'none',
-                    background: isActive
-                      ? 'var(--accent)'
-                      : isDowngrade
-                        ? 'var(--surface)'
-                        : 'var(--surface-raised)',
-                    color: isActive ? '#fff' : isDowngrade ? 'var(--text-muted)' : 'var(--text)',
-                    opacity: isDowngrade ? 0.35 : 1,
-                    cursor: isDowngrade ? 'not-allowed' : 'pointer',
-                    minWidth: 60, fontFamily: 'inherit',
+                    marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 6,
+                    padding: '7px 14px', borderRadius: 8, border: '1px solid rgba(220,38,38,0.3)',
+                    background: 'rgba(220,38,38,0.06)', color: '#dc2626',
+                    fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
                   }}
                 >
-                  <span style={{ fontWeight: 800, fontSize: 14 }}>{opt.label}</span>
-                  <span style={{ fontSize: 10, opacity: 0.75 }}>{opt.sub}</span>
+                  <i className="ri-refresh-line" /> Reset to 1v1
                 </button>
-              )
-            })}
-          </div>
-          {form.team_size > 1 && (tournament.team_size || 1) === 1 && (
-            <p style={{ marginTop: 8, fontSize: 12, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: 5 }}>
-              <i className="ri-information-line" />
-              Upgrading to {form.team_size}v{form.team_size} — the next generated bracket will group players into teams of {form.team_size}.
-            </p>
-          )}
-        </Field>
+              )}
+            </Field>
+          )
+        })()}
 
         <Field label="Date" hint="Shown on the tournament card">
           <input
