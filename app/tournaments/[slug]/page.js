@@ -2523,6 +2523,26 @@ export default function TournamentDetail() {
             </div>
           ) : (
             <>
+              {bracketData?.teamSizeMismatch && (
+                <div style={{
+                  margin: '0 0 14px', padding: '12px 14px', borderRadius: 10,
+                  background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.25)',
+                  display: 'flex', alignItems: 'flex-start', gap: 10,
+                }}>
+                  <i className="ri-error-warning-line" style={{ color: '#f59e0b', fontSize: 18, flexShrink: 0, marginTop: 1 }} />
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: '#f59e0b', marginBottom: 3 }}>
+                      Match type updated to {bracketData.currentTeamSize}v{bracketData.currentTeamSize}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                      {'This bracket was built as ' + (bracketData.isTeamBattle ? bracketData.teamSize + 'v' + bracketData.teamSize + ' Team Battle' : '1v1 Solo') + '.'}
+                      {canManage
+                        ? ' Use Reset Bracket to regenerate in the new format.'
+                        : ' The admin will reset and regenerate before the tournament starts.'}
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className={styles.bracketHeader}>
                 <div className={styles.bracketInfo}>
                   <span className={styles.bracketSize}>
