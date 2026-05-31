@@ -41,7 +41,7 @@ export default function TournamentEditPage() {
 
   const [form, setForm] = useState({
     name: '', description: '', game_slug: 'pubgm', format: 'Solo',
-    slots: '', entrance_fee: '', prize: '', date: '', status: 'active',
+    slots: '', entrance_fee: '', date: '', status: 'active',
     team_size: 1,
   })
   const [saving,    setSaving]    = useState(false)
@@ -71,7 +71,6 @@ export default function TournamentEditPage() {
         format:       data.format        || 'Solo',
         slots:        data.slots         ?? '',
         entrance_fee: data.entrance_fee  ?? '',
-        prize:        data.prize         ?? '',
         date:         data.date          || '',
         status:       data.status        || 'active',
         team_size:    data.team_size      || 1,
@@ -99,7 +98,6 @@ export default function TournamentEditPage() {
         format:       form.format,
         slots:        Number(form.slots) || tournament.slots,
         entrance_fee: form.entrance_fee !== '' ? String(form.entrance_fee) : null,
-        prize:        form.prize !== '' ? String(form.prize) : null,
         date:         form.date || null,
         status:       form.status,
         team_size:    form.team_size || 1,
@@ -211,26 +209,15 @@ export default function TournamentEditPage() {
           </Field>
         </div>
 
-        <div className={styles.row}>
-          <Field label="Entry Fee (TZS)" hint="Leave blank for free">
-            <input
-              className={styles.input}
-              type="text"
-              value={form.entrance_fee}
-              onChange={e => set('entrance_fee', e.target.value)}
-              placeholder="e.g. 1000"
-            />
-          </Field>
-          <Field label="Prize Pool (TZS)" hint="Leave blank for no prize">
-            <input
-              className={styles.input}
-              type="text"
-              value={form.prize}
-              onChange={e => set('prize', e.target.value)}
-              placeholder="e.g. 15000"
-            />
-          </Field>
-        </div>
+        <Field label="Entry Fee (TZS)" hint="Leave blank for free">
+          <input
+            className={styles.input}
+            type="text"
+            value={form.entrance_fee}
+            onChange={e => set('entrance_fee', e.target.value)}
+            placeholder="e.g. 1000"
+          />
+        </Field>
 
         {/* ── Match Type — only upgrade from solo is allowed ── */}
         <Field
