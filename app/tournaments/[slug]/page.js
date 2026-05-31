@@ -1864,7 +1864,7 @@ export default function TournamentDetail() {
     const newSlug = slugify(editForm.name)
     const { error } = await supabase.from('tournaments').update({
       name: editForm.name, slug: newSlug, description: editForm.description,
-      prize: editForm.prize, slots: Number(editForm.slots), date: editForm.date,
+      slots: Number(editForm.slots), date: editForm.date,
       format: editForm.format, status: editForm.status,
       team_size: editForm.team_size || 1,
     }).eq('id', id)
@@ -3182,7 +3182,6 @@ export default function TournamentDetail() {
             <div className={styles.editBody}>
               {[
                 { label: 'Name', key: 'name', type: 'text' },
-                { label: 'Prize (TZS)', key: 'prize', type: 'text' },
                 { label: 'Format', key: 'format', type: 'text' },
                 { label: 'Max Slots', key: 'slots', type: 'number' },
                 { label: 'Date', key: 'date', type: 'text' },
