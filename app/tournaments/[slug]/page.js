@@ -486,7 +486,25 @@ export default function TournamentDetail() {
     setId(t.id)
     setTournament(t)
     setEditForm(t)
-    setBracketData(parseBracketData(t.bracket_data) ?? (t.slots >= 2 ? buildLobbyBracket(t.slots, t.team_size || 1) : null))
+    const _loadParsed   = parseBracketData(t.bracket_data)
+    const _loadTeamSize = t.team_size || 1
+    let _loadFinal
+    if (!_loadParsed) {
+      _loadFinal = (t.slots >= 2) ? buildLobbyBracket(t.slots, _loadTeamSize) : null
+    } else {
+      const _loadMode     = _loadParsed.isTeamBattle ? (_loadParsed.teamSize || 2) : 1
+      const _loadMismatch = _loadMode !== _loadTeamSize
+      if (_loadMismatch && _loadParsed.isEmpty) {
+        // Empty lobby built with wrong team_size — silently rebuild
+        _loadFinal = buildLobbyBracket(t.slots, _loadTeamSize)
+      } else if (_loadMismatch && !_loadParsed.isEmpty) {
+        // Players exist but bracket mode doesn't match team_size — flag it
+        _loadFinal = { ..._loadParsed, teamSizeMismatch: true, currentTeamSize: _loadTeamSize }
+      } else {
+        _loadFinal = _loadParsed
+      }
+    }
+    setBracketData(_loadFinal)
     setLoadingTournament(false)
 
     if (t.created_by) {
@@ -587,18 +605,23 @@ export default function TournamentDetail() {
         setEditForm(t)   // keep inline edit form in sync with latest DB state (incl. team_size)
         // Always rebuild the lobby bracket from fresh t.team_size so a
         // solo→team upgrade on the edit page is immediately reflected here
-        setBracketData(prev => {
-          const fresh = parseBracketData(t.bracket_data)
-          if (fresh) return fresh                              // generated bracket — use as-is
-          if ((t.slots || 0) < 2) return null
-          // Lobby bracket: rebuild only if team_size changed or no bracket yet
-          const prevTeamSize = prev?.teamSize || 1
-          const newTeamSize  = t.team_size   || 1
-          if (!prev || prev.isEmpty || prevTeamSize !== newTeamSize) {
-            return buildLobbyBracket(t.slots, newTeamSize)
+;(() => {
+          const _parsedBd2   = parseBracketData(t.bracket_data)
+          const _dbTeamSize2 = t.team_size || 1
+          const _bMode2      = _parsedBd2 ? (_parsedBd2.isTeamBattle ? (_parsedBd2.teamSize || 2) : 1) : null
+          const _mismatch2   = _parsedBd2 && (_bMode2 !== _dbTeamSize2)
+          let _finalBd2
+          if (!_parsedBd2) {
+            _finalBd2 = (t.slots >= 2) ? buildLobbyBracket(t.slots, _dbTeamSize2) : null
+          } else if (_mismatch2 && _parsedBd2.isEmpty) {
+            _finalBd2 = buildLobbyBracket(t.slots, _dbTeamSize2)
+          } else if (_mismatch2 && !_parsedBd2.isEmpty) {
+            _finalBd2 = { ..._parsedBd2, teamSizeMismatch: true, currentTeamSize: _dbTeamSize2 }
+          } else {
+            _finalBd2 = _parsedBd2
           }
-          return prev
-        })
+          setBracketData(_finalBd2)
+        })()
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tournament_participants', filter: `tournament_id=eq.${id}` }, () => {
         supabase.from('tournament_participants')
@@ -1883,14 +1906,24 @@ export default function TournamentDetail() {
     if (error) { showToast(error.message, 'error'); return }
     // Immediately update tournament state so hero badge reflects new team_size
     setTournament(t => ({ ...t, ...editForm, slug: newSlug, team_size: newTeamSize }))
-    // If lobby bracket's team_size no longer matches, rebuild it immediately
-    // without waiting for the realtime event — covers same-tab saves
-    setBracketData(prev => {
-      if (!prev || !prev.isEmpty) return prev
-      const prevTeamSize = prev.teamSize || 1
-      if (prevTeamSize === newTeamSize) return prev
-      return buildLobbyBracket(Number(editForm.slots) || 32, newTeamSize)
-    })
+    // Rebuild bracket immediately — covers same-tab saves before realtime fires
+    ;(() => {
+      const _slots3      = Number(editForm.slots) || 32
+      const _parsedBd3   = bracketData
+      const _bMode3      = _parsedBd3 ? (_parsedBd3.isTeamBattle ? (_parsedBd3.teamSize || 2) : 1) : null
+      const _mismatch3   = _parsedBd3 && (_bMode3 !== newTeamSize)
+      let _finalBd3
+      if (!_parsedBd3) {
+        _finalBd3 = buildLobbyBracket(_slots3, newTeamSize)
+      } else if (_mismatch3 && _parsedBd3.isEmpty) {
+        _finalBd3 = buildLobbyBracket(_slots3, newTeamSize)
+      } else if (_mismatch3 && !_parsedBd3.isEmpty) {
+        _finalBd3 = { ..._parsedBd3, teamSizeMismatch: true, currentTeamSize: newTeamSize }
+      } else {
+        _finalBd3 = _parsedBd3
+      }
+      setBracketData(_finalBd3)
+    })()
     setEditMode(false)
     if (newSlug !== slug) router.replace(`/tournaments/${newSlug}`)
     else load()
