@@ -342,35 +342,42 @@
 /* ── Tabs ── */
 .tabs {
   display: flex;
-  gap: 0;
-  border-bottom: 1px solid var(--border);
+  gap: 6px;
   position: sticky;
   top: 0;
   z-index: 10;
   background: var(--bg);
-  padding: 0 16px;
+  padding: 10px 16px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--border);
 }
+.tabs::-webkit-scrollbar { display: none; }
 .tab {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 6px;
-  flex: 1;
-  padding: 12px 4px;
-  border: none;
-  background: none;
+  flex-shrink: 0;
+  padding: 7px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--surface);
   font-size: 12px;
   font-weight: 700;
   color: var(--text-muted);
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  transition: color 0.15s, border-color 0.15s;
   cursor: pointer;
   white-space: nowrap;
+  transition: all 0.15s;
+  font-family: inherit;
 }
-.tab i { font-size: 15px; }
-.tab:hover { color: var(--text); }
-.tabActive { color: var(--accent); border-bottom-color: var(--accent); font-weight: 800; }
+.tab i { font-size: 14px; }
+.tab:hover { color: var(--text); border-color: var(--border-dark); }
+.tabActive {
+  color: var(--bg);
+  background: var(--accent);
+  border-color: var(--accent);
+  font-weight: 800;
+}
 
 /* ── Section ── */
 .section { padding: 16px 16px 4px; }
@@ -490,39 +497,47 @@
  * Since flex: 1 makes wrap height dynamic, we use % anchored to the card heights.
  * Cards are equal height → top card midpoint at ~25% from top, bot at ~75%.
  */
+/* ── matchPairWrap — connector strategy ──────────────────────────────────────
+ *
+ * Previous approach used ::before top:25% / bottom:25% which broke on
+ * variable-height cards (team mode, BYE cards, etc).
+ *
+ * New approach: the matchPairWrap itself has a right border that acts as the
+ * vertical spine. A ::after pseudo-element draws the horizontal arm at 50%.
+ * The left incoming arm is drawn by the matchCard::before on col 2+.
+ *
+ * The right border ONLY runs between the two cards — achieved by making
+ * matchPairWrap a flex column and giving the border to a connector element
+ * (.bracketConnector) injected between the two cards in JSX.
+ * This way the spine always exactly connects the two card midpoints.
+ */
 .matchPairWrap {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 8px 28px 8px 12px;  /* right padding leaves room for the right arm */
+  gap: 0;
+  padding: 8px 28px 8px 12px;
   flex: 1;
   justify-content: center;
 }
-
-/*
- * Right-side vertical spine.
- * Connects the midpoint of the top card to the midpoint of the bottom card.
- * With equal-height cards and equal padding, top card mid ≈ 25%, bot mid ≈ 75%.
+/* ── Vertical spine: uses CSS custom properties set by JS ─────────────────────
+ * --spine-top and --spine-bot are set inline on each matchPairWrap via JS
+ * to exactly hit the midpoint of each card regardless of card height.
+ * Fallback (25%/75%) works for standard solo 1v1 cards.
  */
 .matchPairWrap::before {
   content: '';
   position: absolute;
   right: 10px;
-  top: 25%;
-  bottom: 25%;
+  top: var(--spine-top, 25%);
+  bottom: var(--spine-bot, 25%);
   width: 2px;
   background: var(--border-dark);
   pointer-events: none;
   border-radius: 1px;
 }
 
-/*
- * Horizontal arm — exits from the midpoint of the spine (50%) and
- * extends rightward into the gap between columns.
- * Width covers from right:10px (spine) all the way to the left edge of
- * the next column's card (left padding = 12px → bridged by right:-18px, width=28px).
- */
+/* Horizontal arm from spine midpoint to next column */
 .matchPairWrap::after {
   content: '';
   position: absolute;
@@ -2164,8 +2179,8 @@
   .heroStats { grid-template-columns: repeat(2, 1fr); }
   .heroStats .heroStat:nth-child(2) { border-right: none; }
   .participantGrid { grid-template-columns: 1fr; }
-  .tabs { padding: 0 8px; }
-  .tab { font-size: 11px; padding: 10px 2px; }
+  .tabs { padding: 8px 12px; gap: 6px; }
+  .tab { font-size: 11px; padding: 6px 12px; }
 }
 
 /* ═══════════════════════════════════════════
@@ -2503,9 +2518,9 @@
 
 /* Tab label (added to user-view tabs) */
 .tabLabel {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.01em;
 }
 
 /* ═══════════════════════════════════════════════════════════
