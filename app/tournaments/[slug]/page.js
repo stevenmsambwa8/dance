@@ -2529,7 +2529,7 @@ export default function TournamentDetail() {
                                 />
                               : bracketData.isTeamBattle
                                 ? (
-                                  <div key={pIdx} className={styles.matchPairWrap}>
+                                  <div key={pIdx} className={styles.matchPairWrap} data-pair-wrap>
                                     <TeamMatchCard
                                       pair={pair}
                                       styles={styles}
@@ -2560,7 +2560,7 @@ export default function TournamentDetail() {
                                   </div>
                                 )
                                 : (
-                                <div key={pIdx} className={styles.matchPairWrap}>
+                                <div key={pIdx} className={styles.matchPairWrap} data-pair-wrap>
                                   <MatchCard
                                     pair={pair}
                                     styles={styles}
@@ -3964,19 +3964,23 @@ function MatchCard({ pair, styles, isAdmin, onSetStatus, onSwap, passPoints, lea
   return (
     <>
       <div className={`${styles.matchCard} ${isByeMatch ? styles.matchCardBye : ''}`}>
-        <SlotRow
-          entry={a} styles={styles} isAdmin={isAdmin}
-          onOpen={() => openSheet(0, a)}
-          passPoints={passPoints} earnedPts={getEarnedPts(a)} entryProfile={getEntryProfile(a)}
-          onJoin={a?.status === 'open' && onJoin ? () => onJoin(0) : undefined}
-        />
+        <div data-match-card>
+          <SlotRow
+            entry={a} styles={styles} isAdmin={isAdmin}
+            onOpen={() => openSheet(0, a)}
+            passPoints={passPoints} earnedPts={getEarnedPts(a)} entryProfile={getEntryProfile(a)}
+            onJoin={a?.status === 'open' && onJoin ? () => onJoin(0) : undefined}
+          />
+        </div>
         <div className={styles.matchDivider}><span className={styles.vsLabel}>vs</span></div>
-        <SlotRow
-          entry={b} styles={styles} isAdmin={isAdmin}
-          onOpen={() => openSheet(1, b)}
-          passPoints={passPoints} earnedPts={getEarnedPts(b)} entryProfile={getEntryProfile(b)}
-          onJoin={b?.status === 'open' && onJoin ? () => onJoin(1) : undefined}
-        />
+        <div data-match-card>
+          <SlotRow
+            entry={b} styles={styles} isAdmin={isAdmin}
+            onOpen={() => openSheet(1, b)}
+            passPoints={passPoints} earnedPts={getEarnedPts(b)} entryProfile={getEntryProfile(b)}
+            onJoin={b?.status === 'open' && onJoin ? () => onJoin(1) : undefined}
+          />
+        </div>
       </div>
 
       {activeSheet && (
@@ -4145,6 +4149,35 @@ function SheetFollowBtn({ userId }) {
   const { user } = useAuth()
   const [following, setFollowing] = React.useState(false)
   const [loading, setLoading] = React.useState(true)
+
+  // ── Bracket connector measurement ──────────────────────────────────────────
+  // Sets --spine-top and --spine-bot on each .matchPairWrap so the vertical
+  // spine pseudo-element exactly connects the midpoint of the top card to the
+  // midpoint of the bottom card, regardless of card height (solo vs team mode).
+  React.useEffect(() => {
+    function measureConnectors() {
+      const wraps = document.querySelectorAll('[data-pair-wrap]')
+      wraps.forEach(wrap => {
+        const cards = wrap.querySelectorAll('[data-match-card]')
+        if (cards.length < 2) return
+        const wrapH = wrap.getBoundingClientRect().height
+        if (!wrapH) return
+        const topCardH = cards[0].getBoundingClientRect().height
+        const botCardH = cards[1].getBoundingClientRect().height
+        // top of spine = top card midpoint as % of wrap height
+        const wrapRect = wrap.getBoundingClientRect()
+        const topCardRect = cards[0].getBoundingClientRect()
+        const botCardRect = cards[1].getBoundingClientRect()
+        const spineTop = ((topCardRect.top - wrapRect.top) + topCardH / 2) / wrapH * 100
+        const spineBot = 100 - (((botCardRect.top - wrapRect.top) + botCardH / 2) / wrapH * 100)
+        wrap.style.setProperty('--spine-top', `${spineTop.toFixed(1)}%`)
+        wrap.style.setProperty('--spine-bot', `${spineBot.toFixed(1)}%`)
+      })
+    }
+    // Small delay to let layout settle
+    const t = setTimeout(measureConnectors, 80)
+    return () => clearTimeout(t)
+  }, [bracketData, activeTab])
 
   React.useEffect(() => {
     if (!user || !userId || user.id === userId) { setLoading(false); return }
