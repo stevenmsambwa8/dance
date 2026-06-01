@@ -185,9 +185,9 @@ export default function TournamentManage() {
     id.current = t.id
     setTournament(t)
 
-    const [{ data: parts }, { data: lb }, { data: pmts }] = await Promise.all([
+    const [partsRes, lbRes, pmtsRes] = await Promise.all([
       supabase.from('tournament_participants')
-        .select('*, profiles(username, avatar_url, level, tier)')
+        .select('*, profiles(username, avatar_url, level, country_flag, is_season_winner)')
         .eq('tournament_id', t.id),
       supabase.from('tournament_leaderboard')
         .select('*, profiles(username, avatar_url)')
@@ -198,12 +198,15 @@ export default function TournamentManage() {
         .eq('tournament_id', t.id),
     ])
 
+    if (partsRes.error) console.error('manage: participants fetch error', partsRes.error)
+    if (lbRes.error)    console.error('manage: leaderboard fetch error', lbRes.error)
+
     // Merge payment status onto each participant
-    const payMap = Object.fromEntries((pmts || []).map(p => [p.user_id, p.status]))
-    const partsWithPayment = (parts || []).map(p => ({ ...p, payment_status: payMap[p.user_id] || null }))
+    const payMap = Object.fromEntries((pmtsRes.data || []).map(p => [p.user_id, p.status]))
+    const partsWithPayment = (partsRes.data || []).map(p => ({ ...p, payment_status: payMap[p.user_id] || null }))
 
     setParticipants(partsWithPayment)
-    setLeaderboard(lb || [])
+    setLeaderboard(lbRes.data || [])
 
     const parsed = parseBracketData(t.bracket_data)
     const dbTeamSize = t.team_size || 1
@@ -601,7 +604,7 @@ export default function TournamentManage() {
                     </div>
                     <div className={styles.playerInfo}>
                       <span className={styles.playerName}>{p.profiles?.username || 'Unknown'}</span>
-                      <span className={styles.playerMeta}>Lv.{p.profiles?.level ?? 1} · {p.profiles?.tier || '—'}</span>
+                      <span className={styles.playerMeta}>Lv.{p.profiles?.level ?? 1}</span>
                     </div>
                     <div className={styles.playerBadges}>
                       {bStatus === 'champion' && <span>🏆</span>}
