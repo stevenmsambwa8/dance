@@ -591,16 +591,14 @@ export default function TournamentManage() {
           {participants.length === 0
             ? <p className={styles.empty}>No players yet</p>
             : participants.map(p => {
-                const bStatus  = p.bracket_status
+                const bStatus = getPlayerBracketStatus(p.user_id, bracketData)
                 const dotColor = bStatus==='champion'?'#f59e0b':bStatus==='out'?'#dc2626':'#22c55e'
                 const payStatus = p.payment_status
-                const bStatus = getPlayerBracketStatus(p.user_id, bracketData)
-                const dotColor2 = bStatus==='champion'?'#f59e0b':bStatus==='out'?'#dc2626':'#22c55e'
                 return (
                   <div key={p.id} className={styles.playerRow}>
                     <div className={styles.playerAvatar}>
                       <Avatar src={p.profiles?.avatar_url} name={p.profiles?.username} size={36} radius={10} />
-                      <span className={styles.playerDot} style={{ background: dotColor2 }} />
+                      <span className={styles.playerDot} style={{ background: dotColor }} />
                     </div>
                     <div className={styles.playerInfo}>
                       <span className={styles.playerName}>{p.profiles?.username || 'Unknown'}</span>
