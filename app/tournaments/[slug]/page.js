@@ -4124,15 +4124,6 @@ function MatchCard({ pair, styles, isAdmin, onSetStatus, onSwap, passPoints, lea
           </div>
         </div>
       )}
-
-      {/* Upgrade modal for plan gates */}
-      {showUpgrade && (
-        <UpgradeModal
-          feature={upgradeFeature}
-          profile={profile}
-          onClose={() => setShowUpgrade(false)}
-        />
-      )}
     </>
   )
 }
