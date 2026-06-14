@@ -2548,7 +2548,7 @@ export default function TournamentDetail() {
                     {bracketData.rounds.map((pairs, rIdx) => {
                       const isChampion = rIdx === bracketData.rounds.length - 1
                       return (
-                        <div key={rIdx} className={`${styles.bracketCol} ${isChampion ? styles.bracketColChamp : ''}`} data-round={rIdx}>
+                        <div key={rIdx} className={`${styles.bracketCol} ${isChampion ? styles.bracketColChamp : ''}`}>
                           <div className={`${styles.roundLabel} ${isChampion ? styles.roundLabelChamp : ''}`}>
                             {isChampion && <i className="ri-vip-crown-fill" style={{ marginRight: 4 }} />}
                             {getRoundLabel(rIdx, bracketData.rounds.length, bracketData.bracketSize)}
@@ -2566,7 +2566,7 @@ export default function TournamentDetail() {
                                 /></div>
                               : bracketData.isTeamBattle
                                 ? (
-                                  <div key={pIdx} className={styles.matchPairWrap} data-pair={pIdx} data-round={rIdx}>
+                                  <div key={pIdx} className={styles.matchPairWrap} data-bround={rIdx} data-bpair={pIdx}>
                                     <TeamMatchCard
                                       pair={pair}
                                       styles={styles}
@@ -2597,7 +2597,7 @@ export default function TournamentDetail() {
                                   </div>
                                 )
                                 : (
-                                <div key={pIdx} className={styles.matchPairWrap} data-pair={pIdx} data-round={rIdx}>
+                                <div key={pIdx} className={styles.matchPairWrap} data-bround={rIdx} data-bpair={pIdx}>
                                   <MatchCard
                                     pair={pair}
                                     styles={styles}
@@ -4124,6 +4124,7 @@ function MatchCard({ pair, styles, isAdmin, onSetStatus, onSwap, passPoints, lea
           </div>
         </div>
       )}
+
     </>
   )
 }
@@ -4181,55 +4182,53 @@ function SlotRow({ entry, styles, isAdmin, onOpen, passPoints, earnedPts, entryP
 
 
 // ─── BracketConnectorsSVG ─────────────────────────────────────────────────────
-// Draws L-shaped SVG connector lines between bracket rounds using real DOM rects.
-// Rendered as a position:absolute SVG overlay on top of bracketWrap.
 function BracketConnectorsSVG({ wrapRef, bracketData }) {
+  const [size, setSize] = React.useState({ w: 0, h: 0 })
   const [paths, setPaths] = React.useState([])
 
-  React.useLayoutEffect(() => {
+  React.useEffect(() => {
     const wrap = wrapRef.current
     if (!wrap || !bracketData?.rounds) return
 
     function compute() {
-      const wrapRect = wrap.getBoundingClientRect()
-      const totalRounds = bracketData.rounds.length
-      const newPaths = []
+      // Wait for next frame so all elements are fully painted
+      requestAnimationFrame(() => {
+        const wrapRect = wrap.getBoundingClientRect()
+        if (!wrapRect.width) return
 
-      // For each non-champion round, connect each pair to its destination in the next round
-      for (let rIdx = 0; rIdx < totalRounds - 2; rIdx++) {
-        const pairs = bracketData.rounds[rIdx]
-        pairs.forEach((_, pIdx) => {
-          // Source: this matchPairWrap
-          const srcEl = wrap.querySelector(`[data-round="${rIdx}"][data-pair="${pIdx}"]`)
-          // Destination: next round pair (pIdx >> 1)
-          const dstEl = wrap.querySelector(`[data-round="${rIdx + 1}"][data-pair="${Math.floor(pIdx / 2)}"]`)
-          if (!srcEl || !dstEl) return
+        setSize({ w: wrapRect.width, h: wrapRect.height })
 
-          const sRect = srcEl.getBoundingClientRect()
-          const dRect = dstEl.getBoundingClientRect()
+        const totalRounds = bracketData.rounds.length
+        const newPaths = []
 
-          // Source point: right-centre of the match card
-          const sx = sRect.right  - wrapRect.left
-          const sy = sRect.top + sRect.height / 2 - wrapRect.top
+        for (let rIdx = 0; rIdx < totalRounds - 2; rIdx++) {
+          const pairs = bracketData.rounds[rIdx]
+          pairs.forEach((_, pIdx) => {
+            const srcEl = wrap.querySelector(`[data-bround="${rIdx}"][data-bpair="${pIdx}"]`)
+            const dstEl = wrap.querySelector(`[data-bround="${rIdx + 1}"][data-bpair="${Math.floor(pIdx / 2)}"]`)
+            if (!srcEl || !dstEl) return
 
-          // Destination point: left-centre of the next round match card
-          const dx = dRect.left  - wrapRect.left
-          const dy = dRect.top + dRect.height / 2 - wrapRect.top
+            const sRect = srcEl.getBoundingClientRect()
+            const dRect = dstEl.getBoundingClientRect()
 
-          // Midpoint X (halfway between columns)
-          const mx = sx + (dx - sx) / 2
+            const sx = sRect.right - wrapRect.left
+            const sy = sRect.top + sRect.height / 2 - wrapRect.top
+            const dx = dRect.left - wrapRect.left
+            const dy = dRect.top + dRect.height / 2 - wrapRect.top
+            const mx = sx + (dx - sx) / 2
 
-          // L-shape: right → across → down/up → into next card
-          newPaths.push(`M ${sx} ${sy} H ${mx} V ${dy} H ${dx}`)
-        })
-      }
-      setPaths(newPaths)
+            newPaths.push(`M ${sx} ${sy} H ${mx} V ${dy} H ${dx}`)
+          })
+        }
+        setPaths(newPaths)
+      })
     }
 
-    compute()
+    // Initial compute + small delay for full layout
+    const t = setTimeout(compute, 60)
     const ro = new ResizeObserver(compute)
     ro.observe(wrap)
-    return () => ro.disconnect()
+    return () => { clearTimeout(t); ro.disconnect() }
   }, [wrapRef, bracketData])
 
   if (!paths.length) return null
@@ -4238,9 +4237,8 @@ function BracketConnectorsSVG({ wrapRef, bracketData }) {
     <svg
       style={{
         position: 'absolute', top: 0, left: 0,
-        width: '100%', height: '100%',
-        pointerEvents: 'none', overflow: 'visible',
-        zIndex: 0,
+        width: size.w || '100%', height: size.h || '100%',
+        pointerEvents: 'none', overflow: 'visible', zIndex: 0,
       }}
     >
       {paths.map((d, i) => (
