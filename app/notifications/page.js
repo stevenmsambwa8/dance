@@ -128,7 +128,7 @@ export default function NotificationsPage() {
       await supabase.from('notifications').update({ read: true }).eq('id', notif.id)
       setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n))
     }
-    const { item_id, request_id, tournament_id, game_slug, sender_id, match_id } = notif.meta || {}
+    const { item_id, request_id, tournament_id, game_slug, sender_id, match_id, cta_link } = notif.meta || {}
     if (notif.type === 'direct_message' && sender_id) {
       router.push(`/dm/${sender_id}`)
     } else if ((notif.type === 'match_request_accepted' || notif.type === 'score_request' || notif.type === 'match_win' || notif.type === 'match_loss' || notif.type === 'match_result') && match_id) {
@@ -137,6 +137,8 @@ export default function NotificationsPage() {
       router.push(`/games/${game_slug}/chat`)
     } else if (notif.type === 'subscription' || notif.type === 'system') {
       router.push('/upgrade')
+    } else if (cta_link) {
+      router.push(cta_link)
     } else if (tournament_id) {
       router.push(`/tournaments/${tournament_id}`)
     } else if (item_id && request_id) {
@@ -232,9 +234,11 @@ export default function NotificationsPage() {
                   </div>
                   <p className={styles.title}>{n.title}</p>
                   {n.body && <p className={styles.body}>{n.body}</p>}
-                  {n.meta?.item_id && (
+                  {(n.meta?.cta_link || n.meta?.cta_label) ? (
+                    <p className={styles.cta}>{n.meta?.cta_label || 'View'} <i className="ri-arrow-right-line" /></p>
+                  ) : n.meta?.item_id ? (
                     <p className={styles.cta}>View item <i className="ri-arrow-right-line" /></p>
-                  )}
+                  ) : null}
                 </div>
                 {!n.read && <span className={styles.dot} />}
                 <button className={styles.deleteBtn} onClick={e => deleteOne(n.id, e)} title="Dismiss">
