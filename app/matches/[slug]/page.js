@@ -379,7 +379,7 @@ export default function MatchPage() {
             <div className={styles.sideInfo}>
               <span className={styles.sideName}>
                 {ch?.username || '—'}
-                <UserBadges email={ch?.email} plan={ch?.plan} planExpiresAt={ch?.plan_expires_at} countryFlag={ch?.country_flag} isSeasonWinner={ch?.is_season_winner} size={12} gap={2} />
+                <UserBadges email={ch?.email} countryFlag={ch?.country_flag} isSeasonWinner={ch?.is_season_winner} size={12} gap={2} />
               </span>
               <span className={styles.sideMeta}>{ch?.tier} · Lv.{ch?.level ?? 1} · {ch?.wins ?? 0}W {ch?.losses ?? 0}L</span>
             </div>
@@ -404,7 +404,7 @@ export default function MatchPage() {
             {cdWon && <span className={styles.winLabel}>🏆 Winner</span>}
             <div className={`${styles.sideInfo} ${styles.sideInfoRight}`}>
               <span className={styles.sideName}>
-                <UserBadges email={cd?.email} plan={cd?.plan} planExpiresAt={cd?.plan_expires_at} countryFlag={cd?.country_flag} isSeasonWinner={cd?.is_season_winner} size={12} gap={2} />
+                <UserBadges email={cd?.email} countryFlag={cd?.country_flag} isSeasonWinner={cd?.is_season_winner} size={12} gap={2} />
                 {cd?.username || '—'}
               </span>
               <span className={styles.sideMeta}>{cd?.tier} · Lv.{cd?.level ?? 1} · {cd?.wins ?? 0}W {cd?.losses ?? 0}L</span>

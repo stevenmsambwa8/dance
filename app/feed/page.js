@@ -156,7 +156,7 @@ export default function Feed() {
                 <div className={styles.postMeta}>
                   <div className={styles.postUserRow}>
                     <a href={`/profile/${post.profiles?.id}`} className={styles.postUser}>{post.profiles?.username || 'Player'}</a>
-                    <UserBadges email={post.profiles?.email} plan={post.profiles?.plan} planExpiresAt={post.profiles?.plan_expires_at} countryFlag={post.profiles?.country_flag} isSeasonWinner={post.profiles?.is_season_winner} size={13} gap={2} />
+                    <UserBadges email={post.profiles?.email} countryFlag={post.profiles?.country_flag} isSeasonWinner={post.profiles?.is_season_winner} size={13} gap={2} />
                   </div>
                   <span className={styles.postRank}>
                     {post.profiles?.level ? `Lv.${post.profiles.level} · ` : ''}{timeAgo(post.created_at)}

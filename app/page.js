@@ -448,7 +448,7 @@ export default function Home() {
             <div className={styles.heroBody}>
               <div className={styles.heroName}>
                 {profile.username}
-                <UserBadges email={profile.email} plan={profile.plan} planExpiresAt={profile.plan_expires_at} countryFlag={profile.country_flag} isSeasonWinner={profile.is_season_winner} size={16} />
+                <UserBadges email={profile.email} countryFlag={profile.country_flag} isSeasonWinner={profile.is_season_winner} size={16} />
               </div>
               <div className={styles.heroBadgeRow}>
                 <span className={styles.heroBadge} style={{ color: tierMeta.color, borderColor: tierMeta.color + '55', background: tierMeta.color + '18' }}>
@@ -651,7 +651,7 @@ export default function Home() {
                     <span className={styles.leaderName}>
                       {p.username}
                       {isMe && <span className={styles.youPill}>YOU</span>}
-                      <UserBadges email={p.email} plan={p.plan} planExpiresAt={p.plan_expires_at} countryFlag={p.country_flag} isSeasonWinner={p.is_season_winner} size={11} gap={2} />
+                      <UserBadges email={p.email} countryFlag={p.country_flag} isSeasonWinner={p.is_season_winner} size={11} gap={2} />
                     </span>
                     <span className={styles.leaderSub} style={{ color: tm.color }}>
                       <i className={tm.icon} /> {p.tier} · Lv.{p.level ?? 1} · {p.wins || 0}W

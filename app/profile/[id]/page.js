@@ -263,7 +263,7 @@ export default function PublicProfile() {
         <h1 className={styles.helpdeskName}>
           {profile.username}
           <PlanBadge plan={profile.plan} planExpiresAt={profile.plan_expires_at} size="sm" />
-          <UserBadges email={profile.email} plan={profile.plan} planExpiresAt={profile.plan_expires_at} countryFlag={null} isSeasonWinner={false} size={18} />
+          <UserBadges email={profile.email} countryFlag={null} isSeasonWinner={false} size={18} />
         </h1>
         <p className={styles.helpdeskRole}>Nabogaming Help Desk</p>
         <p className={styles.helpdeskBio}>
@@ -346,7 +346,7 @@ export default function PublicProfile() {
           <div className={styles.heroNameRow}>
             <h1 className={styles.heroName}>{profile.username}</h1>
             <UserBadges
-              email={profile.email} plan={profile.plan} planExpiresAt={profile.plan_expires_at}
+              email={profile.email}
               countryFlag={profile.country_flag}
               isSeasonWinner={profile.is_season_winner}
               size={20}
@@ -516,7 +516,7 @@ export default function PublicProfile() {
                         {post.profiles?.username || 'Player'}
                       </Link>
                       <UserBadges
-                        email={post.profiles?.email} plan={post.profiles?.plan} planExpiresAt={post.profiles?.plan_expires_at}
+                        email={post.profiles?.email}
                         countryFlag={post.profiles?.country_flag}
                         isSeasonWinner={post.profiles?.is_season_winner}
                         size={12}

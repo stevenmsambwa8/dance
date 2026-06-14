@@ -644,7 +644,7 @@ export default function GameChat() {
                           {!mine && isFirst && !isSpecial && (
                             <div className={styles.bubbleSender}>
                               <span className={styles.bubbleSenderName}>{msg.profiles?.username || 'Player'}</span>
-                              <UserBadges email={msg.profiles?.email} plan={msg.profiles?.plan} planExpiresAt={msg.profiles?.plan_expires_at} countryFlag={msg.profiles?.country_flag} isSeasonWinner={msg.profiles?.is_season_winner} size={10} gap={2} />
+                              <UserBadges email={msg.profiles?.email} countryFlag={msg.profiles?.country_flag} isSeasonWinner={msg.profiles?.is_season_winner} size={10} gap={2} />
                               {msg.profiles?.tier && <span className={styles.bubbleSenderTier}>{msg.profiles.tier}</span>}
                             </div>
                           )}

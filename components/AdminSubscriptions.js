@@ -45,35 +45,43 @@ export default function AdminSubscriptions({ onCountChange }) {
   async function activate(sub) {
     setActing(sub.id)
     try {
-      await supabase.rpc('activate_subscription', { p_subscription_id: sub.id, p_months: 1 })
+      const { error } = await supabase.rpc('activate_subscription', { p_subscription_id: sub.id, p_months: 1 })
+      if (error) throw error
       await supabase.from('notifications').insert({
         user_id: sub.user_id,
         title:   `${PLANS[sub.plan]?.label} Plan Activated! ${PLANS[sub.plan]?.badge}`,
         body:    `Your ${PLANS[sub.plan]?.label} subscription is now active. Enjoy your new features!`,
-        type:    'system',
+        type:    'subscription',
         meta:    { plan: sub.plan },
         read:    false,
       })
       load()
+    } catch (err) {
+      console.error('activate error:', err)
+      alert('Activation failed: ' + err.message)
     } finally { setActing(null) }
   }
 
   async function reject(sub) {
     setActing(sub.id)
     try {
-      await supabase.rpc('reject_subscription', {
+      const { error } = await supabase.rpc('reject_subscription', {
         p_subscription_id: sub.id,
         p_notes: notes[sub.id] || null,
       })
+      if (error) throw error
       await supabase.from('notifications').insert({
         user_id: sub.user_id,
         title:   'Subscription Payment Not Verified',
         body:    `We couldn't verify your ${PLANS[sub.plan]?.label} payment. Please resubmit with the correct reference or contact support.`,
-        type:    'system',
+        type:    'subscription',
         meta:    { plan: sub.plan },
         read:    false,
       })
       load()
+    } catch (err) {
+      console.error('reject error:', err)
+      alert('Rejection failed: ' + err.message)
     } finally { setActing(null) }
   }
 
@@ -81,19 +89,43 @@ export default function AdminSubscriptions({ onCountChange }) {
     if (!window.confirm(`Cancel ${sub.profiles?.username || 'this user'}'s ${PLANS[sub.plan]?.label} plan? This will reset them to free immediately.`)) return
     setActing(sub.id)
     try {
-      await supabase.rpc('cancel_subscription', {
+      const cancelNote = notes[sub.id] || 'Cancelled by admin'
+
+      // Try RPC first
+      const { error: rpcErr } = await supabase.rpc('cancel_subscription', {
         p_subscription_id: sub.id,
-        p_notes: notes[sub.id] || 'Cancelled by admin',
+        p_notes: cancelNote,
       })
+
+      if (rpcErr) {
+        console.warn('cancel_subscription RPC failed, falling back to direct update:', rpcErr.message)
+        // Direct fallback: update subscriptions row
+        const { error: subErr } = await supabase
+          .from('subscriptions')
+          .update({ status: 'cancelled', notes: cancelNote })
+          .eq('id', sub.id)
+        if (subErr) throw subErr
+
+        // Direct fallback: reset profile plan to free
+        const { error: profErr } = await supabase
+          .from('profiles')
+          .update({ plan: 'free', plan_expires_at: null })
+          .eq('id', sub.user_id)
+        if (profErr) throw profErr
+      }
+
       await supabase.from('notifications').insert({
         user_id: sub.user_id,
         title:   'Subscription Cancelled',
         body:    `Your ${PLANS[sub.plan]?.label} plan has been cancelled by admin. Contact support if you think this is a mistake.`,
-        type:    'system',
+        type:    'subscription',
         meta:    { plan: sub.plan },
         read:    false,
       })
       load()
+    } catch (err) {
+      console.error('cancel error:', err)
+      alert('Cancellation failed: ' + err.message)
     } finally { setActing(null) }
   }
 

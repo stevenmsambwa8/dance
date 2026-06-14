@@ -10,19 +10,42 @@ import { GAME_META } from '../../lib/constants'
 import usePageLoading from '../../components/usePageLoading'
 
 const TYPE_META = {
-  buy_request:          { icon: 'ri-shopping-bag-line',       color: '#6366f1', label: 'Buy Request' },
-  negotiation_message:  { icon: 'ri-chat-3-line',             color: '#0ea5e9', label: 'Message' },
-  request_update:       { icon: 'ri-check-double-line',       color: '#22c55e', label: 'Update' },
-  tournament_advance:   { icon: 'ri-arrow-right-circle-fill', color: '#22c55e', label: 'Round Advanced' },
-  tournament_win:       { icon: 'ri-trophy-fill',             color: '#f59e0b', label: 'Final Won' },
-  tournament_champion:  { icon: 'ri-vip-crown-fill',          color: '#f59e0b', label: 'Champion!' },
-  tournament_eliminate: { icon: 'ri-close-circle-fill',       color: '#dc2626', label: 'Eliminated' },
-  tournament_podium:    { icon: 'ri-medal-fill',              color: '#94a3b8', label: 'Podium Finish' },
-  tournament:           { icon: 'ri-node-tree',               color: '#6366f1', label: 'Tournament' },
-  direct_message:       { icon: 'ri-chat-private-line',       color: '#0ea5e9', label: 'Direct Message' },
-  group_chat:           { icon: 'ri-gamepad-line',            color: '#a855f7', label: 'Game Chat' },
-  match_request_accepted: { icon: 'ri-sword-fill',            color: '#22c55e', label: 'Challenge Accepted' },
+  // Shop
+  buy_request:            { icon: 'ri-shopping-bag-line',        color: '#6366f1', label: 'Buy Request'        },
+  negotiation_message:    { icon: 'ri-chat-3-line',              color: '#0ea5e9', label: 'Message'            },
+  request_update:         { icon: 'ri-check-double-line',        color: '#22c55e', label: 'Update'             },
+  shop_payout:            { icon: 'ri-money-dollar-circle-line', color: '#22c55e', label: 'Payout'             },
+
+  // Tournament
+  tournament_advance:     { icon: 'ri-arrow-right-circle-fill',  color: '#22c55e', label: 'Round Advanced'     },
+  tournament_win:         { icon: 'ri-trophy-fill',              color: '#f59e0b', label: 'Final Won'          },
+  tournament_champion:    { icon: 'ri-vip-crown-fill',           color: '#f59e0b', label: 'Champion!'          },
+  tournament_eliminate:   { icon: 'ri-close-circle-fill',        color: '#dc2626', label: 'Eliminated'         },
+  tournament_podium:      { icon: 'ri-medal-fill',               color: '#94a3b8', label: 'Podium Finish'      },
+  tournament:             { icon: 'ri-node-tree',                color: '#6366f1', label: 'Tournament'         },
+
+  // Payment
+  payment:                { icon: 'ri-secure-payment-line',      color: '#f59e0b', label: 'Payment'            },
+
+  // Match
+  match_request_accepted: { icon: 'ri-sword-fill',               color: '#22c55e', label: 'Challenge Accepted' },
+  score_request:          { icon: 'ri-edit-box-line',            color: '#f59e0b', label: 'Score Request'      },
+  match_win:              { icon: 'ri-trophy-line',              color: '#22c55e', label: 'Match Won'          },
+  match_loss:             { icon: 'ri-close-circle-line',        color: '#ef4444', label: 'Match Lost'         },
+  match_result:           { icon: 'ri-flag-line',                color: '#8e8e93', label: 'Match Result'       },
+
+  // Messaging
+  direct_message:         { icon: 'ri-chat-private-line',        color: '#0ea5e9', label: 'Direct Message'     },
+  group_chat:             { icon: 'ri-gamepad-line',             color: '#a855f7', label: 'Game Chat'          },
+
+  // Subscription / Admin
+  subscription:           { icon: 'ri-vip-crown-line',           color: '#38bdf8', label: 'Subscription'       },
+  system:                 { icon: 'ri-shield-star-line',         color: '#38bdf8', label: 'From Admin'         },
+  announcement:           { icon: 'ri-megaphone-line',           color: '#f59e0b', label: 'Announcement'       },
 }
+
+// Fallback for unknown types
+const DEFAULT_META = { icon: 'ri-notification-3-line', color: '#8e8e93', label: 'Notification' }
 
 function timeAgo(ts) {
   const s = Math.floor((Date.now() - new Date(ts)) / 1000)
@@ -108,10 +131,12 @@ export default function NotificationsPage() {
     const { item_id, request_id, tournament_id, game_slug, sender_id, match_id } = notif.meta || {}
     if (notif.type === 'direct_message' && sender_id) {
       router.push(`/dm/${sender_id}`)
-    } else if (notif.type === 'match_request_accepted' && match_id) {
+    } else if ((notif.type === 'match_request_accepted' || notif.type === 'score_request' || notif.type === 'match_win' || notif.type === 'match_loss' || notif.type === 'match_result') && match_id) {
       router.push(`/matches/${match_id}`)
     } else if (notif.type === 'group_chat' && game_slug) {
       router.push(`/games/${game_slug}/chat`)
+    } else if (notif.type === 'subscription' || notif.type === 'system') {
+      router.push('/upgrade')
     } else if (tournament_id) {
       router.push(`/tournaments/${tournament_id}`)
     } else if (item_id && request_id) {
@@ -183,7 +208,7 @@ export default function NotificationsPage() {
       ) : (
         <div className={styles.list}>
           {filtered.map(n => {
-            const meta = TYPE_META[n.type] || TYPE_META.buy_request
+            const meta = TYPE_META[n.type] || DEFAULT_META
             return (
               <button key={n.id} className={`${styles.item} ${!n.read ? styles.itemUnread : ''}`} onClick={() => handleClick(n)}>
                 <div className={styles.iconWrap} style={{ '--accent': meta.color }}>
