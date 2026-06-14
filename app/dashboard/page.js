@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth, ADMIN_EMAIL } from '../../components/AuthProvider'
 import { supabase } from '../../lib/supabase'
@@ -12,23 +12,34 @@ import AdminSubscriptions from '../../components/AdminSubscriptions'
 function makeMatchCode(id) {
   if (!id) return '0000'
   const clean = id.replace(/-/g, '')
-  return ((clean[0] || '0') + (clean[2] || '0') + (clean[9] || '0') + (clean[14] || '0')).toLowerCase()
+  return ((clean[0]||'0')+(clean[2]||'0')+(clean[9]||'0')+(clean[14]||'0')).toLowerCase()
 }
 
-const TABS = ['Overview', 'Todos', 'Masters', 'Users', 'Posts', 'Tournaments', 'Battles', 'Shop', 'Notifications', 'Subscriptions']
-
-const TAB_ICONS = {
-  Overview:      'ri-dashboard-3-line',
-  Todos:         'ri-checkbox-multiple-line',
-  Masters:       'ri-crown-line',
-  Users:         'ri-group-line',
-  Posts:         'ri-article-line',
-  Tournaments:   'ri-trophy-line',
-  Battles:       'ri-sword-line',
-  Shop:          'ri-store-2-line',
-  Notifications:   'ri-notification-3-line',
-  Subscriptions:   'ri-vip-crown-line',
-}
+/* ── Tab groups ── */
+const NAV_GROUPS = [
+  {
+    tabs: [
+      { id: 'Overview',      icon: 'ri-dashboard-3-line',        label: 'Overview' },
+      { id: 'Todos',         icon: 'ri-checkbox-multiple-line',   label: 'Todos' },
+      { id: 'Subscriptions', icon: 'ri-vip-crown-line',           label: 'Subs' },
+    ]
+  },
+  {
+    tabs: [
+      { id: 'Users',         icon: 'ri-group-line',               label: 'Users' },
+      { id: 'Masters',       icon: 'ri-crown-line',               label: 'Masters' },
+      { id: 'Notifications', icon: 'ri-notification-3-line',      label: 'Notify' },
+    ]
+  },
+  {
+    tabs: [
+      { id: 'Tournaments',   icon: 'ri-trophy-line',              label: 'Tourneys' },
+      { id: 'Battles',       icon: 'ri-sword-line',               label: 'Battles' },
+      { id: 'Posts',         icon: 'ri-article-line',             label: 'Posts' },
+      { id: 'Shop',          icon: 'ri-store-2-line',             label: 'Shop' },
+    ]
+  }
+]
 
 function fmtDate(iso, short) {
   if (!iso) return '—'
@@ -52,6 +63,66 @@ function ActionRow({ children }) {
   return <div className={styles.actionRow}>{children}</div>
 }
 
+/* ── Pure-SVG Bar Chart ── */
+function BarChart({ data, color = '#6366f1', height = 120 }) {
+  const max = Math.max(...data.map(d => d.val), 1)
+  const W = 300, H = height, pad = 4
+  const bw = (W - pad * (data.length + 1)) / data.length
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className={styles.barChart} preserveAspectRatio="none">
+      {data.map((d, i) => {
+        const bh = Math.max(4, (d.val / max) * (H - 20))
+        const x = pad + i * (bw + pad)
+        const y = H - bh
+        const isLast = i === data.length - 1
+        return (
+          <g key={i}>
+            <rect
+              x={x} y={y} width={bw} height={bh}
+              rx={4} ry={4}
+              fill={isLast ? color : `${color}55`}
+            />
+          </g>
+        )
+      })}
+    </svg>
+  )
+}
+
+/* ── Pure-SVG Line Chart ── */
+function LineChart({ data, color = '#6366f1', fill = true }) {
+  const vals = data.map(d => d.val)
+  const max = Math.max(...vals, 1)
+  const min = Math.min(...vals)
+  const W = 300, H = 90, pLeft = 4, pRight = 4, pTop = 8, pBot = 8
+  const iW = W - pLeft - pRight
+  const iH = H - pTop - pBot
+  const pts = vals.map((v, i) => ({
+    x: pLeft + (i / (vals.length - 1)) * iW,
+    y: pTop + (1 - (v - min) / (max - min || 1)) * iH
+  }))
+  const linePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ')
+  const fillPath = `${linePath} L${pts[pts.length-1].x},${H-pBot} L${pts[0].x},${H-pBot} Z`
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className={styles.lineChart} preserveAspectRatio="none">
+      <defs>
+        <linearGradient id={`lg-${color.replace('#','')}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      {fill && <path d={fillPath} fill={`url(#lg-${color.replace('#','')})`} />}
+      <path d={linePath} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      {pts.map((p, i) => (
+        <circle key={i} cx={p.x} cy={p.y} r={i === pts.length-1 ? 4 : 2.5}
+          fill={i === pts.length-1 ? color : 'none'}
+          stroke={color} strokeWidth="2"
+        />
+      ))}
+    </svg>
+  )
+}
+
 export default function Dashboard() {
   const { user, isAdmin, loading: authLoading } = useAuth()
   const router = useRouter()
@@ -65,17 +136,14 @@ export default function Dashboard() {
   const [dataLoading, setDataLoading] = useState(true)
   usePageLoading(authLoading || dataLoading)
 
-  // ── User list search ──
   const [userListSearch, setUserListSearch] = useState('')
   const [copyToast, setCopyToast] = useState(null)
-
   const [todos, setTodos] = useState([])
   const [todosLoading, setTodosLoading] = useState(false)
   const [tournamentPayments, setTournamentPayments] = useState([])
   const [pendingSubsCount, setPendingSubsCount] = useState(0)
   const [tournamentPaymentsLoading, setTournamentPaymentsLoading] = useState(false)
 
-  // ── Game Masters ──
   const [allMasters, setAllMasters] = useState([])
   const [mastersLoading, setMastersLoading] = useState(false)
   const [crownModal, setCrownModal] = useState(null)
@@ -86,7 +154,6 @@ export default function Dashboard() {
   const [crownSaving, setCrownSaving] = useState(false)
   const [crownSuccess, setCrownSuccess] = useState(null)
 
-  // Notification composer
   const [notifForm, setNotifForm] = useState({
     target: 'all', targetUserId: '', targetUsername: '',
     title: '', body: '', type: 'announcement', ctaLabel: '', ctaLink: '',
@@ -98,7 +165,6 @@ export default function Dashboard() {
   const [userResults, setUserResults] = useState([])
   const [searching, setSearching] = useState(false)
 
-  // Edit states
   const [editUser, setEditUser] = useState(null)
   const [editUserPhoneCode, setEditUserPhoneCode] = useState('255')
   const [editUserPhoneLocal, setEditUserPhoneLocal] = useState('')
@@ -135,7 +201,6 @@ export default function Dashboard() {
     if (isAdmin && tab === 'Subscriptions') loadPendingSubsCount()
   }, [isAdmin, tab])
 
-  // ── Copy phone helper ──
   function copyPhone(phone) {
     navigator.clipboard.writeText(phone).then(() => {
       setCopyToast(phone)
@@ -143,7 +208,6 @@ export default function Dashboard() {
     })
   }
 
-  // ── Data loaders ──
   async function loadAll() {
     setDataLoading(true)
     const [
@@ -155,7 +219,6 @@ export default function Dashboard() {
       supabase.from('posts').select('*', { count: 'exact', head: true }),
       supabase.from('tournaments').select('*', { count: 'exact', head: true }),
       supabase.from('matches').select('*', { count: 'exact', head: true }),
-      // ── FIX: removed .limit(50) so ALL users load including admin ──
       supabase.from('profiles').select('*').order('created_at', { ascending: false }),
       supabase.from('posts').select('id, user_id, content, likes, comment_count, created_at, profiles(username)').order('created_at', { ascending: false }).limit(50),
       supabase.from('tournaments').select('*').order('created_at', { ascending: false }).limit(50),
@@ -212,7 +275,6 @@ export default function Dashboard() {
     setPendingSubsCount(count || 0)
   }
 
-  // ── Crown master ──
   async function searchCrownUsers(q) {
     if (!q.trim()) { setCrownResults([]); return }
     setCrownSearching(true)
@@ -234,54 +296,37 @@ export default function Dashboard() {
       return d.toISOString().split('T')[0]
     })()
     const gameName = GAME_META[crownModal.gameSlug]?.name || crownModal.gameSlug
-
     const { error } = await supabase.from('game_masters').upsert({
-      game_slug: crownModal.gameSlug,
-      user_id: crownSelected.id,
-      week_start: weekStart,
-      total_wins: crownSelected.wins || 0,
-      total_points: crownSelected.points || 0,
-      tournaments_played: 0,
+      game_slug: crownModal.gameSlug, user_id: crownSelected.id,
+      week_start: weekStart, total_wins: crownSelected.wins || 0,
+      total_points: crownSelected.points || 0, tournaments_played: 0,
       crowned_at: new Date().toISOString(),
     }, { onConflict: 'game_slug,week_start' })
     setCrownSaving(false)
     if (error) { alert(error.message); return }
-
     await supabase.from('notifications').insert({
-      user_id: crownSelected.id,
-      type: 'announcement',
+      user_id: crownSelected.id, type: 'announcement',
       title: `👑 You're the ${gameName} Weekly Master!`,
-      body: `Congratulations ${crownSelected.username}! You've been crowned this week's ${gameName} Master. Your achievement is now featured on the homepage.`,
+      body: `Congratulations ${crownSelected.username}! You've been crowned this week's ${gameName} Master.`,
       meta: { game_slug: crownModal.gameSlug, cta_link: `/games/${crownModal.gameSlug}`, cta_label: 'View Your Crown' },
       read: false,
     })
-
-    const { data: subs } = await supabase
-      .from('game_subscriptions')
-      .select('user_id')
-      .eq('game_slug', crownModal.gameSlug)
-      .neq('user_id', crownSelected.id)
-
+    const { data: subs } = await supabase.from('game_subscriptions')
+      .select('user_id').eq('game_slug', crownModal.gameSlug).neq('user_id', crownSelected.id)
     if (subs?.length) {
       const notifs = subs.map(s => ({
-        user_id: s.user_id,
-        type: 'announcement',
+        user_id: s.user_id, type: 'announcement',
         title: `👑 New ${gameName} Weekly Master`,
-        body: `${crownSelected.username} has been crowned this week's ${gameName} Master! Check it out on the game page.`,
+        body: `${crownSelected.username} has been crowned this week's ${gameName} Master!`,
         meta: { game_slug: crownModal.gameSlug, cta_link: `/games/${crownModal.gameSlug}`, cta_label: 'View Master' },
         read: false,
       }))
-      for (let i = 0; i < notifs.length; i += 20) {
+      for (let i = 0; i < notifs.length; i += 20)
         await supabase.from('notifications').insert(notifs.slice(i, i + 20))
-      }
     }
-
     setCrownSuccess(`${crownSelected.username} crowned! Notified ${(subs?.length || 0) + 1} players.`)
     setTimeout(() => setCrownSuccess(null), 4000)
-    setCrownModal(null)
-    setCrownSelected(null)
-    setCrownSearch('')
-    setCrownResults([])
+    setCrownModal(null); setCrownSelected(null); setCrownSearch(''); setCrownResults([])
     loadAllMasters()
   }
 
@@ -291,7 +336,6 @@ export default function Dashboard() {
     loadAllMasters()
   }
 
-  // ── Payments ──
   async function approveTournamentPayment(pmt) {
     const { data: adminProf } = await supabase.from('profiles').select('id').eq('email', ADMIN_EMAIL).single()
     const { error } = await supabase.rpc('approve_tournament_payment', { p_payment_id: pmt.id, p_admin_id: adminProf?.id })
@@ -299,7 +343,7 @@ export default function Dashboard() {
     await supabase.from('notifications').insert({
       user_id: pmt.user.id,
       title: '✅ Payment Approved — You\'re Registered!',
-      body: `Your entry fee for "${pmt.tournaments?.name}" has been verified. You are now registered and placed in the bracket!`,
+      body: `Your entry fee for "${pmt.tournaments?.name}" has been verified.`,
       type: 'tournament', meta: { tournament_id: pmt.tournament_id }, read: false,
     })
     loadTournamentPayments()
@@ -310,7 +354,7 @@ export default function Dashboard() {
     await supabase.from('tournament_payments').update({ status: 'rejected', reviewed_at: new Date().toISOString() }).eq('id', pmt.id)
     await supabase.from('notifications').insert({
       user_id: pmt.user.id, title: '❌ Payment Rejected',
-      body: `Your entry fee for "${pmt.tournaments?.name}" was rejected. Please check your reference and resubmit.`,
+      body: `Your entry fee for "${pmt.tournaments?.name}" was rejected.`,
       type: 'tournament', meta: { tournament_id: pmt.tournament_id }, read: false,
     })
     loadTournamentPayments()
@@ -335,7 +379,6 @@ export default function Dashboard() {
     loadTodos()
   }
 
-  // ── Users ──
   async function saveUser() {
     const fullPhone = editUserPhoneLocal.trim()
       ? `+${editUserPhoneCode}${editUserPhoneLocal.trim().replace(/^0/, '')}` : null
@@ -355,7 +398,6 @@ export default function Dashboard() {
     setUsers(u => u.filter(x => x.id !== id))
   }
 
-  // ── Posts ──
   async function savePost() {
     const { error } = await supabase.from('posts').update({ content: editPost.content }).eq('id', editPost.id)
     if (error) { alert(error.message); return }
@@ -368,7 +410,6 @@ export default function Dashboard() {
     setPosts(p => p.filter(x => x.id !== id))
   }
 
-  // ── Tournaments ──
   async function saveTournament() {
     const { error } = await supabase.from('tournaments').update({
       name: editTournament.name, prize: editTournament.prize, format: editTournament.format,
@@ -387,7 +428,6 @@ export default function Dashboard() {
     setTournaments(ts => ts.filter(t => t.id !== id))
   }
 
-  // ── Battles ──
   async function saveBattle() {
     const { error } = await supabase.from('matches').update({
       status: editBattle.status, game_mode: editBattle.game_mode, format: editBattle.format,
@@ -416,7 +456,6 @@ export default function Dashboard() {
     if (!error) { setBattleModal(false); loadAll() } else alert(error.message)
   }
 
-  // ── Shop ──
   async function saveShop() {
     const { error } = await supabase.from('shop_items').update({
       title: editShop.title, price: editShop.price, category: editShop.category,
@@ -432,7 +471,6 @@ export default function Dashboard() {
     setShopItems(s => s.filter(x => x.id !== id))
   }
 
-  // ── Notifications ──
   async function searchUsers(q) {
     if (!q.trim()) { setUserResults([]); return }
     setSearching(true)
@@ -470,107 +508,250 @@ export default function Dashboard() {
 
   const anyEdit = editUser || editPost || editTournament || editBattle || editShop || battleModal
   const todoBadge = todos.length + tournamentPayments.length
-
-  // Group masters by game
   const mastersByGame = GAME_SLUGS.reduce((acc, slug) => {
     acc[slug] = allMasters.filter(m => m.game_slug === slug)
     return acc
   }, {})
-
-  // ── Filtered users (client-side, instant) ──
   const filteredUsers = users.filter(u => {
     if (!userListSearch.trim()) return true
     const q = userListSearch.toLowerCase()
-    return (
-      u.username?.toLowerCase().includes(q) ||
-      u.email?.toLowerCase().includes(q) ||
-      u.phone?.toLowerCase().includes(q)
-    )
+    return u.username?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) || u.phone?.toLowerCase().includes(q)
   })
+
+  /* ── Chart data (derived from loaded data) ── */
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+  const today = new Date().getDay()
+  const weekLabels = Array.from({ length: 7 }, (_, i) => days[(today - 6 + i + 7) % 7])
+
+  // Count tournaments created per day of week (last 7 days)
+  const now = Date.now()
+  const tourneyByDay = weekLabels.map((_, i) => {
+    const dayStart = new Date(now - (6 - i) * 86400000); dayStart.setHours(0,0,0,0)
+    const dayEnd   = new Date(now - (6 - i) * 86400000); dayEnd.setHours(23,59,59,999)
+    return { val: tournaments.filter(t => { const d = new Date(t.created_at); return d >= dayStart && d <= dayEnd }).length }
+  })
+
+  const usersByDay = weekLabels.map((_, i) => {
+    const dayStart = new Date(now - (6 - i) * 86400000); dayStart.setHours(0,0,0,0)
+    const dayEnd   = new Date(now - (6 - i) * 86400000); dayEnd.setHours(23,59,59,999)
+    return { val: users.filter(u => { const d = new Date(u.created_at); return d >= dayStart && d <= dayEnd }).length }
+  })
+
+  // Recent activity feed from last 8 items across tables
+  const recentActivity = [
+    ...users.slice(0,3).map(u => ({ type: 'user', text: u.username, label: 'New Player', color: '#6366f1', time: u.created_at })),
+    ...tournaments.slice(0,3).map(t => ({ type: 'tourney', text: t.name, label: t.status, color: '#f59e0b', time: t.created_at })),
+    ...battles.slice(0,3).map(b => ({ type: 'battle', text: `${b.challenger?.username} vs ${b.challenged?.username}`, label: b.status, color: '#ef4444', time: b.created_at })),
+  ].sort((a,b) => new Date(b.time) - new Date(a.time)).slice(0, 8)
+
+  const timeAgo = (ts) => {
+    const s = Math.floor((Date.now() - new Date(ts)) / 1000)
+    if (s < 60)    return `${s}s ago`
+    if (s < 3600)  return `${Math.floor(s/60)}m ago`
+    if (s < 86400) return `${Math.floor(s/3600)}h ago`
+    return `${Math.floor(s/86400)}d ago`
+  }
 
   return (
     <div className={styles.page}>
 
       {/* ── Copy toast ── */}
       {copyToast && (
-        <div style={{
-          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
-          background: '#22c55e', color: '#fff', fontSize: 12, fontWeight: 700,
-          padding: '8px 16px', borderRadius: 8, zIndex: 9999, pointerEvents: 'none',
-          display: 'flex', alignItems: 'center', gap: 6,
-        }}>
+        <div className={styles.copyToast}>
           <i className="ri-clipboard-line" /> Copied: {copyToast}
         </div>
       )}
 
-      {/* ── Top bar ── */}
-      <div className={styles.topBar}>
-        <div className={styles.topBarLeft}>
-          <div className={styles.adminChip}><i className="ri-shield-star-fill" /> Admin</div>
-          <div>
-            <h1 className={styles.headline}>Dashboard</h1>
-            <p className={styles.subline}>{ADMIN_EMAIL}</p>
-          </div>
-        </div>
-        <div className={styles.topBarRight}>
-          <button className={styles.iconBtn} onClick={loadAll} title="Refresh"><i className="ri-refresh-line" /></button>
-          <button className={styles.iconBtn} onClick={() => router.push('/')} title="Home"><i className="ri-home-4-line" /></button>
-        </div>
-      </div>
-
-      {/* ── Stats row ── */}
-      <div className={styles.statsGrid}>
-        {[
-          { label: 'Players', value: stats.users,       icon: 'ri-group-fill',    color: '#6366f1' },
-          { label: 'Posts',   value: stats.posts,        icon: 'ri-article-fill',  color: '#0ea5e9' },
-          { label: 'Tourneys',value: stats.tournaments,  icon: 'ri-trophy-fill',   color: '#f59e0b' },
-          { label: 'Battles', value: stats.matches,      icon: 'ri-sword-fill',    color: '#ef4444' },
-        ].map(s => (
-          <div key={s.label} className={styles.statCard} style={{ '--stat-color': s.color }}>
-            <div className={styles.statIcon}><i className={s.icon} /></div>
-            <div className={styles.statBody}>
-              <span className={styles.statVal}>{s.value ?? '—'}</span>
-              <span className={styles.statLabel}>{s.label}</span>
+      {/* ══ HERO ══ */}
+      <div className={styles.hero}>
+        <div className={styles.heroTop}>
+          <div className={styles.heroLeft}>
+            <div className={styles.adminPill}><i className="ri-shield-star-fill" /> Admin</div>
+            <div>
+              <h1 className={styles.heroTitle}>Dashboard</h1>
+              <p className={styles.heroSub}>{ADMIN_EMAIL}</p>
             </div>
           </div>
-        ))}
+          <div className={styles.heroActions}>
+            <button className={styles.iconBtn} onClick={loadAll} title="Refresh"><i className="ri-refresh-line" /></button>
+            <button className={styles.iconBtn} onClick={() => router.push('/')} title="Home"><i className="ri-home-4-line" /></button>
+          </div>
+        </div>
+
+        {/* ── Stat cards ── */}
+        <div className={styles.statsRow}>
+          {[
+            { label: 'Players',  value: stats.users,       icon: 'ri-group-fill',   color: '#6366f1' },
+            { label: 'Posts',    value: stats.posts,        icon: 'ri-article-fill', color: '#0ea5e9' },
+            { label: 'Tourneys', value: stats.tournaments,  icon: 'ri-trophy-fill',  color: '#f59e0b' },
+            { label: 'Battles',  value: stats.matches,      icon: 'ri-sword-fill',   color: '#ef4444' },
+          ].map(s => (
+            <div key={s.label} className={styles.statCard} style={{ '--stat-color': s.color }}>
+              <div className={styles.statTop}>
+                <div className={styles.statIcon}><i className={s.icon} /></div>
+                <span className={styles.statDelta}>↑</span>
+              </div>
+              <div className={styles.statVal}>{s.value ?? '—'}</div>
+              <div className={styles.statLabel}>{s.label}</div>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* ── Tabs ── */}
-      <div className={styles.tabBar}>
-        <div className={styles.tabs}>
-          {TABS.map(t => (
-            <button key={t} className={`${styles.tab} ${tab === t ? styles.tabActive : ''}`} onClick={() => setTab(t)}>
-              <i className={TAB_ICONS[t]} />
-              <span>{t}</span>
-              {t === 'Todos' && todoBadge > 0 && <span className={styles.tabBadge}>{todoBadge}</span>}
-              {t === 'Subscriptions' && pendingSubsCount > 0 && <span className={styles.tabBadge}>{pendingSubsCount}</span>}
-            </button>
+      {/* ══ NAV — grouped ══ */}
+      <div className={styles.navWrap}>
+        <div className={styles.navSection}>
+          {NAV_GROUPS.map((group, gi) => (
+            <div key={gi} style={{ display: 'contents' }}>
+              {gi > 0 && <div className={styles.navSep} />}
+              {group.tabs.map(t => (
+                <button
+                  key={t.id}
+                  className={`${styles.navBtn} ${tab === t.id ? styles.navBtnActive : ''}`}
+                  onClick={() => setTab(t.id)}
+                >
+                  <i className={t.icon} />
+                  {t.label}
+                  {t.id === 'Todos' && todoBadge > 0 && <span className={styles.navBadge}>{todoBadge}</span>}
+                  {t.id === 'Subscriptions' && pendingSubsCount > 0 && <span className={styles.navBadge}>{pendingSubsCount}</span>}
+                </button>
+              ))}
+            </div>
           ))}
         </div>
       </div>
 
       {/* ── Crown success toast ── */}
       {crownSuccess && (
-        <div className={styles.crownToast}><i className="ri-crown-fill" /> {crownSuccess}</div>
+        <div style={{ maxWidth: 640, margin: '12px auto 0', padding: '0 16px' }}>
+          <div className={styles.crownToast}><i className="ri-crown-fill" /> {crownSuccess}</div>
+        </div>
       )}
 
-      <div className={styles.tabContent}>
+      {/* ══ CONTENT ══ */}
+      <div className={styles.content}>
         {!dataLoading && (<>
 
           {/* ════ OVERVIEW ════ */}
           {tab === 'Overview' && (
             <div className={styles.overviewGrid}>
-              <div className={styles.overviewCard}>
-                <div className={styles.ocHead}><i className="ri-flash-fill" /> Quick Actions</div>
+
+              {/* Players chart */}
+              <div className={styles.chartCard}>
+                <div className={styles.chartCardHead}>
+                  <div className={styles.chartCardTitle}>New Players</div>
+                  <div className={styles.chartPeriodBtns}>
+                    <button className={`${styles.chartPeriodBtn} ${styles.chartPeriodBtnActive}`}>Week</button>
+                    <button className={styles.chartPeriodBtn}>All</button>
+                  </div>
+                </div>
+                <div className={styles.chartBigNum}>{stats.users ?? '—'}</div>
+                <div className={styles.chartBigLabel}>Total Players &nbsp;<span>↑ Active</span></div>
+                <BarChart data={usersByDay.length ? usersByDay : Array(7).fill({ val: 0 })} color="#6366f1" />
+                <div className={styles.chartXLabels}>
+                  {weekLabels.map(l => <span key={l} className={styles.chartXLabel}>{l}</span>)}
+                </div>
+              </div>
+
+              {/* Mini stats row */}
+              <div className={styles.miniStatsRow}>
+                <div className={styles.miniStat}>
+                  <div className={styles.miniStatIcon} style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}>
+                    <i className="ri-trophy-fill" />
+                  </div>
+                  <div className={styles.miniStatBody}>
+                    <span className={styles.miniStatVal}>{stats.tournaments ?? '—'}</span>
+                    <span className={styles.miniStatLabel}>Tournaments</span>
+                    <span className={styles.miniStatDelta}>{tournaments.filter(t => t.status === 'active').length} active</span>
+                  </div>
+                </div>
+                <div className={styles.miniStat}>
+                  <div className={styles.miniStatIcon} style={{ background: 'rgba(239,68,68,0.12)', color: '#ef4444' }}>
+                    <i className="ri-sword-fill" />
+                  </div>
+                  <div className={styles.miniStatBody}>
+                    <span className={styles.miniStatVal}>{stats.matches ?? '—'}</span>
+                    <span className={styles.miniStatLabel}>Battles</span>
+                    <span className={styles.miniStatDelta}>{battles.filter(b => b.status === 'live').length} live</span>
+                  </div>
+                </div>
+                <div className={styles.miniStat}>
+                  <div className={styles.miniStatIcon} style={{ background: 'rgba(14,165,233,0.12)', color: '#0ea5e9' }}>
+                    <i className="ri-article-fill" />
+                  </div>
+                  <div className={styles.miniStatBody}>
+                    <span className={styles.miniStatVal}>{stats.posts ?? '—'}</span>
+                    <span className={styles.miniStatLabel}>Posts</span>
+                    <span className={styles.miniStatDelta}>Feed activity</span>
+                  </div>
+                </div>
+                <div className={styles.miniStat}>
+                  <div className={styles.miniStatIcon} style={{ background: 'rgba(34,197,94,0.12)', color: '#22c55e' }}>
+                    <i className="ri-checkbox-multiple-fill" />
+                  </div>
+                  <div className={styles.miniStatBody}>
+                    <span className={styles.miniStatVal}>{todoBadge}</span>
+                    <span className={styles.miniStatLabel}>Pending</span>
+                    <span className={styles.miniStatDelta} style={{ color: todoBadge > 0 ? '#f59e0b' : '#22c55e' }}>
+                      {todoBadge > 0 ? 'Needs review' : 'All clear'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tournaments chart */}
+              <div className={styles.chartCard}>
+                <div className={styles.chartCardHead}>
+                  <div className={styles.chartCardTitle}>Tournaments · This Week</div>
+                </div>
+                <div className={styles.chartBigNum}>{tournaments.filter(t=>t.status==='active'||t.status==='ongoing').length}</div>
+                <div className={styles.chartBigLabel}>Active & Live &nbsp;<span>{tournaments.filter(t=>t.status==='completed').length} completed</span></div>
+                <LineChart data={tourneyByDay.length ? tourneyByDay : Array(7).fill({ val: 0 })} color="#f59e0b" />
+                <div className={styles.chartXLabels}>
+                  {weekLabels.map(l => <span key={l} className={styles.chartXLabel}>{l}</span>)}
+                </div>
+              </div>
+
+              {/* Activity feed */}
+              <div className={styles.activityCard}>
+                <div className={styles.activityHead}>
+                  <span className={styles.activityTitle}>Recent Activity</span>
+                  <button className={styles.iconBtn} style={{ width: 28, height: 28, fontSize: 13 }} onClick={loadAll}>
+                    <i className="ri-refresh-line" />
+                  </button>
+                </div>
+                <div className={styles.activityList}>
+                  {recentActivity.length === 0 && (
+                    <div style={{ padding: '24px 18px', textAlign: 'center', fontSize: 12, color: 'var(--text-muted)' }}>
+                      No activity yet
+                    </div>
+                  )}
+                  {recentActivity.map((a, i) => (
+                    <div key={i} className={styles.activityRow}>
+                      <div className={styles.activityDot} style={{ background: a.color }} />
+                      <div className={styles.activityBody}>
+                        <div className={styles.activityText}><strong>{a.text}</strong></div>
+                        <div className={styles.activityTime}>{timeAgo(a.time)}</div>
+                      </div>
+                      <span className={styles.activityBadge} style={{
+                        background: `${a.color}18`, color: a.color, border: `1px solid ${a.color}30`
+                      }}>{a.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Quick actions */}
+              <div className={styles.qaCard}>
+                <div className={styles.qaTitle}><i className="ri-flash-fill" style={{ marginRight: 6 }} />Quick Actions</div>
                 <div className={styles.qaGrid}>
                   {[
-                    { label: 'Tournaments',    icon: 'ri-trophy-line',       action: () => setTab('Tournaments') },
-                    { label: 'Create Battle',  icon: 'ri-sword-line',        action: () => { setTab('Battles'); setBattleModal(true) } },
-                    { label: 'Crown Master',   icon: 'ri-crown-line',        action: () => setTab('Masters') },
-                    { label: 'Send Notif',     icon: 'ri-notification-3-line', action: () => setTab('Notifications') },
-                    { label: 'Pending Todos',  icon: 'ri-checkbox-multiple-line', action: () => setTab('Todos') },
-                    { label: 'Live Site',      icon: 'ri-external-link-line', action: () => router.push('/tournaments') },
+                    { label: 'Tournaments',   icon: 'ri-trophy-line',            action: () => setTab('Tournaments') },
+                    { label: 'Create Battle', icon: 'ri-sword-line',             action: () => { setTab('Battles'); setBattleModal(true) } },
+                    { label: 'Crown Master',  icon: 'ri-crown-line',             action: () => setTab('Masters') },
+                    { label: 'Notify All',    icon: 'ri-notification-3-line',    action: () => setTab('Notifications') },
+                    { label: 'Pending Todos', icon: 'ri-checkbox-multiple-line', action: () => setTab('Todos') },
+                    { label: 'Live Site',     icon: 'ri-external-link-line',     action: () => router.push('/tournaments') },
                   ].map(a => (
                     <button key={a.label} className={styles.qaBtn} onClick={a.action}>
                       <i className={a.icon} />
@@ -580,24 +761,6 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <div className={styles.overviewCard}>
-                <div className={styles.ocHead}><i className="ri-activity-line" /> Platform Snapshot</div>
-                <div className={styles.snapshotList}>
-                  {[
-                    { label: 'Total players', val: stats.users, color: '#6366f1' },
-                    { label: 'Tournaments',   val: stats.tournaments, color: '#f59e0b' },
-                    { label: 'Battles',       val: stats.matches, color: '#ef4444' },
-                    { label: 'Pending todos', val: todoBadge, color: todoBadge > 0 ? '#f59e0b' : 'var(--text-muted)' },
-                    { label: 'Active tourns', val: tournaments.filter(t => t.status === 'active').length, color: '#22c55e' },
-                    { label: 'Live tourns',   val: tournaments.filter(t => t.status === 'ongoing').length, color: '#6366f1' },
-                  ].map(r => (
-                    <div key={r.label} className={styles.snapshotRow}>
-                      <span className={styles.snapshotLabel}>{r.label}</span>
-                      <span className={styles.snapshotVal} style={{ color: r.color }}>{r.val ?? '—'}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
           )}
 
@@ -633,7 +796,6 @@ export default function Dashboard() {
                   const h          = remaining !== null ? Math.floor(remaining / 3600000) : null
                   const m          = remaining !== null ? Math.floor((remaining % 3600000) / 60000) : null
                   const urgent     = remaining !== null && remaining < 2 * 3600000
-
                   return (
                     <div key={req.id} className={styles.todoCard} style={{ '--step-color': stepColor }}>
                       <div className={styles.todoCardHeader}>
@@ -718,7 +880,6 @@ export default function Dashboard() {
                 </div>
                 <button className={styles.iconBtn} onClick={loadAllMasters}><i className="ri-refresh-line" /></button>
               </div>
-
               <div className={styles.masterAutoRow}>
                 <button className={styles.btnAccent} onClick={async () => {
                   const { error } = await supabase.rpc('crown_weekly_game_master', { p_game_slug: null })
@@ -729,9 +890,7 @@ export default function Dashboard() {
                 </button>
                 <p className={styles.masterAutoNote}>Reads this week's tournament leaderboards and crowns the player with most wins + points per game.</p>
               </div>
-
               {mastersLoading && <div className={styles.loadWrap}><div className="loader" /></div>}
-
               {!mastersLoading && (
                 <div className={styles.masterGameGrid}>
                   {GAME_SLUGS.map(slug => {
@@ -745,7 +904,6 @@ export default function Dashboard() {
                       return current.week_start >= weekStart.toISOString().split('T')[0]
                     })()
                     const tierTheme = getTierTheme(current?.profiles?.tier)
-
                     return (
                       <div key={slug} className={styles.masterGameCard}>
                         <div className={styles.masterGameHead}>
@@ -753,17 +911,14 @@ export default function Dashboard() {
                           <div className={styles.masterGameName}>{game?.name}</div>
                           {isThisWeek
                             ? <Badge color="#f59e0b"><i className="ri-crown-fill" /> This Week</Badge>
-                            : <Badge color="var(--text-muted)">No Master</Badge>
-                          }
+                            : <Badge color="var(--text-muted)">No Master</Badge>}
                         </div>
-
                         {current ? (
                           <div className={styles.masterPlayerRow}>
                             <div className={styles.masterPlayerAvatar}>
                               {current.profiles?.avatar_url
                                 ? <img src={current.profiles.avatar_url} alt="" />
-                                : <span>{current.profiles?.username?.[0]?.toUpperCase()}</span>
-                              }
+                                : <span>{current.profiles?.username?.[0]?.toUpperCase()}</span>}
                             </div>
                             <div className={styles.masterPlayerInfo}>
                               <span className={styles.masterPlayerName}>{current.profiles?.username}</span>
@@ -779,11 +934,9 @@ export default function Dashboard() {
                         ) : (
                           <div className={styles.masterNoPlayer}>No master this week</div>
                         )}
-
                         <button className={styles.btnCrownManual} onClick={() => { setCrownModal({ gameSlug: slug }); setCrownSelected(null); setCrownSearch(''); setCrownResults([]) }}>
                           <i className="ri-crown-line" /> Crown Manually
                         </button>
-
                         {records.length > 1 && (
                           <div className={styles.masterPastList}>
                             {records.slice(1, 4).map(r => (
@@ -809,91 +962,56 @@ export default function Dashboard() {
               <div className={styles.sectionHead}>
                 <div>
                   <h2 className={styles.sectionTitle}>
-                    Players{' '}
-                    <span className={styles.sectionCount}>
+                    Players <span className={styles.sectionCount}>
                       {filteredUsers.length}{userListSearch.trim() && users.length !== filteredUsers.length ? ` / ${users.length}` : ''}
                     </span>
                   </h2>
                 </div>
               </div>
-
-              {/* ── Search bar ── */}
-              <div style={{ marginBottom: 14 }}>
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  border: '1px solid var(--border-dark)', borderRadius: 10,
-                  background: 'var(--bg-2)', padding: '0 12px', maxWidth: 400,
-                }}>
-                  <i className="ri-search-line" style={{ color: 'var(--text-muted)', fontSize: 14, flexShrink: 0 }} />
-                  <input
-                    type="text"
-                    placeholder="Search username, email or phone…"
-                    value={userListSearch}
-                    onChange={e => setUserListSearch(e.target.value)}
-                    style={{
-                      flex: 1, border: 'none', background: 'transparent',
-                      padding: '10px 0', fontSize: 13, color: 'var(--text)',
-                      outline: 'none', fontFamily: 'var(--font)',
-                    }}
-                  />
-                  {userListSearch && (
-                    <button onClick={() => setUserListSearch('')} style={{
-                      background: 'none', border: 'none', color: 'var(--text-muted)',
-                      cursor: 'pointer', padding: 0, fontSize: 16, lineHeight: 1,
-                    }}>
-                      <i className="ri-close-line" />
-                    </button>
-                  )}
-                </div>
+              <div className={styles.userSearchBar}>
+                <i className="ri-search-line" />
+                <input
+                  type="text" placeholder="Search username, email or phone…"
+                  value={userListSearch} onChange={e => setUserListSearch(e.target.value)}
+                />
+                {userListSearch && (
+                  <button className={styles.userSearchClear} onClick={() => setUserListSearch('')}>
+                    <i className="ri-close-line" />
+                  </button>
+                )}
               </div>
-
               <div className={styles.tableWrap}>
                 <table className={styles.table}>
-                  <thead><tr>
-                    <th>Player</th><th>Email</th><th>Phone</th><th>Tier</th><th>Lv</th><th>W</th><th>Pts</th><th></th>
-                  </tr></thead>
+                  <thead><tr><th>Player</th><th>Email</th><th>Phone</th><th>Tier</th><th>Lv</th><th>W</th><th>Pts</th><th></th></tr></thead>
                   <tbody>
                     {filteredUsers.length === 0 && (
-                      <tr>
-                        <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 0', fontSize: 13 }}>
-                          No players match "{userListSearch}"
-                        </td>
-                      </tr>
+                      <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 0', fontSize: 13 }}>
+                        No players match "{userListSearch}"
+                      </td></tr>
                     )}
                     {filteredUsers.map(u => (
                       <tr key={u.id}>
                         <td><a href={`/profile/${u.id}`} className={styles.link}>{u.username}</a></td>
                         <td className={styles.dimCell}>{u.email}</td>
                         <td className={styles.monoCell}>
-                          {u.phone
-                            ? (
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                                <span>{u.phone}</span>
-                                <button
-                                  title="Copy phone"
-                                  onClick={() => copyPhone(u.phone)}
-                                  style={{
-                                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                                    padding: '2px 5px', borderRadius: 5, border: '1px solid var(--border-dark)',
-                                    background: 'var(--bg-2)', color: 'var(--text-muted)', cursor: 'pointer',
-                                    fontSize: 11, lineHeight: 1, flexShrink: 0,
-                                  }}
-                                >
-                                  <i className="ri-file-copy-line" />
-                                </button>
-                              </span>
-                            )
-                            : <span className={styles.nil}>—</span>
-                          }
+                          {u.phone ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                              <span>{u.phone}</span>
+                              <button onClick={() => copyPhone(u.phone)} style={{
+                                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                padding: '2px 5px', borderRadius: 5, border: '1px solid var(--border-dark)',
+                                background: 'var(--bg-2)', color: 'var(--text-muted)', cursor: 'pointer',
+                                fontSize: 11, lineHeight: 1,
+                              }}><i className="ri-file-copy-line" /></button>
+                            </span>
+                          ) : <span className={styles.nil}>—</span>}
                         </td>
                         <td><Badge color={getTierTheme(u.tier)?.primary || '#f59e0b'}>{u.tier}</Badge></td>
-                        <td>{u.level ?? 1}</td>
-                        <td>{u.wins}</td>
-                        <td>{(u.points || 0).toLocaleString()}</td>
+                        <td>{u.level ?? 1}</td><td>{u.wins}</td><td>{(u.points || 0).toLocaleString()}</td>
                         <td>
                           <div className={styles.rowActions}>
                             <button className={styles.iconBtnSm} onClick={() => {
-                              const CODES = ['254', '255', '256']
+                              const CODES = ['254','255','256']
                               const stripped = (u.phone || '').replace(/^\+/, '')
                               const matched = CODES.find(c => stripped.startsWith(c))
                               setEditUserPhoneCode(matched || '255')
@@ -923,8 +1041,7 @@ export default function Dashboard() {
                       <tr key={p.id}>
                         <td className={styles.bold}>{p.profiles?.username}</td>
                         <td className={styles.truncCell}>{p.content}</td>
-                        <td>{p.likes}</td>
-                        <td>{p.comment_count}</td>
+                        <td>{p.likes}</td><td>{p.comment_count}</td>
                         <td className={styles.dimCell}>{fmtDate(p.created_at)}</td>
                         <td>
                           <div className={styles.rowActions}>
@@ -1056,11 +1173,11 @@ export default function Dashboard() {
           {tab === 'Notifications' && (
             <div className={styles.notifComposer}>
               <div className={styles.sectionHead}>
-                <div><h2 className={styles.sectionTitle}>Send Notification</h2>
+                <div>
+                  <h2 className={styles.sectionTitle}>Send Notification</h2>
                   <p className={styles.sectionSub}>Broadcast to all users or target a specific player</p>
                 </div>
               </div>
-
               <div className={styles.notifSection}>
                 <div className={styles.notifSectionLabel}><i className="ri-user-target-line" /> Send To</div>
                 <div className={styles.targetBtns}>
@@ -1104,15 +1221,14 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
-
               <div className={styles.notifSection}>
                 <div className={styles.notifSectionLabel}><i className="ri-tag-line" /> Type</div>
                 <div className={styles.typeGrid}>
                   {[
-                    { val: 'announcement', icon: 'ri-megaphone-line', label: 'Announcement' },
-                    { val: 'tournament', icon: 'ri-node-tree', label: 'Tournament' },
-                    { val: 'tier_up', icon: 'ri-shield-star-line', label: 'Tier Up' },
-                    { val: 'level_up', icon: 'ri-bar-chart-fill', label: 'Level Up' },
+                    { val: 'announcement', icon: 'ri-megaphone-line',     label: 'Announcement' },
+                    { val: 'tournament',   icon: 'ri-node-tree',           label: 'Tournament' },
+                    { val: 'tier_up',      icon: 'ri-shield-star-line',    label: 'Tier Up' },
+                    { val: 'level_up',     icon: 'ri-bar-chart-fill',      label: 'Level Up' },
                     { val: 'season_ended', icon: 'ri-calendar-check-line', label: 'Season' },
                     { val: 'direct_message', icon: 'ri-chat-private-line', label: 'DM' },
                   ].map(t => (
@@ -1124,7 +1240,6 @@ export default function Dashboard() {
                   ))}
                 </div>
               </div>
-
               <div className={styles.notifSection}>
                 <div className={styles.notifSectionLabel}><i className="ri-notification-3-line" /> Message</div>
                 <input className={styles.notifInput} placeholder="Title (bold headline)" value={notifForm.title}
@@ -1132,7 +1247,6 @@ export default function Dashboard() {
                 <textarea className={styles.notifTextarea} placeholder="Body — tell users what this is about…" rows={3}
                   value={notifForm.body} onChange={e => setNotifForm(f => ({ ...f, body: e.target.value }))} />
               </div>
-
               <div className={styles.notifSection}>
                 <div className={styles.notifSectionLabel}><i className="ri-cursor-line" /> CTA (optional)</div>
                 <div className={styles.ctaRow}>
@@ -1142,7 +1256,6 @@ export default function Dashboard() {
                     onChange={e => setNotifForm(f => ({ ...f, ctaLink: e.target.value }))} style={{ flex: 2 }} />
                 </div>
               </div>
-
               {(notifForm.title || notifForm.body) && (
                 <div className={styles.notifSection}>
                   <div className={styles.notifSectionLabel}><i className="ri-eye-line" /> Preview</div>
@@ -1154,7 +1267,6 @@ export default function Dashboard() {
                   </div>
                 </div>
               )}
-
               {notifResult && (
                 <div className={`${styles.notifResult} ${notifResult.errors > 0 ? styles.notifResultWarn : styles.notifResultOk}`}>
                   <i className={notifResult.errors > 0 ? 'ri-error-warning-line' : 'ri-checkbox-circle-fill'} />
@@ -1162,14 +1274,12 @@ export default function Dashboard() {
                   {notifResult.errors > 0 && ` · ${notifResult.errors} failed`}
                 </div>
               )}
-
               <button className={styles.sendBtn} onClick={sendNotification}
                 disabled={notifSending || !notifForm.title.trim() || !notifForm.body.trim() || (notifForm.target === 'user' && !notifForm.targetUserId)}>
                 {notifSending
                   ? <><i className="ri-loader-4-line" style={{ animation: 'spin .7s linear infinite' }} /> Sending…</>
                   : <><i className="ri-send-plane-fill" /> Send {notifForm.target === 'all' ? 'to All Users' : `to ${notifForm.targetUsername}`}</>}
               </button>
-
               {notifHistory.length > 0 && (
                 <div className={styles.notifSection}>
                   <div className={styles.notifSectionLabel}><i className="ri-history-line" /> Sent This Session</div>
@@ -1190,10 +1300,11 @@ export default function Dashboard() {
           )}
 
           {tab === 'Subscriptions' && (
-            <div style={{ padding: '16px 0' }}>
+            <div style={{ paddingTop: 4 }}>
               <AdminSubscriptions onCountChange={setPendingSubsCount} />
             </div>
           )}
+
         </>)}
       </div>
 
@@ -1202,10 +1313,7 @@ export default function Dashboard() {
         <div className={styles.modalOverlay} onClick={() => setCrownModal(null)}>
           <div className={styles.modalBox} onClick={e => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <div>
-                <i className="ri-crown-fill" style={{ color: '#f59e0b', marginRight: 8 }} />
-                Crown Master — {GAME_META[crownModal.gameSlug]?.name}
-              </div>
+              <div><i className="ri-crown-fill" style={{ color: '#f59e0b', marginRight: 8 }} />Crown Master — {GAME_META[crownModal.gameSlug]?.name}</div>
               <button onClick={() => setCrownModal(null)}><i className="ri-close-line" /></button>
             </div>
             <div className={styles.modalBody}>
@@ -1368,9 +1476,9 @@ export default function Dashboard() {
                 <div className={styles.createField}><label>Scheduled At</label>
                   <input type="datetime-local" value={battleForm.scheduled_at} onChange={e => setBattleForm(x => ({ ...x, scheduled_at: e.target.value }))} /></div>
                 <div className={styles.createField}><label>Game Mode</label>
-                  <input placeholder="e.g. Elimination, Deathmatch…" value={battleForm.game_mode} onChange={e => setBattleForm(x => ({ ...x, game_mode: e.target.value }))} /></div>
+                  <input placeholder="e.g. Elimination…" value={battleForm.game_mode} onChange={e => setBattleForm(x => ({ ...x, game_mode: e.target.value }))} /></div>
                 <div className={styles.createField}><label>Format</label>
-                  <input placeholder="e.g. Bo3, Bo5, Round Robin…" value={battleForm.format} onChange={e => setBattleForm(x => ({ ...x, format: e.target.value }))} /></div>
+                  <input placeholder="e.g. Bo3, Bo5…" value={battleForm.format} onChange={e => setBattleForm(x => ({ ...x, format: e.target.value }))} /></div>
                 <button className={styles.saveBtn} onClick={createBattle} disabled={battleCreating}>
                   {battleCreating ? 'Creating…' : <><i className="ri-sword-line" /> Create Battle</>}
                 </button>
