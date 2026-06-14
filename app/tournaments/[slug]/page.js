@@ -4182,67 +4182,88 @@ function SlotRow({ entry, styles, isAdmin, onOpen, passPoints, earnedPts, entryP
 
 
 // ─── BracketConnectorsSVG ─────────────────────────────────────────────────────
+// Uses real DOM measurements to draw L-shaped bracket connectors.
+// SVG coordinate space = bracketWrap's top-left corner (position:relative).
 function BracketConnectorsSVG({ wrapRef, bracketData }) {
-  const [size, setSize] = React.useState({ w: 0, h: 0 })
+  const svgRef = React.useRef(null)
   const [paths, setPaths] = React.useState([])
+  const [svgSize, setSvgSize] = React.useState({ w: 0, h: 0 })
 
   React.useEffect(() => {
     const wrap = wrapRef.current
     if (!wrap || !bracketData?.rounds) return
 
     function compute() {
-      // Wait for next frame so all elements are fully painted
       requestAnimationFrame(() => {
         const wrapRect = wrap.getBoundingClientRect()
-        if (!wrapRect.width) return
+        if (!wrapRect.width || !wrapRect.height) return
 
-        setSize({ w: wrapRect.width, h: wrapRect.height })
+        // SVG is absolutely positioned inside bracketWrap (position:relative)
+        // All measurements are relative to wrapRect top-left
+        const scrollLeft = wrap.scrollLeft || 0
+        const scrollTop  = wrap.scrollTop  || 0
+
+        setSvgSize({ w: wrap.scrollWidth, h: wrap.scrollHeight })
 
         const totalRounds = bracketData.rounds.length
         const newPaths = []
 
         for (let rIdx = 0; rIdx < totalRounds - 2; rIdx++) {
-          const pairs = bracketData.rounds[rIdx]
-          pairs.forEach((_, pIdx) => {
+          const pairCount = bracketData.rounds[rIdx].length
+          for (let pIdx = 0; pIdx < pairCount; pIdx++) {
             const srcEl = wrap.querySelector(`[data-bround="${rIdx}"][data-bpair="${pIdx}"]`)
             const dstEl = wrap.querySelector(`[data-bround="${rIdx + 1}"][data-bpair="${Math.floor(pIdx / 2)}"]`)
-            if (!srcEl || !dstEl) return
+            if (!srcEl || !dstEl) continue
 
             const sRect = srcEl.getBoundingClientRect()
             const dRect = dstEl.getBoundingClientRect()
 
-            const sx = sRect.right - wrapRect.left
-            const sy = sRect.top + sRect.height / 2 - wrapRect.top
-            const dx = dRect.left - wrapRect.left
-            const dy = dRect.top + dRect.height / 2 - wrapRect.top
-            const mx = sx + (dx - sx) / 2
+            // Convert to bracketWrap-local coordinates (add scroll offset)
+            const sx = sRect.right  - wrapRect.left + scrollLeft
+            const sy = sRect.top + sRect.height / 2 - wrapRect.top + scrollTop
+            const dx = dRect.left   - wrapRect.left + scrollLeft
+            const dy = dRect.top + dRect.height / 2 - wrapRect.top + scrollTop
 
-            newPaths.push(`M ${sx} ${sy} H ${mx} V ${dy} H ${dx}`)
-          })
+            // L-shape: horizontal out → vertical → horizontal in
+            const midX = sx + (dx - sx) * 0.5
+            newPaths.push(`M ${sx} ${sy} H ${midX} V ${dy} H ${dx}`)
+          }
         }
         setPaths(newPaths)
       })
     }
 
-    // Initial compute + small delay for full layout
-    const t = setTimeout(compute, 60)
+    const t1 = setTimeout(compute, 80)
+    const t2 = setTimeout(compute, 400) // second pass after fonts/images settle
     const ro = new ResizeObserver(compute)
     ro.observe(wrap)
-    return () => { clearTimeout(t); ro.disconnect() }
+    return () => { clearTimeout(t1); clearTimeout(t2); ro.disconnect() }
   }, [wrapRef, bracketData])
 
   if (!paths.length) return null
 
   return (
     <svg
+      ref={svgRef}
       style={{
-        position: 'absolute', top: 0, left: 0,
-        width: size.w || '100%', height: size.h || '100%',
-        pointerEvents: 'none', overflow: 'visible', zIndex: 0,
+        position: 'absolute',
+        top: 0, left: 0,
+        width: svgSize.w || '100%',
+        height: svgSize.h || '100%',
+        pointerEvents: 'none',
+        overflow: 'visible',
+        zIndex: 0,
       }}
     >
       {paths.map((d, i) => (
-        <path key={i} d={d} fill="none" stroke="var(--border-dark)" strokeWidth="2" strokeLinecap="round" />
+        <path
+          key={i} d={d}
+          fill="none"
+          stroke="var(--border-dark)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
       ))}
     </svg>
   )

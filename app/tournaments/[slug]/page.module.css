@@ -336,7 +336,7 @@
 
 .bracketWrap {
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   min-width: max-content;
   gap: 28px;
   position: relative;
@@ -347,7 +347,6 @@
   flex-direction: column;
   width: 172px;
   flex-shrink: 0;
-  position: relative;
 }
 .bracketColChamp { width: 196px; }
 
@@ -361,29 +360,13 @@
 
 .matchList { display: flex; flex-direction: column; flex: 1; }
 
-/*
-  matchPairWrap:
-  - Takes up equal vertical space so pairs sit at even heights.
-  - The right side emits a horizontal stub → the NEXT column's
-    left side receives it via the vertical bar on matchPairWrap::before.
-
-  Layout per pair:
-    ┌────────────┐
-    │  match A   │──┐
-    └────────────┘  │ (vertical bar joining A & B midpoints)
-    ┌────────────┐  │
-    │  match B   │──┘──────► next round slot
-    └────────────┘
-*/
 .matchPairWrap {
   position: relative;
+  flex: 1;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  flex: 1;
   padding: 6px 0;
-  /* gap between match card and the connector zone */
-  margin-right: 0;
 }
 
 /* Connectors are handled by BracketConnectorsSVG component — no CSS pseudo-elements needed */
