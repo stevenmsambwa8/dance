@@ -9,8 +9,6 @@ import { supabase } from '../../../lib/supabase'
 import { GAME_META } from '../../../lib/constants'
 import styles from './page.module.css'
 import usePageLoading from '../../../components/usePageLoading'
-import { getActivePlan, canDo, PLANS } from '../../../lib/plans'
-import UpgradeModal from '../../../components/UpgradeModal'
 
 import { getTierTheme } from '../../../lib/tierTheme'
 
@@ -140,9 +138,7 @@ function PaymentModal({ tournament, user, onClose, onSubmitted }) {
 export default function GameDetail() {
   const { slug } = useParams()
   const router   = useRouter()
-  const { user, isAdmin, profile } = useAuth()
-  const [upgradeOpen, setUpgradeOpen] = useState(false)
-  const [upgradeFeature, setUpgradeFeature] = useState(null)
+  const { user, isAdmin } = useAuth()
   const { openAuthGate } = useAuthGate()
   const game = GAME_META[slug]
   if (!game) notFound()
@@ -284,29 +280,6 @@ export default function GameDetail() {
   async function registerTournament(t) {
     if (!user) { openAuthGate(); return }
     if (!t) return
-
-    const activePlan = getActivePlan(profile)
-
-    // ── Plan restriction: Pro-only tournaments ──
-    if (t.pro_only && activePlan === 'free') {
-      setUpgradeFeature('pro_tournaments')
-      setUpgradeOpen(true)
-      return
-    }
-
-    // ── Plan restriction: Free plan max 3 active tournaments ──
-    if (activePlan === 'free' && !isAdmin) {
-      const { count } = await supabase
-        .from('tournament_participants')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-      if ((count || 0) >= 3) {
-        setUpgradeFeature('free_tournaments')
-        setUpgradeOpen(true)
-        return
-      }
-    }
-
     const { error } = await supabase.from('tournament_participants').insert({ tournament_id: t.id, user_id: user.id })
     if (error) return
     const { count } = await supabase.from('tournament_participants')
@@ -521,7 +494,6 @@ export default function GameDetail() {
                       <div className={styles.tBadges}>
                         {isOngoing && <span className={styles.badgeOngoing}><i className="ri-play-circle-fill" /> Ongoing</span>}
                         {t.is_test && <span className={styles.badgeTest}><i className="ri-flask-line" /> Test</span>}
-                        {t.pro_only && <span className={styles.badgePro}><i className="ri-vip-crown-line" /> Pro+</span>}
                         {hasFee && <span className={styles.badgeFee}><i className="ri-money-dollar-circle-line" /> TZS {fmtFee(t.entrance_fee)}</span>}
                       </div>
                     </div>
@@ -607,14 +579,6 @@ export default function GameDetail() {
 
       {payModal && (
         <PaymentModal tournament={payModal} user={user} onClose={() => setPayModal(null)} onSubmitted={onPaymentSubmitted} />
-      )}
-
-      {upgradeOpen && (
-        <UpgradeModal
-          feature={upgradeFeature}
-          profile={profile}
-          onClose={() => { setUpgradeOpen(false); setUpgradeFeature(null) }}
-        />
       )}
     </div>
   )
