@@ -1,0 +1,502 @@
+/* ══════════════════════════════════════════════
+   LAYOUT — fixed header + fixed footer + scroll body
+   ══════════════════════════════════════════════ */
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* ── Utility ── */
+.centered { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 80px 20px; text-align: center; }
+.backLink  { color: var(--text); font-size: 13px; }
+.primaryBtn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 10px 18px; background: var(--text); color: var(--bg);
+  border: none; border-radius: 10px; font-weight: 700; font-size: 13px;
+  cursor: pointer; text-decoration: none;
+}
+
+/* ══════════════════════════════════════════════
+   FIXED HEADER
+   ══════════════════════════════════════════════ */
+.stickyHeader {
+  flex-shrink: 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  z-index: 10;
+}
+
+/* ── nav row: back | offer info | status ── */
+.navBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 8px;
+}
+.back {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--bg-2); border: 1px solid var(--border-dark);
+  color: var(--text); font-size: 16px; cursor: pointer; flex-shrink: 0;
+}
+
+/* avatars + item info — grows to fill centre */
+.headerOffer {
+  display: flex; align-items: center; gap: 7px;
+  flex: 1; min-width: 0;
+}
+.miniAvatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--bg-2); border: 1px solid var(--border-dark);
+  overflow: hidden; display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 10px; flex-shrink: 0;
+}
+.miniAvatar img { width: 100%; height: 100%; object-fit: cover; }
+.headerArrow { font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
+.headerInfo { display: flex; flex-direction: column; gap: 0px; min-width: 0; }
+.headerTitle {
+  font-size: 12px; font-weight: 800; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.headerAmt { font-size: 11px; font-weight: 700; color: #22c55e; }
+
+/* status pill — right side */
+.statusPill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 9px; border-radius: 20px; border: 1px solid;
+  font-size: 11px; font-weight: 700; flex-shrink: 0;
+}
+.statusDot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── step bar (inline, compact) ── */
+.stepRow {
+  display: flex; align-items: center;
+  padding: 6px 12px 8px;
+  overflow-x: auto; scrollbar-width: none;
+}
+.stepRow::-webkit-scrollbar { display: none; }
+.stepItem { display: flex; align-items: center; flex-shrink: 0; }
+.stepDot {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 2px solid var(--border-dark); background: var(--bg-2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700; color: var(--text-muted);
+  flex-shrink: 0; transition: all .2s;
+}
+.stepDone    { border-color: #22c55e; background: #22c55e; color: #fff; }
+.stepCurrent { border-color: var(--text); background: var(--text); color: var(--bg); }
+.stepLabel   { font-size: 10px; font-weight: 600; color: var(--text-muted); margin: 0 4px; white-space: nowrap; }
+.stepLabelActive { color: var(--text); }
+.stepLine    { flex: 1 0 14px; height: 2px; background: var(--border-dark); margin: 0 2px; max-width: 28px; }
+.stepLineDone { background: #22c55e; }
+
+/* ── countdown timer bar ── */
+.timerBar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 12px 6px;
+  font-size: 11px; color: var(--text-dim);
+  border-top: 1px solid var(--border);
+}
+.timerBar i { font-size: 13px; flex-shrink: 0; }
+.timerBarUrgent { color: #ef4444; background: #ef444410; }
+.timerCount { font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.timerLabel { color: var(--text-muted); }
+
+/* ══════════════════════════════════════════════
+   ACTION STRIP — pinned in header, never hidden
+   ══════════════════════════════════════════════ */
+.actionStrip {
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Banner line (expired / declined / completed) */
+.stripBanner {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 8px 10px; border-radius: 8px; border: 1px solid;
+  font-size: 12px; font-weight: 600; line-height: 1.4;
+}
+.stripBanner i { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+.tryAgainLink { margin-left: auto; color: var(--text); font-size: 11px; text-decoration: underline; white-space: nowrap; }
+
+/* Action row — label+note on left, CTA button on right */
+.stripAction {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 8px;
+  border: 1px solid var(--border-dark); background: var(--bg-2);
+}
+.stripActionLeft { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.stripActionTitle { font-size: 12px; font-weight: 800; color: var(--text); display: flex; align-items: center; gap: 5px; }
+.stripNote { font-size: 11px; color: var(--text-muted); line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stripBtns { display: flex; gap: 6px; flex-shrink: 0; }
+
+/* Info-only row (no CTA) */
+.stripInfo {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--bg-2);
+  font-size: 12px; color: var(--text-muted);
+}
+.stripInfo i { font-size: 14px; flex-shrink: 0; }
+.stripInfo span { flex: 1; }
+
+/* call button — small, inside strip */
+.callBtnSmall {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 12px; border-radius: 20px;
+  border: 1px solid var(--border-dark); background: var(--bg);
+  color: var(--text); font-size: 11px; font-weight: 700;
+  cursor: pointer; align-self: flex-end; transition: all .15s;
+}
+.callBtnSmall:hover { border-color: #22c55e; color: #22c55e; }
+
+/* legacy callBtn used in stripInfo for pending state */
+.callBtn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 10px; border-radius: 20px;
+  border: 1px solid var(--border-dark); background: var(--bg);
+  color: var(--text); font-size: 11px; font-weight: 700;
+  cursor: pointer; white-space: nowrap; transition: all .15s; flex-shrink: 0;
+}
+.callBtn:hover { border-color: #22c55e; color: #22c55e; }
+.callBtnSent   { border-color: #22c55e; color: #22c55e; background: #22c55e14; }
+
+/* ══════════════════════════════════════════════
+   CHAT AREA — fills all remaining vertical space
+   ══════════════════════════════════════════════ */
+.chatArea {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 14px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Chat messages ── */
+.chatEmpty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; flex: 1; color: var(--text-muted); font-size: 13px; padding: 40px 20px; }
+.chatEmpty i { font-size: 28px; }
+.msgGroup       { display: flex; flex-direction: column; max-width: 78%; gap: 2px; }
+.msgGroupMine   { align-self: flex-end; align-items: flex-end; }
+.msgGroupTheirs { align-self: flex-start; align-items: flex-start; }
+.msgAuthorRow   { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
+.msgAvatar {
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--bg-2); border: 1px solid var(--border-dark);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 800; overflow: hidden; flex-shrink: 0;
+}
+.msgAvatar img { width: 100%; height: 100%; object-fit: cover; }
+.msgAuthor { font-size: 11px; font-weight: 600; color: var(--text-muted); }
+.bubble {
+  padding: 9px 12px; border-radius: 14px;
+  font-size: 13px; line-height: 1.45; word-break: break-word;
+}
+.bubbleMine   { background: var(--text); color: var(--bg); border-bottom-right-radius: 4px; }
+.bubbleTheirs { background: var(--surface); border: 1px solid var(--border); color: var(--text); border-bottom-left-radius: 4px; }
+.msgTime { font-size: 10px; color: var(--text-muted); padding: 0 4px; }
+
+/* ══════════════════════════════════════════════
+   FIXED BOTTOM — SEND BAR
+   ══════════════════════════════════════════════ */
+.sendBar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+}
+.input {
+  flex: 1; background: var(--bg-2); border: 1px solid var(--border-dark);
+  border-radius: 20px; padding: 10px 16px; font-size: 13px; color: var(--text);
+  font-family: inherit; outline: none;
+}
+.input:focus { border-color: var(--text); }
+.sendBtn {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--text); color: var(--bg); border: none;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; cursor: pointer; flex-shrink: 0;
+}
+.sendBtn:disabled { opacity: .4; cursor: not-allowed; }
+.closedNotice {
+  flex: 1; display: flex; align-items: center; gap: 6px;
+  color: var(--text-muted); font-size: 12px; padding: 10px 0;
+}
+
+/* ══════════════════════════════════════════════
+   ACTION BUTTONS (used in strip CTAs)
+   ══════════════════════════════════════════════ */
+.acceptBtn {
+  display: flex; align-items: center; justify-content: center;
+  gap: 5px; padding: 8px 14px; background: #22c55e; color: #fff;
+  border: none; border-radius: 8px; font-weight: 700; font-size: 12px; cursor: pointer;
+}
+.declineBtn {
+  display: flex; align-items: center; justify-content: center;
+  gap: 5px; padding: 8px 12px; background: var(--bg-2); color: #ef4444;
+  border: 1px solid #ef444440; border-radius: 8px;
+  font-weight: 700; font-size: 12px; cursor: pointer;
+}
+.paidBtn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 6px; padding: 9px 14px; background: var(--text); color: var(--bg);
+  border: none; border-radius: 8px; font-weight: 800; font-size: 12px;
+  cursor: pointer; white-space: nowrap;
+}
+.paidBtn:disabled { opacity: .5; cursor: not-allowed; }
+.adminApproveBtn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 6px; padding: 9px 14px; background: #f59e0b; color: #fff;
+  border: none; border-radius: 8px; font-weight: 800; font-size: 12px;
+  cursor: pointer; white-space: nowrap;
+}
+.adminApproveBtn:disabled { opacity: .5; cursor: not-allowed; }
+.adminCompleteBtn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 6px; padding: 9px 14px; background: #22c55e; color: #fff;
+  border: none; border-radius: 8px; font-weight: 800; font-size: 12px;
+  cursor: pointer; white-space: nowrap;
+}
+.adminCompleteBtn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ══════════════════════════════════════════════
+   MODAL — payment / payout bottom sheet
+   ══════════════════════════════════════════════ */
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  animation: fadeIn .18s ease;
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.modalSheet {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  background: var(--bg);
+  border-radius: 20px 20px 0 0;
+  border-top: 1px solid var(--border);
+  padding: 20px 18px max(20px, env(safe-area-inset-bottom));
+  animation: slideUp .22s ease;
+  max-height: 90dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+@keyframes slideUp {
+  from { transform: translateY(40px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.modalClose {
+  position: absolute;
+  top: 14px; right: 14px;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: var(--bg-2);
+  border: 1px solid var(--border-dark);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; color: var(--text-muted); cursor: pointer;
+}
+.modalClose:hover { color: var(--text); }
+.modalTitle {
+  font-size: 15px; font-weight: 800; color: var(--text);
+  margin: 0 0 6px; display: flex; align-items: center; gap: 7px;
+  padding-right: 36px;
+}
+.modalSub {
+  font-size: 12px; color: var(--text-muted); line-height: 1.5; margin: 0 0 4px;
+}
+
+/* ── Payment box in modal / action strip ── */
+.paymentBox {
+  background: var(--bg-2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px; margin: 10px 0;
+}
+.payRow {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 0; font-size: 13px; border-bottom: 1px solid var(--border);
+}
+.payRow:last-child { border-bottom: none; }
+.payRow span { color: var(--text-muted); }
+.payRow strong { color: var(--text); font-weight: 700; }
+
+/* ── Pay form ── */
+.payForm  { display: flex; flex-direction: column; gap: 10px; margin: 12px 0; }
+.payField { display: flex; flex-direction: column; gap: 4px; }
+.payField label {
+  font-size: 12px; font-weight: 600; color: var(--text-dim);
+  display: flex; align-items: center; gap: 4px;
+}
+.payField input, .payField textarea {
+  background: var(--bg-2); border: 1px solid var(--border-dark);
+  border-radius: 8px; padding: 10px 12px; font-size: 13px;
+  color: var(--text); font-family: inherit; outline: none; resize: vertical;
+}
+.payField input:focus, .payField textarea:focus { border-color: var(--text); }
+.warningNote {
+  font-size: 11px; color: var(--text-muted); margin-top: 10px;
+  display: flex; align-items: flex-start; gap: 5px; line-height: 1.4;
+}
+.warningNote i { flex-shrink: 0; color: #f59e0b; margin-top: 1px; }
+
+/* ── Delivery message (completed state) ── */
+.deliveryMsg   { margin-top: 4px; padding: 8px 10px; background: var(--bg-2); border-radius: 8px; border: 1px solid var(--border); }
+.deliveryLabel { font-size: 11px; font-weight: 700; color: var(--text-muted); display: flex; align-items: center; gap: 4px; margin-bottom: 4px; }
+.deliveryMsg p { font-size: 12px; color: var(--text); white-space: pre-wrap; margin: 0; }
+
+/* ══════════════════════════════════════════════
+   NEW REQUEST FORM (requestId === 'new')
+   ══════════════════════════════════════════════ */
+.newRequestWrap {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+}
+.newRequestForm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 480px;
+  width: 100%;
+}
+.newRequestLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0;
+}
+.required {
+  color: #ef4444;
+}
+.newRequestInput {
+  background: var(--bg-2);
+  border: 1px solid var(--border-dark);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 15px;
+  color: var(--text);
+  font-family: inherit;
+  outline: none;
+  width: 100%;
+}
+.newRequestInput:focus { border-color: var(--text); }
+.newRequestTextarea {
+  background: var(--bg-2);
+  border: 1px solid var(--border-dark);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--text);
+  font-family: inherit;
+  outline: none;
+  resize: vertical;
+  width: 100%;
+}
+.newRequestTextarea:focus { border-color: var(--text); }
+.offerError {
+  font-size: 12px;
+  color: #ef4444;
+  margin: 0;
+}
+.newRequestBtn {
+  margin-top: 6px;
+  padding: 14px;
+  background: var(--text);
+  color: var(--bg);
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.12s;
+}
+.newRequestBtn:hover { opacity: 0.82; }
+.newRequestBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Item summary card at top of new request form */
+.newRequestItemCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-dark);
+  border-radius: 12px;
+  margin-bottom: 6px;
+}
+.newRequestItemLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.newRequestItemLabel {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.newRequestItemTitle {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.newRequestItemSeller {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.newRequestItemSeller i { font-size: 11px; }
+.newRequestItemPrice {
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Hint text below submit button */
+.newRequestHint {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  line-height: 1.5;
+  margin: 0;
+}
+.newRequestHint i { flex-shrink: 0; margin-top: 1px; color: #22c55e; }
+
+@keyframes spin { to { transform: rotate(360deg); } }

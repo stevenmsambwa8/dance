@@ -1,0 +1,527 @@
+
+/* ── Page ── */
+.page {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 28px 16px 56px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Header ── */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 22px;
+  gap: 12px;
+}
+
+.headerLeft {
+  flex: 1;
+  min-width: 0;
+}
+
+.eyebrow {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0 0 4px;
+}
+
+.headline {
+  font-size: clamp(24px, 5vw, 32px);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--text);
+  line-height: 1.1;
+  margin: 0;
+}
+
+/* ── Header icon-only action buttons ── */
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding-bottom: 2px; /* align with baseline of headline */
+}
+
+.iconBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 17px;
+  cursor: pointer;
+  transition:
+    background  0.15s ease,
+    color       0.15s ease,
+    border-color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.iconBtn:hover {
+  background: var(--surface-2);
+  color: var(--text);
+  border-color: var(--border-focus);
+}
+
+.iconBtnDanger {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.2);
+}
+
+.iconBtnDanger:hover {
+  background: rgba(248, 113, 113, 0.08);
+  color: #fca5a5;
+  border-color: rgba(248, 113, 113, 0.35);
+}
+
+/* ── Tabs ── */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 18px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 8px;
+  border: none;
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+    color      0.18s cubic-bezier(0.22, 1, 0.36, 1);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tab:hover {
+  color: var(--text-dim);
+}
+
+.tabActive {
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* Count badge inside tab */
+.tabCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 99px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  line-height: 1;
+}
+
+.tabCountRed {
+  background: rgba(248, 113, 113, 0.15);
+  color: #f87171;
+}
+
+/* ── List ── */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ── Notification Card ── */
+.item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  text-align: left;
+  transition:
+    transform    0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.18s ease;
+  will-change: transform;
+}
+
+/* No left-edge accent bar */
+.item::before {
+  content: none;
+}
+
+.item:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-focus);
+}
+
+.item:active {
+  transform: scale(0.975);
+  transition-duration: 0.1s;
+}
+
+/* Unread state — subtle background only, no left line */
+.itemUnread {
+  border-color: rgba(59, 130, 246, 0.28);
+  background: color-mix(in srgb, var(--surface) 94%, #3b82f6);
+}
+
+/* ── Icon Wrap ── */
+.iconWrap {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: rgba(59, 130, 246, 0.10);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: var(--accent);
+  overflow: hidden;
+  position: relative;
+}
+
+/* ── Game / DM icon images ── */
+.gameIconImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 8px;
+}
+
+/* Sender profile pip — bottom-right corner of the game logo */
+.senderPip {
+  position: absolute;
+  bottom: -3px;
+  right: -3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--bg);
+  object-fit: cover;
+  display: block;
+  background: var(--surface);
+}
+
+/* DM notification — full sender avatar */
+.dmAvatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 50%;
+}
+
+/* ── Content ── */
+.content {
+  flex: 1;
+  min-width: 0;
+}
+
+.contentTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 3px;
+  gap: 8px;
+}
+
+.typeLabel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* ── Typography ── */
+.title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.3;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.body {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin: 2px 0 0;
+  line-height: 1.45;
+}
+
+.time {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── CTA ── */
+.cta {
+  font-size: 12px;
+  font-weight: 500;
+  margin-top: 7px;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── Unread Dot ── */
+.dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-top: 5px;
+}
+
+/* ── Delete Button ── */
+.deleteBtn {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity    0.18s ease,
+    background 0.15s ease,
+    color      0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.item:hover .deleteBtn {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .deleteBtn {
+    opacity: 0.55;
+  }
+}
+
+.deleteBtn:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* ── Confirm Modal ── */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 999;
+  padding: 0 16px 32px;
+}
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 24px 20px 20px;
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: slideUp 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.modalMessage {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text);
+  margin: 0;
+  text-align: center;
+}
+
+.modalActions {
+  display: flex;
+  gap: 10px;
+}
+
+.modalCancel {
+  flex: 1;
+  padding: 11px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.modalCancel:hover {
+  background: var(--bg-2);
+}
+
+.modalConfirm {
+  flex: 1;
+  padding: 11px;
+  border-radius: 12px;
+  border: none;
+  background: rgba(248, 113, 113, 0.15);
+  color: #f87171;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.modalConfirm:hover {
+  background: rgba(248, 113, 113, 0.25);
+}
+
+/* ── Empty State ── */
+.empty {
+  text-align: center;
+  padding: 72px 20px;
+  color: var(--text-muted);
+}
+
+.empty i {
+  font-size: 32px;
+  margin-bottom: 12px;
+  display: block;
+  opacity: 0.5;
+}
+
+.empty p {
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0 0 16px;
+}
+
+/* ── Login Button ── */
+.loginBtn {
+  display: inline-flex;
+  align-items: center;
+  padding: 9px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+}
+
+.loginBtn:hover {
+  opacity: 0.88;
+  transform: translateY(-1px);
+}
+
+.loginBtn:active {
+  transform: scale(0.97);
+}
+
+/* ── Mobile ── */
+@media (max-width: 480px) {
+  .page {
+    padding: 16px 12px 48px;
+  }
+
+  .header {
+    align-items: flex-end;
+  }
+
+  .headline {
+    font-size: 22px;
+  }
+
+  .tab {
+    padding: 6px 11px;
+    font-size: 12px;
+  }
+
+  .item {
+    padding: 12px;
+    border-radius: 14px;
+  }
+
+  .title {
+    font-size: 13.5px;
+  }
+
+  .body {
+    font-size: 12.5px;
+  }
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .item,
+  .tab,
+  .deleteBtn,
+  .iconBtn,
+  .loginBtn,
+  .modal {
+    transition: none;
+    animation: none;
+  }
+
+  .item:hover,
+  .loginBtn:hover {
+    transform: none;
+  }
+
+  .item:active,
+  .loginBtn:active {
+    transform: none;
+  }
+}

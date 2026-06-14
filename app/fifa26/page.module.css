@@ -1,0 +1,170 @@
+.page { max-width:680px; margin:0 auto; padding:0 0 96px; }
+
+/* ── Hero ── */
+.hero {
+  position: relative;
+  overflow: hidden;
+  min-height: 220px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.heroGradient { display: none; }
+
+.heroContent {
+  position: relative;
+  padding: 44px 24px 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.heroBadge {
+  display: inline-block;
+  background: rgba(34,197,94,0.1);
+  border: 1px solid rgba(34,197,94,0.3);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 5px 12px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+.heroTitle {
+  font-size: 48px;
+  font-weight: 900;
+  color: var(--text);
+  letter-spacing: -1.5px;
+  line-height: 0.95;
+  margin-bottom: 18px;
+}
+
+.heroStats {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  margin-bottom: 18px;
+}
+
+.heroHosts {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.heroHost {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.heroDot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.25);
+  flex-shrink: 0;
+}
+
+/* ── Body ── */
+.body { padding: 24px 16px 0; }
+
+.sectionLabel {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+/* ── Game cards ── */
+.gameList { display:flex; flex-direction:column; gap:8px; }
+
+.gameCard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+  text-align: left;
+  font-family: var(--font);
+  width: 100%;
+}
+.gameCard:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(0,0,0,0.08);
+}
+.gameCard:active { transform: translateY(0); }
+
+.gameImg {
+  width: 60px; height: 60px;
+  border-radius: 14px; overflow: hidden;
+  flex-shrink: 0;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+}
+.gameInfo { flex:1; min-width:0; }
+.gameName {
+  font-size: 16px; font-weight: 800; color: var(--text);
+  margin-bottom: 2px; letter-spacing: -0.2px;
+}
+.gameGenre {
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.8px;
+  color: var(--text-muted); margin-bottom: 5px;
+}
+.gameDesc {
+  font-size: 12px; color: var(--text-muted); line-height: 1.4;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.gameChevron {
+  font-size: 22px; color: var(--text-muted); flex-shrink: 0;
+  transition: transform 0.15s, color 0.15s; font-weight: 300; line-height: 1;
+}
+.gameCard:hover .gameChevron,
+.liveCard:hover .gameChevron { transform: translateX(2px); color: var(--text); }
+
+/* ── Divider ── */
+.divider { height:1px; background:var(--border); margin:16px 0; }
+
+/* ── Live card ── */
+.liveCard {
+  display: flex; align-items: center; gap: 14px;
+  padding: 16px 14px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px; cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+  text-align: left; font-family: var(--font); width: 100%;
+}
+.liveCard:hover { border-color: rgba(239,68,68,0.4); transform: translateY(-1px); }
+
+.livePulse {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.18);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.liveDot {
+  width: 10px; height: 10px; border-radius: 50%; background: #ef4444;
+  animation: livePulse 1.6s ease-in-out infinite;
+}
+@keyframes livePulse {
+  0%, 100% { opacity:1; transform:scale(1); }
+  50%       { opacity:0.4; transform:scale(0.78); }
+}
+.liveInfo { flex:1; min-width:0; }
+.liveName { font-size:15px; font-weight:800; color:var(--text); margin-bottom:2px; }
+.liveSub  { font-size:12px; color:var(--text-muted); }

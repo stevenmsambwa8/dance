@@ -1,0 +1,86 @@
+import './globals.css'
+import Script from 'next/script'
+import NavWrapper from '../components/NavWrapper'
+import ThemeProvider from '../components/ThemeProvider'
+import PageTransition from '../components/PageTransition'
+import AuthProvider from '../components/AuthProvider'
+import { ToastProvider } from '../components/ToastProvider'
+import PhoneGate from '../components/PhoneGate'
+import LoadingProvider from '../components/LoadingContext'
+import ThemeScript from '../components/ThemeScript'
+import PWAInstallPrompt from '../components/PWAInstallPrompt'
+import MaintenanceGate from '../components/MaintenanceGate'
+import { AuthGateProvider } from '../components/AuthGateModal'
+
+export const metadata = {
+  title: 'Nabogaming — Tournament Dashboard',
+  description: 'Compete. Rank. Dominate.',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Nabogaming',
+  },
+}
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+}
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <ThemeScript />
+
+        {/* OneSignal */}
+        <Script
+          src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js"
+          strategy="afterInteractive"
+        />
+
+        <Script id="onesignal-init" strategy="afterInteractive">
+          {`
+            window.OneSignalDeferred = window.OneSignalDeferred || [];
+            OneSignalDeferred.push(async function(OneSignal) {
+              await OneSignal.init({
+                appId: "18c70277-bb1b-4c5c-97c2-613b4af0efc7",
+              });
+            });
+          `}
+        </Script>
+
+        <link
+          href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css"
+          rel="stylesheet"
+        />
+
+        {/* PWA / iOS */}
+        <link rel="apple-touch-icon" href="/logo.png" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="theme-color" content="#0a0a0a" />
+      </head>
+
+      <body>
+        <AuthProvider>
+          <ToastProvider>
+            <ThemeProvider>
+              <LoadingProvider>
+                <AuthGateProvider>
+                  <NavWrapper />
+                  <PhoneGate />
+                  <PWAInstallPrompt />
+                  <PageTransition>
+                    <main>{children}</main>
+                  </PageTransition>
+                </AuthGateProvider>
+              </LoadingProvider>
+            </ThemeProvider>
+          </ToastProvider>
+        </AuthProvider>
+      </body>
+    </html>
+  )
+}

@@ -1,0 +1,621 @@
+'use client'
+import { useState, useEffect } from 'react'
+import { useParams, useRouter } from 'next/navigation'
+import { notFound } from 'next/navigation'
+import Link from 'next/link'
+import { useAuth } from '../../../components/AuthProvider'
+import { useAuthGate } from '../../../components/AuthGateModal'
+import { supabase } from '../../../lib/supabase'
+import { GAME_META } from '../../../lib/constants'
+import styles from './page.module.css'
+import usePageLoading from '../../../components/usePageLoading'
+import { getActivePlan, canDo, PLANS } from '../../../lib/plans'
+import UpgradeModal from '../../../components/UpgradeModal'
+
+import { getTierTheme } from '../../../lib/tierTheme'
+
+function getTierColor(tier) {
+  return getTierTheme(tier)?.primary || '#f59e0b'
+}
+
+function formatMasterDate(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
+function weekLabel(dateStr) {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  const end = new Date(d); end.setDate(d.getDate() + 6)
+  return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })} – ${end.toLocaleDateString([], { month: 'short', day: 'numeric' })}`
+}
+
+function fmtFee(n) { return Number(n).toLocaleString() }
+
+function PaymentModal({ tournament, user, onClose, onSubmitted }) {
+  const [payRef,  setPayRef]  = useState('')
+  const [payPhone,setPayPhone]= useState('')
+  const [loading, setLoading] = useState(false)
+  const [err,     setErr]     = useState('')
+  const [copied,  setCopied]  = useState(null)
+
+  function copyNum(which, num) {
+    navigator.clipboard?.writeText(num).catch(() => {
+      const ta = document.createElement('textarea')
+      ta.value = num; document.body.appendChild(ta); ta.select()
+      document.execCommand('copy'); document.body.removeChild(ta)
+    })
+    setCopied(which); setTimeout(() => setCopied(null), 2000)
+  }
+
+  async function submit() {
+    if (!payRef.trim() && !payPhone.trim()) { setErr('Enter your transaction ID or phone number'); return }
+    setLoading(true); setErr('')
+    const { data: existing } = await supabase.from('tournament_payments').select('id, status')
+      .eq('tournament_id', tournament.id).eq('user_id', user.id).maybeSingle()
+    if (existing?.status === 'approved')          { setErr('Already approved — refresh.'); setLoading(false); return }
+    if (existing?.status === 'payment_submitted') { setErr('Already submitted — awaiting admin.'); setLoading(false); return }
+    const { error } = await supabase.from('tournament_payments').upsert({
+      tournament_id: tournament.id, user_id: user.id,
+      payment_ref: payRef.trim() || null, payment_phone: payPhone.trim() || null,
+      amount: tournament.entrance_fee, status: 'payment_submitted',
+      submitted_at: new Date().toISOString(),
+    }, { onConflict: 'tournament_id,user_id' })
+    if (error) { setErr(error.message); setLoading(false); return }
+    const { data: admins } = await supabase.from('profiles').select('id')
+      .in('email', ['stevenmsambwa8@gmail.com', 'nabogamingss1@gmail.com'])
+    if (admins?.length) {
+      const { data: prof } = await supabase.from('profiles').select('username').eq('id', user.id).single()
+      await supabase.from('notifications').insert(admins.map(a => ({
+        user_id: a.id, title: '💳 Tournament Payment — Verify',
+        body: `${prof?.username || 'A player'} paid TZS ${fmtFee(tournament.entrance_fee)} for "${tournament.name}". Ref: ${payRef.trim() || payPhone.trim()}`,
+        type: 'payment', meta: { tournament_id: tournament.id, action: 'verify_tournament_payment' }, read: false,
+      })))
+    }
+    await supabase.from('notifications').insert({
+      user_id: user.id, title: '⏳ Payment Submitted',
+      body: `Entry fee for "${tournament.name}" is pending admin approval.`,
+      type: 'tournament', meta: { tournament_id: tournament.id }, read: false,
+    })
+    onSubmitted(tournament.id)
+  }
+
+  return (
+    <div className={styles.modalBackdrop} onClick={onClose}>
+      <div className={styles.modalSheet} onClick={e => e.stopPropagation()}>
+        <button className={styles.modalClose} onClick={onClose}><i className="ri-close-line" /></button>
+        <div className={styles.payHeader}>
+          <i className="ri-secure-payment-line" />
+          <div>
+            <h3 className={styles.payTitle}>Send Entry Fee</h3>
+            <p className={styles.paySub}>Choose one account, send <strong>TZS {fmtFee(tournament.entrance_fee)}</strong>, then submit proof.</p>
+          </div>
+        </div>
+        <div className={styles.payAmountPill}>
+          <span>Amount to send</span>
+          <strong>TZS {fmtFee(tournament.entrance_fee)}</strong>
+        </div>
+        <p className={styles.payChooseLabel}><span>Choose one account</span></p>
+        <div className={styles.payGrid}>
+          <div className={styles.payCard}>
+            <div className={styles.payCardHead}><i className="ri-sim-card-line" style={{ color: '#e11d48' }} /><span>Halopesa</span></div>
+            <div className={styles.payCardNum}>
+              <span>25165945</span>
+              <button className={`${styles.copyBtn} ${copied === 'halo' ? styles.copyBtnDone : ''}`} onClick={() => copyNum('halo', '25165945')}>
+                {copied === 'halo' ? <><i className="ri-check-line" /> Copied</> : <><i className="ri-file-copy-line" /> Copy</>}
+              </button>
+            </div>
+            <div className={styles.payCardMeta}><span>Lipa Number</span><span className={styles.payCardAcct}>NABOGAMING</span></div>
+          </div>
+          <div className={styles.payCard}>
+            <div className={styles.payCardHead}><i className="ri-sim-card-2-line" style={{ color: '#16a34a' }} /><span>M-Pesa</span></div>
+            <div className={styles.payCardNum}>
+              <span>36835506</span>
+              <button className={`${styles.copyBtn} ${copied === 'mpesa' ? styles.copyBtnDone : ''}`} onClick={() => copyNum('mpesa', '36835506')}>
+                {copied === 'mpesa' ? <><i className="ri-check-line" /> Copied</> : <><i className="ri-file-copy-line" /> Copy</>}
+              </button>
+            </div>
+            <div className={styles.payCardMeta}><span>Lipa Number</span><span className={styles.payCardAcct}>STEVEN DAVID</span></div>
+          </div>
+        </div>
+        <p className={styles.payProofLabel}>After paying, paste your proof below:</p>
+        <div className={styles.modalField}>
+          <label><i className="ri-fingerprint-line" /> Transaction ID / Reference <span className={styles.req}>*</span></label>
+          <input type="text" placeholder="e.g. ABC12345XY" value={payRef} onChange={e => setPayRef(e.target.value)} />
+        </div>
+        <div className={styles.modalField}>
+          <label><i className="ri-phone-line" /> Phone Number Used</label>
+          <input type="tel" placeholder="e.g. 0712 345 678" value={payPhone} onChange={e => setPayPhone(e.target.value)} />
+        </div>
+        {err && <p className={styles.modalErr}><i className="ri-error-warning-line" /> {err}</p>}
+        <button className={styles.modalSubmit} onClick={submit} disabled={loading || (!payRef.trim() && !payPhone.trim())}>
+          {loading ? <><i className="ri-loader-4-line" /> Submitting…</> : <><i className="ri-check-double-line" /> I've Paid — Notify Admin</>}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+export default function GameDetail() {
+  const { slug } = useParams()
+  const router   = useRouter()
+  const { user, isAdmin, profile } = useAuth()
+  const [upgradeOpen, setUpgradeOpen] = useState(false)
+  const [upgradeFeature, setUpgradeFeature] = useState(null)
+  const { openAuthGate } = useAuthGate()
+  const game = GAME_META[slug]
+  if (!game) notFound()
+
+  const [tournaments, setTournaments] = useState([])
+  const [loading,     setLoading]     = useState(true)
+  usePageLoading(loading)
+  const [subscribed,  setSubscribed]  = useState(false)
+  const [subCount,    setSubCount]    = useState(0)
+  const [selected,    setSelected]    = useState(null)
+  const [registered,  setRegistered]  = useState({})
+  const [paymentMap,  setPaymentMap]  = useState({})
+  const [payModal,    setPayModal]    = useState(null)
+  const [master,      setMaster]      = useState(null)
+  const [masterLoading, setMasterLoading] = useState(true)
+  const [pastMasters, setPastMasters] = useState([])
+
+  useEffect(() => { loadData() }, [slug, user])
+  useEffect(() => { loadMaster() }, [slug])
+
+  async function loadMaster() {
+    setMasterLoading(true)
+
+    // Compute current week's Monday (handles all days incl. Sunday)
+    const getMonday = () => {
+      const d = new Date()
+      const day = d.getDay()
+      const diff = day === 0 ? -6 : 1 - day
+      d.setDate(d.getDate() + diff)
+      d.setHours(0, 0, 0, 0)
+      return d.toISOString().split('T')[0]
+    }
+    const monday = getMonday()
+
+    // Try RPC first (matches exact Monday)
+    const { data: rpcData } = await supabase.rpc('get_current_game_master', { p_game_slug: slug })
+    let currentMaster = rpcData?.[0] || null
+
+    // Fallback: direct query for any master set within the current week window
+    // (covers manually-set masters that may have a slightly different week_start)
+    if (!currentMaster) {
+      const weekEnd = new Date(monday)
+      weekEnd.setDate(weekEnd.getDate() + 7)
+      const { data: fallback } = await supabase
+        .from('game_masters')
+        .select('*, profiles(username, avatar_url, tier, country_flag)')
+        .eq('game_slug', slug)
+        .gte('week_start', monday)
+        .lt('week_start', weekEnd.toISOString().split('T')[0])
+        .order('crowned_at', { ascending: false })
+        .limit(1)
+      if (fallback?.[0]) {
+        const r = fallback[0]
+        currentMaster = {
+          user_id: r.user_id,
+          username: r.profiles?.username,
+          avatar_url: r.profiles?.avatar_url,
+          tier: r.profiles?.tier,
+          country_flag: r.profiles?.country_flag,
+          total_wins: r.total_wins,
+          total_points: r.total_points,
+          tournaments_played: r.tournaments_played,
+          crowned_at: r.crowned_at,
+          week_start: r.week_start,
+        }
+      }
+    }
+
+    setMaster(currentMaster)
+
+    // Past masters: anything before this week's Monday
+    const { data: past } = await supabase
+      .from('game_masters')
+      .select('*, profiles(username, avatar_url, tier, country_flag)')
+      .eq('game_slug', slug)
+      .lt('week_start', monday)
+      .order('week_start', { ascending: false })
+      .limit(4)
+    setPastMasters(past || [])
+    setMasterLoading(false)
+  }
+
+  async function loadData() {
+    setLoading(true)
+    const [{ data: tourns }, { count: subs }] = await Promise.all([
+      supabase.from('tournaments')
+        .select('id, name, slug, game_slug, status, slots, registered_count, date, prize, format, entrance_fee, is_test, created_by')
+        .eq('game_slug', slug)
+        .in('status', ['active', 'ongoing'])
+        .order('created_at', { ascending: false }),
+      supabase.from('game_subscriptions').select('*', { count: 'exact', head: true }).eq('game_slug', slug),
+    ])
+
+    const visible = (tourns || []).filter(t => {
+      if (!t.is_test) return true
+      if (!user) return false
+      return isAdmin || t.created_by === user.id
+    })
+    setTournaments(visible)
+    setSubCount(subs || 0)
+
+    if (user) {
+      const [{ data: sub }, { data: regs }] = await Promise.all([
+        supabase.from('game_subscriptions').select('user_id').eq('user_id', user.id).eq('game_slug', slug).maybeSingle(),
+        supabase.from('tournament_participants').select('tournament_id').eq('user_id', user.id),
+      ])
+      setSubscribed(!!sub)
+      if (regs) {
+        const map = {}
+        regs.forEach(r => { map[r.tournament_id] = true })
+        setRegistered(map)
+      }
+      const paidIds = visible.filter(t => (t.entrance_fee || 0) > 0).map(t => t.id)
+      if (paidIds.length) {
+        const { data: pmts } = await supabase.from('tournament_payments')
+          .select('tournament_id, status').eq('user_id', user.id).in('tournament_id', paidIds)
+        if (pmts) {
+          const pmap = {}
+          pmts.forEach(p => { pmap[p.tournament_id] = p.status })
+          setPaymentMap(pmap)
+        }
+      }
+    }
+    setLoading(false)
+  }
+
+  async function toggleSubscribe() {
+    if (!user) { openAuthGate(); return }
+    if (subscribed) {
+      await supabase.from('game_subscriptions').delete().eq('user_id', user.id).eq('game_slug', slug)
+      setSubCount(c => Math.max(0, c - 1))
+    } else {
+      await supabase.from('game_subscriptions').insert({ user_id: user.id, game_slug: slug })
+      setSubCount(c => c + 1)
+    }
+    setSubscribed(s => !s)
+  }
+
+  async function registerTournament(t) {
+    if (!user) { openAuthGate(); return }
+    if (!t) return
+
+    const activePlan = getActivePlan(profile)
+
+    // ── Plan restriction: Pro-only tournaments ──
+    if (t.pro_only && activePlan === 'free') {
+      setUpgradeFeature('pro_tournaments')
+      setUpgradeOpen(true)
+      return
+    }
+
+    // ── Plan restriction: Free plan max 3 active tournaments ──
+    if (activePlan === 'free' && !isAdmin) {
+      const { count } = await supabase
+        .from('tournament_participants')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+      if ((count || 0) >= 3) {
+        setUpgradeFeature('free_tournaments')
+        setUpgradeOpen(true)
+        return
+      }
+    }
+
+    const { error } = await supabase.from('tournament_participants').insert({ tournament_id: t.id, user_id: user.id })
+    if (error) return
+    const { count } = await supabase.from('tournament_participants')
+      .select('*', { count: 'exact', head: true }).eq('tournament_id', t.id)
+    if (count !== null) await supabase.from('tournaments').update({ registered_count: count }).eq('id', t.id)
+    const newCount = count ?? (t.registered_count || 0) + 1
+    setRegistered(r => ({ ...r, [t.id]: true }))
+    setTournaments(ts => ts.map(x => x.id === t.id ? { ...x, registered_count: newCount } : x))
+    // Place in bracket
+    const { data: tData } = await supabase.from('tournaments').select('bracket_data').eq('id', t.id).single()
+    if (tData?.bracket_data) {
+      try {
+        const bd = typeof tData.bracket_data === 'string' ? JSON.parse(tData.bracket_data) : tData.bracket_data
+        if (bd?.rounds) {
+          const { data: profile } = await supabase.from('profiles').select('username, avatar_url').eq('id', user.id).maybeSingle()
+          const playerSlot = { userId: user.id, name: profile?.username || 'Player', avatar: profile?.avatar_url || null, status: 'active' }
+          let pick = null
+          bd.rounds[0]?.forEach((pair, pi) => {
+            pair.forEach((s, si) => { if (!pick && !s?.userId && (s?.status === 'open' || s?.status === 'bye')) pick = { pi, si } })
+          })
+          if (pick) {
+            const newRounds = bd.rounds.map((r, ri) => ri !== 0 ? r : r.map((pair, pi) => {
+              if (pi !== pick.pi) return pair
+              return pair.map((s, si) => si === pick.si ? playerSlot : s)
+            }))
+            await supabase.from('tournaments').update({ bracket_data: { ...bd, rounds: newRounds, isEmpty: false } }).eq('id', t.id)
+          }
+        }
+      } catch {}
+    }
+    setSelected(null)
+  }
+
+  function onPaymentSubmitted(tournamentId) {
+    setPayModal(null); setSelected(null)
+    setPaymentMap(m => ({ ...m, [tournamentId]: 'payment_submitted' }))
+  }
+
+  const isJoined         = selected ? !!registered[selected.id] : false
+  const isFull           = selected ? ((selected.registered_count || 0) >= selected.slots && !isJoined) : false
+  const selectedHasFee   = (selected?.entrance_fee || 0) > 0
+  const selectedPending  = paymentMap[selected?.id] === 'payment_submitted'
+
+  return (
+    <div className={styles.page}>
+
+      <div className={styles.hero}>
+        {game.image && <div className={styles.heroBg} style={{ backgroundImage: `url(${game.image})` }} />}
+        <Link href="/games" className={styles.back}><i className="ri-arrow-left-line" /> All Games</Link>
+        <div className={styles.heroInner}>
+          <div className={styles.heroFlex}>
+            <div className={styles.heroLeft}>
+              <div className={styles.genreRow}><span className={styles.genreChip}>{game.genre}</span></div>
+              <h1 className={styles.heroName}>{game.name}</h1>
+              {game.full && <p className={styles.heroFull}>{game.full}</p>}
+            </div>
+            {game.image && (
+              <div className={styles.heroLogoWrap}>
+                <img src={game.image} alt={game.name} className={styles.heroLogo} />
+              </div>
+            )}
+          </div>
+          <div className={styles.statsStrip}>
+            <div className={styles.stat}>
+              <span className={styles.statVal}>{loading ? '—' : subCount.toLocaleString()}</span>
+              <span className={styles.statLabel}>Subscribers</span>
+            </div>
+            <div className={styles.stat}>
+              <span className={styles.statVal}>{loading ? '—' : tournaments.filter(t => t.status === 'active').length}</span>
+              <span className={styles.statLabel}>Active</span>
+            </div>
+            <div className={styles.stat}>
+              <span className={styles.statVal} style={{ color: tournaments.filter(t => t.status === 'ongoing').length > 0 ? '#6366f1' : undefined }}>
+                {loading ? '—' : tournaments.filter(t => t.status === 'ongoing').length}
+              </span>
+              <span className={styles.statLabel}>Ongoing</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {game.desc && <p className={styles.desc}>{game.desc}</p>}
+
+      <div className={styles.subRow}>
+        <button className={`${styles.subBtn} ${subscribed ? styles.subActive : ''}`} onClick={toggleSubscribe}>
+          <i className={subscribed ? 'ri-bookmark-fill' : 'ri-bookmark-line'} />
+          {subscribed ? 'Subscribed' : 'Subscribe'}
+        </button>
+        <Link href={`/games/${slug}/chat`} className={styles.chatBtn}><i className="ri-group-line" /> Group Chat</Link>
+      </div>
+
+      <div className={styles.section} style={{ marginBottom: 40 }}>
+        <div className={styles.sectionHead}>
+          <h2 className={styles.sectionTitle}><i className="ri-crown-line" /> Weekly Master</h2>
+          {master && <span className={styles.sectionMeta}>This Week</span>}
+        </div>
+
+        {masterLoading && (
+          <div className={styles.masterSkel}>
+            <div className={styles.masterSkelAvatar} />
+            <div className={styles.masterSkelLines}>
+              <div className={styles.masterSkelLine} style={{ width: '55%' }} />
+              <div className={styles.masterSkelLine} style={{ width: '35%' }} />
+            </div>
+          </div>
+        )}
+
+        {!masterLoading && !master && (
+          <div className={styles.masterEmpty}>
+            <i className="ri-sword-line" />
+            <p>No master crowned yet this week.</p>
+            <span>Win tournaments to claim the crown.</span>
+          </div>
+        )}
+
+        {!masterLoading && master && (
+          <div className={styles.masterCard}>
+            <div className={styles.masterCardGlow} />
+            <div className={styles.masterCrownBadge}><i className="ri-crown-fill" /></div>
+            <div className={styles.masterCardInner}>
+              <div className={styles.masterAvatarWrap}>
+                {master.avatar_url
+                  ? <img src={master.avatar_url} alt={master.username} className={styles.masterAvatar} />
+                  : <div className={styles.masterAvatarFallback}>{master.username?.[0]?.toUpperCase()}</div>
+                }
+                <span className={styles.masterTierDot} style={{ background: getTierColor(master.tier) }} />
+              </div>
+              <div className={styles.masterInfo}>
+                <div className={styles.masterName}>{master.username}</div>
+                <div className={styles.masterTierLabel} style={{ color: getTierColor(master.tier) }}>
+                  <i className="ri-vip-crown-line" /> {master.tier || 'Gold'}
+                </div>
+              </div>
+            </div>
+            <div className={styles.masterStats}>
+              <div className={styles.masterStat}>
+                <span className={styles.masterStatVal}>{master.total_wins}</span>
+                <span className={styles.masterStatLabel}>Wins</span>
+              </div>
+              <div className={styles.masterStatDiv} />
+              <div className={styles.masterStat}>
+                <span className={styles.masterStatVal}>{master.total_points}</span>
+                <span className={styles.masterStatLabel}>Points</span>
+              </div>
+              <div className={styles.masterStatDiv} />
+              <div className={styles.masterStat}>
+                <span className={styles.masterStatVal}>{master.tournaments_played}</span>
+                <span className={styles.masterStatLabel}>Played</span>
+              </div>
+            </div>
+            <div className={styles.masterFooter}>
+              <i className="ri-time-line" />
+              Crowned {formatMasterDate(master.crowned_at)}
+            </div>
+          </div>
+        )}
+
+        {pastMasters.length > 0 && (
+          <div className={styles.pastMasters}>
+            <p className={styles.pastMastersLabel}>Past Masters</p>
+            {pastMasters.map((pm, i) => (
+              <div key={pm.id} className={styles.pastRow}>
+                <div className={styles.pastAvatar}>
+                  {pm.profiles?.avatar_url
+                    ? <img src={pm.profiles.avatar_url} alt={pm.profiles.username} />
+                    : <span>{pm.profiles?.username?.[0]?.toUpperCase()}</span>
+                  }
+                </div>
+                <div className={styles.pastInfo}>
+                  <span className={styles.pastName}>{pm.profiles?.username}</span>
+                  <span className={styles.pastWeek}>{weekLabel(pm.week_start)}</span>
+                </div>
+                <div className={styles.pastStats}>
+                  <span><i className="ri-trophy-fill" /> {pm.total_wins}W</span>
+                  <span><i className="ri-star-line" /> {pm.total_points}pt</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className={styles.section}>
+        <div className={styles.sectionHead}>
+          <h2 className={styles.sectionTitle}>Tournaments</h2>
+          {!loading && tournaments.length > 0 && <span className={styles.sectionMeta}>{tournaments.length} open</span>}
+        </div>
+
+        {!loading && tournaments.length === 0 && (
+          <p className={styles.empty}>No active tournaments for this game yet.</p>
+        )}
+
+        {!loading && tournaments.length > 0 && (
+          <div className={styles.list}>
+            {tournaments.map(t => {
+              const isRowJoined = !!registered[t.id]
+              const hasFee      = (t.entrance_fee || 0) > 0
+              const pmtStatus   = paymentMap[t.id]
+              const isPending   = pmtStatus === 'payment_submitted'
+              const isRowFull   = (t.registered_count || 0) >= t.slots && !isRowJoined
+              const fillPct     = Math.min(100, ((t.registered_count || 0) / (t.slots || 1)) * 100)
+              const isOngoing   = t.status === 'ongoing'
+
+              return (
+                <div key={t.id}
+                  className={`${styles.tRow} ${isRowFull && !isOngoing ? styles.tRowFull : ''} ${isRowJoined ? styles.tRowJoined : ''}`}
+                  onClick={() => isOngoing ? router.push(`/tournaments/${t.slug || t.id}`) : setSelected(t)}
+                >
+                  <div className={styles.tInfo}>
+                    <div className={styles.tNameRow}>
+                      <span className={styles.tName}>{t.name}</span>
+                      <div className={styles.tBadges}>
+                        {isOngoing && <span className={styles.badgeOngoing}><i className="ri-play-circle-fill" /> Ongoing</span>}
+                        {t.is_test && <span className={styles.badgeTest}><i className="ri-flask-line" /> Test</span>}
+                        {t.pro_only && <span className={styles.badgePro}><i className="ri-vip-crown-line" /> Pro+</span>}
+                        {hasFee && <span className={styles.badgeFee}><i className="ri-money-dollar-circle-line" /> TZS {fmtFee(t.entrance_fee)}</span>}
+                      </div>
+                    </div>
+                    {t.format && <div className={styles.tFormat}>{t.format}</div>}
+                    <div className={styles.slotBar}>
+                      <div className={styles.slotTrack}>
+                        <div className={`${styles.slotFill} ${isRowFull ? styles.slotFull : fillPct >= 80 ? styles.slotWarm : ''}`}
+                          style={{ width: `${fillPct}%` }} />
+                      </div>
+                      <span className={styles.slotText}>{t.registered_count || 0}/{t.slots}</span>
+                    </div>
+                  </div>
+                  <div className={styles.tMeta}>
+                    {t.prize && <span className={styles.tPrize}><i className="ri-trophy-line" />{t.prize}</span>}
+                    {t.date  && <span className={styles.tDate}><i className="ri-calendar-line" />{t.date}</span>}
+                  </div>
+                  <span className={`${styles.badge} ${
+                    isOngoing ? styles.badgeOngoingPill :
+                    isRowJoined ? styles.badgeJoined :
+                    isPending ? styles.badgePendingPill :
+                    isRowFull ? styles.badgeFull :
+                    hasFee ? styles.badgePay :
+                    styles.badgeOpen}`}>
+                    {isOngoing ? <><i className="ri-arrow-right-line" /> View</> :
+                     isRowJoined ? 'Joined' :
+                     isPending ? <><i className="ri-time-line" /> Pending</> :
+                     isRowFull ? 'Full' :
+                     hasFee ? <><i className="ri-money-dollar-circle-line" /> Pay</> : 'Open'}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Detail sheet */}
+      {selected && (
+        <div className={styles.modalBackdrop} onClick={() => setSelected(null)}>
+          <div className={styles.modalSheet} onClick={e => e.stopPropagation()}>
+            <button className={styles.modalClose} onClick={() => setSelected(null)}><i className="ri-close-line" /></button>
+            <h3 className={styles.detailTitle}>{selected.name}</h3>
+            {selected.format && <p className={styles.detailFormat}>{selected.format}</p>}
+            {isJoined && <div className={styles.joinedBanner}><i className="ri-checkbox-circle-fill" /> You're registered for this tournament</div>}
+            {selectedPending && !isJoined && <div className={styles.pendingBanner}><i className="ri-time-line" /> Payment submitted — awaiting admin approval</div>}
+            <div className={styles.tGrid}>
+              {[
+                { label: 'Status',     val: selected.status,                                                     icon: 'ri-live-line' },
+                { label: 'Prize Pool', val: selected.prize || 'None',                                            icon: 'ri-trophy-line' },
+                { label: 'Entry Fee',  val: selectedHasFee ? `TZS ${fmtFee(selected.entrance_fee)}` : 'Free',   icon: 'ri-money-dollar-circle-line' },
+                { label: 'Slots',      val: `${selected.registered_count || 0} / ${selected.slots}`,             icon: 'ri-group-line' },
+                { label: 'Date',       val: selected.date || 'TBD',                                              icon: 'ri-calendar-line' },
+              ].map(r => (
+                <div key={r.label} className={styles.tGridRow}>
+                  <span className={styles.tGridLabel}><i className={r.icon} /> {r.label}</span>
+                  <span className={styles.tGridVal}>{r.val}</span>
+                </div>
+              ))}
+            </div>
+            {!isJoined && !selectedPending && !isFull && (
+              <p className={styles.tNote}>By registering you agree to tournament rules. No-shows result in a loss of entry points.</p>
+            )}
+            <div className={styles.detailActions}>
+              <Link href={`/tournaments/${selected.slug || selected.id}`} className={styles.viewBtn}>
+                <i className="ri-eye-line" /> View Bracket
+              </Link>
+              {!isJoined && !isFull && !selectedPending && (
+                selectedHasFee ? (
+                  <button className={styles.joinBtn} onClick={() => { setPayModal(selected); setSelected(null) }}>
+                    <i className="ri-money-dollar-circle-line" /> Pay & Register · TZS {fmtFee(selected.entrance_fee)}
+                  </button>
+                ) : (
+                  <button className={styles.joinBtn} onClick={() => registerTournament(selected)}>
+                    <i className="ri-trophy-line" /> Register Now
+                  </button>
+                )
+              )}
+              {isFull && !isJoined && <span className={styles.fullNote}><i className="ri-lock-line" /> Tournament is full</span>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {payModal && (
+        <PaymentModal tournament={payModal} user={user} onClose={() => setPayModal(null)} onSubmitted={onPaymentSubmitted} />
+      )}
+
+      {upgradeOpen && (
+        <UpgradeModal
+          feature={upgradeFeature}
+          profile={profile}
+          onClose={() => { setUpgradeOpen(false); setUpgradeFeature(null) }}
+        />
+      )}
+    </div>
+  )
+}

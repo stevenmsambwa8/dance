@@ -1,0 +1,574 @@
+/* ═══════════════════════════════════════════════════
+   Tournament Manage — Command Centre
+   Uses global CSS tokens so it respects light/dark theme.
+   Distinct from user UI via surface-raised treatment,
+   strong typography hierarchy, and accent-led colour.
+═══════════════════════════════════════════════════ */
+
+.page {
+  min-height: 100vh;
+  background: var(--bg);
+  padding-bottom: 48px;
+}
+
+/* ── Header ── */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 50;
+}
+.headerBack {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.headerInfo { flex: 1; min-width: 0; }
+.headerRole {
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 1px;
+}
+.headerTitle {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.headerIconBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  flex-shrink: 0;
+}
+.headerIconBtnAccent {
+  border-color: rgba(99,102,241,0.3);
+  background: rgba(99,102,241,0.07);
+  color: #6366f1;
+}
+
+/* ── KPI strip ── */
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 14px 16px;
+}
+.kpi {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.kpiIcon { font-size: 11px; margin-bottom: 3px; }
+.kpiVal {
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.kpiLabel {
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+.kpiSub {
+  font-size: 9px;
+  color: var(--text-muted);
+}
+
+/* ── Chips row ── */
+.chipsRow {
+  display: flex;
+  gap: 6px;
+  padding: 0 16px 12px;
+  flex-wrap: wrap;
+}
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+}
+.chipAccent  { background: rgba(34,197,94,0.08);   border-color: rgba(34,197,94,0.2);  color: #22c55e; }
+.chipIndigo  { background: rgba(99,102,241,0.08);  border-color: rgba(99,102,241,0.2); color: #6366f1; }
+.chipAmber   { background: rgba(245,158,11,0.08);  border-color: rgba(245,158,11,0.2); color: #f59e0b; }
+.chipDanger  { background: rgba(220,38,38,0.08);   border-color: rgba(220,38,38,0.2);  color: #dc2626; cursor: pointer; }
+
+/* ── Tab bar ── */
+.tabs {
+  display: flex;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  background: var(--bg-2);
+  margin-bottom: 16px;
+}
+.tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 18px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.15s, border-color 0.15s;
+}
+.tab i { font-size: 17px; }
+.tabActive {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.tabDanger.tabActive { color: #dc2626; border-bottom-color: #dc2626; }
+
+/* ── Body ── */
+.body { padding: 0 16px; display: flex; flex-direction: column; gap: 12px; }
+
+/* ── Card ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+}
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.cardTitle {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+  flex: 1;
+}
+.cardSaving {
+  font-size: 10px;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── Mismatch warning ── */
+.mismatchBanner {
+  background: rgba(245,158,11,0.07);
+  border: 1px solid rgba(245,158,11,0.2);
+  border-radius: 10px;
+  padding: 11px 13px;
+  margin-bottom: 12px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.mismatchTitle { font-size: 12px; font-weight: 700; color: #f59e0b; margin-bottom: 3px; }
+.mismatchSub   { font-size: 11px; color: var(--text-muted); }
+
+/* ── Stat mini row ── */
+.statRow { display: flex; gap: 8px; margin-bottom: 12px; }
+.statBox {
+  flex: 1;
+  background: var(--bg-2);
+  border-radius: 10px;
+  padding: 10px;
+  text-align: center;
+}
+.statBoxVal   { font-size: 22px; font-weight: 900; color: var(--text); letter-spacing: -0.02em; display: block; }
+.statBoxLabel { font-size: 8px; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); display: block; margin-top: 2px; }
+
+/* ── Buttons ── */
+.btnRow { display: flex; gap: 8px; }
+.btnPrimary {
+  flex: 1;
+  padding: 12px;
+  border-radius: 11px;
+  border: none;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 13px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.btnPrimary:disabled { opacity: 0.4; cursor: not-allowed; }
+.btnDanger {
+  flex: 1;
+  padding: 12px;
+  border-radius: 11px;
+  border: 1px solid rgba(220,38,38,0.25);
+  background: rgba(220,38,38,0.07);
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.btnDangerFull {
+  width: 100%;
+  padding: 13px;
+  border-radius: 12px;
+  border: 1px solid rgba(220,38,38,0.25);
+  background: rgba(220,38,38,0.07);
+  color: #dc2626;
+  font-size: 14px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.btnGhost {
+  padding: 12px 14px;
+  border-radius: 11px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.btnAmber {
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: none;
+  background: #f59e0b;
+  color: #000;
+  font-size: 12px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.btnFull {
+  width: 100%;
+  padding: 12px;
+  border-radius: 11px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* ── Status chips row ── */
+.statusRow { display: flex; gap: 6px; flex-wrap: wrap; }
+.statusChip {
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-2);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: capitalize;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.statusChipActive { border-color: transparent; color: #fff; }
+
+/* ── Score row ── */
+.scoreRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+}
+.scoreRow:last-child { border-bottom: none; }
+.scoreRank { font-size: 14px; width: 26px; text-align: center; flex-shrink: 0; }
+.scoreName { flex: 1; font-size: 13px; font-weight: 700; color: var(--text); }
+.scorePts  { font-size: 14px; font-weight: 900; color: var(--accent); }
+.scorePtsSub { font-size: 10px; color: var(--text-muted); font-weight: 500; }
+
+/* ── Player row ── */
+.playerRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.playerAvatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--bg-2);
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-muted);
+  position: relative;
+}
+.playerAvatar img { width: 100%; height: 100%; object-fit: cover; }
+.playerDot {
+  position: absolute;
+  bottom: 1px; right: 1px;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  border: 2px solid var(--surface);
+}
+.playerInfo { flex: 1; min-width: 0; }
+.playerName {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.playerMeta { display: block; font-size: 10px; color: var(--text-muted); }
+.playerBadges { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
+.badgeOut     { font-size: 9px; font-weight: 900; color: #dc2626; background: rgba(220,38,38,0.1); padding: 2px 6px; border-radius: 4px; }
+.badgePaid    { font-size: 9px; font-weight: 900; color: #22c55e; background: rgba(34,197,94,0.1);  padding: 2px 6px; border-radius: 4px; }
+.badgePending { font-size: 9px; font-weight: 900; color: #f59e0b; background: rgba(245,158,11,0.1); padding: 2px 6px; border-radius: 4px; }
+.btnRemove {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  border: 1px solid rgba(220,38,38,0.2);
+  background: rgba(220,38,38,0.05);
+  color: #dc2626;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+/* ── Payment card ── */
+.payCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.payApprovedBorder { border-color: rgba(34,197,94,0.2); }
+.payPendingBorder  { border-color: rgba(245,158,11,0.25); }
+
+/* ── Unplaced section ── */
+.unplacedCard {
+  background: var(--surface);
+  border: 1px solid rgba(245,158,11,0.2);
+  border-radius: 12px;
+  padding: 14px;
+}
+.unplacedHead {
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #f59e0b;
+  margin-bottom: 10px;
+}
+.unplacedRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+.unplacedRow:last-child { border-bottom: none; }
+.unplacedAvatar {
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  background: var(--bg-2);
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; font-size: 10px; font-weight: 800; color: var(--text-muted);
+  flex-shrink: 0;
+}
+.unplacedAvatar img { width: 100%; height: 100%; object-fit: cover; }
+.unplacedName { flex: 1; font-size: 13px; font-weight: 600; color: var(--text); }
+.btnAdd {
+  padding: 5px 12px;
+  border-radius: 7px;
+  border: 1px solid rgba(99,102,241,0.25);
+  background: rgba(99,102,241,0.07);
+  color: #6366f1;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+/* ── Section label ── */
+.sectionLabel {
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+/* ── Danger zone card ── */
+.dangerCard {
+  background: rgba(220,38,38,0.04);
+  border: 1px solid rgba(220,38,38,0.15);
+  border-radius: 14px;
+  padding: 20px;
+}
+.dangerHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 900;
+  color: #dc2626;
+  letter-spacing: 0.05em;
+}
+.dangerSub {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+/* ── Empty state ── */
+.empty {
+  text-align: center;
+  padding: 40px 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* ── Toast ── */
+.toast {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.toastSuccess { background: #16a34a; }
+.toastError   { background: #dc2626; }
+.toastInfo    { background: #6366f1; }
+
+/* ── Confirm modal ── */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px;
+}
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 24px;
+  width: 100%;
+  max-width: 400px;
+}
+.modalMsg {
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.6;
+  margin-bottom: 20px;
+  text-align: center;
+}
+.modalBtns { display: flex; gap: 10px; }
+.modalCancel {
+  flex: 1;
+  padding: 11px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-2);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+.modalConfirm {
+  flex: 1;
+  padding: 11px;
+  border-radius: 10px;
+  border: none;
+  background: #dc2626;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+/* ── Loading ── */
+.loadWrap {
+  min-height: 100vh;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

@@ -1,0 +1,306 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import url('https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css');
+
+/* ── Reset ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Disable text selection across the whole app */
+body {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+}
+
+/* Re-enable selection only where it makes sense */
+input, textarea, [contenteditable] {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  user-select: text;
+}
+
+/* ── Light Theme ── */
+:root {
+  --bg: #ffffff;
+  --bg-rgb: 255,255,255;  /* used by overlay: rgba(var(--bg-rgb), 0.62) */
+  --bg-2: #f5f5f7;
+  --surface: #ffffff;
+
+  --border: #e5e5ea;
+  --border-dark: #d1d1d6;
+
+  --text: #000000;
+  --text-dim: #3a3a3c;
+  --text-muted: #8e8e93;
+
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+
+  --accent: #22c55e;
+  --accent-text: #ffffff;
+}
+
+/* ── Dark Theme ── */
+[data-theme="dark"] {
+  --bg: #18181a;
+  --bg-rgb: 10,10,10;
+  --bg-2: #202022;
+  --surface: #242426;
+
+  --border: #2f2f32;
+  --border-dark: #3a3a3d;
+
+  --text: #f2f2f7;
+  --text-dim: #c7c7cc;
+  --text-muted: #9a9aa0;
+
+  --accent: #22c55e;
+  --accent-text: #ffffff;
+}
+
+/* ── Base ── */
+html {
+  scroll-behavior: smooth;
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+}
+
+main {
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+}
+
+/* ── Typography ── */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+}
+
+p {
+  color: var(--text-dim);
+}
+
+/* ── Links & Buttons ── */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-dark);
+  border-radius: 2px;
+}
+
+/* ── Loader ── */
+.loader {
+  width: 44px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 6px solid;
+  border-color: var(--text) transparent;
+  animation: spin 0.5s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(0.5turn);
+  }
+}
+
+/* ── Page Overlay Loader ── */
+.page-loader-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(var(--bg-rgb, 255,255,255), 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+/* ── Inline Loader Wrapper ── */
+.loader-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 0;
+  width: 100%;
+}
+
+
+
+/* ════════════════════════════════════════════════════════
+   EXTENDED THEMES — each one has a real personality
+   ════════════════════════════════════════════════════════ */
+
+/* ── ❄️  SNOW — Light icy winter, Christmas vibes ── */
+[data-theme="snow"] {
+  --bg:          #f0f8ff;
+  --bg-rgb:      240,248,255;
+  --bg-2:        #daeef9;
+  --surface:     #ffffff;
+
+  --border:      #b8d8ed;
+  --border-dark: #8bbfd9;
+
+  --text:        #0b1f2e;
+  --text-dim:    #1e3d56;
+  --text-muted:  #6090b0;
+
+  --accent:      #0077cc;
+  --accent-text: #ffffff;
+
+  /* Subtle snowflake/frost overlay on cards */
+  --card-bg:     linear-gradient(135deg, #ffffff 0%, #e8f5ff 100%);
+  --glow:        0 0 20px rgba(0,119,204,0.15);
+}
+
+/* ── ⚡ NEON — Cyberpunk / gaming dark with electric purple + green ── */
+[data-theme="neon"] {
+  --bg:          #060610;
+  --bg-rgb:      6,6,16;
+  --bg-2:        #0e0e20;
+  --surface:     #12122a;
+
+  --border:      #1e1e40;
+  --border-dark: #2e2e60;
+
+  --text:        #f0f0ff;
+  --text-dim:    #b0b0e8;
+  --text-muted:  #5555aa;
+
+  --accent:      #bf00ff;
+  --accent-text: #ffffff;
+
+  --card-bg:     linear-gradient(135deg, #12122a 0%, #0e0e1e 100%);
+  --glow:        0 0 24px rgba(191,0,255,0.3), 0 0 48px rgba(0,255,170,0.1);
+}
+
+/* ── 🌅 SUNSET — Deep warm dark, orange + magenta fire ── */
+[data-theme="sunset"] {
+  --bg:          #130800;
+  --bg-rgb:      19,8,0;
+  --bg-2:        #1e0e00;
+  --surface:     #2a1200;
+
+  --border:      #3d1e00;
+  --border-dark: #5c2e00;
+
+  --text:        #fff1e0;
+  --text-dim:    #ffbe80;
+  --text-muted:  #a06030;
+
+  --accent:      #ff6b00;
+  --accent-text: #ffffff;
+
+  --card-bg:     linear-gradient(135deg, #2a1200 0%, #1e0800 100%);
+  --glow:        0 0 24px rgba(255,107,0,0.25), 0 0 48px rgba(255,0,128,0.1);
+}
+
+/* ── 🌿 FOREST — Rich dark earth, emerald + moss, Spring ── */
+[data-theme="forest"] {
+  --bg:          #060e08;
+  --bg-rgb:      6,14,8;
+  --bg-2:        #0b1610;
+  --surface:     #0f1e14;
+
+  --border:      #162a1c;
+  --border-dark: #1f3d28;
+
+  --text:        #d4f0d4;
+  --text-dim:    #90c898;
+  --text-muted:  #487858;
+
+  --accent:      #00e676;
+  --accent-text: #001a08;
+
+  --card-bg:     linear-gradient(135deg, #0f1e14 0%, #0a140d 100%);
+  --glow:        0 0 20px rgba(0,230,118,0.2), 0 0 40px rgba(0,100,40,0.15);
+}
+
+/* ── 🏆 GOLD — Pure prestige, black velvet + rich gold ── */
+[data-theme="gold"] {
+  --bg:          #080600;
+  --bg-rgb:      8,6,0;
+  --bg-2:        #120e00;
+  --surface:     #1a1500;
+
+  --border:      #2e2600;
+  --border-dark: #463a00;
+
+  --text:        #fff8e0;
+  --text-dim:    #f0d060;
+  --text-muted:  #806820;
+
+  --accent:      #ffd700;
+  --accent-text: #1a1500;
+
+  --card-bg:     linear-gradient(135deg, #1a1500 0%, #100d00 100%);
+  --glow:        0 0 24px rgba(255,215,0,0.25), 0 0 48px rgba(180,140,0,0.15);
+}
+
+/* ── 🌊 OCEAN — Deep navy abyss, cyan bioluminescence, Summer ── */
+[data-theme="ocean"] {
+  --bg:          #010a14;
+  --bg-rgb:      1,10,20;
+  --bg-2:        #04121e;
+  --surface:     #081c2e;
+
+  --border:      #0e2a40;
+  --border-dark: #143a56;
+
+  --text:        #c8f0ff;
+  --text-dim:    #70c8e8;
+  --text-muted:  #2e6888;
+
+  --accent:      #00d4ff;
+  --accent-text: #010a14;
+
+  --card-bg:     linear-gradient(135deg, #081c2e 0%, #041018 100%);
+  --glow:        0 0 24px rgba(0,212,255,0.2), 0 0 60px rgba(0,80,160,0.2);
+}
+
+/* ── Glow effect applied to surfaces in themed modes ── */
+[data-theme="neon"]   .themed-glow,
+[data-theme="sunset"] .themed-glow,
+[data-theme="forest"] .themed-glow,
+[data-theme="gold"]   .themed-glow,
+[data-theme="ocean"]  .themed-glow {
+  box-shadow: var(--glow);
+}
+
+/* ── Scrollbar accent coloring per theme ── */
+[data-theme="neon"]   ::-webkit-scrollbar-thumb { background: #bf00ff44; }
+[data-theme="sunset"] ::-webkit-scrollbar-thumb { background: #ff6b0044; }
+[data-theme="forest"] ::-webkit-scrollbar-thumb { background: #00e67644; }
+[data-theme="gold"]   ::-webkit-scrollbar-thumb { background: #ffd70044; }
+[data-theme="ocean"]  ::-webkit-scrollbar-thumb { background: #00d4ff44; }
+[data-theme="snow"]   ::-webkit-scrollbar-thumb { background: #0077cc44; }
