@@ -334,36 +334,101 @@
 .bracketScroll::-webkit-scrollbar-thumb { background: var(--border-dark); border-radius: 99px; }
 .bracketZoom { display: contents; }
 
-.bracketWrap { display: flex; align-items: stretch; min-width: max-content; gap: 0; position: relative; }
+.bracketWrap {
+  display: flex;
+  align-items: flex-start;
+  min-width: max-content;
+  gap: 48px;  /* 24px stub right + 24px stub left = exactly fills the gap */
+  position: relative;
+}
 
-.bracketCol { display: flex; flex-direction: column; width: 172px; flex-shrink: 0; position: relative; margin-right: 40px; }
-.bracketCol:last-child { margin-right: 0; }
+.bracketCol {
+  display: flex;
+  flex-direction: column;
+  width: 172px;
+  flex-shrink: 0;
+  position: relative;
+}
 .bracketColChamp { width: 196px; }
 
-.roundLabel { font-size: 9px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); text-align: center; padding: 10px 12px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; flex-shrink: 0; }
+.roundLabel {
+  font-size: 9px; font-weight: 800; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--text-muted);
+  text-align: center; padding: 10px 12px 12px;
+  white-space: nowrap; flex-shrink: 0;
+}
 .roundLabelChamp { color: #f59e0b; }
 
-.matchList { display: flex; flex-direction: column; flex: 1; padding: 0; }
+.matchList { display: flex; flex-direction: column; flex: 1; }
 
+/*
+  matchPairWrap:
+  - Takes up equal vertical space so pairs sit at even heights.
+  - The right side emits a horizontal stub → the NEXT column's
+    left side receives it via the vertical bar on matchPairWrap::before.
+
+  Layout per pair:
+    ┌────────────┐
+    │  match A   │──┐
+    └────────────┘  │ (vertical bar joining A & B midpoints)
+    ┌────────────┐  │
+    │  match B   │──┘──────► next round slot
+    └────────────┘
+*/
 .matchPairWrap {
-  position: relative; display: flex; flex-direction: column;
-  justify-content: center; min-height: 100px; flex: 1; padding: 6px 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1;
+  padding: 6px 0;
+  /* gap between match card and the connector zone */
+  margin-right: 0;
 }
+
+/* Horizontal stub going RIGHT from this match to the connector zone */
 .matchPairWrap::after {
-  content: ''; position: absolute; right: -20px; top: 50%;
-  width: 20px; height: 2px; background: var(--border-dark);
+  content: '';
+  position: absolute;
+  right: -24px;
+  top: 50%;
+  width: 24px;
+  height: 2px;
+  background: var(--border-dark);
   transform: translateY(-50%);
+  pointer-events: none;
 }
+
+/*
+  Vertical bar on the LEFT side — connects from the midpoint of the
+  pair ABOVE (odd) or BELOW (even) up/down to this match's centre.
+  This lives at left: -24px (in the gap between columns).
+*/
 .matchPairWrap:nth-child(odd)::before {
-  content: ''; position: absolute; left: -20px; top: 50%;
-  height: 50%; width: 2px; background: var(--border-dark);
+  content: '';
+  position: absolute;
+  left: -24px;
+  top: 50%;
+  height: 50%;    /* goes DOWN to meet the even sibling */
+  width: 2px;
+  background: var(--border-dark);
+  pointer-events: none;
 }
 .matchPairWrap:nth-child(even)::before {
-  content: ''; position: absolute; left: -20px; bottom: 50%;
-  height: 50%; width: 2px; background: var(--border-dark);
+  content: '';
+  position: absolute;
+  left: -24px;
+  bottom: 50%;
+  height: 50%;    /* goes UP to meet the odd sibling */
+  width: 2px;
+  background: var(--border-dark);
+  pointer-events: none;
 }
+
+/* Champion column needs no outgoing stub */
 .bracketColChamp .matchPairWrap::after  { display: none; }
 .bracketColChamp .matchPairWrap::before { display: none; }
+/* First column has nothing to connect FROM on the left */
 .bracketCol:first-child .matchPairWrap::before { display: none; }
 
 /* ── Match card ── */
@@ -380,12 +445,8 @@
   border-color: var(--border-dark);
   box-shadow: 0 2px 12px rgba(0,0,0,0.07);
 }
-.bracketCol:not(:first-child) .matchCard::before {
-  content: ''; position: absolute; left: -12px; top: 50%;
-  width: 12px; height: 2px; background: var(--border-dark);
-  pointer-events: none; border-radius: 1px; transform: translateY(-50%);
-}
-.matchCard::after { display: none; }
+.matchCard::before { display: none; }
+.matchCard::after  { display: none; }
 .matchCardBye { opacity: 0.4; border-style: dashed; }
 .matchCardBye:hover { border-color: var(--border-dark); opacity: 0.5; box-shadow: none; }
 
