@@ -1,4 +1,3 @@
-// v2
 'use client'
 import { getCurrentSeason, computeLevelAfterWin } from '@/lib/seasons'
 import React, { useState, useEffect, useCallback, useRef } from 'react'
@@ -471,6 +470,7 @@ export default function TournamentDetail() {
 
   const toastTimer   = useRef(null)
   const testExpireTimer = useRef(null)
+  const bracketWrapRef = useRef(null)
 
   function showToast(text, type = 'error') {
     if (toastTimer.current) clearTimeout(toastTimer.current)
@@ -2543,11 +2543,12 @@ export default function TournamentDetail() {
 
               <div className={styles.bracketScroll}>
                 <div className={styles.bracketZoom}>
-                  <div className={styles.bracketWrap}>
+                  <div className={styles.bracketWrap} ref={bracketWrapRef} style={{ position: "relative" }}>
+                    <BracketConnectorsSVG wrapRef={bracketWrapRef} bracketData={bracketData} />
                     {bracketData.rounds.map((pairs, rIdx) => {
                       const isChampion = rIdx === bracketData.rounds.length - 1
                       return (
-                        <div key={rIdx} className={`${styles.bracketCol} ${isChampion ? styles.bracketColChamp : ''}`}>
+                        <div key={rIdx} className={`${styles.bracketCol} ${isChampion ? styles.bracketColChamp : ''}`} data-round={rIdx}>
                           <div className={`${styles.roundLabel} ${isChampion ? styles.roundLabelChamp : ''}`}>
                             {isChampion && <i className="ri-vip-crown-fill" style={{ marginRight: 4 }} />}
                             {getRoundLabel(rIdx, bracketData.rounds.length, bracketData.bracketSize)}
@@ -2565,7 +2566,7 @@ export default function TournamentDetail() {
                                 /></div>
                               : bracketData.isTeamBattle
                                 ? (
-                                  <div key={pIdx} className={styles.matchPairWrap}>
+                                  <div key={pIdx} className={styles.matchPairWrap} data-pair={pIdx} data-round={rIdx}>
                                     <TeamMatchCard
                                       pair={pair}
                                       styles={styles}
@@ -2596,7 +2597,7 @@ export default function TournamentDetail() {
                                   </div>
                                 )
                                 : (
-                                <div key={pIdx} className={styles.matchPairWrap}>
+                                <div key={pIdx} className={styles.matchPairWrap} data-pair={pIdx} data-round={rIdx}>
                                   <MatchCard
                                     pair={pair}
                                     styles={styles}
@@ -4123,6 +4124,15 @@ function MatchCard({ pair, styles, isAdmin, onSetStatus, onSwap, passPoints, lea
           </div>
         </div>
       )}
+
+      {/* Upgrade modal for plan gates */}
+      {showUpgrade && (
+        <UpgradeModal
+          feature={upgradeFeature}
+          profile={profile}
+          onClose={() => setShowUpgrade(false)}
+        />
+      )}
     </>
   )
 }
@@ -4175,6 +4185,77 @@ function SlotRow({ entry, styles, isAdmin, onOpen, passPoints, earnedPts, entryP
       {isPending  && <span className={styles.pendingDot} />}
       {canEdit    && <i className="ri-more-2-fill" style={{ fontSize: 12, color: 'var(--text-muted)', flexShrink: 0 }} />}
     </div>
+  )
+}
+
+
+// ─── BracketConnectorsSVG ─────────────────────────────────────────────────────
+// Draws L-shaped SVG connector lines between bracket rounds using real DOM rects.
+// Rendered as a position:absolute SVG overlay on top of bracketWrap.
+function BracketConnectorsSVG({ wrapRef, bracketData }) {
+  const [paths, setPaths] = React.useState([])
+
+  React.useLayoutEffect(() => {
+    const wrap = wrapRef.current
+    if (!wrap || !bracketData?.rounds) return
+
+    function compute() {
+      const wrapRect = wrap.getBoundingClientRect()
+      const totalRounds = bracketData.rounds.length
+      const newPaths = []
+
+      // For each non-champion round, connect each pair to its destination in the next round
+      for (let rIdx = 0; rIdx < totalRounds - 2; rIdx++) {
+        const pairs = bracketData.rounds[rIdx]
+        pairs.forEach((_, pIdx) => {
+          // Source: this matchPairWrap
+          const srcEl = wrap.querySelector(`[data-round="${rIdx}"][data-pair="${pIdx}"]`)
+          // Destination: next round pair (pIdx >> 1)
+          const dstEl = wrap.querySelector(`[data-round="${rIdx + 1}"][data-pair="${Math.floor(pIdx / 2)}"]`)
+          if (!srcEl || !dstEl) return
+
+          const sRect = srcEl.getBoundingClientRect()
+          const dRect = dstEl.getBoundingClientRect()
+
+          // Source point: right-centre of the match card
+          const sx = sRect.right  - wrapRect.left
+          const sy = sRect.top + sRect.height / 2 - wrapRect.top
+
+          // Destination point: left-centre of the next round match card
+          const dx = dRect.left  - wrapRect.left
+          const dy = dRect.top + dRect.height / 2 - wrapRect.top
+
+          // Midpoint X (halfway between columns)
+          const mx = sx + (dx - sx) / 2
+
+          // L-shape: right → across → down/up → into next card
+          newPaths.push(`M ${sx} ${sy} H ${mx} V ${dy} H ${dx}`)
+        })
+      }
+      setPaths(newPaths)
+    }
+
+    compute()
+    const ro = new ResizeObserver(compute)
+    ro.observe(wrap)
+    return () => ro.disconnect()
+  }, [wrapRef, bracketData])
+
+  if (!paths.length) return null
+
+  return (
+    <svg
+      style={{
+        position: 'absolute', top: 0, left: 0,
+        width: '100%', height: '100%',
+        pointerEvents: 'none', overflow: 'visible',
+        zIndex: 0,
+      }}
+    >
+      {paths.map((d, i) => (
+        <path key={i} d={d} fill="none" stroke="var(--border-dark)" strokeWidth="2" strokeLinecap="round" />
+      ))}
+    </svg>
   )
 }
 

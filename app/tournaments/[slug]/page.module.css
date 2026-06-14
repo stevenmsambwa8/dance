@@ -338,7 +338,7 @@
   display: flex;
   align-items: flex-start;
   min-width: max-content;
-  gap: 48px;  /* 24px stub right + 24px stub left = exactly fills the gap */
+  gap: 28px;
   position: relative;
 }
 
@@ -386,50 +386,9 @@
   margin-right: 0;
 }
 
-/* Horizontal stub going RIGHT from this match to the connector zone */
-.matchPairWrap::after {
-  content: '';
-  position: absolute;
-  right: -24px;
-  top: 50%;
-  width: 24px;
-  height: 2px;
-  background: var(--border-dark);
-  transform: translateY(-50%);
-  pointer-events: none;
-}
-
-/*
-  Vertical bar on the LEFT side — connects from the midpoint of the
-  pair ABOVE (odd) or BELOW (even) up/down to this match's centre.
-  This lives at left: -24px (in the gap between columns).
-*/
-.matchPairWrap:nth-child(odd)::before {
-  content: '';
-  position: absolute;
-  left: -24px;
-  top: 50%;
-  height: 50%;    /* goes DOWN to meet the even sibling */
-  width: 2px;
-  background: var(--border-dark);
-  pointer-events: none;
-}
-.matchPairWrap:nth-child(even)::before {
-  content: '';
-  position: absolute;
-  left: -24px;
-  bottom: 50%;
-  height: 50%;    /* goes UP to meet the odd sibling */
-  width: 2px;
-  background: var(--border-dark);
-  pointer-events: none;
-}
-
-/* Champion column needs no outgoing stub */
-.bracketColChamp .matchPairWrap::after  { display: none; }
-.bracketColChamp .matchPairWrap::before { display: none; }
-/* First column has nothing to connect FROM on the left */
-.bracketCol:first-child .matchPairWrap::before { display: none; }
+/* Connectors are handled by BracketConnectorsSVG component — no CSS pseudo-elements needed */
+.matchPairWrap::after  { display: none; }
+.matchPairWrap::before { display: none; }
 
 /* ── Match card ── */
 .matchCard {
