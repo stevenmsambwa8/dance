@@ -1,3 +1,4 @@
+// v2
 'use client'
 import { getCurrentSeason, computeLevelAfterWin } from '@/lib/seasons'
 import React, { useState, useEffect, useCallback, useRef } from 'react'
