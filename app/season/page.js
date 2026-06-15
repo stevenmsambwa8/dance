@@ -148,7 +148,7 @@ export default function SeasonPage() {
             <span className={styles.eyebrow}><i className="ri-calendar-line" /> Season {season}</span>
             <h1 className={styles.title}>
               {profile?.username || 'Player'}
-              <UserBadges email={profile?.email} countryFlag={profile?.country_flag} isSeasonWinner={profile?.is_season_winner} size={16} gap={4} />
+              <UserBadges email={profile?.email} plan={profile?.plan} planExpiresAt={profile?.plan_expires_at} countryFlag={profile?.country_flag} isSeasonWinner={profile?.is_season_winner} size={16} gap={4} />
             </h1>
           </div>
           <div className={styles.tierBadge} style={{ '--tier-color': tierColor }}>

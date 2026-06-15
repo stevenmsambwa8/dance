@@ -85,7 +85,7 @@ export default function PublicProfile() {
       supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', id),
       supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', id),
       supabase.from('posts')
-        .select('id, user_id, content, likes, comment_count, created_at, profiles(id, username, tier, level, avatar_url, email)')
+        .select('id, user_id, content, likes, comment_count, created_at, profiles(id, username, tier, level, avatar_url, email, plan, plan_expires_at)')
         .eq('user_id', id)
         .order('created_at', { ascending: false })
         .limit(20),
@@ -263,7 +263,7 @@ export default function PublicProfile() {
         <h1 className={styles.helpdeskName}>
           {profile.username}
           <PlanBadge plan={profile.plan} planExpiresAt={profile.plan_expires_at} size="sm" />
-          <UserBadges email={profile.email} countryFlag={null} isSeasonWinner={false} size={18} />
+          <UserBadges email={profile.email} plan={profile.plan} planExpiresAt={profile.plan_expires_at} countryFlag={null} isSeasonWinner={false} size={18} />
         </h1>
         <p className={styles.helpdeskRole}>Nabogaming Help Desk</p>
         <p className={styles.helpdeskBio}>
@@ -347,6 +347,8 @@ export default function PublicProfile() {
             <h1 className={styles.heroName}>{profile.username}</h1>
             <UserBadges
               email={profile.email}
+              plan={profile.plan}
+              planExpiresAt={profile.plan_expires_at}
               countryFlag={profile.country_flag}
               isSeasonWinner={profile.is_season_winner}
               size={20}

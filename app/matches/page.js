@@ -41,7 +41,7 @@ export default function Matches() {
     setLoadingMine(true)
     let q = supabase
       .from('matches')
-      .select('*, challenger:profiles!matches_challenger_id_fkey(username, tier, level, avatar_url, email, country_flag, is_season_winner), challenged:profiles!matches_challenged_id_fkey(username, tier, level, avatar_url, email, country_flag, is_season_winner)')
+      .select('*, challenger:profiles!matches_challenger_id_fkey(username, tier, level, avatar_url, email, country_flag, is_season_winner, plan, plan_expires_at), challenged:profiles!matches_challenged_id_fkey(username, tier, level, avatar_url, email, country_flag, is_season_winner, plan, plan_expires_at)')
       .or(`challenger_id.eq.${user.id},challenged_id.eq.${user.id}`)
       .order('scheduled_at', { ascending: true, nullsFirst: false })
     if (filter !== 'all') q = q.eq('status', filter)
@@ -213,12 +213,12 @@ export default function Matches() {
                     <div className={styles.players}>
                       <span className={`${styles.pname} ${chWon ? styles.pnameWon : ''} ${isCompleted && !chWon && m.winner_id ? styles.pnameLost : ''}`}>
                         {m.challenger?.username || '—'}
-                        <UserBadges email={m.challenger?.email} countryFlag={m.challenger?.country_flag} isSeasonWinner={m.challenger?.is_season_winner} size={11} gap={2} />
+                        <UserBadges email={m.challenger?.email} plan={m.challenger?.plan} planExpiresAt={m.challenger?.plan_expires_at} countryFlag={m.challenger?.country_flag} isSeasonWinner={m.challenger?.is_season_winner} size={11} gap={2} />
                       </span>
                       <span className={styles.vs}>vs</span>
                       <span className={`${styles.pname} ${cdWon ? styles.pnameWon : ''} ${isCompleted && !cdWon && m.winner_id ? styles.pnameLost : ''}`}>
                         {m.challenged?.username || '—'}
-                        <UserBadges email={m.challenged?.email} countryFlag={m.challenged?.country_flag} isSeasonWinner={m.challenged?.is_season_winner} size={11} gap={2} />
+                        <UserBadges email={m.challenged?.email} plan={m.challenged?.plan} planExpiresAt={m.challenged?.plan_expires_at} countryFlag={m.challenged?.country_flag} isSeasonWinner={m.challenged?.is_season_winner} size={11} gap={2} />
                       </span>
                       {isCompleted && m.score_challenger != null && (
                         <span className={styles.score}>{m.score_challenger} – {m.score_challenged}</span>

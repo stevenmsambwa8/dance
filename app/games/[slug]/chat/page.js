@@ -263,7 +263,7 @@ export default function GameChat() {
     const ch = supabase.channel('gchat-' + slug)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'game_chat_messages', filter: 'game_slug=eq.' + slug }, payload => {
         supabase.from('game_chat_messages')
-          .select('*, profiles(id, username, avatar_url, email, tier, level, country_flag, is_season_winner)')
+          .select('*, profiles(id, username, avatar_url, email, tier, level, country_flag, is_season_winner, plan, plan_expires_at)')
           .eq('id', payload.new.id).single()
           .then(({ data }) => {
             if (!data) return
@@ -300,7 +300,7 @@ export default function GameChat() {
     setLoading(true)
     const [{ data: msgs }, { count: subs }] = await Promise.all([
       supabase.from('game_chat_messages')
-        .select('*, profiles(id, username, avatar_url, email, tier, level, country_flag, is_season_winner)')
+        .select('*, profiles(id, username, avatar_url, email, tier, level, country_flag, is_season_winner, plan, plan_expires_at)')
         .eq('game_slug', slug).order('created_at', { ascending: true }).limit(200),
       supabase.from('game_subscriptions').select('*', { count: 'exact', head: true }).eq('game_slug', slug),
     ])
@@ -644,7 +644,7 @@ export default function GameChat() {
                           {!mine && isFirst && !isSpecial && (
                             <div className={styles.bubbleSender}>
                               <span className={styles.bubbleSenderName}>{msg.profiles?.username || 'Player'}</span>
-                              <UserBadges email={msg.profiles?.email} countryFlag={msg.profiles?.country_flag} isSeasonWinner={msg.profiles?.is_season_winner} size={10} gap={2} />
+                              <UserBadges email={msg.profiles?.email} plan={msg.profiles?.plan} planExpiresAt={msg.profiles?.plan_expires_at} countryFlag={msg.profiles?.country_flag} isSeasonWinner={msg.profiles?.is_season_winner} size={10} gap={2} />
                               {msg.profiles?.tier && <span className={styles.bubbleSenderTier}>{msg.profiles.tier}</span>}
                             </div>
                           )}

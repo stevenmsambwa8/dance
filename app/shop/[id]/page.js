@@ -50,7 +50,7 @@ export default function ShopItemDetail() {
       const [{ data: itemData }, { data: imgData }] = await Promise.all([
         supabase
           .from('shop_items')
-          .select('id, seller_id, title, price, category, description, active, created_at, profiles(username, tier, level, avatar_url, email)')
+          .select('id, seller_id, title, price, category, description, active, created_at, profiles(username, tier, level, avatar_url, email, plan, plan_expires_at)')
           .eq('id', id).single(),
         supabase
           .from('shop_item_images')
@@ -295,7 +295,7 @@ export default function ShopItemDetail() {
           <div className={styles.sellerInfo}>
             <span className={styles.sellerName}>
               {item.profiles?.username || 'Unknown'}
-              <UserBadges email={item.profiles?.email} countryFlag={item.profiles?.country_flag} isSeasonWinner={item.profiles?.is_season_winner} size={12} gap={2} />
+              <UserBadges email={item.profiles?.email} plan={item.profiles?.plan} planExpiresAt={item.profiles?.plan_expires_at} countryFlag={item.profiles?.country_flag} isSeasonWinner={item.profiles?.is_season_winner} size={12} gap={2} />
             </span>
             {item.profiles?.tier && (
               <span className={styles.sellerMeta}>{item.profiles.tier} · Lv.{item.profiles.level ?? 1}</span>

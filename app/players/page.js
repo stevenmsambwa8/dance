@@ -140,7 +140,7 @@ export default function Contact() {
                 <span className={styles.playerName}>
                   {p.username}
                   <PlanBadge plan={p.plan} planExpiresAt={p.plan_expires_at} size="sm" />
-                  <UserBadges email={p.email} countryFlag={p.country_flag} isSeasonWinner={p.is_season_winner} size={13} gap={2} />
+                  <UserBadges email={p.email} plan={p.plan} planExpiresAt={p.plan_expires_at} countryFlag={p.country_flag} isSeasonWinner={p.is_season_winner} size={13} gap={2} />
                 </span>
                 {!isHelpdeskEmail(p.email) ? (
                   <span className={styles.playerMeta}>

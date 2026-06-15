@@ -399,7 +399,7 @@ function PlayerSide({ entry, profile, won, lost, side, isBye }) {
         {name}
       </span>
       {/* Badges */}
-      {profile && <UserBadges email={profile.email} countryFlag={profile.country_flag} isSeasonWinner={profile.is_season_winner} size={10} gap={2} />}
+      {profile && <UserBadges email={profile.email} plan={profile.plan} planExpiresAt={profile.plan_expires_at} countryFlag={profile.country_flag} isSeasonWinner={profile.is_season_winner} size={10} gap={2} />}
       {/* Winner tag */}
       {won && <span style={{ fontSize: 9, fontWeight: 800, color: '#f59e0b', background: 'rgba(245,158,11,0.12)', padding: '2px 6px', borderRadius: 5, letterSpacing: '0.06em' }}>WINNER</span>}
     </div>
@@ -518,15 +518,15 @@ export default function TournamentDetail() {
     setLoadingTournament(false)
 
     if (t.created_by) {
-      supabase.from('profiles').select('id, username, avatar_url, email, country_flag, is_season_winner').eq('id', t.created_by).single().then(({ data }) => setCreatorProfile(data))
+      supabase.from('profiles').select('id, username, avatar_url, email, country_flag, is_season_winner, plan, plan_expires_at').eq('id', t.created_by).single().then(({ data }) => setCreatorProfile(data))
     }
 
     const [partsRes, lbRes] = await Promise.all([
       supabase.from('tournament_participants')
-        .select('*, profiles(username, avatar_url, email, country_flag, is_season_winner)')
+        .select('*, profiles(username, avatar_url, email, country_flag, is_season_winner, plan, plan_expires_at)')
         .eq('tournament_id', t.id),
       supabase.from('tournament_leaderboard')
-        .select('*, profiles(username, avatar_url, email, country_flag, is_season_winner)')
+        .select('*, profiles(username, avatar_url, email, country_flag, is_season_winner, plan, plan_expires_at)')
         .eq('tournament_id', t.id)
         .order('position', { ascending: true }),
     ])
@@ -635,13 +635,13 @@ export default function TournamentDetail() {
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tournament_participants', filter: `tournament_id=eq.${id}` }, () => {
         supabase.from('tournament_participants')
-          .select('*, profiles(username, avatar_url, email, country_flag, is_season_winner)')
+          .select('*, profiles(username, avatar_url, email, country_flag, is_season_winner, plan, plan_expires_at)')
           .eq('tournament_id', id)
           .then(({ data }) => { if (data) setParticipants(data) })
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tournament_leaderboard', filter: `tournament_id=eq.${id}` }, () => {
         supabase.from('tournament_leaderboard')
-          .select('*, profiles(username, avatar_url, email, country_flag, is_season_winner)')
+          .select('*, profiles(username, avatar_url, email, country_flag, is_season_winner, plan, plan_expires_at)')
           .eq('tournament_id', id)
           .order('position', { ascending: true })
           .then(({ data }) => { if (data) setLeaderboard(data) })
@@ -2086,10 +2086,10 @@ export default function TournamentDetail() {
 
   function getUserBadgeProps(uid) {
     const fromP = participants.find(p => p.user_id === uid)
-    if (fromP?.profiles) return { email: fromP.profiles.email, countryFlag: fromP.profiles.country_flag, isSeasonWinner: fromP.profiles.is_season_winner }
+    if (fromP?.profiles) return { email: fromP.profiles.email, plan: fromP.profiles.plan, planExpiresAt: fromP.profiles.plan_expires_at, countryFlag: fromP.profiles.country_flag, isSeasonWinner: fromP.profiles.is_season_winner }
     const fromLb = leaderboard.find(e => e.user_id === uid)
-    if (fromLb?.profiles) return { email: fromLb.profiles.email, countryFlag: fromLb.profiles.country_flag, isSeasonWinner: fromLb.profiles.is_season_winner }
-    return { email: null, countryFlag: null, isSeasonWinner: false }
+    if (fromLb?.profiles) return { email: fromLb.profiles.email, plan: fromLb.profiles.plan, planExpiresAt: fromLb.profiles.plan_expires_at, countryFlag: fromLb.profiles.country_flag, isSeasonWinner: fromLb.profiles.is_season_winner }
+    return { email: null, plan: null, planExpiresAt: null, countryFlag: null, isSeasonWinner: false }
   }
 
   function getLbRowClass(e) {
@@ -2289,7 +2289,7 @@ export default function TournamentDetail() {
                 <span className={styles.heroCreatorBy}>Created by</span>
                 <span className={styles.heroCreatorName}>
                   {creatorProfile.username}
-                  <UserBadges email={creatorProfile.email} countryFlag={creatorProfile.country_flag}
+                  <UserBadges email={creatorProfile.email} plan={creatorProfile.plan} planExpiresAt={creatorProfile.plan_expires_at} countryFlag={creatorProfile.country_flag}
                     isSeasonWinner={creatorProfile.is_season_winner} size={10} gap={3} />
                 </span>
               </div>
@@ -3674,7 +3674,7 @@ function ChampDisplay({ entry, styles, isAdmin, onSetWinner, leaderboard, partic
               <SlotAvatar entry={entry} size="lg" liveProfile={champProfile} />
               <span className={styles.champName} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 {displayName}
-                <UserBadges email={champProfile?.email} countryFlag={champProfile?.country_flag} isSeasonWinner={champProfile?.is_season_winner} size={13} gap={2} />
+                <UserBadges email={champProfile?.email} plan={champProfile?.plan} planExpiresAt={champProfile?.plan_expires_at} countryFlag={champProfile?.country_flag} isSeasonWinner={champProfile?.is_season_winner} size={13} gap={2} />
               </span>
               {isWinner && champPts != null && <span className={styles.champPtsBadge}><i className="ri-star-fill" /> {champPts} pts</span>}
               {isWinner && <span className={styles.champWinnerBadge}><i className="ri-trophy-fill" /> Champion</span>}
@@ -4041,7 +4041,7 @@ function MatchCard({ pair, styles, isAdmin, onSetStatus, onSwap, passPoints, lea
               <div className={styles.sheetPlayerInfo}>
                 <span className={styles.sheetPlayerName}>
                   {sheetProfile?.username || sheetEntry.name}
-                  <UserBadges email={sheetProfile?.email} countryFlag={sheetProfile?.country_flag} isSeasonWinner={sheetProfile?.is_season_winner} size={13} gap={2} />
+                  <UserBadges email={sheetProfile?.email} plan={sheetProfile?.plan} planExpiresAt={sheetProfile?.plan_expires_at} countryFlag={sheetProfile?.country_flag} isSeasonWinner={sheetProfile?.is_season_winner} size={13} gap={2} />
                 </span>
                 <span className={styles.sheetPlayerMeta}>
                   {sheetEntry.status === 'winner'      && <><i className="ri-arrow-right-circle-fill" style={{ color: '#f59e0b' }} /> Passing · {sheetEarnedPts != null ? `${sheetEarnedPts} pts` : ''}</>}
@@ -4167,7 +4167,7 @@ function SlotRow({ entry, styles, isAdmin, onOpen, passPoints, earnedPts, entryP
       <SlotAvatar entry={entry} size="sm" liveProfile={entryProfile} />
       <span className={styles.slotRowName} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
         {displayName}
-        <UserBadges email={entryProfile?.email} countryFlag={entryProfile?.country_flag} isSeasonWinner={entryProfile?.is_season_winner} size={10} gap={2} />
+        <UserBadges email={entryProfile?.email} plan={entryProfile?.plan} planExpiresAt={entryProfile?.plan_expires_at} countryFlag={entryProfile?.country_flag} isSeasonWinner={entryProfile?.is_season_winner} size={10} gap={2} />
       </span>
       {isWinner && earnedPts != null && <span className={styles.slotPtsBadge}>{earnedPts} pts</span>}
       {!isWinner && !isElim && !isDQ && passPoints != null && entry.userId && <span className={styles.slotPtsPreview}>+{passPoints}</span>}

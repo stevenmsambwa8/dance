@@ -228,6 +228,8 @@ export default function AccountPage() {
             <h1 className={styles.heroName}>{profile?.username || '—'}</h1>
             <UserBadges
               email={profile?.email}
+              plan={profile?.plan}
+              planExpiresAt={profile?.plan_expires_at}
               countryFlag={profile?.country_flag}
               isSeasonWinner={profile?.is_season_winner}
               size={18}
