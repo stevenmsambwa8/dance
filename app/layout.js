@@ -3,6 +3,7 @@ import Script from 'next/script'
 import NavWrapper from '../components/NavWrapper'
 import ThemeProvider from '../components/ThemeProvider'
 import PageTransition from '../components/PageTransition'
+import SlideTransition from '../components/SlideTransition'
 import AuthProvider from '../components/AuthProvider'
 import { ToastProvider } from '../components/ToastProvider'
 import PhoneGate from '../components/PhoneGate'
@@ -69,12 +70,19 @@ export default function RootLayout({ children }) {
             <ThemeProvider>
               <LoadingProvider>
                 <AuthGateProvider>
+                  {/* Fixed UI — must live OUTSIDE SlideTransition so it doesn't slide */}
                   <NavWrapper />
                   <PhoneGate />
                   <PWAInstallPrompt />
-                  <PageTransition>
-                    <main>{children}</main>
-                  </PageTransition>
+
+                  {/* Slide wrapper — handles directional page transitions */}
+                  <SlideTransition>
+                    {/* Loading overlay sits inside slide so it covers the incoming page */}
+                    <PageTransition>
+                      <main>{children}</main>
+                    </PageTransition>
+                  </SlideTransition>
+
                 </AuthGateProvider>
               </LoadingProvider>
             </ThemeProvider>
