@@ -6,6 +6,8 @@ import { useAuth } from '../../../components/AuthProvider'
 import { useAuthGate } from '../../../components/AuthGateModal'
 import { supabase } from '../../../lib/supabase'
 import styles from './page.module.css'
+import { getActivePlan } from '../../../lib/plans'
+import UpgradeModal from '../../../components/UpgradeModal'
 
 function formatTime(ts) {
   return new Date(ts).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
@@ -22,7 +24,7 @@ function formatDay(ts) {
 export default function DMPage() {
   const { userId } = useParams()
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, profile, isAdmin } = useAuth()
   const { openAuthGate } = useAuthGate()
 
   const [otherProfile, setOtherProfile] = useState(null)
@@ -32,6 +34,8 @@ export default function DMPage() {
   const [msgText, setMsgText]           = useState('')
   const [sending, setSending]           = useState(false)
   const [ctxMenu, setCtxMenu]           = useState(null)
+  const [showUpgrade, setShowUpgrade]   = useState(false)
+  const [dmBlocked, setDmBlocked]       = useState(false)
 
   const messagesEndRef = useRef(null)
   const inputRef       = useRef(null)
@@ -89,10 +93,29 @@ export default function DMPage() {
     setLoading(true)
     const [{ data: other }, { data: me }] = await Promise.all([
       supabase.from('profiles').select('id, username, avatar_url, tier, level, online_status').eq('id', userId).single(),
-      supabase.from('profiles').select('id, username, avatar_url, tier').eq('id', user.id).single(),
+      supabase.from('profiles').select('id, username, avatar_url, tier, plan, plan_expires_at').eq('id', user.id).single(),
     ])
     setOtherProfile(other || null)
     setMyProfile(me || null)
+
+    // ── DM conversation limit check (free = 10) ───────────────────────────
+    const activePlan = getActivePlan(me)
+    const isFreeUser = !isAdmin && activePlan === 'free'
+    if (isFreeUser) {
+      // Count distinct threads this user already has
+      const { data: existingMsgs } = await supabase
+        .from('direct_messages')
+        .select('thread_id')
+        .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+      const existingThreadIds = [...new Set((existingMsgs || []).map(m => m.thread_id))]
+      const isExistingThread = existingThreadIds.includes([user.id, userId].sort().join('--'))
+      if (!isExistingThread && existingThreadIds.length >= 10) {
+        setDmBlocked(true)
+        setLoading(false)
+        return
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────
 
     const { data: msgs } = await supabase
       .from('direct_messages')
@@ -108,6 +131,7 @@ export default function DMPage() {
 
   async function sendMessage() {
     if (!msgText.trim() || !user || sending) return
+    if (dmBlocked) { setShowUpgrade(true); return }
     setSending(true)
     const body = msgText.trim()
     setMsgText('')
@@ -166,6 +190,26 @@ export default function DMPage() {
   function onPointerDown(e, msg) {
     longPressTimer.current = setTimeout(() => openCtx(e, msg), 500)
   }
+
+  if (dmBlocked) return (
+    <div className={styles.page}>
+      <div className={styles.centered}>
+        <i className="ri-chat-off-line" style={{ fontSize: 36, color: 'var(--text-muted)', marginBottom: 8 }} />
+        <p style={{ fontWeight: 800, fontSize: 16, color: 'var(--text)', margin: '0 0 6px' }}>DM Limit Reached</p>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 18px', textAlign: 'center', lineHeight: 1.5, maxWidth: 280 }}>
+          Free plan allows up to 10 conversations. Upgrade to Pro for unlimited DMs.
+        </p>
+        <button
+          onClick={() => setShowUpgrade(true)}
+          style={{ padding: '10px 22px', background: '#a855f7', color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: 'var(--font)', display: 'flex', alignItems: 'center', gap: 7 }}
+        >
+          <i className="ri-vip-crown-line" /> Upgrade to Pro
+        </button>
+        <button onClick={() => router.back()} style={{ marginTop: 12, fontSize: 13, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font)' }}>← Go back</button>
+      </div>
+      {showUpgrade && <UpgradeModal feature="dm_conversations" profile={profile} onClose={() => setShowUpgrade(false)} />}
+    </div>
+  )
 
   if (!user) return (
     <div className={styles.page}>
@@ -297,6 +341,8 @@ export default function DMPage() {
           </button>
         </div>
       </div>
+
+      {showUpgrade && <UpgradeModal feature="dm_conversations" profile={profile} onClose={() => setShowUpgrade(false)} />}
 
       {/* ── Context menu ── */}
       {ctxMenu && (

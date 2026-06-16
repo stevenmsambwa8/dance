@@ -85,7 +85,7 @@ export default function PublicProfile() {
       supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', id),
       supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', id),
       supabase.from('posts')
-        .select('id, user_id, content, likes, comment_count, created_at, profiles(id, username, tier, level, avatar_url, email, plan, plan_expires_at)')
+        .select('id, user_id, content, likes, comment_count, created_at, profiles(id, username, tier, level, avatar_url, email)')
         .eq('user_id', id)
         .order('created_at', { ascending: false })
         .limit(20),
@@ -168,7 +168,17 @@ export default function PublicProfile() {
   }
 
   function toggleGameTag(g) {
-    setEditGameTags(t => t.includes(g) ? t.filter(x => x !== g) : [...t, g])
+    const activePlan = getActivePlan(profile)
+    const tagLimit   = isAdmin ? Infinity
+      : activePlan === 'elite' || activePlan === 'team' ? Infinity
+      : activePlan === 'pro' ? 5
+      : 1  // free
+
+    setEditGameTags(prev => {
+      if (prev.includes(g)) return prev.filter(x => x !== g)
+      if (prev.length >= tagLimit) { setShowTagUpgrade(true); return prev }
+      return [...prev, g]
+    })
   }
 
   async function toggleFollow() {
@@ -263,7 +273,7 @@ export default function PublicProfile() {
         <h1 className={styles.helpdeskName}>
           {profile.username}
           <PlanBadge plan={profile.plan} planExpiresAt={profile.plan_expires_at} size="sm" />
-          <UserBadges email={profile.email} plan={profile.plan} planExpiresAt={profile.plan_expires_at} countryFlag={null} isSeasonWinner={false} size={18} />
+          <UserBadges email={profile.email} countryFlag={null} isSeasonWinner={false} size={18} />
         </h1>
         <p className={styles.helpdeskRole}>Nabogaming Help Desk</p>
         <p className={styles.helpdeskBio}>
@@ -347,8 +357,6 @@ export default function PublicProfile() {
             <h1 className={styles.heroName}>{profile.username}</h1>
             <UserBadges
               email={profile.email}
-              plan={profile.plan}
-              planExpiresAt={profile.plan_expires_at}
               countryFlag={profile.country_flag}
               isSeasonWinner={profile.is_season_winner}
               size={20}
@@ -750,6 +758,9 @@ export default function PublicProfile() {
         )}
       </Modal>
     </div>
+      {showTagUpgrade && (
+        <UpgradeModal feature="game_tags" profile={profile} onClose={() => setShowTagUpgrade(false)} />
+      )}
   )
 }
 

@@ -8,6 +8,8 @@ import { supabase } from '../../lib/supabase'
 import styles from './page.module.css'
 import usePageLoading from '../../components/usePageLoading'
 import { useCurrency } from '../../lib/useCurrency'
+import { canDo, getActivePlan } from '../../lib/plans'
+import UpgradeModal from '../../components/UpgradeModal'
 
 const CATS = ['all', 'accounts', 'gear', 'services']
 const MAX_IMAGES = 4
@@ -62,6 +64,9 @@ function SkeletonCard() {
         <div className={styles.skeletonLine} style={{ width: '50%' }} />
         <div className={styles.skeletonLine} style={{ width: '40%', marginTop: 8 }} />
       </div>
+      {showUpgrade && (
+        <UpgradeModal feature="shop_sell" profile={profile} onClose={() => setShowUpgrade(false)} />
+      )}
     </div>
   )
 }
@@ -87,7 +92,10 @@ export default function Shop() {
   const [compressing, setCompressing]         = useState(false)
   // per-card buy loading state: itemId → true/false
   const [buying, setBuying] = useState({})
+  const [showUpgrade, setShowUpgrade] = useState(false)
   const fileInputRef = useRef(null)
+
+  const canSell = isAdmin || canDo(profile, 'shop_sell')
 
   useEffect(() => { loadItems() }, [cat])
 
@@ -184,6 +192,7 @@ export default function Shop() {
 
   async function listItem() {
     if (!user) return alert('Log in to sell items')
+    if (!canSell) { setShowUpgrade(true); return }
     if (!form.title || !form.price) return alert('Title and price are required')
     setListing(true)
     const { data: item, error } = await supabase
@@ -248,9 +257,14 @@ export default function Shop() {
           <h1 className={styles.headline}>Shop</h1>
         </div>
         {user && (
-          <button className={styles.sellBtn} onClick={() => setSellModal(true)}>
-            <i className="ri-price-tag-3-line" /> Sell Item
-          </button>
+          canSell
+            ? <button className={styles.sellBtn} onClick={() => setSellModal(true)}>
+                <i className="ri-price-tag-3-line" /> Sell Item
+              </button>
+            : <button className={styles.sellBtn} onClick={() => setShowUpgrade(true)}
+                style={{ opacity: 0.72, background: 'var(--surface)', color: 'var(--text-muted)', border: '1px solid var(--border-dark)' }}>
+                <i className="ri-lock-line" /> Sell Item
+              </button>
         )}
       </div>
 
@@ -397,6 +411,7 @@ export default function Shop() {
           </div>
         </div>
       </Modal>
+      )}
     </div>
   )
 }

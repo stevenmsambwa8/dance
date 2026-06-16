@@ -12,6 +12,7 @@ import ThemeScript from '../components/ThemeScript'
 import PWAInstallPrompt from '../components/PWAInstallPrompt'
 import MaintenanceGate from '../components/MaintenanceGate'
 import { AuthGateProvider } from '../components/AuthGateModal'
+import MusicPlayerProvider from '../components/MusicPlayerContext' // ← NEW
 
 export const metadata = {
   title: 'Nabogaming — Tournament Dashboard',
@@ -69,21 +70,23 @@ export default function RootLayout({ children }) {
           <ToastProvider>
             <ThemeProvider>
               <LoadingProvider>
-                <AuthGateProvider>
-                  {/* Fixed UI — must live OUTSIDE SlideTransition so it doesn't slide */}
-                  <NavWrapper />
-                  <PhoneGate />
-                  <PWAInstallPrompt />
+                <MusicPlayerProvider>          {/* ← NEW */}
+                  <AuthGateProvider>
+                    {/* Fixed UI — must live OUTSIDE SlideTransition so it doesn't slide */}
+                    <NavWrapper />
+                    <PhoneGate />
+                    <PWAInstallPrompt />
 
-                  {/* Slide wrapper — handles directional page transitions */}
-                  <SlideTransition>
-                    {/* Loading overlay sits inside slide so it covers the incoming page */}
-                    <PageTransition>
-                      <main>{children}</main>
-                    </PageTransition>
-                  </SlideTransition>
+                    {/* Slide wrapper — handles directional page transitions */}
+                    <SlideTransition>
+                      {/* Loading overlay sits inside slide so it covers the incoming page */}
+                      <PageTransition>
+                        <main>{children}</main>
+                      </PageTransition>
+                    </SlideTransition>
 
-                </AuthGateProvider>
+                  </AuthGateProvider>
+                </MusicPlayerProvider>          {/* ← NEW */}
               </LoadingProvider>
             </ThemeProvider>
           </ToastProvider>

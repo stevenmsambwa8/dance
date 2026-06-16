@@ -196,9 +196,6 @@ export default function Nav() {
           <img src="/logo-black.png" height="36" alt="Arena" className={styles.logoDark} />
         </Link>
 
-        {/* ── Music Player Bar ── */}
-        <NavMusicBar />
-
         <nav className={styles.nav}>
           <Link href="/"            className={path === '/' ? styles.active : ''}>Dashboard</Link>
           <Link href="/matches"     className={path === '/matches' ? styles.active : ''}>Matches</Link>
@@ -432,6 +429,11 @@ export default function Nav() {
         >
           <i className="ri-arrow-down-s-line" />
         </button>
+
+        {/* ── Music Player Bar ── */}
+        <div className={styles.sidebarMusicWrap}>
+          <NavMusicBar sidebar />
+        </div>
 
         <div className={styles.sidebarFooter}>
           <span className={styles.sidebarVersion}>v1.2.3</span>

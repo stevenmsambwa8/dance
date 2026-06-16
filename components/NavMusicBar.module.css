@@ -174,3 +174,31 @@
   .info { display: none; }
   .bar { max-width: 120px; }
 }
+
+/* ── Sidebar variant ── */
+.sidebarBar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebarRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sidebarSeekRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Nav.js sidebar wrapper ── */
+.sidebarMusicWrap {
+  flex-shrink: 0;
+}

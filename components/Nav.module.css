@@ -549,3 +549,10 @@
     width: auto;
   }
 }
+
+/* ── Music player bar in sidebar ── */
+.sidebarMusicWrap {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
