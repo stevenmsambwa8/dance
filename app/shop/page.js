@@ -411,6 +411,9 @@ export default function Shop() {
           </div>
         </div>
       </Modal>
+
+      {showUpgrade && (
+        <UpgradeModal feature="shop_sell" profile={profile} onClose={() => setShowUpgrade(false)} />
       )}
     </div>
   )

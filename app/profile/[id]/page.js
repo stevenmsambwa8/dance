@@ -757,10 +757,10 @@ export default function PublicProfile() {
           </div>
         )}
       </Modal>
-    </div>
       {showTagUpgrade && (
         <UpgradeModal feature="game_tags" profile={profile} onClose={() => setShowTagUpgrade(false)} />
       )}
+    </div>
   )
 }
 
