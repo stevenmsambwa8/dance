@@ -3,6 +3,7 @@ import Script from 'next/script'
 import NavWrapper from '../components/NavWrapper'
 import ThemeProvider from '../components/ThemeProvider'
 import PageTransition from '../components/PageTransition'
+import SlideTransition from '../components/SlideTransition'
 import AuthProvider from '../components/AuthProvider'
 import { ToastProvider } from '../components/ToastProvider'
 import PhoneGate from '../components/PhoneGate'
@@ -11,7 +12,6 @@ import ThemeScript from '../components/ThemeScript'
 import PWAInstallPrompt from '../components/PWAInstallPrompt'
 import MaintenanceGate from '../components/MaintenanceGate'
 import { AuthGateProvider } from '../components/AuthGateModal'
-import MusicPlayerProvider from '../components/MusicPlayerContext' // ← NEW
 
 export const metadata = {
   title: 'Nabogaming — Tournament Dashboard',
@@ -69,16 +69,21 @@ export default function RootLayout({ children }) {
           <ToastProvider>
             <ThemeProvider>
               <LoadingProvider>
-                <MusicPlayerProvider>       {/* ← ADDED */}
-                  <AuthGateProvider>
-                    <NavWrapper />
-                    <PhoneGate />
-                    <PWAInstallPrompt />
+                <AuthGateProvider>
+                  {/* Fixed UI — must live OUTSIDE SlideTransition so it doesn't slide */}
+                  <NavWrapper />
+                  <PhoneGate />
+                  <PWAInstallPrompt />
+
+                  {/* Slide wrapper — handles directional page transitions */}
+                  <SlideTransition>
+                    {/* Loading overlay sits inside slide so it covers the incoming page */}
                     <PageTransition>
                       <main>{children}</main>
                     </PageTransition>
-                  </AuthGateProvider>
-                </MusicPlayerProvider>      {/* ← ADDED */}
+                  </SlideTransition>
+
+                </AuthGateProvider>
               </LoadingProvider>
             </ThemeProvider>
           </ToastProvider>
