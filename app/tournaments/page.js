@@ -176,19 +176,20 @@ function PaymentStatusModal({ status, onClose }) {
 
 function FreeLimitModal({ onClose, onUpgrade }) {
   return (
-    <div className={styles.modalBackdrop} onClick={onClose}>
-      <div className={styles.modalSheet} onClick={e => e.stopPropagation()}>
+    <div className={styles.popupBackdrop} onClick={onClose}>
+      <div className={styles.popupCard} onClick={e => e.stopPropagation()}>
         <button className={styles.modalClose} onClick={onClose}><i className="ri-close-line" /></button>
-        <i className="ri-shield-star-line" style={{ fontSize: 38, color: '#a855f7', textAlign: 'center', display: 'block', marginBottom: 10 }} />
-        <h3 className={styles.modalTitle}>Tournament Limit Reached</h3>
-        <p className={styles.modalSub}>
-          Free accounts can create up to <strong>{FREE_LIMIT_FREE_TOURNEYS} free</strong> and <strong>{FREE_LIMIT_PAID_TOURNEYS} paid</strong> tournament.
-          Upgrade to Elite for unlimited tournaments, bracket tools, and more.
+        <div className={styles.popupIcon}><i className="ri-shield-star-line" /></div>
+        <h3 className={styles.popupTitle}>Tournament Limit Reached</h3>
+        <p className={styles.popupSub}>
+          Free accounts can create up to <strong>{FREE_LIMIT_FREE_TOURNEYS} free</strong> and{' '}
+          <strong>{FREE_LIMIT_PAID_TOURNEYS} paid</strong> tournament. Upgrade to Elite for unlimited
+          tournaments, bracket tools, and more.
         </p>
-        <button className={styles.modalSubmit} onClick={onUpgrade}>
+        <button className={styles.popupUpgradeBtn} onClick={onUpgrade}>
           <i className="ri-vip-diamond-line" /> Upgrade to Elite
         </button>
-        <button className={styles.modalCancel} onClick={onClose}>Maybe later</button>
+        <button className={styles.popupCancelBtn} onClick={onClose}>Maybe later</button>
       </div>
     </div>
   )

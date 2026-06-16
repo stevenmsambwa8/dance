@@ -62,7 +62,7 @@
 [data-theme="dark"] .card:hover { box-shadow: 0 8px 32px rgba(255,255,255,0.05); }
 
 /* ── Banner ── */
-.cardBanner { position: relative; height: 120px; overflow: hidden; background: var(--bg-2); }
+.cardBanner { position: relative; height: 160px; overflow: hidden; background: var(--bg-2); }
 .cardBannerImg { width: 100%; height: 100%; object-fit: cover; object-position: center 30%; display: block; filter: brightness(0.68); transition: filter 0.2s; }
 .card:hover .cardBannerImg { filter: brightness(0.8); }
 .cardBannerFallback { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 36px; color: var(--text-muted); background: var(--bg-2); }
@@ -293,3 +293,66 @@
 .payCardMeta > span:first-child { color: var(--text-muted); font-weight: 500; }
 .payCardAcct { font-weight: 800; color: var(--text-dim); font-size: 10px; letter-spacing: 0.04em; }
 .payProofLabel { font-size: 11px; font-weight: 700; color: var(--text-dim); margin-bottom: 10px; }
+
+/* ── Centered popup (FreeLimitModal) ── */
+.popupBackdrop {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  animation: lFadeIn 0.18s ease;
+}
+.popupCard {
+  background: var(--bg);
+  border: 1px solid var(--border-dark);
+  border-radius: 22px;
+  width: 100%; max-width: 360px;
+  padding: 32px 24px 24px;
+  position: relative;
+  text-align: center;
+  animation: popupIn 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.3);
+}
+@keyframes popupIn {
+  from { transform: scale(0.88); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+.popupIcon {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: rgba(168,85,247,0.12);
+  border: 1.5px solid rgba(168,85,247,0.3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; color: #a855f7;
+  margin: 0 auto 16px;
+}
+.popupTitle {
+  font-size: 18px; font-weight: 900;
+  color: var(--text); margin: 0 0 8px;
+}
+.popupSub {
+  font-size: 13px; color: var(--text-muted);
+  line-height: 1.6; margin: 0 0 22px;
+}
+.popupSub strong { color: var(--text); }
+.popupUpgradeBtn {
+  width: 100%; padding: 13px;
+  border-radius: 12px; border: none;
+  background: #a855f7; color: #fff;
+  font-size: 14px; font-weight: 800;
+  font-family: var(--font); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  transition: opacity 0.15s, transform 0.12s;
+  margin-bottom: 10px;
+}
+.popupUpgradeBtn:hover { opacity: 0.88; transform: translateY(-1px); }
+.popupCancelBtn {
+  width: 100%; padding: 11px;
+  border-radius: 12px;
+  border: 1px solid var(--border-dark);
+  background: none; color: var(--text-muted);
+  font-size: 13px; font-weight: 700;
+  font-family: var(--font); cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.popupCancelBtn:hover { background: var(--surface); color: var(--text); }
