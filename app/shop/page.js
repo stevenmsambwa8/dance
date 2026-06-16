@@ -64,9 +64,6 @@ function SkeletonCard() {
         <div className={styles.skeletonLine} style={{ width: '50%' }} />
         <div className={styles.skeletonLine} style={{ width: '40%', marginTop: 8 }} />
       </div>
-      {showUpgrade && (
-        <UpgradeModal feature="shop_sell" profile={profile} onClose={() => setShowUpgrade(false)} />
-      )}
     </div>
   )
 }
