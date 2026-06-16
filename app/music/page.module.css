@@ -1,0 +1,310 @@
+.page {
+  min-height: 100vh;
+  background: var(--bg);
+  padding-bottom: 100px;
+}
+
+/* ── Hero ── */
+.hero {
+  position: relative;
+  overflow: hidden;
+  padding: 48px 24px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.heroBg {
+  position: absolute;
+  inset: -20px;
+  background-size: cover;
+  background-position: center;
+  filter: blur(40px) saturate(1.4);
+  transform: scale(1.1);
+  transition: background-image 0.4s ease;
+}
+.heroOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+}
+.heroContent {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+  max-width: 420px;
+}
+
+/* ── Album art ── */
+.albumArt {
+  width: 180px;
+  height: 180px;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+  flex-shrink: 0;
+  transition: box-shadow 0.4s ease;
+}
+.albumArt img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.albumGlow { box-shadow: 0 24px 80px rgba(34,197,94,0.35), 0 8px 32px rgba(0,0,0,0.5); }
+
+/* ── Track info ── */
+.trackInfo { text-align: center; display: flex; flex-direction: column; gap: 4px; }
+.genreBadge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: rgba(34,197,94,0.12);
+  border: 1px solid rgba(34,197,94,0.25);
+  padding: 2px 10px;
+  border-radius: 20px;
+  align-self: center;
+}
+.trackTitle {
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.2;
+}
+.trackArtist { font-size: 13px; color: rgba(255,255,255,0.55); }
+
+/* ── Seek bar ── */
+.seekWrap { display: flex; align-items: center; gap: 10px; width: 100%; }
+.seekTime {
+  font-size: 10px;
+  color: rgba(255,255,255,0.4);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  min-width: 30px;
+}
+.seekTime:last-child { text-align: right; }
+.seekBar {
+  position: relative;
+  flex: 1;
+  height: 4px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: height 0.15s;
+}
+.seekBar:hover { height: 6px; }
+.seekFill {
+  position: absolute;
+  left: 0; top: 0;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+  pointer-events: none;
+  transition: width 0.1s linear;
+}
+.seekThumb {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px; height: 12px;
+  background: #fff;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+.seekBar:hover .seekThumb { opacity: 1; }
+
+/* ── Controls ── */
+.playerControls { display: flex; align-items: center; gap: 16px; }
+.ctrlBtn {
+  width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.1);
+  border: none;
+  color: rgba(255,255,255,0.8);
+  font-size: 18px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+.ctrlBtn:hover  { background: rgba(255,255,255,0.2); }
+.ctrlBtn:active { transform: scale(0.92); }
+
+.playBtnLarge {
+  width: 60px; height: 60px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--accent);
+  border: none;
+  color: var(--accent-text);
+  font-size: 24px;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(34,197,94,0.4);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.playBtnLarge:hover  { transform: scale(1.06); box-shadow: 0 12px 32px rgba(34,197,94,0.5); }
+.playBtnLarge:active { transform: scale(0.96); }
+.loadingBtn i { animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Volume ── */
+.volumeWrap {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; max-width: 240px;
+  color: rgba(255,255,255,0.4);
+  font-size: 14px;
+}
+.volumeSlider {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1;
+  height: 3px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+.volumeSlider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+
+/* ── Track list ── */
+.listSection {
+  padding: 24px 16px 0;
+  max-width: 700px;
+  margin: 0 auto;
+}
+.listHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.listTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.listTitle i { color: var(--accent); }
+
+.genreFilters { display: flex; gap: 6px; flex-wrap: wrap; }
+.genreBtn {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.genreBtn:hover { border-color: var(--accent); color: var(--accent); }
+.genreBtnActive { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+
+.trackList { display: flex; flex-direction: column; gap: 2px; }
+
+.trackRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background 0.1s;
+  position: relative;
+}
+.trackRow:hover { background: var(--surface); }
+.trackRow:hover .idxNum  { opacity: 0; }
+.trackRow:hover .trackPlay { opacity: 1; }
+.trackRowActive { background: var(--bg-2) !important; }
+.trackRowActive .trackName { color: var(--accent); }
+
+.trackIdx {
+  width: 22px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.idxNum {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  transition: opacity 0.1s;
+}
+
+.eqBars { display: flex; align-items: flex-end; gap: 2px; height: 14px; }
+.eqBars span {
+  display: block;
+  width: 3px;
+  background: var(--accent);
+  border-radius: 2px;
+  animation: eqAnim 0.6s ease-in-out infinite alternate;
+}
+.eqBars span:nth-child(1) { height: 6px;  animation-delay: 0s; }
+.eqBars span:nth-child(2) { height: 12px; animation-delay: 0.2s; }
+.eqBars span:nth-child(3) { height: 8px;  animation-delay: 0.4s; }
+@keyframes eqAnim {
+  from { transform: scaleY(0.4); }
+  to   { transform: scaleY(1); }
+}
+
+.trackCover {
+  width: 42px; height: 42px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.trackCover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.trackMeta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.trackName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.trackSub {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.trackDuration {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.trackPlay {
+  position: absolute;
+  right: 12px;
+  width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent);
+  font-size: 16px;
+  opacity: 0;
+  transition: opacity 0.1s;
+  pointer-events: none;
+}

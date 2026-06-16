@@ -6,6 +6,7 @@ import { useTheme } from './ThemeProvider'
 import ThemePicker from './ThemePicker'
 import { useAuth } from './AuthProvider'
 import { supabase } from '../lib/supabase'
+import NavMusicBar from './NavMusicBar'
 import styles from './Nav.module.css'
 
 export default function Nav() {
@@ -195,6 +196,9 @@ export default function Nav() {
           <img src="/logo-black.png" height="36" alt="Arena" className={styles.logoDark} />
         </Link>
 
+        {/* ── Music Player Bar ── */}
+        <NavMusicBar />
+
         <nav className={styles.nav}>
           <Link href="/"            className={path === '/' ? styles.active : ''}>Dashboard</Link>
           <Link href="/matches"     className={path === '/matches' ? styles.active : ''}>Matches</Link>
@@ -220,8 +224,6 @@ export default function Nav() {
           {/* ── Combined Cluster Group ── */}
           {user && (
             <div className={styles.combinedGroup}>
-          
-
               <div className={styles.notifWrap} ref={notifRef}>
                 <button className={styles.groupIconBtn} onClick={() => setNotifOpen(o => !o)} title="Notifications">
                   <i className="ri-notification-3-line" />
@@ -304,7 +306,6 @@ export default function Nav() {
       <aside className={`${styles.sidebar} ${sidebarOpen ? styles.sidebarOpen : ''}`}>
         <div className={styles.sidebarHeaderBlock}>
           <div className={styles.sidebarHeaderTop}>
-            {/* ── Brand Label Container with Custom Mini Text Subtitle underneath ── */}
             <div className={styles.sidebarBrandWrap}>
               <span className={styles.sidebarBrand}>Nabogaming</span>
               <span className={styles.sidebarBrandSubtitle}>Esports Tournament Hub</span>
@@ -315,18 +316,14 @@ export default function Nav() {
             </button>
           </div>
 
-          {/* ── Top Actions Row (Matches 1000014522.jpg Grid) ── */}
           <div className={styles.sidebarTopActions}>
-            {/* Theme Button: Borderless with a clean solid -fill icon profile */}
             <div style={{display:'flex',alignItems:'center'}}><ThemePicker align="left" /></div>
 
-            {/* Settings Button: Perfectly shares vertical layout archetype with Sign Out */}
             <Link href="/settings" className={styles.sidebarTopBtn} onClick={() => setSidebarOpen(false)}>
               <i className="ri-settings-3-line" />
               <span>Settings</span>
             </Link>
 
-            {/* Sign Out Button: High visibility red styling mapping profile */}
             {user ? (
               <button className={`${styles.sidebarTopBtn} ${styles.sidebarSignOutBtn}`} onClick={handleSignOut}>
                 <i className="ri-logout-box-r-line" />
@@ -370,7 +367,8 @@ export default function Nav() {
             { href: '/season',      label: 'Season',      icon: 'ri-dashboard-line' },
             { href: '/players',     label: 'Players',     icon: 'ri-group-line' },
             { href: '/shop',        label: 'Shop',        icon: 'ri-store-2-line' },
-            { href: '/my-requests', label: 'My Requests', icon: 'ri-file-list-3-line' }
+            { href: '/my-requests', label: 'My Requests', icon: 'ri-file-list-3-line' },
+            { href: '/music',       label: 'Music',       icon: 'ri-music-2-line' },
           ].map(({ href, label, icon }) => {
             const isActive = href === '/' ? path === '/' : path.startsWith(href)
             return (
@@ -427,7 +425,6 @@ export default function Nav() {
           </div>
         </nav>
 
-        {/* ── Active Clickable Floating Arrow Controller ── */}
         <button 
           className={`${styles.scrollIndicator} ${!showArrow ? styles.hideIndicator : ''}`} 
           onClick={handleScrollToBottom}
