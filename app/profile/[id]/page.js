@@ -63,6 +63,7 @@ export default function PublicProfile() {
   const [editSaving, setEditSaving]       = useState(false)
   const [editError, setEditError]         = useState('')
   const [avatarLoading, setAvatarLoading] = useState(false)
+  const [showTagUpgrade, setShowTagUpgrade] = useState(false)
 
   // Comments modal
   const [selected, setSelected]   = useState(null)
@@ -771,3 +772,4 @@ function timeAgo(iso) {
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
   return `${Math.floor(diff / 86400)}d ago`
 }
+
