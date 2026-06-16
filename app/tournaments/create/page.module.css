@@ -353,3 +353,44 @@
   font-size: 12px; color: var(--text-dim); line-height: 1.5;
 }
 .testNote i { font-size: 14px; color: #f59e0b; flex-shrink: 0; margin-top: 1px; }
+
+/* ── Free quota notice (top of form) ── */
+.quotaNotice {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 10px 14px; border-radius: 10px;
+  background: rgba(168,85,247,0.07); border: 1px solid rgba(168,85,247,0.18);
+  font-size: 12px; color: var(--text-muted);
+  margin-bottom: 14px;
+}
+.quotaNotice i { color: #a855f7; font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+.quotaNotice strong { color: var(--text); }
+.quotaLink {
+  background: none; border: none; color: #a855f7; font-weight: 800;
+  font-size: 12px; cursor: pointer; padding: 0; text-decoration: underline;
+  font-family: var(--font);
+}
+
+/* ── Inline quota warn (below fee field) ── */
+.quotaWarn {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  font-size: 11px; font-weight: 600; color: #f97316;
+  background: rgba(249,115,22,0.08); border: 1px solid rgba(249,115,22,0.2);
+  border-radius: 8px; padding: 8px 10px; margin-top: 6px;
+}
+.quotaWarn i { font-size: 13px; flex-shrink: 0; }
+
+/* ── Quota error block (step 1 bottom) ── */
+.quotaErr {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 12px 14px; border-radius: 10px;
+  background: rgba(168,85,247,0.08); border: 1px solid rgba(168,85,247,0.22);
+  font-size: 12px; color: var(--text-dim); margin-top: 14px;
+}
+.quotaErr i { font-size: 16px; color: #a855f7; flex-shrink: 0; }
+.quotaErr span { flex: 1; }
+.quotaErrBtn {
+  padding: 5px 12px; border-radius: 7px;
+  background: #a855f7; color: #fff; border: none;
+  font-size: 11px; font-weight: 800; cursor: pointer;
+  font-family: var(--font); white-space: nowrap;
+}

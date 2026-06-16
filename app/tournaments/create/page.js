@@ -1,12 +1,11 @@
 'use client'
-import { useState, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../../../components/AuthProvider'
 import { useAuthGate } from '../../../components/AuthGateModal'
 import { supabase } from '../../../lib/supabase'
 import { GAME_SLUGS, GAME_META } from '../../../lib/constants'
-import { canDo, getActivePlan, PLANS } from '../../../lib/plans'
-import UpgradeModal from '../../../components/UpgradeModal'
+import { getActivePlan } from '../../../lib/plans'
 import styles from './page.module.css'
 
 const GAME_NAMES = Object.fromEntries(GAME_SLUGS.map(s => [s, GAME_META[s].name]))
@@ -16,52 +15,28 @@ function slugify(name) {
 }
 
 const STEPS = [
-  { key: 'details',  label: 'Details',  icon: 'ri-file-text-line' },
-  { key: 'format',   label: 'Format',   icon: 'ri-gamepad-line' },
-  { key: 'review',   label: 'Launch',   icon: 'ri-rocket-line' },
+  { key: 'details', label: 'Details', icon: 'ri-file-text-line' },
+  { key: 'format',  label: 'Format',  icon: 'ri-gamepad-line' },
+  { key: 'review',  label: 'Launch',  icon: 'ri-rocket-line' },
 ]
 
-const SLOT_OPTIONS = [4, 8, 16, 32, 64]
-const FORMATS = ['Solo', 'Duo', 'Squad', 'Bo3', 'Bo5', 'Round Robin', 'Double Elim']
+const SLOT_OPTIONS    = [4, 8, 16, 32, 64]
+const FORMATS         = ['Solo', 'Duo', 'Squad', 'Bo3', 'Bo5', 'Round Robin', 'Double Elim']
 const TEAM_SIZE_OPTIONS = [
-  { value: 1, label: '1v1', sub: 'Solo' },
-  { value: 2, label: '2v2', sub: 'Team Battle' },
-  { value: 4, label: '4v4', sub: 'Team Battle' },
-  { value: 8, label: '8v8', sub: 'Team Battle' },
+  { value: 1, label: '1v1',  sub: 'Solo' },
+  { value: 2, label: '2v2',  sub: 'Team Battle' },
+  { value: 4, label: '4v4',  sub: 'Team Battle' },
+  { value: 8, label: '8v8',  sub: 'Team Battle' },
 ]
+
+// Free-user limits — keep in sync with tournaments/page.js
+const FREE_LIMIT_FREE_TOURNEYS = 2
+const FREE_LIMIT_PAID_TOURNEYS = 1
 
 export default function CreateTournament() {
   const { user, profile, isAdmin } = useAuth()
   const { openAuthGate } = useAuthGate()
   const router = useRouter()
-
-  // ── Plan gate ──────────────────────────────────────────
-  const [showUpgrade, setShowUpgrade] = useState(false)
-  const activePlan   = getActivePlan(profile)
-  const canCreate    = isAdmin || canDo(profile, 'create_tournament')
-
-  // Show upgrade wall if not allowed
-  if (user && !canCreate) {
-    return (
-      <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16, background: 'var(--bg)', textAlign: 'center' }}>
-        <div style={{ fontSize: 48 }}>💎</div>
-        <p style={{ fontSize: 20, fontWeight: 900, color: 'var(--text)', margin: 0 }}>Elite Plan Required</p>
-        <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: 0, maxWidth: 300, lineHeight: 1.6 }}>
-          Creating tournaments is an Elite & Team feature. Upgrade to unlock tournament creation and more.
-        </p>
-        <button
-          onClick={() => setShowUpgrade(true)}
-          style={{ padding: '12px 28px', background: '#38bdf8', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 800, cursor: 'pointer', fontFamily: 'var(--font)', display: 'flex', alignItems: 'center', gap: 8 }}
-        >
-          <i className="ri-vip-diamond-line" /> Upgrade to Elite
-        </button>
-        <button onClick={() => router.back()} style={{ fontSize: 13, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font)' }}>
-          ← Go back
-        </button>
-        {showUpgrade && <UpgradeModal feature="create_tournament" profile={profile} onClose={() => setShowUpgrade(false)} />}
-      </div>
-    )
-  }
 
   if (!user) {
     return (
@@ -77,24 +52,48 @@ export default function CreateTournament() {
   return <CreateForm user={user} profile={profile} isAdmin={isAdmin} router={router} />
 }
 
-// ── Actual form — only rendered when user has access ───────
+// ── Actual form ───────────────────────────────────────────────────────────────
 function CreateForm({ user, profile, isAdmin, router }) {
-  const [step, setStep] = useState(0)
-  const [form, setForm] = useState({
+  const [step, setStep]         = useState(0)
+  const [form, setForm]         = useState({
     name: '', game_slug: GAME_SLUGS[0] || 'pubg',
     format: '', prize: '', slots: 32,
     date: '', description: '',
     entrance_fee: '',
     team_size: 1,
     is_test: false,
-    pro_only: false,   // ← NEW
+    pro_only: false,
   })
-  const [errors, setErrors]     = useState({})
+  const [errors, setErrors]         = useState({})
   const [submitting, setSubmitting] = useState(false)
-  const [progress, setProgress]   = useState(0)
+  const [progress, setProgress]     = useState(0)
   const [progressLabel, setProgressLabel] = useState('')
-  const [done, setDone]         = useState(false)
+  const [done, setDone]             = useState(false)
   const [createdSlug, setCreatedSlug] = useState(null)
+
+  // Load user's existing tournaments for free-limit enforcement
+  const [myCreated, setMyCreated] = useState(null) // null = loading
+
+  useEffect(() => {
+    supabase.from('tournaments').select('id, entrance_fee').eq('created_by', user.id)
+      .then(({ data }) => setMyCreated(data || []))
+  }, [user.id])
+
+  const activePlan        = getActivePlan(profile)
+  const isPaidPlan        = isAdmin || activePlan === 'pro' || activePlan === 'elite' || activePlan === 'team'
+
+  // Quota info for free users
+  const myFreeCount = (myCreated || []).filter(t => !parseFee(t.entrance_fee)).length
+  const myPaidCount = (myCreated || []).filter(t =>  parseFee(t.entrance_fee)).length
+  const freeQuotaLeft = Math.max(0, FREE_LIMIT_FREE_TOURNEYS - myFreeCount)
+  const paidQuotaLeft = Math.max(0, FREE_LIMIT_PAID_TOURNEYS - myPaidCount)
+  const hasAnyQuota   = freeQuotaLeft > 0 || paidQuotaLeft > 0
+
+  function parseFee(raw) {
+    if (!raw) return null
+    const n = Number(String(raw).replace(/[^0-9.]/g, ''))
+    return isNaN(n) || n <= 0 ? null : n
+  }
 
   function set(key, val) { setForm(f => ({ ...f, [key]: val })); setErrors(e => ({ ...e, [key]: null })) }
 
@@ -106,6 +105,18 @@ function CreateForm({ user, profile, isAdmin, router }) {
     }
     if (idx === 1) {
       if (!form.slots || form.slots < 2) e.slots = 'Need at least 2 slots'
+
+      // Free-user quota check at the format step so they know before review
+      if (!isPaidPlan && myCreated !== null) {
+        const thisFee  = parseFee(form.entrance_fee)
+        const isPaidT  = !!thisFee
+        if (isPaidT  && myPaidCount >= FREE_LIMIT_PAID_TOURNEYS) {
+          e._quota = `Free plan allows only ${FREE_LIMIT_PAID_TOURNEYS} paid tournament. Upgrade to Elite for unlimited.`
+        }
+        if (!isPaidT && myFreeCount >= FREE_LIMIT_FREE_TOURNEYS) {
+          e._quota = `Free plan allows only ${FREE_LIMIT_FREE_TOURNEYS} free tournaments. Upgrade to Elite for unlimited.`
+        }
+      }
     }
     setErrors(e)
     return Object.keys(e).length === 0
@@ -116,9 +127,18 @@ function CreateForm({ user, profile, isAdmin, router }) {
 
   async function submit() {
     if (!user || submitting) return
-    setSubmitting(true); setProgress(0); setProgressLabel('Preparing tournament…')
 
+    // Final quota guard
+    if (!isPaidPlan && myCreated !== null) {
+      const thisFee = parseFee(form.entrance_fee)
+      const isPaidT = !!thisFee
+      if (isPaidT  && myPaidCount >= FREE_LIMIT_PAID_TOURNEYS) { setErrors({ _submit: `Free plan: max ${FREE_LIMIT_PAID_TOURNEYS} paid tournament. Upgrade to create more.` }); return }
+      if (!isPaidT && myFreeCount >= FREE_LIMIT_FREE_TOURNEYS) { setErrors({ _submit: `Free plan: max ${FREE_LIMIT_FREE_TOURNEYS} free tournaments. Upgrade to create more.` }); return }
+    }
+
+    setSubmitting(true); setProgress(0); setProgressLabel('Preparing tournament…')
     await tick(15, 'Creating tournament…')
+
     const fee = form.entrance_fee ? Number(String(form.entrance_fee).replace(/,/g, '')) : 0
 
     const { data: newT, error } = await supabase.from('tournaments').insert({
@@ -133,7 +153,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
       entrance_fee:     fee,
       team_size:        form.team_size || 1,
       is_test:          form.is_test,
-      pro_only:         form.pro_only,    // ← NEW
+      pro_only:         form.pro_only,
       status:           'active',
       registered_count: 0,
       created_by:       user.id,
@@ -149,16 +169,16 @@ function CreateForm({ user, profile, isAdmin, router }) {
       setProgressLabel('Notifying players…')
       const { data: allProfiles } = await supabase.from('profiles').select('id').neq('id', user.id)
       if (allProfiles?.length) {
-        const gameName  = newT.game_slug ? ` ${newT.game_slug.toUpperCase()}` : ''
-        const feeNote   = fee > 0 ? ` · Entry fee: TZS ${fee.toLocaleString()}` : ''
-        const proNote   = form.pro_only ? ' · Pro & Elite only 👑' : ''
+        const gameName = newT.game_slug ? ` ${newT.game_slug.toUpperCase()}` : ''
+        const feeNote  = fee > 0 ? ` · Entry fee: TZS ${fee.toLocaleString()}` : ''
+        const proNote  = form.pro_only ? ' · Pro & Elite only 👑' : ''
         const notifications = allProfiles.map(p => ({
           user_id: p.id,
-          title: `New Tournament — ${newT.name}`,
-          body: `A new${gameName} tournament is open for registration${newT.date ? ` on ${newT.date}` : ''}. ${newT.slots} slots available${newT.prize ? ` · Prize: TZS ${newT.prize}` : ''}${feeNote}${proNote}. Register now!`,
-          type: 'tournament',
-          meta: { tournament_id: newT.id },
-          read: false,
+          title:   `New Tournament — ${newT.name}`,
+          body:    `A new${gameName} tournament is open for registration${newT.date ? ` on ${newT.date}` : ''}. ${newT.slots} slots available${newT.prize ? ` · Prize: TZS ${newT.prize}` : ''}${feeNote}${proNote}. Register now!`,
+          type:    'tournament',
+          meta:    { tournament_id: newT.id },
+          read:    false,
         }))
         for (let i = 0; i < notifications.length; i += 100) {
           await supabase.from('notifications').insert(notifications.slice(i, i + 100))
@@ -187,6 +207,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
     })
   }
 
+  // ── Done screen ─────────────────────────────────────────────────────────────
   if (done) {
     return (
       <div className={styles.page}>
@@ -207,6 +228,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
     )
   }
 
+  // ── Submitting screen ────────────────────────────────────────────────────────
   if (submitting) {
     return (
       <div className={styles.page}>
@@ -221,6 +243,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
     )
   }
 
+  // ── Form ────────────────────────────────────────────────────────────────────
   return (
     <div className={styles.page}>
       <div className={styles.topBar}>
@@ -228,6 +251,17 @@ function CreateForm({ user, profile, isAdmin, router }) {
         <span className={styles.topTitle}>Create Tournament</span>
         <span className={styles.topStep}>{step + 1} / {STEPS.length}</span>
       </div>
+
+      {/* Free quota notice — shown to free users at top */}
+      {!isPaidPlan && myCreated !== null && (
+        <div className={styles.quotaNotice}>
+          <i className="ri-information-line" />
+          <span>
+            Free plan: <strong>{myFreeCount}/{FREE_LIMIT_FREE_TOURNEYS}</strong> free &amp; <strong>{myPaidCount}/{FREE_LIMIT_PAID_TOURNEYS}</strong> paid used.
+            {!hasAnyQuota && <> All slots used — <button className={styles.quotaLink} onClick={() => router.push('/upgrade')}>upgrade to continue</button>.</>}
+          </span>
+        </div>
+      )}
 
       <div className={styles.stepRow}>
         {STEPS.map((s, i) => (
@@ -299,7 +333,11 @@ function CreateForm({ user, profile, isAdmin, router }) {
               <label>Match Type</label>
               <div className={styles.chipRow}>
                 {TEAM_SIZE_OPTIONS.map(opt => (
-                  <button key={opt.value} type="button" className={`${styles.chip} ${form.team_size === opt.value ? styles.chipActive : ''}`} onClick={() => set('team_size', opt.value)} style={{ flexDirection: 'column', gap: 2, minWidth: 60, paddingTop: 8, paddingBottom: 8 }}>
+                  <button key={opt.value} type="button"
+                    className={`${styles.chip} ${form.team_size === opt.value ? styles.chipActive : ''}`}
+                    onClick={() => set('team_size', opt.value)}
+                    style={{ flexDirection: 'column', gap: 2, minWidth: 60, paddingTop: 8, paddingBottom: 8 }}
+                  >
                     <span style={{ fontWeight: 800, fontSize: 14 }}>{opt.label}</span>
                     <span style={{ fontSize: 10, opacity: 0.7 }}>{opt.sub}</span>
                   </button>
@@ -325,13 +363,31 @@ function CreateForm({ user, profile, isAdmin, router }) {
 
             <div className={styles.field}>
               <label><i className="ri-money-dollar-circle-line" style={{ marginRight: 4 }} />Entrance Fee (TZS) <span className={styles.opt}>(optional)</span></label>
-              <input type="text" value={form.entrance_fee} placeholder="e.g. 2,000  — leave blank for free entry" onChange={e => set('entrance_fee', e.target.value)} />
+              <input
+                type="text"
+                value={form.entrance_fee}
+                placeholder="e.g. 2,000  — leave blank for free entry"
+                onChange={e => set('entrance_fee', e.target.value)}
+              />
               {form.entrance_fee && (
                 <span className={styles.feeHint}><i className="ri-information-line" /> Players submit M-Pesa proof — admin approves before registration.</span>
               )}
+              {/* Free user paid-quota warning inline */}
+              {!isPaidPlan && !!parseFee(form.entrance_fee) && myPaidCount >= FREE_LIMIT_PAID_TOURNEYS && (
+                <span className={styles.quotaWarn}>
+                  <i className="ri-error-warning-line" /> You&apos;ve used your {FREE_LIMIT_PAID_TOURNEYS} paid tournament slot.
+                  <button className={styles.quotaLink} onClick={() => router.push('/upgrade')}>Upgrade</button>
+                </span>
+              )}
+              {!isPaidPlan && !parseFee(form.entrance_fee) && myFreeCount >= FREE_LIMIT_FREE_TOURNEYS && (
+                <span className={styles.quotaWarn}>
+                  <i className="ri-error-warning-line" /> You&apos;ve used your {FREE_LIMIT_FREE_TOURNEYS} free tournament slots.
+                  <button className={styles.quotaLink} onClick={() => router.push('/upgrade')}>Upgrade</button>
+                </span>
+              )}
             </div>
 
-            {/* ── Pro Only toggle (NEW) ── */}
+            {/* Pro Only toggle */}
             <button
               type="button"
               className={`${styles.testToggle} ${form.pro_only ? styles.testToggleOn : ''}`}
@@ -343,9 +399,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
                 <div>
                   <span className={styles.testToggleLabel} style={{ color: form.pro_only ? '#a855f7' : undefined }}>Pro & Elite Only</span>
                   <span className={styles.testToggleHint}>
-                    {form.pro_only
-                      ? 'Only Pro, Elite & Team members can join this tournament.'
-                      : 'Restrict this tournament to paid plan members only.'}
+                    {form.pro_only ? 'Only Pro, Elite & Team members can join.' : 'Restrict this tournament to paid plan members only.'}
                   </span>
                 </div>
               </div>
@@ -373,6 +427,14 @@ function CreateForm({ user, profile, isAdmin, router }) {
                 <div className={styles.testToggleKnob} />
               </div>
             </button>
+
+            {errors._quota && (
+              <div className={styles.quotaErr}>
+                <i className="ri-shield-star-line" />
+                <span>{errors._quota}</span>
+                <button className={styles.quotaErrBtn} onClick={() => router.push('/upgrade')}>Upgrade →</button>
+              </div>
+            )}
           </div>
         )}
 
@@ -383,14 +445,14 @@ function CreateForm({ user, profile, isAdmin, router }) {
             <p className={styles.stepHint}>Everything look good? Hit launch to go live.</p>
             <div className={styles.reviewCard}>
               {[
-                ['ri-trophy-line',             'Name',       form.name || '—'],
-                ['ri-gamepad-line',            'Game',       GAME_NAMES[form.game_slug] || form.game_slug],
-                ['ri-layout-grid-line',        'Format',     form.format || '—'],
-                ['ri-group-line',              'Slots',      form.slots],
-                ['ri-team-line',               'Match Type', form.team_size === 1 ? '1v1 — Solo' : `${form.team_size}v${form.team_size} — Team Battle`],
-                ['ri-money-dollar-circle-line','Prize',      form.prize ? `TZS ${form.prize}` : '—'],
-                ['ri-ticket-line',             'Entry Fee',  form.entrance_fee ? `TZS ${Number(String(form.entrance_fee).replace(/,/g,'')).toLocaleString()}` : 'Free'],
-                ['ri-calendar-event-line',     'Date',       form.date || '—'],
+                ['ri-trophy-line',              'Name',       form.name || '—'],
+                ['ri-gamepad-line',             'Game',       GAME_NAMES[form.game_slug] || form.game_slug],
+                ['ri-layout-grid-line',         'Format',     form.format || '—'],
+                ['ri-group-line',               'Slots',      form.slots],
+                ['ri-team-line',                'Match Type', form.team_size === 1 ? '1v1 — Solo' : `${form.team_size}v${form.team_size} — Team Battle`],
+                ['ri-money-dollar-circle-line', 'Prize',      form.prize ? `TZS ${form.prize}` : '—'],
+                ['ri-ticket-line',              'Entry Fee',  form.entrance_fee ? `TZS ${Number(String(form.entrance_fee).replace(/,/g,'')).toLocaleString()}` : 'Free'],
+                ['ri-calendar-event-line',      'Date',       form.date || '—'],
               ].map(([icon, label, val]) => (
                 <div key={label} className={styles.reviewRow}>
                   <span className={styles.reviewLabel}><i className={icon} /> {label}</span>
@@ -424,7 +486,11 @@ function CreateForm({ user, profile, isAdmin, router }) {
       <div className={styles.navRow}>
         {step > 0 && <button className={styles.navBack} onClick={back}><i className="ri-arrow-left-line" /> Back</button>}
         {step < STEPS.length - 1 && <button className={styles.navNext} onClick={next}>Next <i className="ri-arrow-right-line" /></button>}
-        {step === STEPS.length - 1 && <button className={styles.navLaunch} onClick={submit} disabled={submitting}><i className="ri-rocket-line" /> Launch Tournament</button>}
+        {step === STEPS.length - 1 && (
+          <button className={styles.navLaunch} onClick={submit} disabled={submitting}>
+            <i className="ri-rocket-line" /> Launch Tournament
+          </button>
+        )}
       </div>
     </div>
   )
