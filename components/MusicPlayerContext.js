@@ -4,8 +4,8 @@ import { createContext, useContext, useRef, useState, useCallback } from 'react'
 export const SAMPLE_TRACKS = [
   {
     id: 1,
-    title: 'Timeless',
-    artist: 'Mr. Fantastic',
+    title: 'Timeless ( pre-made instrumental )',
+    artist: 'Nabogaming & Mr. Fantastic',
     duration: 0,
     cover: '/timeless.png',
     url: '/timeless.mp3',
