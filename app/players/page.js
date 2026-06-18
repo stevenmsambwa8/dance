@@ -11,7 +11,7 @@ import { getCurrentSeason, getSeasonDateRange, getDaysRemaining } from '../../li
 import UserBadges from '../../components/UserBadges'
 import PlanBadge from '../../components/PlanBadge'
 import { useOnlineUsers } from '../../lib/usePresence'
-import { RANK_META } from '../../lib/constants'
+import { RANK_META, GAME_SLUGS, GAME_META } from '../../lib/constants'
 
 const ADMIN_EMAIL = 'stevenmsambwa8@gmail.com'
 const GAME_MODES = ['Elimination', 'Capture', 'Deathmatch', 'Sniper', 'Team Battle']
@@ -23,6 +23,7 @@ export default function Contact() {
   const [players, setPlayers] = useState([])
   const [following, setFollowing] = useState({})
   const [challengeTarget, setChallengeTarget] = useState(null)
+  const [game, setGame] = useState(GAME_SLUGS[0])
   const [mode, setMode] = useState(GAME_MODES[0])
   const [format, setFormat] = useState('')
   const [scheduledAt, setScheduledAt] = useState('')
@@ -31,6 +32,14 @@ export default function Contact() {
   usePageLoading(loading)
   const [search, setSearch] = useState('')
   const onlineIds = useOnlineUsers()
+
+  // ── Recruit (open match, no specific opponent) ──
+  const [recruitOpen, setRecruitOpen] = useState(false)
+  const [recruitGame, setRecruitGame] = useState(GAME_SLUGS[0])
+  const [recruitMode, setRecruitMode] = useState(GAME_MODES[0])
+  const [recruitMessage, setRecruitMessage] = useState('')
+  const [recruitSent, setRecruitSent] = useState(false)
+  const [recruitSending, setRecruitSending] = useState(false)
 
   useEffect(() => {
     loadPlayers()
@@ -75,6 +84,7 @@ export default function Contact() {
     await supabase.from('matches').insert({
       challenger_id: user.id,
       challenged_id: challengeTarget.id,
+      game,
       game_mode: mode,
       format,
       status: 'pending',
@@ -83,6 +93,42 @@ export default function Contact() {
     })
     setSent(true)
     setTimeout(() => { setSent(false); setChallengeTarget(null); setFormat(''); setScheduledAt('') }, 1800)
+  }
+
+  // ── Create a "recruiting" match: no opponent yet, notifies everyone
+  // subscribed to that game via the recruit_for_match RPC. Whoever taps
+  // "Join" first on the matches page becomes challenged_id (handled there).
+  async function sendRecruit() {
+    if (!user) { openAuthGate(); return }
+    setRecruitSending(true)
+    const slug = `open-${recruitGame}-${Math.random().toString(36).slice(2, 8)}`
+    const { data: match, error } = await supabase.from('matches').insert({
+      challenger_id: user.id,
+      challenged_id: null,
+      game: recruitGame,
+      game_mode: recruitMode,
+      status: 'recruiting',
+      slug,
+      recruiting: true,
+      recruit_message: recruitMessage || null,
+    }).select().single()
+
+    if (!error && match) {
+      await supabase.rpc('recruit_for_match', {
+        p_match_id: match.id,
+        p_game_slug: recruitGame,
+        p_creator_id: user.id,
+        p_message: recruitMessage || null,
+      })
+    }
+    setRecruitSending(false)
+    setRecruitSent(true)
+    setTimeout(() => {
+      setRecruitSent(false)
+      setRecruitOpen(false)
+      setRecruitMessage('')
+      if (match) router.push(`/matches/${match.slug}`)
+    }, 1400)
   }
 
   function sendDM(e, playerId) {
@@ -101,6 +147,9 @@ export default function Contact() {
           <p className={styles.eyebrow}>Season {getCurrentSeason()} · PlayWithFriends</p>
           <h1 className={styles.headline}>PLAYERS</h1>
         </div>
+        <button className={styles.recruitHeaderBtn} onClick={() => { if (!user) { openAuthGate(); return } setRecruitOpen(true) }}>
+          <i className="ri-megaphone-line" /> Recruit
+        </button>
       </div>
 
       <div className={styles.searchWrap}>
@@ -179,6 +228,7 @@ export default function Contact() {
         </div>
       )}
 
+      {/* ── 1-on-1 Challenge Modal ── */}
       <Modal
         open={!!challengeTarget}
         onClose={() => { setChallengeTarget(null); setSent(false); setFormat(''); setScheduledAt('') }}
@@ -204,6 +254,17 @@ export default function Contact() {
               <div>
                 <div className={styles.chName}>{challengeTarget.username}</div>
                 <div className={styles.chRank}>Lv.{challengeTarget.level ?? 1} · {challengeTarget.tier}</div>
+              </div>
+            </div>
+
+            <div className={styles.formField}>
+              <label>Game</label>
+              <div className={styles.modeGrid}>
+                {GAME_SLUGS.map(g => (
+                  <button key={g} className={`${styles.modeBtn} ${game === g ? styles.modeActive : ''}`} onClick={() => setGame(g)}>
+                    <i className={GAME_META[g]?.icon} style={{ marginRight: 5 }} />{GAME_META[g]?.name || g}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -237,6 +298,58 @@ export default function Contact() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* ── Recruit Modal — open match call-out, notifies game subscribers ── */}
+      <Modal
+        open={recruitOpen}
+        onClose={() => { if (!recruitSending) { setRecruitOpen(false); setRecruitSent(false); setRecruitMessage('') } }}
+        title="Recruit an Opponent"
+        size="sm"
+        footer={
+          recruitSent
+            ? <span className={styles.sentMsg}><i className="ri-check-line" /> Call-out sent!</span>
+            : <button className={styles.sendBtn} disabled={recruitSending} onClick={sendRecruit}>
+                <i className="ri-megaphone-line" /> {recruitSending ? 'Sending…' : 'Post & Notify Subscribers'}
+              </button>
+        }
+      >
+        <div className={styles.challengeBody}>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
+            This creates an open match with no opponent yet. Everyone subscribed to the selected game gets notified, and the first player to tap "Join" takes the open slot.
+          </p>
+
+          <div className={styles.formField}>
+            <label>Game</label>
+            <div className={styles.modeGrid}>
+              {GAME_SLUGS.map(g => (
+                <button key={g} className={`${styles.modeBtn} ${recruitGame === g ? styles.modeActive : ''}`} onClick={() => setRecruitGame(g)}>
+                  <i className={GAME_META[g]?.icon} style={{ marginRight: 5 }} />{GAME_META[g]?.name || g}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className={styles.formField}>
+            <label>Game Mode</label>
+            <div className={styles.modeGrid}>
+              {GAME_MODES.map(m => (
+                <button key={m} className={`${styles.modeBtn} ${recruitMode === m ? styles.modeActive : ''}`} onClick={() => setRecruitMode(m)}>{m}</button>
+              ))}
+            </div>
+          </div>
+
+          <div className={styles.formField}>
+            <label>Message (optional)</label>
+            <input
+              className={styles.textInput}
+              placeholder="e.g. Looking for a Bo3 tonight at 9PM"
+              value={recruitMessage}
+              onChange={e => setRecruitMessage(e.target.value)}
+              maxLength={120}
+            />
+          </div>
+        </div>
       </Modal>
     </div>
   )

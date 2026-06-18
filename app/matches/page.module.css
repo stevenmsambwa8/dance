@@ -28,6 +28,21 @@
 .row:hover { padding-left: 6px; }
 .row:hover .arrow { opacity: 1; }
 .rowLive { border-left: 2px solid #22c55e; padding-left: 12px; }
+
+.joinBtn {
+  flex-shrink: 0;
+  padding: 7px 16px;
+  border-radius: 16px;
+  background: var(--text);
+  color: var(--bg);
+  border: none;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  align-self: center;
+}
+.joinBtn:disabled { opacity: 0.5; }
+.joinBtn:active { opacity: 0.8; }
 .rowLive:hover { padding-left: 14px; }
 .rowMyTurn { border-left: 2px solid #f59e0b; padding-left: 12px; }
 .rowMyTurn:hover { padding-left: 14px; }

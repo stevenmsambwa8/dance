@@ -2,11 +2,13 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '../../../components/AuthProvider'
+import { useAuthGate } from '../../../components/AuthGateModal'
 import { supabase } from '../../../lib/supabase'
 import styles from './page.module.css'
 import UserBadges from '../../../components/UserBadges'
 import usePageLoading from '../../../components/usePageLoading'
 import { getCurrentSeason, computeLevelAfterWin } from '../../../lib/seasons'
+import { GAME_META } from '../../../lib/constants'
 
 const STATUS_OPTIONS = ['pending', 'confirmed', 'live', 'awaiting_review', 'completed', 'declined', 'cancelled']
 
@@ -14,6 +16,7 @@ export default function MatchPage() {
   const { slug } = useParams()
   const router = useRouter()
   const { user, isAdmin, refreshProfile } = useAuth()
+  const { openAuthGate } = useAuthGate()
 
   const [match, setMatch]           = useState(null)
   const [loading, setLoading]       = useState(true)
@@ -27,18 +30,12 @@ export default function MatchPage() {
   const [tickerInput, setTickerInput] = useState('')
   const [tickerSaving, setTickerSaving] = useState(false)
 
-  // Score submission (competitor-side)
+  // Score submission — each competitor submits their own side independently
   const [scoreGoals, setScoreGoals]     = useState({ challenger: 0, challenged: 0 })
   const [scoreSubmitting, setScoreSubmitting] = useState(false)
-  const [scoreRequest, setScoreRequest] = useState(null) // pending result from DB
+  const [scoreRequest, setScoreRequest] = useState(null) // active score_requests row for this match
 
   useEffect(() => { if (slug) loadMatch() }, [slug])
-
-  async function recalculateRanks() {
-    const { data: players } = await supabase.from('profiles').select('id, points').order('points', { ascending: false })
-    if (!players) return
-    await Promise.all(players.map((p, i) => supabase.from('profiles').update({ rank: i + 1 }).eq('id', p.id)))
-  }
 
   async function loadMatch() {
     setLoading(true); setLoadError(null)
@@ -55,18 +52,22 @@ export default function MatchPage() {
         setResultForm({ winner_id: data.winner_id || '', score_challenger: data.score_challenger ?? '', score_challenged: data.score_challenged ?? '', notes: data.notes || '' })
         setTicker(data.ticker_text || '')
         setTickerInput(data.ticker_text || '')
-        // Load pending score request
+        // Load the active score_requests row (pending = still collecting one or both sides)
         const { data: sr } = await supabase
           .from('score_requests')
           .select('*')
           .eq('match_id', data.id)
-          .eq('status', 'pending')
+          .in('status', ['pending'])
+          .order('created_at', { ascending: false })
+          .limit(1)
           .maybeSingle()
         setScoreRequest(sr || null)
         if (sr) {
-          setScoreGoals({ challenger: sr.score_challenger ?? 0, challenged: sr.score_challenged ?? 0 })
+          const mySide = user?.id === data.challenger_id ? 'challenger' : 'challenged'
+          const myChallengerVal = mySide === 'challenger' ? sr.challenger_score_challenger : sr.challenged_score_challenger
+          const myChallengedVal = mySide === 'challenger' ? sr.challenger_score_challenged : sr.challenged_score_challenged
+          setScoreGoals({ challenger: myChallengerVal ?? 0, challenged: myChallengedVal ?? 0 })
         }
-        // Load tournament creator if match is linked to a tournament
         if (data.tournament_id) {
           supabase.from('tournaments').select('id, created_by').eq('id', data.tournament_id).maybeSingle()
             .then(({ data: t }) => { if (t) setTournament(t) })
@@ -74,54 +75,6 @@ export default function MatchPage() {
       }
     } catch (err) { setLoadError(err.message || 'Network error') }
     setLoading(false)
-  }
-
-  async function updateResult() {
-    setSaving(true)
-    const winnerId = resultForm.winner_id || null
-    const { error } = await supabase.from('matches').update({
-      status: 'completed', winner_id: winnerId,
-      score_challenger: resultForm.score_challenger !== '' ? Number(resultForm.score_challenger) : null,
-      score_challenged: resultForm.score_challenged !== '' ? Number(resultForm.score_challenged) : null,
-      notes: resultForm.notes,
-    }).eq('id', match.id)
-    if (error) { alert(error.message); setSaving(false); return }
-    if (winnerId && match.status !== 'completed') {
-      const loserId = winnerId === match.challenger_id ? match.challenged_id : match.challenger_id
-      const [{ data: wData }, { data: lData }] = await Promise.all([
-        supabase.from('profiles').select('wins, points, season_wins, level, current_season').eq('id', winnerId).single(),
-        supabase.from('profiles').select('losses, points, season_losses, current_season').eq('id', loserId).single(),
-      ])
-      await Promise.all([
-        supabase.from('profiles').update({
-          wins: (wData?.wins ?? 0) + 1,
-          points: (wData?.points ?? 0) + 12,
-          season_wins: (wData?.season_wins ?? 0) + 1,
-          level: computeLevelAfterWin(wData?.level ?? 1, (wData?.season_wins ?? 0) + 1),
-          current_season: getCurrentSeason(),
-        }).eq('id', winnerId),
-        supabase.from('profiles').update({
-          losses: (lData?.losses ?? 0) + 1,
-          points: Math.max(0, (lData?.points ?? 0) + 4),
-          season_losses: (lData?.season_losses ?? 0) + 1,
-          current_season: getCurrentSeason(),
-        }).eq('id', loserId),
-      ])
-      await Promise.all([
-        supabase.rpc('log_earning', {
-          p_user_id: winnerId, p_type: 'match_win', p_points: 12,
-          p_description: `Beat ${(winnerId === match.challenger_id ? cd : ch)?.username ?? 'opponent'}`,
-          p_ref_id: match.id,
-        }),
-        supabase.rpc('log_earning', {
-          p_user_id: loserId, p_type: 'match_loss', p_points: 4,
-          p_description: `Lost to ${(loserId === match.challenger_id ? cd : ch)?.username ?? 'opponent'}`,
-          p_ref_id: match.id,
-        }),
-      ])
-      if (user?.id === winnerId || user?.id === loserId) refreshProfile?.()
-    }
-    setSaving(false); loadMatch()
   }
 
   async function updateStatus(status) {
@@ -155,128 +108,46 @@ export default function MatchPage() {
         supabase.from('profiles').update({ losses: (meData?.losses || 0) + 1, points: Math.max(0, (meData?.points || 0) + 4) }).eq('id', user.id),
       ])
       await Promise.all([
-        supabase.rpc('log_earning', {
-          p_user_id: opponentId, p_type: 'match_win', p_points: 12,
-          p_description: `${me?.username ?? 'Opponent'} forfeited`,
-          p_ref_id: match.id,
-        }),
-        supabase.rpc('log_earning', {
-          p_user_id: user.id, p_type: 'match_loss', p_points: 4,
-          p_description: 'Forfeit',
-          p_ref_id: match.id,
-        }),
+        supabase.rpc('log_earning', { p_user_id: opponentId, p_type: 'match_win', p_points: 12, p_description: `${me?.username ?? 'Opponent'} forfeited`, p_ref_id: match.id }),
+        supabase.rpc('log_earning', { p_user_id: user.id, p_type: 'match_loss', p_points: 4, p_description: 'Forfeit', p_ref_id: match.id }),
       ])
       refreshProfile?.()
     }
     setForfeitLoading(false); loadMatch()
   }
 
-  // Competitor submits their score for admin review
-  async function submitScoreRequest() {
-    if (!confirm('Submit these scores for admin review? This cannot be changed after submission.')) return
+  // Each competitor submits their own read of the score independently.
+  // The submit_match_score RPC handles: waiting for the other side, then
+  // either auto-completing (scores agree) or flagging for admin (conflict).
+  async function submitMyScore() {
+    if (!user) { openAuthGate(); return }
+    if (!confirm('Submit this score? If your opponent reports the same result, the match completes automatically.')) return
     setScoreSubmitting(true)
-    // Upsert: cancel any prior pending request first
-    await supabase.from('score_requests').update({ status: 'superseded' }).eq('match_id', match.id).eq('status', 'pending')
-    const { error } = await supabase.from('score_requests').insert({
-      match_id: match.id,
-      submitted_by: user.id,
-      score_challenger: scoreGoals.challenger,
-      score_challenged: scoreGoals.challenged,
-      status: 'pending',
-    })
-    if (error) { alert(error.message); setScoreSubmitting(false); return }
-    // Move match to awaiting_review so admin sees it
-    await supabase.from('matches').update({ status: 'awaiting_review' }).eq('id', match.id)
-    // Notify admin via notifications table
-    await supabase.from('notifications').insert({
-      user_id: null, // admin-targeted; adapt if you have admin user id
-      type: 'score_request',
-      title: '📋 Score Submitted — Review Required',
-      body: `${user.id === match.challenger_id ? ch?.username : cd?.username} submitted a result for match ${match.id?.slice(0,8)}.`,
-      meta: { match_id: match.id },
-      read: false,
+    const { data, error } = await supabase.rpc('submit_match_score', {
+      p_match_id: match.id,
+      p_user_id: user.id,
+      p_score_challenger: scoreGoals.challenger,
+      p_score_challenged: scoreGoals.challenged,
     })
     setScoreSubmitting(false)
-    loadMatch()
-  }
-
-  // Admin accepts submitted result and completes the match
-  async function acceptResult() {
-    if (!scoreRequest) return
-    setSaving(true)
-    // Determine winner from submitted scores
-    let winnerId = null
-    if (scoreRequest.score_challenger > scoreRequest.score_challenged) winnerId = match.challenger_id
-    else if (scoreRequest.score_challenged > scoreRequest.score_challenger) winnerId = match.challenged_id
-    // If draw and admin has a manual pick in resultForm, use that
-    if (!winnerId && resultForm.winner_id) winnerId = resultForm.winner_id
-
-    const { error } = await supabase.from('matches').update({
-      status: 'completed',
-      winner_id: winnerId,
-      score_challenger: scoreRequest.score_challenger,
-      score_challenged: scoreRequest.score_challenged,
-      notes: resultForm.notes,
-    }).eq('id', match.id)
-    if (error) { alert(error.message); setSaving(false); return }
-    await supabase.from('score_requests').update({ status: 'accepted' }).eq('id', scoreRequest.id)
-
-    // Award points/stats
-    if (winnerId && match.status !== 'completed') {
-      const loserId = winnerId === match.challenger_id ? match.challenged_id : match.challenger_id
-      const [{ data: wData }, { data: lData }] = await Promise.all([
-        supabase.from('profiles').select('wins, points, season_wins, level, current_season').eq('id', winnerId).single(),
-        supabase.from('profiles').select('losses, points, season_losses, current_season').eq('id', loserId).single(),
-      ])
-      await Promise.all([
-        supabase.from('profiles').update({
-          wins: (wData?.wins ?? 0) + 1,
-          points: (wData?.points ?? 0) + 12,
-          season_wins: (wData?.season_wins ?? 0) + 1,
-          level: computeLevelAfterWin(wData?.level ?? 1, (wData?.season_wins ?? 0) + 1),
-          current_season: getCurrentSeason(),
-        }).eq('id', winnerId),
-        supabase.from('profiles').update({
-          losses: (lData?.losses ?? 0) + 1,
-          points: Math.max(0, (lData?.points ?? 0) + 4),
-          season_losses: (lData?.season_losses ?? 0) + 1,
-          current_season: getCurrentSeason(),
-        }).eq('id', loserId),
-      ])
-      await Promise.all([
-        supabase.rpc('log_earning', {
-          p_user_id: winnerId, p_type: 'match_win', p_points: 12,
-          p_description: `Beat ${(winnerId === match.challenger_id ? cd : ch)?.username ?? 'opponent'}`,
-          p_ref_id: match.id,
-        }),
-        supabase.rpc('log_earning', {
-          p_user_id: loserId, p_type: 'match_loss', p_points: 4,
-          p_description: `Lost to ${(loserId === match.challenger_id ? cd : ch)?.username ?? 'opponent'}`,
-          p_ref_id: match.id,
-        }),
-      ])
-      // Notify both players
-      await supabase.from('notifications').insert([
-        { user_id: winnerId, type: 'match_result', title: '🏆 Match Result: You Won!', body: `Your match result has been confirmed. +12 pts`, meta: { match_id: match.id }, read: false },
-        { user_id: loserId, type: 'match_result', title: 'Match Result: Defeat', body: `Your match result has been confirmed. +4 pts`, meta: { match_id: match.id }, read: false },
-      ])
-      if (user?.id === winnerId || user?.id === loserId) refreshProfile?.()
+    if (error) { alert(error.message); return }
+    if (data?.status === 'auto_completed' && (user.id === match.challenger_id || user.id === match.challenged_id)) {
+      refreshProfile?.()
     }
-    setSaving(false)
     loadMatch()
   }
 
-  // Admin overrides result manually (no score_request needed)
-  async function updateResult() {
+  // Admin manually resolves a conflicted score_request (both sides disagreed)
+  async function adminResolveConflict(winnerId, scoreCh, scoreCd) {
     setSaving(true)
-    const winnerId = resultForm.winner_id || null
     const { error } = await supabase.from('matches').update({
-      status: 'completed', winner_id: winnerId,
-      score_challenger: resultForm.score_challenger !== '' ? Number(resultForm.score_challenger) : null,
-      score_challenged: resultForm.score_challenged !== '' ? Number(resultForm.score_challenged) : null,
+      status: 'completed', winner_id: winnerId || null,
+      score_challenger: scoreCh, score_challenged: scoreCd,
       notes: resultForm.notes,
     }).eq('id', match.id)
     if (error) { alert(error.message); setSaving(false); return }
+    if (scoreRequest) await supabase.from('score_requests').update({ status: 'accepted', resolution: 'admin_override' }).eq('id', scoreRequest.id)
+
     if (winnerId && match.status !== 'completed') {
       const loserId = winnerId === match.challenger_id ? match.challenged_id : match.challenger_id
       const [{ data: wData }, { data: lData }] = await Promise.all([
@@ -285,34 +156,36 @@ export default function MatchPage() {
       ])
       await Promise.all([
         supabase.from('profiles').update({
-          wins: (wData?.wins ?? 0) + 1,
-          points: (wData?.points ?? 0) + 12,
+          wins: (wData?.wins ?? 0) + 1, points: (wData?.points ?? 0) + 12,
           season_wins: (wData?.season_wins ?? 0) + 1,
           level: computeLevelAfterWin(wData?.level ?? 1, (wData?.season_wins ?? 0) + 1),
           current_season: getCurrentSeason(),
         }).eq('id', winnerId),
         supabase.from('profiles').update({
-          losses: (lData?.losses ?? 0) + 1,
-          points: Math.max(0, (lData?.points ?? 0) + 4),
-          season_losses: (lData?.season_losses ?? 0) + 1,
-          current_season: getCurrentSeason(),
+          losses: (lData?.losses ?? 0) + 1, points: Math.max(0, (lData?.points ?? 0) + 4),
+          season_losses: (lData?.season_losses ?? 0) + 1, current_season: getCurrentSeason(),
         }).eq('id', loserId),
       ])
       await Promise.all([
-        supabase.rpc('log_earning', {
-          p_user_id: winnerId, p_type: 'match_win', p_points: 12,
-          p_description: `Beat ${(winnerId === match.challenger_id ? cd : ch)?.username ?? 'opponent'}`,
-          p_ref_id: match.id,
-        }),
-        supabase.rpc('log_earning', {
-          p_user_id: loserId, p_type: 'match_loss', p_points: 4,
-          p_description: `Lost to ${(loserId === match.challenger_id ? cd : ch)?.username ?? 'opponent'}`,
-          p_ref_id: match.id,
-        }),
+        supabase.rpc('log_earning', { p_user_id: winnerId, p_type: 'match_win', p_points: 12, p_description: `Beat ${(winnerId === match.challenger_id ? cd : ch)?.username ?? 'opponent'}`, p_ref_id: match.id }),
+        supabase.rpc('log_earning', { p_user_id: loserId, p_type: 'match_loss', p_points: 4, p_description: `Lost to ${(loserId === match.challenger_id ? cd : ch)?.username ?? 'opponent'}`, p_ref_id: match.id }),
+      ])
+      await supabase.from('notifications').insert([
+        { user_id: winnerId, type: 'match_result', title: '🏆 Match Result: You Won!', body: 'An admin reviewed and confirmed your result. +12 pts', meta: { match_id: match.id }, read: false },
+        { user_id: loserId, type: 'match_result', title: 'Match Result: Defeat', body: 'An admin reviewed and confirmed your result. +4 pts', meta: { match_id: match.id }, read: false },
       ])
       if (user?.id === winnerId || user?.id === loserId) refreshProfile?.()
     }
     setSaving(false); loadMatch()
+  }
+
+  // Admin overrides result manually, bypassing score_requests entirely
+  async function updateResult() {
+    setSaving(true)
+    const winnerId = resultForm.winner_id || null
+    const scoreCh = resultForm.score_challenger !== '' ? Number(resultForm.score_challenger) : null
+    const scoreCd = resultForm.score_challenged !== '' ? Number(resultForm.score_challenged) : null
+    await adminResolveConflict(winnerId, scoreCh, scoreCd)
   }
 
   function formatDate(iso) {
@@ -320,7 +193,7 @@ export default function MatchPage() {
     return new Date(iso).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
   }
 
-  const STATUS_COLOR = { live: '#22c55e', confirmed: 'var(--text)', pending: '#f59e0b', awaiting_review: '#a855f7', completed: 'var(--text-muted)', declined: '#ef4444', cancelled: '#ef4444' }
+  const STATUS_COLOR = { live: '#22c55e', confirmed: 'var(--text)', pending: '#f59e0b', recruiting: '#3b82f6', awaiting_review: '#a855f7', completed: 'var(--text-muted)', declined: '#ef4444', cancelled: '#ef4444' }
 
   if (loading) return null
 
@@ -343,13 +216,24 @@ export default function MatchPage() {
   const isLive = match.status === 'live'
   const isCompleted = match.status === 'completed'
   const isAwaitingReview = match.status === 'awaiting_review'
+  const isRecruiting = match.status === 'recruiting'
   const isActive = ['pending', 'confirmed', 'live'].includes(match.status)
   const isCompetitor = user && (user.id === match.challenger_id || user.id === match.challenged_id)
   const canManage = isAdmin || (user && tournament?.created_by === user.id)
   const statusColor = STATUS_COLOR[match.status] || 'var(--text-muted)'
   const chWon = isCompleted && match.winner_id === match.challenger_id
   const cdWon = isCompleted && match.winner_id === match.challenged_id
-  const showScore = isLive || isCompleted
+  const showScore = isLive || isCompleted || isAwaitingReview
+
+  // Has *this* user already submitted their side of the active score request?
+  const mySide = user?.id === match.challenger_id ? 'challenger' : user?.id === match.challenged_id ? 'challenged' : null
+  const iHaveSubmitted = scoreRequest && mySide && (
+    mySide === 'challenger' ? !!scoreRequest.challenger_submitted_at : !!scoreRequest.challenged_submitted_at
+  )
+  const opponentHasSubmitted = scoreRequest && mySide && (
+    mySide === 'challenger' ? !!scoreRequest.challenged_submitted_at : !!scoreRequest.challenger_submitted_at
+  )
+  const isConflict = scoreRequest?.resolution === 'conflict'
 
   return (
     <div className={styles.page}>
@@ -364,8 +248,9 @@ export default function MatchPage() {
         <div className={styles.statusRow}>
           <span className={styles.statusChip} style={{ color: statusColor }}>
             {isLive && <span className={styles.liveDot} />}
-            {match.status?.toUpperCase()}
+            {isRecruiting ? 'OPEN — RECRUITING' : match.status === 'awaiting_review' ? 'IN REVIEW' : match.status?.toUpperCase()}
           </span>
+          {match.game && <span className={styles.tag}><i className={GAME_META[match.game]?.icon} style={{ marginRight: 4 }} />{GAME_META[match.game]?.name || match.game}</span>}
           {match.format && <span className={styles.tag}>{match.format}</span>}
           {match.game_mode && <span className={styles.tag}>{match.game_mode}</span>}
           {match.scheduled_at && <span className={styles.dateText}>{formatDate(match.scheduled_at)}</span>}
@@ -405,9 +290,9 @@ export default function MatchPage() {
             <div className={`${styles.sideInfo} ${styles.sideInfoRight}`}>
               <span className={styles.sideName}>
                 <UserBadges email={cd?.email} plan={cd?.plan} planExpiresAt={cd?.plan_expires_at} countryFlag={cd?.country_flag} isSeasonWinner={cd?.is_season_winner} size={12} gap={2} />
-                {cd?.username || '—'}
+                {isRecruiting ? <em style={{ fontStyle: 'normal', color: 'var(--text-muted)' }}>Open slot</em> : (cd?.username || '—')}
               </span>
-              <span className={styles.sideMeta}>{cd?.tier} · Lv.{cd?.level ?? 1} · {cd?.wins ?? 0}W {cd?.losses ?? 0}L</span>
+              <span className={styles.sideMeta}>{isRecruiting ? 'Waiting for a challenger' : `${cd?.tier ?? ''} · Lv.${cd?.level ?? 1} · ${cd?.wins ?? 0}W ${cd?.losses ?? 0}L`}</span>
             </div>
             <Avatar profile={cd} size={64} />
           </div>
@@ -423,6 +308,27 @@ export default function MatchPage() {
           </div>
         )}
       </div>
+
+      {/* ── RECRUITING — anyone (not just the page-loader) can join from here too ── */}
+      {isRecruiting && (
+        <div className={styles.section}>
+          {match.recruit_message && <p style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 10 }}>"{match.recruit_message}"</p>}
+          {user?.id === match.challenger_id ? (
+            <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Your open call-out is live — waiting for someone to join.</p>
+          ) : (
+            <button className={styles.btn} onClick={async () => {
+              if (!user) { openAuthGate(); return }
+              const { error } = await supabase.from('matches')
+                .update({ challenged_id: user.id, status: 'pending', recruiting: false, recruit_closed_at: new Date().toISOString() })
+                .eq('id', match.id).eq('recruiting', true).is('challenged_id', null)
+              if (!error) loadMatch()
+              else alert('Someone already joined this match.')
+            }}>
+              <i className="ri-sword-line" /> Join This Match
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ── NOTES ── */}
       {match.notes && (
@@ -459,13 +365,16 @@ export default function MatchPage() {
             </button>
           </>)}
 
-          {/* Score control panel — only on live matches */}
-          {isLive && (
+          {/* Score submission — available once live, or still open if awaiting review and I haven't submitted yet */}
+          {(isLive || (isAwaitingReview && !iHaveSubmitted && !isConflict)) && (
             <div className={styles.scorePanel}>
               <p className={styles.scorePanelTitle}><i className="ri-gamepad-line" /> Submit Match Score</p>
-              <p className={styles.scorePanelHint}>Enter the final goals/score for each player, then submit for admin review.</p>
+              <p className={styles.scorePanelHint}>
+                Enter the final score as you saw it. {opponentHasSubmitted
+                  ? "Your opponent already submitted — if yours matches, the match completes instantly."
+                  : "Once both players submit, matching scores auto-complete the match. Mismatched scores go to admin."}
+              </p>
 
-              {/* Challenger stepper */}
               <div className={styles.stepperRow}>
                 <span className={styles.stepperName}>{ch?.username}</span>
                 <div className={styles.stepper}>
@@ -475,7 +384,6 @@ export default function MatchPage() {
                 </div>
               </div>
 
-              {/* Challenged stepper */}
               <div className={styles.stepperRow}>
                 <span className={styles.stepperName}>{cd?.username}</span>
                 <div className={styles.stepper}>
@@ -485,26 +393,34 @@ export default function MatchPage() {
                 </div>
               </div>
 
-              <button className={styles.btn} onClick={submitScoreRequest} disabled={scoreSubmitting}>
-                <i className="ri-send-plane-line" /> {scoreSubmitting ? 'Submitting…' : 'Submit Result for Review'}
+              <button className={styles.btn} onClick={submitMyScore} disabled={scoreSubmitting}>
+                <i className="ri-send-plane-line" /> {scoreSubmitting ? 'Submitting…' : 'Submit My Score'}
               </button>
             </div>
           )}
 
-          {/* Awaiting review — show submitted scores, locked */}
-          {isAwaitingReview && scoreRequest && (
+          {/* I've submitted, waiting on opponent */}
+          {isAwaitingReview && iHaveSubmitted && !opponentHasSubmitted && (
             <div className={styles.reviewBanner}>
               <i className="ri-time-line" />
               <div>
-                <p className={styles.reviewBannerTitle}>Result submitted — awaiting admin</p>
-                <p className={styles.reviewBannerSub}>{ch?.username} <strong>{scoreRequest.score_challenger}</strong> — <strong>{scoreRequest.score_challenged}</strong> {cd?.username}</p>
+                <p className={styles.reviewBannerTitle}>Your score is in — waiting on your opponent</p>
+                <p className={styles.reviewBannerSub}>It'll auto-complete the moment they submit a matching result.</p>
               </div>
             </div>
           )}
-          {isAwaitingReview && !scoreRequest && (
-            <div className={styles.reviewBanner}>
-              <i className="ri-time-line" />
-              <div><p className={styles.reviewBannerTitle}>Result submitted — awaiting admin review</p></div>
+
+          {/* Conflict — both submitted but disagreed, admin needed */}
+          {isAwaitingReview && isConflict && (
+            <div className={styles.reviewBanner} style={{ borderColor: '#ef4444' }}>
+              <i className="ri-error-warning-line" style={{ color: '#ef4444' }} />
+              <div>
+                <p className={styles.reviewBannerTitle}>Score mismatch — sent to admin</p>
+                <p className={styles.reviewBannerSub}>
+                  {ch?.username}: {scoreRequest.challenger_score_challenger}–{scoreRequest.challenger_score_challenged} ·{' '}
+                  {cd?.username}: {scoreRequest.challenged_score_challenger}–{scoreRequest.challenged_score_challenged}
+                </p>
+              </div>
             </div>
           )}
 
@@ -517,63 +433,57 @@ export default function MatchPage() {
         </div>
       )}
 
+      {/* ── SPECTATOR NOTE — visible to non-competitors viewing a live/open match ── */}
+      {!isCompetitor && !canManage && (isLive || isAwaitingReview || isRecruiting) && (
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '8px 0' }}>
+          {isRecruiting ? 'Anyone can join this open match.' : 'You\'re viewing this match as a spectator.'}
+        </p>
+      )}
+
       {/* ── ADMIN PANEL ── */}
       {canManage && (
         <div className={styles.adminPanel}>
           <p className={styles.adminTitle}><i className="ri-shield-line" /> {isAdmin ? 'Admin Controls' : 'Organiser Controls'}</p>
 
-          {/* ── Pending score request review ── */}
-          {(isAwaitingReview || scoreRequest) && scoreRequest && (
+          {/* ── Conflict resolution — only shown when both sides disagreed ── */}
+          {isConflict && scoreRequest && (
             <div className={styles.adminBlock}>
-              <label className={styles.adminLabel} style={{ color: '#a855f7' }}>
-                <i className="ri-inbox-line" style={{ marginRight: 4 }} /> Score Request — Review &amp; Accept
+              <label className={styles.adminLabel} style={{ color: '#ef4444' }}>
+                <i className="ri-error-warning-line" style={{ marginRight: 4 }} /> Score Conflict — Manual Decision Needed
               </label>
               <div className={styles.scoreRequestCard}>
+                <p style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 8 }}>Each player reported a different result:</p>
                 <div className={styles.scoreRequestPlayers}>
                   <div className={styles.srPlayer}>
-                    <span className={styles.srName}>{ch?.username}</span>
-                    <span className={styles.srScore}>{scoreRequest.score_challenger}</span>
+                    <span className={styles.srName}>{ch?.username} says</span>
+                    <span className={styles.srScore}>{scoreRequest.challenger_score_challenger ?? '?'}–{scoreRequest.challenger_score_challenged ?? '?'}</span>
                   </div>
-                  <span className={styles.srSep}>—</span>
+                  <span className={styles.srSep}>vs</span>
                   <div className={`${styles.srPlayer} ${styles.srPlayerRight}`}>
-                    <span className={styles.srScore}>{scoreRequest.score_challenged}</span>
-                    <span className={styles.srName}>{cd?.username}</span>
+                    <span className={styles.srScore}>{scoreRequest.challenged_score_challenger ?? '?'}–{scoreRequest.challenged_score_challenged ?? '?'}</span>
+                    <span className={styles.srName}>{cd?.username} says</span>
                   </div>
                 </div>
-                {/* Auto-inferred winner */}
-                {scoreRequest.score_challenger !== scoreRequest.score_challenged && (
-                  <p className={styles.srInferred}>
-                    <i className="ri-trophy-line" /> Inferred winner:{' '}
-                    <strong>{scoreRequest.score_challenger > scoreRequest.score_challenged ? ch?.username : cd?.username}</strong>
-                  </p>
-                )}
-                {/* Draw — admin must pick */}
-                {scoreRequest.score_challenger === scoreRequest.score_challenged && (
-                  <div className={styles.field} style={{ marginTop: 10 }}>
-                    <label className={styles.fieldLabel}>Draw — manually pick winner</label>
-                    <select className={styles.input} value={resultForm.winner_id} onChange={e => setResultForm(x => ({ ...x, winner_id: e.target.value }))}>
-                      <option value="">— No winner (draw) —</option>
-                      <option value={match.challenger_id}>{ch?.username}</option>
-                      <option value={match.challenged_id}>{cd?.username}</option>
-                    </select>
-                  </div>
-                )}
                 <div className={styles.field} style={{ marginTop: 10 }}>
-                  <label className={styles.fieldLabel}>Admin Notes (optional)</label>
-                  <textarea className={styles.input} rows={2} value={resultForm.notes} onChange={e => setResultForm(x => ({ ...x, notes: e.target.value }))} />
+                  <label className={styles.fieldLabel}>Pick which report to accept</label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className={`${styles.btn} ${styles.btnSm}`} style={{ flex: 1 }}
+                      onClick={() => adminResolveConflict(
+                        scoreRequest.challenger_score_challenger > scoreRequest.challenger_score_challenged ? match.challenger_id : scoreRequest.challenger_score_challenged > scoreRequest.challenger_score_challenger ? match.challenged_id : null,
+                        scoreRequest.challenger_score_challenger, scoreRequest.challenger_score_challenged
+                      )}>
+                      Accept {ch?.username}'s
+                    </button>
+                    <button className={`${styles.btn} ${styles.btnSm}`} style={{ flex: 1 }}
+                      onClick={() => adminResolveConflict(
+                        scoreRequest.challenged_score_challenger > scoreRequest.challenged_score_challenged ? match.challenger_id : scoreRequest.challenged_score_challenged > scoreRequest.challenged_score_challenger ? match.challenged_id : null,
+                        scoreRequest.challenged_score_challenger, scoreRequest.challenged_score_challenged
+                      )}>
+                      Accept {cd?.username}'s
+                    </button>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                  <button className={styles.btn} onClick={acceptResult} disabled={saving} style={{ background: '#a855f7' }}>
-                    <i className="ri-check-double-line" /> {saving ? 'Accepting…' : 'Accept & Complete Match'}
-                  </button>
-                  <button className={`${styles.btn} ${styles.btnGhost}`} onClick={async () => {
-                    await supabase.from('score_requests').update({ status: 'rejected' }).eq('id', scoreRequest.id)
-                    await supabase.from('matches').update({ status: 'live' }).eq('id', match.id)
-                    loadMatch()
-                  }} style={{ width: 'auto', flexShrink: 0, padding: '0 16px' }} title="Reject and send back to live">
-                    <i className="ri-close-line" />
-                  </button>
-                </div>
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>Or use "Override Result" below to set a custom score instead.</p>
               </div>
             </div>
           )}
@@ -600,7 +510,7 @@ export default function MatchPage() {
           </div>
 
           <div className={styles.adminBlock}>
-            <label className={styles.adminLabel}>Override Result <span className={styles.adminHint}>(bypasses score request)</span></label>
+            <label className={styles.adminLabel}>Override Result <span className={styles.adminHint}>(bypasses score requests entirely)</span></label>
             <div className={styles.resultForm}>
               <div className={styles.field}>
                 <label className={styles.fieldLabel}>Winner</label>

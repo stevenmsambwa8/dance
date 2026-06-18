@@ -125,7 +125,7 @@ export default function Nav() {
     const { item_id, request_id, tournament_id, sender_id, match_id, game_slug } = notif.meta || {}
     if (notif.type === 'direct_message' && sender_id) {
       router.push(`/dm/${sender_id}`)
-    } else if (notif.type === 'match_request_accepted' && match_id) {
+    } else if ((notif.type === 'match_request_accepted' || notif.type === 'match_recruit' || notif.type === 'score_request' || notif.type === 'match_result') && match_id) {
       router.push(`/matches/${match_id}`)
     } else if (notif.type === 'group_chat' && game_slug) {
       router.push(`/games/${game_slug}/chat`)

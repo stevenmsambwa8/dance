@@ -20,6 +20,9 @@ const PUSH_TYPES = new Set([
   'request_update',
   'negotiation_message',
   'match_request_accepted',
+  'match_recruit',
+  'score_request',
+  'match_result',
 ])
 
 export async function POST(req) {
@@ -103,6 +106,12 @@ function getDeepLink(type, meta) {
         : `${APP_URL}/my-requests`
     case 'match_request_accepted':
       return meta?.match_id ? `${APP_URL}/matches/${meta.match_id}` : `${APP_URL}/matches`
+    case 'match_recruit':
+      return meta?.match_id ? `${APP_URL}/matches/${meta.match_id}` : `${APP_URL}/matches`
+    case 'score_request':
+      return meta?.match_id ? `${APP_URL}/matches/${meta.match_id}` : `${APP_URL}/matches`
+    case 'match_result':
+      return meta?.match_id ? `${APP_URL}/matches/${meta.match_id}` : `${APP_URL}/matches`
     default:
       return `${APP_URL}/notifications`
   }
@@ -112,5 +121,6 @@ function getCollapseId(type, meta) {
   if (type === 'direct_message' && meta?.sender_id)        return `dm-${meta.sender_id}`
   if (type === 'group_chat' && meta?.game_slug)             return `gchat-${meta.game_slug}`
   if (type === 'negotiation_message' && meta?.request_id)  return `req-${meta.request_id}`
+  if (type === 'match_recruit' && meta?.match_id)           return `recruit-${meta.match_id}`
   return type
 }

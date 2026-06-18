@@ -33,6 +33,7 @@ const TYPE_META = {
   match_win:              { icon: 'ri-trophy-line',              color: '#22c55e', label: 'Match Won'          },
   match_loss:             { icon: 'ri-close-circle-line',        color: '#ef4444', label: 'Match Lost'         },
   match_result:           { icon: 'ri-flag-line',                color: '#8e8e93', label: 'Match Result'       },
+  match_recruit:          { icon: 'ri-megaphone-line',           color: '#3b82f6', label: 'Open Match'         },
 
   // Messaging
   direct_message:         { icon: 'ri-chat-private-line',        color: '#0ea5e9', label: 'Direct Message'     },
@@ -131,7 +132,7 @@ export default function NotificationsPage() {
     const { item_id, request_id, tournament_id, game_slug, sender_id, match_id, cta_link } = notif.meta || {}
     if (notif.type === 'direct_message' && sender_id) {
       router.push(`/dm/${sender_id}`)
-    } else if ((notif.type === 'match_request_accepted' || notif.type === 'score_request' || notif.type === 'match_win' || notif.type === 'match_loss' || notif.type === 'match_result') && match_id) {
+    } else if ((notif.type === 'match_request_accepted' || notif.type === 'match_recruit' || notif.type === 'score_request' || notif.type === 'match_win' || notif.type === 'match_loss' || notif.type === 'match_result') && match_id) {
       router.push(`/matches/${match_id}`)
     } else if (notif.type === 'group_chat' && game_slug) {
       router.push(`/games/${game_slug}/chat`)
