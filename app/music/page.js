@@ -25,6 +25,18 @@ export default function MusicPage() {
     ? SAMPLE_TRACKS
     : SAMPLE_TRACKS.filter(t => t.genre === activeGenre)
 
+  // FIX: on first load currentTrack is null, so clicking a track row
+  // always triggers a fresh load. But if context initialises currentTrack
+  // to SAMPLE_TRACKS[0] without playing, we need to force-play here.
+  function handleTrackClick(track) {
+    if (currentTrack?.id === track.id && !isPlaying) {
+      // Same track already loaded but not playing — just resume
+      togglePlay()
+    } else {
+      playTrack(track)
+    }
+  }
+
   return (
     <div className={styles.page}>
 
@@ -79,12 +91,18 @@ export default function MusicPage() {
             </button>
           </div>
 
+          {/* FIX: pass --vol so the CSS gradient fill tracks the thumb */}
           <div className={styles.volumeWrap}>
-            <i className="ri-volume-down-line" />
+            <i className={volume === 0 ? 'ri-volume-mute-line' : 'ri-volume-down-line'} />
             <input
-              type="range" min={0} max={1} step={0.01} value={volume}
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={volume}
               onChange={e => changeVolume(parseFloat(e.target.value))}
               className={styles.volumeSlider}
+              style={{ '--vol': `${Math.round(volume * 100)}%` }}
             />
             <i className="ri-volume-up-line" />
           </div>
@@ -118,7 +136,7 @@ export default function MusicPage() {
               <button
                 key={track.id}
                 className={`${styles.trackRow} ${isActive ? styles.trackRowActive : ''}`}
-                onClick={() => playTrack(track)}
+                onClick={() => handleTrackClick(track)}
               >
                 <div className={styles.trackIdx}>
                   {isThisPlaying
