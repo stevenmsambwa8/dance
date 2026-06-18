@@ -5,6 +5,7 @@ import { useAuth, ADMIN_EMAIL } from '../../components/AuthProvider'
 import { supabase } from '../../lib/supabase'
 import { RANK_TIERS, GAME_META, GAME_SLUGS } from '../../lib/constants'
 import { getTierTheme } from '../../lib/tierTheme'
+import { getCurrentSeason, computeLevelAfterWin } from '../../lib/seasons'
 import styles from './page.module.css'
 import usePageLoading from '../../components/usePageLoading'
 import AdminSubscriptions from '../../components/AdminSubscriptions'
@@ -126,12 +127,19 @@ function LineChart({ data, color = '#6366f1', fill = true }) {
 export default function Dashboard() {
   const { user, isAdmin, loading: authLoading } = useAuth()
   const router = useRouter()
-  const [tab, setTab] = useState('Overview')
+  const [tab, setTab] = useState(() => searchParamsInitialTab())
+  function searchParamsInitialTab() {
+    if (typeof window === 'undefined') return 'Overview'
+    const t = new URLSearchParams(window.location.search).get('tab')
+    const validTabs = ['Overview','Todos','Subscriptions','Users','Masters','Notifications','Tournaments','Battles','Posts','Shop']
+    return validTabs.includes(t) ? t : 'Overview'
+  }
   const [stats, setStats] = useState({})
   const [users, setUsers] = useState([])
   const [posts, setPosts] = useState([])
   const [tournaments, setTournaments] = useState([])
   const [battles, setBattles] = useState([])
+  const [scoreRequestsByMatch, setScoreRequestsByMatch] = useState({})
   const [shopItems, setShopItems] = useState([])
   const [dataLoading, setDataLoading] = useState(true)
   usePageLoading(authLoading || dataLoading)
@@ -172,8 +180,9 @@ export default function Dashboard() {
   const [editTournament, setEditTournament] = useState(null)
   const [editShop, setEditShop] = useState(null)
   const [editBattle, setEditBattle] = useState(null)
+  const [overrideForm, setOverrideForm] = useState({ winner_id: '', score_challenger: '', score_challenged: '' })
   const [battleModal, setBattleModal] = useState(false)
-  const [battleForm, setBattleForm] = useState({ player1: '', player2: '', game_mode: '', format: '', scheduled_at: '' })
+  const [battleForm, setBattleForm] = useState({ player1: '', player2: '', game: '', game_mode: '', format: '', scheduled_at: '' })
   const [battleCreating, setBattleCreating] = useState(false)
 
   useEffect(() => { if (!authLoading && !isAdmin) router.replace('/') }, [authLoading, isAdmin])
@@ -213,7 +222,7 @@ export default function Dashboard() {
     const [
       { count: userCount }, { count: postCount }, { count: tournCount }, { count: matchCount },
       { data: recentUsers }, { data: recentPosts }, { data: recentTourns },
-      { data: recentBattles }, { data: shopData }
+      { data: recentBattles }, { data: shopData }, { data: openScoreRequests }
     ] = await Promise.all([
       supabase.from('profiles').select('*', { count: 'exact', head: true }),
       supabase.from('posts').select('*', { count: 'exact', head: true }),
@@ -224,6 +233,7 @@ export default function Dashboard() {
       supabase.from('tournaments').select('*').order('created_at', { ascending: false }).limit(50),
       supabase.from('matches').select('*, challenger:profiles!matches_challenger_id_fkey(username), challenged:profiles!matches_challenged_id_fkey(username)').order('created_at', { ascending: false }).limit(50),
       supabase.from('shop_items').select('*, profiles(username)').order('created_at', { ascending: false }).limit(50),
+      supabase.from('score_requests').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(50),
     ])
     setStats({ users: userCount || 0, posts: postCount || 0, tournaments: tournCount || 0, matches: matchCount || 0 })
     setUsers(recentUsers || [])
@@ -231,6 +241,7 @@ export default function Dashboard() {
     setTournaments(recentTourns || [])
     setBattles(recentBattles || [])
     setShopItems(shopData || [])
+    setScoreRequestsByMatch(Object.fromEntries((openScoreRequests || []).map(sr => [sr.match_id, sr])))
     setDataLoading(false)
   }
 
@@ -430,7 +441,8 @@ export default function Dashboard() {
 
   async function saveBattle() {
     const { error } = await supabase.from('matches').update({
-      status: editBattle.status, game_mode: editBattle.game_mode, format: editBattle.format,
+      status: editBattle.status, game: editBattle.game || null, game_mode: editBattle.game_mode,
+      format: editBattle.format, ticker_text: editBattle.ticker_text || null,
     }).eq('id', editBattle.id)
     if (error) { alert(error.message); return }
     setBattles(bs => bs.map(b => b.id === editBattle.id ? { ...b, ...editBattle } : b))
@@ -449,11 +461,76 @@ export default function Dashboard() {
     ])
     if (!p1 || !p2) { alert('One or both usernames not found'); setBattleCreating(false); return }
     const { error } = await supabase.from('matches').insert({
-      challenger_id: p1.id, challenged_id: p2.id, game_mode: battleForm.game_mode,
+      challenger_id: p1.id, challenged_id: p2.id, game: battleForm.game || null, game_mode: battleForm.game_mode,
       format: battleForm.format, scheduled_at: battleForm.scheduled_at || null, status: 'confirmed',
     })
     setBattleCreating(false)
     if (!error) { setBattleModal(false); loadAll() } else alert(error.message)
+  }
+
+  // Awards points/wins/losses for a completed match. Shared by both the
+  // score-conflict resolver and the manual result override below.
+  async function awardMatchResult(match, winnerId) {
+    if (!winnerId || match.status === 'completed') return
+    const loserId = winnerId === match.challenger_id ? match.challenged_id : match.challenger_id
+    const [{ data: wData }, { data: lData }] = await Promise.all([
+      supabase.from('profiles').select('wins, points, season_wins, level, current_season').eq('id', winnerId).single(),
+      supabase.from('profiles').select('losses, points, season_losses, current_season').eq('id', loserId).single(),
+    ])
+    await Promise.all([
+      supabase.from('profiles').update({
+        wins: (wData?.wins ?? 0) + 1, points: (wData?.points ?? 0) + 12,
+        season_wins: (wData?.season_wins ?? 0) + 1,
+        level: computeLevelAfterWin(wData?.level ?? 1, (wData?.season_wins ?? 0) + 1),
+        current_season: getCurrentSeason(),
+      }).eq('id', winnerId),
+      supabase.from('profiles').update({
+        losses: (lData?.losses ?? 0) + 1, points: Math.max(0, (lData?.points ?? 0) + 4),
+        season_losses: (lData?.season_losses ?? 0) + 1, current_season: getCurrentSeason(),
+      }).eq('id', loserId),
+    ])
+    await Promise.all([
+      supabase.rpc('log_earning', { p_user_id: winnerId, p_type: 'match_win', p_points: 12, p_description: 'Match win (admin reviewed)', p_ref_id: match.id }),
+      supabase.rpc('log_earning', { p_user_id: loserId, p_type: 'match_loss', p_points: 4, p_description: 'Match loss (admin reviewed)', p_ref_id: match.id }),
+    ])
+    await supabase.from('notifications').insert([
+      { user_id: winnerId, type: 'match_result', title: '🏆 Match Result: You Won!', body: 'An admin reviewed and confirmed your result. +12 pts', meta: { match_id: match.id }, read: false },
+      { user_id: loserId, type: 'match_result', title: 'Match Result: Defeat', body: 'An admin reviewed and confirmed your result. +4 pts', meta: { match_id: match.id }, read: false },
+    ])
+  }
+
+  // Accept one side's submitted score for a conflicted match (both players
+  // reported different results) and complete the match with it.
+  async function resolveScoreConflict(match, sr, side) {
+    const scoreCh = side === 'challenger' ? sr.challenger_score_challenger : sr.challenged_score_challenger
+    const scoreCd = side === 'challenger' ? sr.challenger_score_challenged : sr.challenged_score_challenged
+    let winnerId = null
+    if (scoreCh > scoreCd) winnerId = match.challenger_id
+    else if (scoreCd > scoreCh) winnerId = match.challenged_id
+
+    const { error } = await supabase.from('matches').update({
+      status: 'completed', winner_id: winnerId, score_challenger: scoreCh, score_challenged: scoreCd,
+    }).eq('id', match.id)
+    if (error) { alert(error.message); return }
+    await supabase.from('score_requests').update({ status: 'accepted', resolution: 'admin_override' }).eq('id', sr.id)
+    await awardMatchResult(match, winnerId)
+    setScoreRequestsByMatch(m => { const next = { ...m }; delete next[match.id]; return next })
+    setBattles(bs => bs.map(b => b.id === match.id ? { ...b, status: 'completed', winner_id: winnerId, score_challenger: scoreCh, score_challenged: scoreCd } : b))
+  }
+
+  // Fully manual override — admin sets winner/score directly, bypassing
+  // whatever was or wasn't submitted by the players.
+  async function overrideMatchResult(match, winnerId, scoreCh, scoreCd) {
+    const { error } = await supabase.from('matches').update({
+      status: 'completed', winner_id: winnerId || null, score_challenger: scoreCh, score_challenged: scoreCd,
+    }).eq('id', match.id)
+    if (error) { alert(error.message); return }
+    const sr = scoreRequestsByMatch[match.id]
+    if (sr) await supabase.from('score_requests').update({ status: 'accepted', resolution: 'admin_override' }).eq('id', sr.id)
+    await awardMatchResult(match, winnerId || null)
+    setScoreRequestsByMatch(m => { const next = { ...m }; delete next[match.id]; return next })
+    setBattles(bs => bs.map(b => b.id === match.id ? { ...b, status: 'completed', winner_id: winnerId || null, score_challenger: scoreCh, score_challenged: scoreCd } : b))
+    setEditBattle(null)
   }
 
   async function saveShop() {
@@ -1108,26 +1185,69 @@ export default function Dashboard() {
                   <i className="ri-sword-line" /> Create
                 </button>
               </div>
+
+              {/* ── Conflicts needing a decision — surfaced above the table ── */}
+              {Object.values(scoreRequestsByMatch).filter(sr => sr.resolution === 'conflict').length > 0 && (
+                <div style={{ marginBottom: 18 }}>
+                  <h3 style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#ef4444', marginBottom: 8 }}>
+                    <i className="ri-error-warning-line" /> Score Conflicts — Needs Your Decision
+                  </h3>
+                  {battles.filter(b => scoreRequestsByMatch[b.id]?.resolution === 'conflict').map(b => {
+                    const sr = scoreRequestsByMatch[b.id]
+                    return (
+                      <div key={b.id} style={{ border: '1px solid #ef444440', borderRadius: 10, padding: 12, marginBottom: 8, background: '#ef444408' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                          <span className={styles.bold}>{b.challenger?.username} vs {b.challenged?.username}</span>
+                          <button className={styles.iconBtnSm} onClick={() => router.push(`/matches/${makeMatchCode(b.id)}`)} title="Open match"><i className="ri-external-link-line" /></button>
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 10 }}>
+                          {b.challenger?.username} says <strong>{sr.challenger_score_challenger ?? '?'}–{sr.challenger_score_challenged ?? '?'}</strong>
+                          {'  ·  '}
+                          {b.challenged?.username} says <strong>{sr.challenged_score_challenger ?? '?'}–{sr.challenged_score_challenged ?? '?'}</strong>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button className={styles.saveBtn} style={{ flex: 1 }} onClick={() => resolveScoreConflict(b, sr, 'challenger')}>
+                            Accept {b.challenger?.username}'s
+                          </button>
+                          <button className={styles.saveBtn} style={{ flex: 1 }} onClick={() => resolveScoreConflict(b, sr, 'challenged')}>
+                            Accept {b.challenged?.username}'s
+                          </button>
+                          <button className={styles.iconBtnSm} onClick={() => { setEditBattle({ ...b }); setOverrideForm({ winner_id: '', score_challenger: '', score_challenged: '' }) }} title="Override manually"><i className="ri-edit-line" /></button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
               <div className={styles.tableWrap}>
                 <table className={styles.table}>
-                  <thead><tr><th>Challenger</th><th>vs</th><th>Mode</th><th>Status</th><th>Date</th><th></th></tr></thead>
+                  <thead><tr><th>Challenger</th><th>vs</th><th>Game</th><th>Mode</th><th>Status</th><th>Date</th><th></th></tr></thead>
                   <tbody>
-                    {battles.map(b => (
+                    {battles.map(b => {
+                      const sr = scoreRequestsByMatch[b.id]
+                      const hasConflict = sr?.resolution === 'conflict'
+                      return (
                       <tr key={b.id}>
                         <td className={styles.bold}>{b.challenger?.username}</td>
                         <td className={styles.dimCell}>{b.challenged?.username}</td>
+                        <td className={styles.dimCell}>{b.game ? (GAME_META[b.game]?.name || b.game) : '—'}</td>
                         <td>{b.game_mode || '—'}</td>
-                        <td><Badge color={b.status === 'live' ? '#22c55e' : b.status === 'completed' ? '#64748b' : '#f59e0b'}>{b.status}</Badge></td>
+                        <td>
+                          <Badge color={hasConflict ? '#ef4444' : b.status === 'live' ? '#22c55e' : b.status === 'completed' ? '#64748b' : '#f59e0b'}>
+                            {hasConflict ? 'conflict' : b.status}
+                          </Badge>
+                        </td>
                         <td className={styles.dimCell}>{b.scheduled_at ? fmtDate(b.scheduled_at) : 'TBD'}</td>
                         <td>
                           <div className={styles.rowActions}>
                             <button className={styles.iconBtnSm} onClick={() => router.push(`/matches/${makeMatchCode(b.id)}`)} title="Open"><i className="ri-external-link-line" /></button>
-                            <button className={styles.iconBtnSm} onClick={() => setEditBattle({ ...b })}><i className="ri-edit-line" /></button>
+                            <button className={styles.iconBtnSm} onClick={() => { setEditBattle({ ...b }); setOverrideForm({ winner_id: '', score_challenger: '', score_challenged: '' }) }}><i className="ri-edit-line" /></button>
                             <button className={styles.iconBtnSmDanger} onClick={() => deleteBattle(b.id)}><i className="ri-delete-bin-line" /></button>
                           </div>
                         </td>
                       </tr>
-                    ))}
+                    )})}
                   </tbody>
                 </table>
               </div>
@@ -1439,15 +1559,50 @@ export default function Dashboard() {
             {editBattle && <>
               <div className={styles.modalHeader}><span>Edit Battle</span><button onClick={() => setEditBattle(null)}><i className="ri-close-line" /></button></div>
               <div className={styles.modalBody}>
+                <div className={styles.createField}><label>Game</label>
+                  <select value={editBattle.game || ''} onChange={e => setEditBattle(x => ({ ...x, game: e.target.value }))}>
+                    <option value="">— Not set —</option>
+                    {GAME_SLUGS.map(g => <option key={g} value={g}>{GAME_META[g]?.name || g}</option>)}
+                  </select></div>
                 <div className={styles.createField}><label>Game Mode</label>
                   <input value={editBattle.game_mode || ''} onChange={e => setEditBattle(x => ({ ...x, game_mode: e.target.value }))} /></div>
                 <div className={styles.createField}><label>Format</label>
                   <input value={editBattle.format || ''} onChange={e => setEditBattle(x => ({ ...x, format: e.target.value }))} /></div>
                 <div className={styles.createField}><label>Status</label>
                   <select value={editBattle.status} onChange={e => setEditBattle(x => ({ ...x, status: e.target.value }))}>
-                    {['pending','confirmed','live','completed','declined','cancelled'].map(s => <option key={s}>{s}</option>)}
+                    {['pending','confirmed','live','awaiting_review','completed','declined','cancelled'].map(s => <option key={s}>{s}</option>)}
                   </select></div>
+                <div className={styles.createField}><label>Live Ticker <span style={{ opacity: 0.6 }}>(shown only while status is Live)</span></label>
+                  <input placeholder="e.g. Round 2 · Player A leads 3-1…" value={editBattle.ticker_text || ''} onChange={e => setEditBattle(x => ({ ...x, ticker_text: e.target.value }))} /></div>
                 <button className={styles.saveBtn} onClick={saveBattle}><i className="ri-check-line" /> Save</button>
+
+                {/* ── Manual result override — sets winner + score directly ── */}
+                <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>
+                    <i className="ri-shield-line" /> Override Result
+                  </div>
+                  <div className={styles.createField}><label>Winner</label>
+                    <select value={overrideForm.winner_id} onChange={e => setOverrideForm(f => ({ ...f, winner_id: e.target.value }))}>
+                      <option value="">— No winner —</option>
+                      <option value={editBattle.challenger_id}>{editBattle.challenger?.username} (Challenger)</option>
+                      <option value={editBattle.challenged_id}>{editBattle.challenged?.username} (Challenged)</option>
+                    </select></div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <div className={styles.createField} style={{ flex: 1 }}><label>{editBattle.challenger?.username}</label>
+                      <input type="number" min="0" placeholder="0" value={overrideForm.score_challenger}
+                        onChange={e => setOverrideForm(f => ({ ...f, score_challenger: e.target.value }))} /></div>
+                    <div className={styles.createField} style={{ flex: 1 }}><label>{editBattle.challenged?.username}</label>
+                      <input type="number" min="0" placeholder="0" value={overrideForm.score_challenged}
+                        onChange={e => setOverrideForm(f => ({ ...f, score_challenged: e.target.value }))} /></div>
+                  </div>
+                  <button className={styles.saveBtn} onClick={() => overrideMatchResult(
+                    editBattle, overrideForm.winner_id || null,
+                    overrideForm.score_challenger !== '' ? Number(overrideForm.score_challenger) : null,
+                    overrideForm.score_challenged !== '' ? Number(overrideForm.score_challenged) : null,
+                  )}>
+                    <i className="ri-check-double-line" /> Save Result & Award Points
+                  </button>
+                </div>
               </div>
             </>}
 
@@ -1475,6 +1630,11 @@ export default function Dashboard() {
                 ))}
                 <div className={styles.createField}><label>Scheduled At</label>
                   <input type="datetime-local" value={battleForm.scheduled_at} onChange={e => setBattleForm(x => ({ ...x, scheduled_at: e.target.value }))} /></div>
+                <div className={styles.createField}><label>Game</label>
+                  <select value={battleForm.game} onChange={e => setBattleForm(x => ({ ...x, game: e.target.value }))}>
+                    <option value="">— Not set —</option>
+                    {GAME_SLUGS.map(g => <option key={g} value={g}>{GAME_META[g]?.name || g}</option>)}
+                  </select></div>
                 <div className={styles.createField}><label>Game Mode</label>
                   <input placeholder="e.g. Elimination…" value={battleForm.game_mode} onChange={e => setBattleForm(x => ({ ...x, game_mode: e.target.value }))} /></div>
                 <div className={styles.createField}><label>Format</label>

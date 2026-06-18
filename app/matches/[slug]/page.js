@@ -7,10 +7,7 @@ import { supabase } from '../../../lib/supabase'
 import styles from './page.module.css'
 import UserBadges from '../../../components/UserBadges'
 import usePageLoading from '../../../components/usePageLoading'
-import { getCurrentSeason, computeLevelAfterWin } from '../../../lib/seasons'
 import { GAME_META } from '../../../lib/constants'
-
-const STATUS_OPTIONS = ['pending', 'confirmed', 'live', 'awaiting_review', 'completed', 'declined', 'cancelled']
 
 export default function MatchPage() {
   const { slug } = useParams()
@@ -20,15 +17,9 @@ export default function MatchPage() {
 
   const [match, setMatch]           = useState(null)
   const [loading, setLoading]       = useState(true)
-  const [tournament, setTournament] = useState(null)
   usePageLoading(loading)
   const [loadError, setLoadError]   = useState(null)
-  const [saving, setSaving]         = useState(false)
   const [forfeitLoading, setForfeitLoading] = useState(false)
-  const [resultForm, setResultForm] = useState({ winner_id: '', score_challenger: '', score_challenged: '', notes: '' })
-  const [ticker, setTicker]         = useState('')
-  const [tickerInput, setTickerInput] = useState('')
-  const [tickerSaving, setTickerSaving] = useState(false)
 
   // Score submission — each competitor submits their own side independently
   const [scoreGoals, setScoreGoals]     = useState({ challenger: 0, challenged: 0 })
@@ -49,9 +40,6 @@ export default function MatchPage() {
       if (error) { setLoadError(error.message); setLoading(false); return }
       if (data) {
         setMatch(data)
-        setResultForm({ winner_id: data.winner_id || '', score_challenger: data.score_challenger ?? '', score_challenged: data.score_challenged ?? '', notes: data.notes || '' })
-        setTicker(data.ticker_text || '')
-        setTickerInput(data.ticker_text || '')
         // Load the active score_requests row (pending = still collecting one or both sides)
         const { data: sr } = await supabase
           .from('score_requests')
@@ -68,25 +56,14 @@ export default function MatchPage() {
           const myChallengedVal = mySide === 'challenger' ? sr.challenger_score_challenged : sr.challenged_score_challenged
           setScoreGoals({ challenger: myChallengerVal ?? 0, challenged: myChallengedVal ?? 0 })
         }
-        if (data.tournament_id) {
-          supabase.from('tournaments').select('id, created_by').eq('id', data.tournament_id).maybeSingle()
-            .then(({ data: t }) => { if (t) setTournament(t) })
-        }
       }
     } catch (err) { setLoadError(err.message || 'Network error') }
     setLoading(false)
   }
 
   async function updateStatus(status) {
-    setSaving(true)
     await supabase.from('matches').update({ status }).eq('id', match.id)
-    setSaving(false); loadMatch()
-  }
-
-  async function saveTicker() {
-    setTickerSaving(true)
-    await supabase.from('matches').update({ ticker_text: tickerInput }).eq('id', match.id)
-    setTicker(tickerInput); setTickerSaving(false)
+    loadMatch()
   }
 
   async function forfeitMatch() {
@@ -137,57 +114,6 @@ export default function MatchPage() {
     loadMatch()
   }
 
-  // Admin manually resolves a conflicted score_request (both sides disagreed)
-  async function adminResolveConflict(winnerId, scoreCh, scoreCd) {
-    setSaving(true)
-    const { error } = await supabase.from('matches').update({
-      status: 'completed', winner_id: winnerId || null,
-      score_challenger: scoreCh, score_challenged: scoreCd,
-      notes: resultForm.notes,
-    }).eq('id', match.id)
-    if (error) { alert(error.message); setSaving(false); return }
-    if (scoreRequest) await supabase.from('score_requests').update({ status: 'accepted', resolution: 'admin_override' }).eq('id', scoreRequest.id)
-
-    if (winnerId && match.status !== 'completed') {
-      const loserId = winnerId === match.challenger_id ? match.challenged_id : match.challenger_id
-      const [{ data: wData }, { data: lData }] = await Promise.all([
-        supabase.from('profiles').select('wins, points, season_wins, level, current_season').eq('id', winnerId).single(),
-        supabase.from('profiles').select('losses, points, season_losses, current_season').eq('id', loserId).single(),
-      ])
-      await Promise.all([
-        supabase.from('profiles').update({
-          wins: (wData?.wins ?? 0) + 1, points: (wData?.points ?? 0) + 12,
-          season_wins: (wData?.season_wins ?? 0) + 1,
-          level: computeLevelAfterWin(wData?.level ?? 1, (wData?.season_wins ?? 0) + 1),
-          current_season: getCurrentSeason(),
-        }).eq('id', winnerId),
-        supabase.from('profiles').update({
-          losses: (lData?.losses ?? 0) + 1, points: Math.max(0, (lData?.points ?? 0) + 4),
-          season_losses: (lData?.season_losses ?? 0) + 1, current_season: getCurrentSeason(),
-        }).eq('id', loserId),
-      ])
-      await Promise.all([
-        supabase.rpc('log_earning', { p_user_id: winnerId, p_type: 'match_win', p_points: 12, p_description: `Beat ${(winnerId === match.challenger_id ? cd : ch)?.username ?? 'opponent'}`, p_ref_id: match.id }),
-        supabase.rpc('log_earning', { p_user_id: loserId, p_type: 'match_loss', p_points: 4, p_description: `Lost to ${(loserId === match.challenger_id ? cd : ch)?.username ?? 'opponent'}`, p_ref_id: match.id }),
-      ])
-      await supabase.from('notifications').insert([
-        { user_id: winnerId, type: 'match_result', title: '🏆 Match Result: You Won!', body: 'An admin reviewed and confirmed your result. +12 pts', meta: { match_id: match.id }, read: false },
-        { user_id: loserId, type: 'match_result', title: 'Match Result: Defeat', body: 'An admin reviewed and confirmed your result. +4 pts', meta: { match_id: match.id }, read: false },
-      ])
-      if (user?.id === winnerId || user?.id === loserId) refreshProfile?.()
-    }
-    setSaving(false); loadMatch()
-  }
-
-  // Admin overrides result manually, bypassing score_requests entirely
-  async function updateResult() {
-    setSaving(true)
-    const winnerId = resultForm.winner_id || null
-    const scoreCh = resultForm.score_challenger !== '' ? Number(resultForm.score_challenger) : null
-    const scoreCd = resultForm.score_challenged !== '' ? Number(resultForm.score_challenged) : null
-    await adminResolveConflict(winnerId, scoreCh, scoreCd)
-  }
-
   function formatDate(iso) {
     if (!iso) return 'TBD'
     return new Date(iso).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -219,7 +145,6 @@ export default function MatchPage() {
   const isRecruiting = match.status === 'recruiting'
   const isActive = ['pending', 'confirmed', 'live'].includes(match.status)
   const isCompetitor = user && (user.id === match.challenger_id || user.id === match.challenged_id)
-  const canManage = isAdmin || (user && tournament?.created_by === user.id)
   const statusColor = STATUS_COLOR[match.status] || 'var(--text-muted)'
   const chWon = isCompleted && match.winner_id === match.challenger_id
   const cdWon = isCompleted && match.winner_id === match.challenged_id
@@ -237,9 +162,18 @@ export default function MatchPage() {
 
   return (
     <div className={styles.page}>
-      <button className={styles.back} onClick={() => router.back()}>
-        <i className="ri-arrow-left-line" /> Back
-      </button>
+      <div className={styles.topRow}>
+        <button className={styles.back} onClick={() => router.back()}>
+          <i className="ri-arrow-left-line" /> Back
+        </button>
+        {/* Admins manage matches from the Admin Dashboard, not here —
+            this is just a quick jump-off link, never an inline panel. */}
+        {isAdmin && (
+          <button className={styles.adminLinkBtn} onClick={() => router.push('/dashboard?tab=Battles')}>
+            <i className="ri-shield-line" /> Manage in Admin Dashboard
+          </button>
+        )}
+      </div>
 
       {/* ── MATCH CARD ── */}
       <div className={`${styles.card} ${isLive ? styles.cardLive : ''}`}>
@@ -298,18 +232,18 @@ export default function MatchPage() {
           </div>
         </div>
 
-        {/* Live ticker */}
-        {isLive && ticker && (
+        {/* Live ticker — read-only display; admins set this from the dashboard */}
+        {isLive && match.ticker_text && (
           <div className={styles.ticker}>
             <span className={styles.tickerBadge}><i className="ri-live-line" /> LIVE</span>
             <div className={styles.tickerScroll}>
-              <span className={styles.tickerText}>{ticker}</span>
+              <span className={styles.tickerText}>{match.ticker_text}</span>
             </div>
           </div>
         )}
       </div>
 
-      {/* ── RECRUITING — anyone (not just the page-loader) can join from here too ── */}
+      {/* ── RECRUITING — anyone can join an open match ── */}
       {isRecruiting && (
         <div className={styles.section}>
           {match.recruit_message && <p style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 10 }}>"{match.recruit_message}"</p>}
@@ -352,15 +286,15 @@ export default function MatchPage() {
         ))}
       </div>
 
-      {/* ── COMPETITOR ACTIONS ── */}
-      {!canManage && isCompetitor && (
+      {/* ── COMPETITOR ACTIONS — shown to the two players only, never an admin panel ── */}
+      {isCompetitor && (
         <div className={styles.actions}>
           {/* Accept / Decline when pending */}
           {match.status === 'pending' && user?.id === match.challenged_id && (<>
-            <button className={styles.btn} onClick={() => updateStatus('confirmed')} disabled={saving}>
+            <button className={styles.btn} onClick={() => updateStatus('confirmed')}>
               <i className="ri-check-line" /> Accept Match
             </button>
-            <button className={`${styles.btn} ${styles.btnDanger}`} onClick={() => updateStatus('declined')} disabled={saving}>
+            <button className={`${styles.btn} ${styles.btnDanger}`} onClick={() => updateStatus('declined')}>
               <i className="ri-close-line" /> Decline
             </button>
           </>)}
@@ -433,117 +367,11 @@ export default function MatchPage() {
         </div>
       )}
 
-      {/* ── SPECTATOR NOTE — visible to non-competitors viewing a live/open match ── */}
-      {!isCompetitor && !canManage && (isLive || isAwaitingReview || isRecruiting) && (
+      {/* ── SPECTATOR NOTE — visible to everyone else, admins included ── */}
+      {!isCompetitor && (isLive || isAwaitingReview || isRecruiting) && (
         <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '8px 0' }}>
           {isRecruiting ? 'Anyone can join this open match.' : 'You\'re viewing this match as a spectator.'}
         </p>
-      )}
-
-      {/* ── ADMIN PANEL ── */}
-      {canManage && (
-        <div className={styles.adminPanel}>
-          <p className={styles.adminTitle}><i className="ri-shield-line" /> {isAdmin ? 'Admin Controls' : 'Organiser Controls'}</p>
-
-          {/* ── Conflict resolution — only shown when both sides disagreed ── */}
-          {isConflict && scoreRequest && (
-            <div className={styles.adminBlock}>
-              <label className={styles.adminLabel} style={{ color: '#ef4444' }}>
-                <i className="ri-error-warning-line" style={{ marginRight: 4 }} /> Score Conflict — Manual Decision Needed
-              </label>
-              <div className={styles.scoreRequestCard}>
-                <p style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 8 }}>Each player reported a different result:</p>
-                <div className={styles.scoreRequestPlayers}>
-                  <div className={styles.srPlayer}>
-                    <span className={styles.srName}>{ch?.username} says</span>
-                    <span className={styles.srScore}>{scoreRequest.challenger_score_challenger ?? '?'}–{scoreRequest.challenger_score_challenged ?? '?'}</span>
-                  </div>
-                  <span className={styles.srSep}>vs</span>
-                  <div className={`${styles.srPlayer} ${styles.srPlayerRight}`}>
-                    <span className={styles.srScore}>{scoreRequest.challenged_score_challenger ?? '?'}–{scoreRequest.challenged_score_challenged ?? '?'}</span>
-                    <span className={styles.srName}>{cd?.username} says</span>
-                  </div>
-                </div>
-                <div className={styles.field} style={{ marginTop: 10 }}>
-                  <label className={styles.fieldLabel}>Pick which report to accept</label>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button className={`${styles.btn} ${styles.btnSm}`} style={{ flex: 1 }}
-                      onClick={() => adminResolveConflict(
-                        scoreRequest.challenger_score_challenger > scoreRequest.challenger_score_challenged ? match.challenger_id : scoreRequest.challenger_score_challenged > scoreRequest.challenger_score_challenger ? match.challenged_id : null,
-                        scoreRequest.challenger_score_challenger, scoreRequest.challenger_score_challenged
-                      )}>
-                      Accept {ch?.username}'s
-                    </button>
-                    <button className={`${styles.btn} ${styles.btnSm}`} style={{ flex: 1 }}
-                      onClick={() => adminResolveConflict(
-                        scoreRequest.challenged_score_challenger > scoreRequest.challenged_score_challenged ? match.challenger_id : scoreRequest.challenged_score_challenged > scoreRequest.challenged_score_challenger ? match.challenged_id : null,
-                        scoreRequest.challenged_score_challenger, scoreRequest.challenged_score_challenged
-                      )}>
-                      Accept {cd?.username}'s
-                    </button>
-                  </div>
-                </div>
-                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>Or use "Override Result" below to set a custom score instead.</p>
-              </div>
-            </div>
-          )}
-
-          <div className={styles.adminBlock}>
-            <label className={styles.adminLabel}>Status</label>
-            <div className={styles.statusBtns}>
-              {STATUS_OPTIONS.map(s => (
-                <button key={s} className={`${styles.statusBtn} ${match.status === s ? styles.statusBtnActive : ''}`}
-                  onClick={() => updateStatus(s)} disabled={saving}>{s}</button>
-              ))}
-            </div>
-          </div>
-
-          <div className={styles.adminBlock}>
-            <label className={styles.adminLabel}>Live Ticker <span className={styles.adminHint}>(shown only while Live)</span></label>
-            <div className={styles.tickerRow}>
-              <input className={styles.input} placeholder="e.g. Round 2 · Player A leads 3-1…"
-                value={tickerInput} onChange={e => setTickerInput(e.target.value)} />
-              <button className={`${styles.btn} ${styles.btnSm}`} onClick={saveTicker} disabled={tickerSaving}>
-                {tickerSaving ? '…' : <i className="ri-check-line" />}
-              </button>
-            </div>
-          </div>
-
-          <div className={styles.adminBlock}>
-            <label className={styles.adminLabel}>Override Result <span className={styles.adminHint}>(bypasses score requests entirely)</span></label>
-            <div className={styles.resultForm}>
-              <div className={styles.field}>
-                <label className={styles.fieldLabel}>Winner</label>
-                <select className={styles.input} value={resultForm.winner_id} onChange={e => setResultForm(x => ({ ...x, winner_id: e.target.value }))}>
-                  <option value="">— No winner yet —</option>
-                  <option value={match.challenger_id}>{ch?.username} (Challenger)</option>
-                  <option value={match.challenged_id}>{cd?.username} (Challenged)</option>
-                </select>
-              </div>
-              <div className={styles.scoreRow}>
-                <div className={styles.field}>
-                  <label className={styles.fieldLabel}>{ch?.username}</label>
-                  <input className={styles.input} type="number" min="0" placeholder="0"
-                    value={resultForm.score_challenger} onChange={e => setResultForm(x => ({ ...x, score_challenger: e.target.value }))} />
-                </div>
-                <span className={styles.scoreSep} style={{ padding: '0 4px', fontSize: 20 }}>:</span>
-                <div className={styles.field}>
-                  <label className={styles.fieldLabel}>{cd?.username}</label>
-                  <input className={styles.input} type="number" min="0" placeholder="0"
-                    value={resultForm.score_challenged} onChange={e => setResultForm(x => ({ ...x, score_challenged: e.target.value }))} />
-                </div>
-              </div>
-              <div className={styles.field}>
-                <label className={styles.fieldLabel}>Notes (HTML supported)</label>
-                <textarea className={styles.input} rows={3} value={resultForm.notes}
-                  onChange={e => setResultForm(x => ({ ...x, notes: e.target.value }))} />
-              </div>
-              <button className={styles.btn} onClick={updateResult} disabled={saving}>
-                <i className="ri-check-double-line" /> {saving ? 'Saving…' : 'Save Result'}
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   )
