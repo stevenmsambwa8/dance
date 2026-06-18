@@ -1,5 +1,5 @@
 'use client'
-import { createContext, useContext, useRef, useState, useCallback, useEffect } from 'react'
+import { createContext, useContext, useRef, useState, useCallback } from 'react'
 
 export const SAMPLE_TRACKS = [
   {
@@ -66,21 +66,6 @@ export default function MusicPlayerProvider({ children }) {
     if (audioRef.current) audioRef.current.volume = v
     setVolumeState(v)
   }, [])
-
-  // Autoplay on mount — browsers require a user gesture first,
-  // so we attempt silently and let the player UI handle the blocked case.
-  useEffect(() => {
-    const audio = audioRef.current
-    if (!audio) return
-    const track = SAMPLE_TRACKS[0]
-    audio.src = track.url
-    audio.volume = volume
-    setCurrentTrack(track)
-    setIsLoading(true)
-    audio.play()
-      .then(() => { setIsPlaying(true); setIsLoading(false) })
-      .catch(() => setIsLoading(false)) // Blocked by browser autoplay policy — user tap will start it
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <MusicContext.Provider value={{
