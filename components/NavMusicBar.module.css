@@ -192,6 +192,32 @@
   gap: 10px;
 }
 
+.sidebarInfo {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  gap: 3px;
+}
+.sidebarInfoRow {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+.sidebarInfoLabel {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.sidebarInfoRow .title,
+.sidebarInfoRow .artist {
+  min-width: 0;
+}
+
 .sidebarSeekRow {
   display: flex;
   align-items: center;

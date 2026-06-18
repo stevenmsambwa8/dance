@@ -22,7 +22,7 @@ export default function NavMusicBar({ sidebar = false }) {
   if (sidebar) {
     return (
       <div className={styles.sidebarBar}>
-        {/* Top row: cover + info + controls */}
+        {/* Row 1: cover + labeled title/artist info */}
         <div className={styles.sidebarRow}>
           <Link href="/music" className={styles.coverLink} title="Open Music Player">
             <div className={styles.cover}>
@@ -35,9 +35,15 @@ export default function NavMusicBar({ sidebar = false }) {
             </div>
           </Link>
 
-          <Link href="/music" className={styles.info}>
-            <span className={styles.title}>{display.title}</span>
-            <span className={styles.artist}>{display.artist}</span>
+          <Link href="/music" className={styles.sidebarInfo}>
+            <span className={styles.sidebarInfoRow}>
+              <span className={styles.sidebarInfoLabel}>Music</span>
+              <span className={styles.title}>{display.title}</span>
+            </span>
+            <span className={styles.sidebarInfoRow}>
+              <span className={styles.sidebarInfoLabel}>With</span>
+              <span className={styles.artist}>{display.artist}</span>
+            </span>
           </Link>
 
           <div className={styles.controls}>
@@ -62,7 +68,7 @@ export default function NavMusicBar({ sidebar = false }) {
           </div>
         </div>
 
-        {/* Bottom row: seek bar */}
+        {/* Row 2: seek bar */}
         <div className={styles.sidebarSeekRow}>
           <span className={styles.timeLeft}>{fmtTime(currentTime)}</span>
           <div

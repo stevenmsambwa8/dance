@@ -25,7 +25,7 @@
 .heroOverlay {
   position: absolute;
   inset: 0;
-  background: rgba(0,0,0,0.65);
+  background: rgba(var(--bg-rgb), 0.78);
 }
 .heroContent {
   position: relative;
@@ -44,12 +44,13 @@
   height: 180px;
   border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+  box-shadow: 0 24px 60px rgba(var(--bg-rgb), 0.5);
   flex-shrink: 0;
   transition: box-shadow 0.4s ease;
+  border: 1px solid var(--border);
 }
 .albumArt img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.albumGlow { box-shadow: 0 24px 80px rgba(34,197,94,0.35), 0 8px 32px rgba(0,0,0,0.5); }
+.albumGlow { box-shadow: 0 24px 80px rgba(34,197,94,0.35), 0 8px 32px rgba(var(--bg-rgb), 0.4); }
 
 /* ── Track info ── */
 .trackInfo { text-align: center; display: flex; flex-direction: column; gap: 4px; }
@@ -69,16 +70,16 @@
 .trackTitle {
   font-size: 22px;
   font-weight: 800;
-  color: #fff;
+  color: var(--text);
   line-height: 1.2;
 }
-.trackArtist { font-size: 13px; color: rgba(255,255,255,0.55); }
+.trackArtist { font-size: 13px; color: var(--text-muted); }
 
 /* ── Seek bar ── */
 .seekWrap { display: flex; align-items: center; gap: 10px; width: 100%; }
 .seekTime {
   font-size: 10px;
-  color: rgba(255,255,255,0.4);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
   min-width: 30px;
@@ -88,7 +89,7 @@
   position: relative;
   flex: 1;
   height: 4px;
-  background: rgba(255,255,255,0.2);
+  background: var(--border-dark);
   border-radius: 4px;
   cursor: pointer;
   transition: height 0.15s;
@@ -108,12 +109,12 @@
   top: 50%;
   transform: translate(-50%, -50%);
   width: 12px; height: 12px;
-  background: #fff;
+  background: var(--text);
   border-radius: 50%;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.15s;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  box-shadow: 0 1px 4px rgba(var(--bg-rgb), 0.4);
 }
 .seekBar:hover .seekThumb { opacity: 1; }
 
@@ -122,15 +123,15 @@
 .ctrlBtn {
   width: 40px; height: 40px;
   display: flex; align-items: center; justify-content: center;
-  background: rgba(255,255,255,0.1);
-  border: none;
-  color: rgba(255,255,255,0.8);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
   font-size: 18px;
   border-radius: 50%;
   cursor: pointer;
   transition: background 0.15s, transform 0.1s;
 }
-.ctrlBtn:hover  { background: rgba(255,255,255,0.2); }
+.ctrlBtn:hover  { background: var(--bg-2); color: var(--text); }
 .ctrlBtn:active { transform: scale(0.92); }
 
 .playBtnLarge {
@@ -154,7 +155,7 @@
 .volumeWrap {
   display: flex; align-items: center; gap: 8px;
   width: 100%; max-width: 240px;
-  color: rgba(255,255,255,0.4);
+  color: var(--text-muted);
   font-size: 14px;
 }
 .volumeSlider {
@@ -162,7 +163,7 @@
   appearance: none;
   flex: 1;
   height: 3px;
-  background: rgba(255,255,255,0.2);
+  background: var(--border-dark);
   border-radius: 2px;
   outline: none;
   cursor: pointer;
@@ -171,9 +172,9 @@
   -webkit-appearance: none;
   width: 14px; height: 14px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--text);
   cursor: pointer;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  box-shadow: 0 1px 4px rgba(var(--bg-rgb), 0.3);
 }
 
 /* ── Track list ── */
