@@ -14,24 +14,65 @@ function slugify(name) {
   return name.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-')
 }
 
-const STEPS = [
-  { key: 'details', label: 'Details', icon: 'ri-file-text-line' },
-  { key: 'format',  label: 'Format',  icon: 'ri-gamepad-line' },
-  { key: 'review',  label: 'Launch',  icon: 'ri-rocket-line' },
-]
+function parseFee(raw) {
+  if (!raw) return null
+  const n = Number(String(raw).replace(/[^0-9.]/g, ''))
+  return isNaN(n) || n <= 0 ? null : n
+}
 
-const SLOT_OPTIONS    = [4, 8, 16, 32, 64]
-const FORMATS         = ['Solo', 'Duo', 'Squad', 'Bo3', 'Bo5', 'Round Robin', 'Double Elim']
-const TEAM_SIZE_OPTIONS = [
-  { value: 1, label: '1v1',  sub: 'Solo' },
-  { value: 2, label: '2v2',  sub: 'Team Battle' },
-  { value: 4, label: '4v4',  sub: 'Team Battle' },
-  { value: 8, label: '8v8',  sub: 'Team Battle' },
-]
-
-// Free-user limits — keep in sync with tournaments/page.js
 const FREE_LIMIT_FREE_TOURNEYS = 2
 const FREE_LIMIT_PAID_TOURNEYS = 1
+
+// ── Mode definitions ──────────────────────────────────────────────────────────
+// Each mode is a complete preset: team_size, squads_needed, slots, label, icon, description
+// Creator picks a MODE then just fills name/game/prize — nothing else to configure
+
+const BATTLE_MODES = [
+  {
+    id: 'solo_16',
+    label: '1v1 Solo',
+    icon: 'ri-user-line',
+    team_size: 1,
+    squads_needed: null,
+    defaultSlots: 16,
+    slotOptions: [8, 16, 32, 64],
+    desc: 'Every player for themselves. 1 champion.',
+    color: '#6366f1',
+  },
+  {
+    id: 'duo_8',
+    label: '2v2 Duos',
+    icon: 'ri-user-2-line',
+    team_size: 2,
+    squads_needed: 8,
+    defaultSlots: 16,
+    slotOptions: [8, 16, 32],
+    desc: '2-player teams. 8 duos fight to the last.',
+    color: '#22c55e',
+  },
+  {
+    id: 'squad_4v4',
+    label: '4v4 Squad',
+    icon: 'ri-group-line',
+    team_size: 4,
+    squads_needed: 8,
+    defaultSlots: 32,
+    slotOptions: [16, 32, 64],
+    desc: '4-player squads. 8 squads enter, 1 wins.',
+    color: '#f59e0b',
+  },
+  {
+    id: 'squad_8v8',
+    label: '8-Player Squad',
+    icon: 'ri-team-line',
+    team_size: 8,
+    squads_needed: 8,
+    defaultSlots: 64,
+    slotOptions: [32, 64, 128],
+    desc: 'PUBG style — 8 squads of 8. Last squad standing wins.',
+    color: '#ef4444',
+  },
+]
 
 export default function CreateTournament() {
   const { user, profile, isAdmin } = useAuth()
@@ -52,108 +93,86 @@ export default function CreateTournament() {
   return <CreateForm user={user} profile={profile} isAdmin={isAdmin} router={router} />
 }
 
-// ── Actual form ───────────────────────────────────────────────────────────────
 function CreateForm({ user, profile, isAdmin, router }) {
-  const [step, setStep]         = useState(0)
-  const [form, setForm]         = useState({
-    name: '', game_slug: GAME_SLUGS[0] || 'pubg',
-    format: '', prize: '', slots: 32,
-    date: '', description: '',
+  const [step, setStep] = useState(0)  // 0=mode, 1=details, 2=review
+
+  // Selected mode
+  const [mode, setMode] = useState(null) // one of BATTLE_MODES
+
+  // Details form
+  const [form, setForm] = useState({
+    name: '',
+    game_slug: GAME_SLUGS[0] || 'pubg',
+    slots: 32,
+    prize: '',
+    date: '',
+    description: '',
     entrance_fee: '',
-    team_size: 1,
-    squads_needed: 4,
     is_test: false,
     pro_only: false,
   })
-  const [errors, setErrors]         = useState({})
+  const [errors, setErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
-  const [progress, setProgress]     = useState(0)
+  const [progress, setProgress] = useState(0)
   const [progressLabel, setProgressLabel] = useState('')
-  const [done, setDone]             = useState(false)
+  const [done, setDone] = useState(false)
   const [createdSlug, setCreatedSlug] = useState(null)
-
-  // Load user's existing tournaments for free-limit enforcement
-  const [myCreated, setMyCreated] = useState(null) // null = loading
+  const [myCreated, setMyCreated] = useState(null)
 
   useEffect(() => {
     supabase.from('tournaments').select('id, entrance_fee').eq('created_by', user.id)
       .then(({ data }) => setMyCreated(data || []))
   }, [user.id])
 
-  const activePlan        = getActivePlan(profile)
-  const isPaidPlan        = isAdmin || activePlan === 'pro' || activePlan === 'elite' || activePlan === 'team'
-
-  // Quota info for free users
+  const activePlan = getActivePlan(profile)
+  const isPaidPlan = isAdmin || activePlan === 'pro' || activePlan === 'elite' || activePlan === 'team'
   const myFreeCount = (myCreated || []).filter(t => !parseFee(t.entrance_fee)).length
   const myPaidCount = (myCreated || []).filter(t =>  parseFee(t.entrance_fee)).length
-  const freeQuotaLeft = Math.max(0, FREE_LIMIT_FREE_TOURNEYS - myFreeCount)
-  const paidQuotaLeft = Math.max(0, FREE_LIMIT_PAID_TOURNEYS - myPaidCount)
-  const hasAnyQuota   = freeQuotaLeft > 0 || paidQuotaLeft > 0
-
-  function parseFee(raw) {
-    if (!raw) return null
-    const n = Number(String(raw).replace(/[^0-9.]/g, ''))
-    return isNaN(n) || n <= 0 ? null : n
-  }
 
   function set(key, val) { setForm(f => ({ ...f, [key]: val })); setErrors(e => ({ ...e, [key]: null })) }
 
-  function validateStep(idx) {
-    const e = {}
-    if (idx === 0) {
-      if (!form.name.trim()) e.name = 'Tournament name is required'
-      if (!form.game_slug)   e.game_slug = 'Pick a game'
-    }
-    if (idx === 1) {
-      if (!form.slots || form.slots < 2) e.slots = 'Need at least 2 slots'
+  function pickMode(m) {
+    setMode(m)
+    setForm(f => ({ ...f, slots: m.defaultSlots }))
+    setStep(1)
+  }
 
-      // Free-user quota check at the format step so they know before review
-      if (!isPaidPlan && myCreated !== null) {
-        const thisFee  = parseFee(form.entrance_fee)
-        const isPaidT  = !!thisFee
-        if (isPaidT  && myPaidCount >= FREE_LIMIT_PAID_TOURNEYS) {
-          e._quota = `Free plan allows only ${FREE_LIMIT_PAID_TOURNEYS} paid tournament. Upgrade to Elite for unlimited.`
-        }
-        if (!isPaidT && myFreeCount >= FREE_LIMIT_FREE_TOURNEYS) {
-          e._quota = `Free plan allows only ${FREE_LIMIT_FREE_TOURNEYS} free tournaments. Upgrade to Elite for unlimited.`
-        }
-      }
+  function validate() {
+    const e = {}
+    if (!form.name.trim()) e.name = 'Tournament name is required'
+    if (!form.game_slug)   e.game_slug = 'Pick a game'
+    if (!isPaidPlan && myCreated !== null) {
+      const isPaidT = !!parseFee(form.entrance_fee)
+      if (isPaidT  && myPaidCount >= FREE_LIMIT_PAID_TOURNEYS) e._quota = `Free plan: max ${FREE_LIMIT_PAID_TOURNEYS} paid tournament.`
+      if (!isPaidT && myFreeCount >= FREE_LIMIT_FREE_TOURNEYS) e._quota = `Free plan: max ${FREE_LIMIT_FREE_TOURNEYS} free tournaments.`
     }
     setErrors(e)
     return Object.keys(e).length === 0
   }
 
-  function next() { if (validateStep(step)) setStep(s => Math.min(s + 1, STEPS.length - 1)) }
-  function back() { setStep(s => Math.max(s - 1, 0)) }
-
   async function submit() {
-    if (!user || submitting) return
+    if (!user || submitting || !mode) return
+    if (!validate()) return
 
-    // Final quota guard
-    if (!isPaidPlan && myCreated !== null) {
-      const thisFee = parseFee(form.entrance_fee)
-      const isPaidT = !!thisFee
-      if (isPaidT  && myPaidCount >= FREE_LIMIT_PAID_TOURNEYS) { setErrors({ _submit: `Free plan: max ${FREE_LIMIT_PAID_TOURNEYS} paid tournament. Upgrade to create more.` }); return }
-      if (!isPaidT && myFreeCount >= FREE_LIMIT_FREE_TOURNEYS) { setErrors({ _submit: `Free plan: max ${FREE_LIMIT_FREE_TOURNEYS} free tournaments. Upgrade to create more.` }); return }
-    }
-
-    setSubmitting(true); setProgress(0); setProgressLabel('Preparing tournament…')
-    await tick(15, 'Creating tournament…')
+    setSubmitting(true); setProgress(0); setProgressLabel('Creating tournament…')
+    await tick(20, 'Setting up bracket…')
 
     const fee = form.entrance_fee ? Number(String(form.entrance_fee).replace(/,/g, '')) : 0
+    const teamSize = mode.team_size
+    const squadsNeeded = mode.squads_needed
 
     const { data: newT, error } = await supabase.from('tournaments').insert({
       name:             form.name.trim(),
       slug:             slugify(form.name),
       game_slug:        form.game_slug,
-      format:           form.format,
+      format:           mode.label,
       prize:            form.prize,
       slots:            Number(form.slots),
       date:             form.date,
       description:      form.description,
       entrance_fee:     fee,
-      team_size:        form.team_size || 1,
-      squads_needed:    form.team_size > 1 ? (form.squads_needed || 4) : null,
+      team_size:        teamSize,
+      squads_needed:    teamSize > 1 ? squadsNeeded : null,
       is_test:          form.is_test,
       pro_only:         form.pro_only,
       status:           'active',
@@ -163,33 +182,30 @@ function CreateForm({ user, profile, isAdmin, router }) {
 
     if (error) { setSubmitting(false); setErrors({ _submit: error.message }); setProgress(0); return }
 
-    await tick(50, 'Tournament created!')
+    await tick(55, 'Tournament created!')
 
-    if (form.is_test) {
-      setProgressLabel('Test run ready — no notifications sent.')
-    } else {
+    if (!form.is_test) {
       setProgressLabel('Notifying players…')
       const { data: allProfiles } = await supabase.from('profiles').select('id').neq('id', user.id)
       if (allProfiles?.length) {
-        const gameName = newT.game_slug ? ` ${newT.game_slug.toUpperCase()}` : ''
-        const feeNote  = fee > 0 ? ` · Entry fee: TZS ${fee.toLocaleString()}` : ''
-        const proNote  = form.pro_only ? ' · Pro & Elite only 👑' : ''
+        const feeNote = fee > 0 ? ` · Entry fee: TZS ${fee.toLocaleString()}` : ''
+        const proNote = form.pro_only ? ' · Pro & Elite only 👑' : ''
         const notifications = allProfiles.map(p => ({
           user_id: p.id,
           title:   `New Tournament — ${newT.name}`,
-          body:    `A new${gameName} tournament is open for registration${newT.date ? ` on ${newT.date}` : ''}. ${newT.slots} slots available${newT.prize ? ` · Prize: TZS ${newT.prize}` : ''}${feeNote}${proNote}. Register now!`,
+          body:    `${mode.label} tournament is open${newT.date ? ` on ${newT.date}` : ''}. ${newT.slots} slots${newT.prize ? ` · Prize: TZS ${newT.prize}` : ''}${feeNote}${proNote}. Join now!`,
           type:    'tournament',
           meta:    { tournament_id: newT.id },
           read:    false,
         }))
         for (let i = 0; i < notifications.length; i += 100) {
           await supabase.from('notifications').insert(notifications.slice(i, i + 100))
-          setProgress(Math.min(50 + Math.round(((i + 100) / notifications.length) * 40), 90))
+          setProgress(Math.min(55 + Math.round(((i + 100) / notifications.length) * 35), 90))
         }
       }
     }
 
-    await tick(100, 'Ready to go! 🎉')
+    await tick(100, 'Ready! 🎉')
     setCreatedSlug(newT.slug || newT.id)
     setDone(true)
     setSubmitting(false)
@@ -198,7 +214,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
   function tick(to, label) {
     return new Promise(res => {
       setProgressLabel(label)
-      const start = Date.now(), duration = 420, from = progress
+      const start = Date.now(), duration = 400, from = progress
       function frame() {
         const t = Math.min(1, (Date.now() - start) / duration)
         const eased = 1 - Math.pow(1 - t, 3)
@@ -209,14 +225,14 @@ function CreateForm({ user, profile, isAdmin, router }) {
     })
   }
 
-  // ── Done screen ─────────────────────────────────────────────────────────────
+  // ── Done ──────────────────────────────────────────────────────────────────
   if (done) {
     return (
       <div className={styles.page}>
         <div className={styles.doneWrap}>
           <div className={styles.doneIcon}><i className="ri-trophy-fill" /></div>
           <h2 className={styles.doneTitle}>Tournament Live!</h2>
-          <p className={styles.doneSub}><strong>{form.name}</strong> is now open for registration.{form.pro_only && ' 👑 Pro & Elite players only.'}</p>
+          <p className={styles.doneSub}><strong>{form.name}</strong> is now open.</p>
           <div className={styles.doneBtns}>
             <button className={styles.donePrimary} onClick={() => router.push(`/tournaments/${createdSlug}`)}>
               <i className="ri-arrow-right-circle-fill" /> Go to Tournament
@@ -230,7 +246,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
     )
   }
 
-  // ── Submitting screen ────────────────────────────────────────────────────────
+  // ── Submitting ────────────────────────────────────────────────────────────
   if (submitting) {
     return (
       <div className={styles.page}>
@@ -245,182 +261,180 @@ function CreateForm({ user, profile, isAdmin, router }) {
     )
   }
 
-  // ── Form ────────────────────────────────────────────────────────────────────
-  return (
-    <div className={styles.page}>
-      <div className={styles.topBar}>
-        <button className={styles.backBtn} onClick={() => step === 0 ? router.back() : back()}><i className="ri-arrow-left-line" /></button>
-        <span className={styles.topTitle}>Create Tournament</span>
-        <span className={styles.topStep}>{step + 1} / {STEPS.length}</span>
-      </div>
-
-      {/* Free quota notice — shown to free users at top */}
-      {!isPaidPlan && myCreated !== null && (
-        <div className={styles.quotaNotice}>
-          <i className="ri-information-line" />
-          <span>
-            Free plan: <strong>{myFreeCount}/{FREE_LIMIT_FREE_TOURNEYS}</strong> free &amp; <strong>{myPaidCount}/{FREE_LIMIT_PAID_TOURNEYS}</strong> paid used.
-            {!hasAnyQuota && <> All slots used — <button className={styles.quotaLink} onClick={() => router.push('/upgrade')}>upgrade to continue</button>.</>}
-          </span>
+  // ── Step 0: Pick battle mode ──────────────────────────────────────────────
+  if (step === 0) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.topBar}>
+          <button className={styles.backBtn} onClick={() => router.back()}><i className="ri-arrow-left-line" /></button>
+          <span className={styles.topTitle}>Create Tournament</span>
+          <span />
         </div>
-      )}
 
-      <div className={styles.stepRow}>
-        {STEPS.map((s, i) => (
-          <div key={s.key} className={`${styles.stepItem} ${i === step ? styles.stepActive : ''} ${i < step ? styles.stepDone : ''}`}>
-            <div className={styles.stepDot}>{i < step ? <i className="ri-check-line" /> : <i className={s.icon} />}</div>
-            <span className={styles.stepLabel}>{s.label}</span>
-            {i < STEPS.length - 1 && <div className={`${styles.stepLine} ${i < step ? styles.stepLineDone : ''}`} />}
+        <div style={{ padding: '4px 16px 12px' }}>
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)', fontWeight: 500 }}>
+            Pick a battle format to get started
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '0 16px' }}>
+          {BATTLE_MODES.map(m => (
+            <button
+              key={m.id}
+              onClick={() => pickMode(m)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 14,
+                padding: '16px 18px', borderRadius: 14,
+                border: '1.5px solid var(--border)',
+                background: 'var(--surface)',
+                cursor: 'pointer', textAlign: 'left', width: '100%',
+                transition: 'border-color 0.15s, background 0.15s',
+              }}
+            >
+              <div style={{
+                width: 46, height: 46, borderRadius: 12, flexShrink: 0,
+                background: `${m.color}18`, border: `1.5px solid ${m.color}30`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 20, color: m.color,
+              }}>
+                <i className={m.icon} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)' }}>{m.label}</span>
+                  {m.squads_needed && (
+                    <span style={{ fontSize: 10, fontWeight: 700, color: m.color, background: `${m.color}18`, padding: '2px 7px', borderRadius: 5 }}>
+                      {m.squads_needed} squads
+                    </span>
+                  )}
+                </div>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.4 }}>{m.desc}</span>
+              </div>
+              <i className="ri-arrow-right-s-line" style={{ color: 'var(--text-muted)', fontSize: 18, flexShrink: 0 }} />
+            </button>
+          ))}
+        </div>
+
+        {!isPaidPlan && myCreated !== null && (
+          <div style={{ margin: '20px 16px 0', padding: '10px 14px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--border)', fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <i className="ri-information-line" style={{ flexShrink: 0 }} />
+            <span>Free plan: <strong>{myFreeCount}/{FREE_LIMIT_FREE_TOURNEYS}</strong> free &amp; <strong>{myPaidCount}/{FREE_LIMIT_PAID_TOURNEYS}</strong> paid used.</span>
           </div>
-        ))}
+        )}
       </div>
+    )
+  }
 
-      <div className={styles.card}>
+  // ── Step 1: Details ───────────────────────────────────────────────────────
+  if (step === 1) {
+    const slotOpts = mode?.slotOptions || [16, 32, 64]
+    const totalPlayers = mode?.squads_needed
+      ? mode.squads_needed * mode.team_size
+      : form.slots
 
-        {/* ── Step 0: Details ── */}
-        {step === 0 && (
+    return (
+      <div className={styles.page}>
+        <div className={styles.topBar}>
+          <button className={styles.backBtn} onClick={() => setStep(0)}><i className="ri-arrow-left-line" /></button>
+          <span className={styles.topTitle}>{mode?.label}</span>
+          <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>2 / 2</span>
+        </div>
+
+        {/* Mode summary pill */}
+        <div style={{ padding: '0 16px 16px' }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
+            background: `${mode?.color}12`, borderRadius: 10, border: `1px solid ${mode?.color}25`,
+          }}>
+            <i className={mode?.icon} style={{ color: mode?.color, fontSize: 18, flexShrink: 0 }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: mode?.color }}>{mode?.label}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{mode?.desc}</div>
+            </div>
+            {mode?.squads_needed && (
+              <div style={{ textAlign: 'center', flexShrink: 0 }}>
+                <div style={{ fontSize: 18, fontWeight: 900, color: mode?.color, lineHeight: 1 }}>{totalPlayers}</div>
+                <div style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 600 }}>PLAYERS</div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className={styles.card}>
           <div className={styles.stepContent}>
-            <h2 className={styles.stepHeading}><i className="ri-file-text-line" /> Basic Details</h2>
-            <p className={styles.stepHint}>Give your tournament a name and pick the game.</p>
+
+            {/* Name */}
             <div className={styles.field}>
               <label>Tournament Name <span className={styles.req}>*</span></label>
-              <input type="text" value={form.name} placeholder="e.g. Solo Showdown Season 1" onChange={e => set('name', e.target.value)} className={errors.name ? styles.inputError : ''} autoFocus />
+              <input
+                type="text" value={form.name}
+                placeholder={`e.g. PUBG ${mode?.label} Season 1`}
+                onChange={e => set('name', e.target.value)}
+                className={errors.name ? styles.inputError : ''}
+                autoFocus
+              />
               {errors.name && <span className={styles.errMsg}>{errors.name}</span>}
             </div>
+
+            {/* Game */}
             <div className={styles.field}>
               <label>Game <span className={styles.req}>*</span></label>
               <div className={styles.gameGrid}>
                 {GAME_SLUGS.map(s => (
-                  <button key={s} type="button" className={`${styles.gameChip} ${form.game_slug === s ? styles.gameChipActive : ''}`} onClick={() => set('game_slug', s)}>
+                  <button key={s} type="button"
+                    className={`${styles.gameChip} ${form.game_slug === s ? styles.gameChipActive : ''}`}
+                    onClick={() => set('game_slug', s)}
+                  >
                     {GAME_NAMES[s] || s}
                   </button>
                 ))}
               </div>
-              {errors.game_slug && <span className={styles.errMsg}>{errors.game_slug}</span>}
-            </div>
-            <div className={styles.field}>
-              <label>Description <span className={styles.opt}>(optional)</span></label>
-              <textarea rows={3} value={form.description} placeholder="Brief description of the tournament…" onChange={e => set('description', e.target.value)} />
-            </div>
-          </div>
-        )}
-
-        {/* ── Step 1: Format ── */}
-        {step === 1 && (
-          <div className={styles.stepContent}>
-            <h2 className={styles.stepHeading}><i className="ri-gamepad-line" /> Format & Rules</h2>
-            <p className={styles.stepHint}>Set structure, prize, schedule, and entry options.</p>
-
-            <div className={styles.field}>
-              <label>Format</label>
-              <div className={styles.chipRow}>
-                {FORMATS.map(f => (
-                  <button key={f} type="button" className={`${styles.chip} ${form.format === f ? styles.chipActive : ''}`} onClick={() => set('format', form.format === f ? '' : f)}>{f}</button>
-                ))}
-              </div>
-              <input type="text" value={form.format} placeholder="Or type a custom format…" onChange={e => set('format', e.target.value)} style={{ marginTop: 8 }} />
             </div>
 
-            <div className={styles.field}>
-              <label>Max Slots <span className={styles.req}>*</span></label>
-              <div className={styles.chipRow}>
-                {SLOT_OPTIONS.map(n => (
-                  <button key={n} type="button" className={`${styles.chip} ${form.slots === n ? styles.chipActive : ''}`} onClick={() => set('slots', n)}>{n}</button>
-                ))}
-              </div>
-              {errors.slots && <span className={styles.errMsg}>{errors.slots}</span>}
-            </div>
-
-            <div className={styles.field}>
-              <label>Match Type</label>
-              <div className={styles.chipRow}>
-                {TEAM_SIZE_OPTIONS.map(opt => (
-                  <button key={opt.value} type="button"
-                    className={`${styles.chip} ${form.team_size === opt.value ? styles.chipActive : ''}`}
-                    onClick={() => set('team_size', opt.value)}
-                    style={{ flexDirection: 'column', gap: 2, minWidth: 60, paddingTop: 8, paddingBottom: 8 }}
-                  >
-                    <span style={{ fontWeight: 800, fontSize: 14 }}>{opt.label}</span>
-                    <span style={{ fontSize: 10, opacity: 0.7 }}>{opt.sub}</span>
-                  </button>
-                ))}
-              </div>
-              {form.team_size > 1 && (
-                <span className={styles.feeHint} style={{ marginTop: 6 }}>
-                  <i className="ri-team-line" /> Team Battle — players grouped into teams of {form.team_size}.
-                </span>
-              )}
-            </div>
-
-            {/* ── Squads Needed (only for team modes) ── */}
-            {form.team_size > 1 && (() => {
-              // Build valid squad count options: squads * team_size must not exceed total slots
-              const maxSquads = Math.floor(form.slots / form.team_size)
-              const squadOptions = [2, 4, 8, 16, 32].filter(n => n <= maxSquads && n >= 2)
-              if (squadOptions.length === 0) squadOptions.push(2)
-              // Auto-clamp squads_needed if current value exceeds max
-              const clampedSquads = Math.min(form.squads_needed, maxSquads)
-              return (
-                <div className={styles.field}>
-                  <label>Squads Required to Start</label>
-                  <div className={styles.chipRow}>
-                    {squadOptions.map(n => (
-                      <button key={n} type="button"
-                        className={`${styles.chip} ${(form.squads_needed === n || clampedSquads === n && !squadOptions.includes(form.squads_needed)) ? styles.chipActive : ''}`}
-                        onClick={() => set('squads_needed', n)}
-                        style={{ flexDirection: 'column', gap: 2, minWidth: 64, paddingTop: 8, paddingBottom: 8 }}
-                      >
-                        <span style={{ fontWeight: 800, fontSize: 14 }}>{n}</span>
-                        <span style={{ fontSize: 10, opacity: 0.7 }}>squads</span>
-                      </button>
-                    ))}
-                  </div>
-                  <span className={styles.feeHint} style={{ marginTop: 6 }}>
-                    <i className="ri-information-line" /> Tournament bracket needs{' '}
-                    <strong>{form.squads_needed} squads × {form.team_size} players = {form.squads_needed * form.team_size} players</strong>{' '}
-                    to start. Remaining {form.slots - form.squads_needed * form.team_size > 0
-                      ? `${form.slots - form.squads_needed * form.team_size} slots stay as Open`
-                      : 'all slots are used'}.
-                  </span>
+            {/* Slots (only shown for solo where squads_needed is null) */}
+            {!mode?.squads_needed && (
+              <div className={styles.field}>
+                <label>Max Players</label>
+                <div className={styles.chipRow}>
+                  {slotOpts.map(n => (
+                    <button key={n} type="button"
+                      className={`${styles.chip} ${form.slots === n ? styles.chipActive : ''}`}
+                      onClick={() => set('slots', n)}
+                    >{n}</button>
+                  ))}
                 </div>
-              )
-            })()}
+              </div>
+            )}
 
+            {/* Prize + Date side by side */}
             <div className={styles.fieldRow}>
               <div className={styles.field}>
-                <label>Prize Pool (TZS)</label>
+                <label>Prize Pool (TZS) <span className={styles.opt}>(optional)</span></label>
                 <input type="text" value={form.prize} placeholder="e.g. 500,000" onChange={e => set('prize', e.target.value)} />
               </div>
               <div className={styles.field}>
-                <label>Date</label>
-                <input type="text" value={form.date} placeholder="e.g. Apr 20" onChange={e => set('date', e.target.value)} />
+                <label>Date <span className={styles.opt}>(optional)</span></label>
+                <input type="text" value={form.date} placeholder="e.g. Jun 28" onChange={e => set('date', e.target.value)} />
               </div>
             </div>
 
+            {/* Entry fee */}
             <div className={styles.field}>
-              <label><i className="ri-money-dollar-circle-line" style={{ marginRight: 4 }} />Entrance Fee (TZS) <span className={styles.opt}>(optional)</span></label>
+              <label><i className="ri-money-dollar-circle-line" style={{ marginRight: 4 }} />Entry Fee (TZS) <span className={styles.opt}>(optional)</span></label>
               <input
-                type="text"
-                value={form.entrance_fee}
-                placeholder="e.g. 2,000  — leave blank for free entry"
+                type="text" value={form.entrance_fee}
+                placeholder="Leave blank for free entry"
                 onChange={e => set('entrance_fee', e.target.value)}
               />
               {form.entrance_fee && (
-                <span className={styles.feeHint}><i className="ri-information-line" /> Players submit M-Pesa proof — admin approves before registration.</span>
+                <span className={styles.feeHint}><i className="ri-information-line" /> Players submit M-Pesa proof — admin approves.</span>
               )}
-              {/* Free user paid-quota warning inline */}
-              {!isPaidPlan && !!parseFee(form.entrance_fee) && myPaidCount >= FREE_LIMIT_PAID_TOURNEYS && (
-                <span className={styles.quotaWarn}>
-                  <i className="ri-error-warning-line" /> You&apos;ve used your {FREE_LIMIT_PAID_TOURNEYS} paid tournament slot.
-                  <button className={styles.quotaLink} onClick={() => router.push('/upgrade')}>Upgrade</button>
-                </span>
-              )}
-              {!isPaidPlan && !parseFee(form.entrance_fee) && myFreeCount >= FREE_LIMIT_FREE_TOURNEYS && (
-                <span className={styles.quotaWarn}>
-                  <i className="ri-error-warning-line" /> You&apos;ve used your {FREE_LIMIT_FREE_TOURNEYS} free tournament slots.
-                  <button className={styles.quotaLink} onClick={() => router.push('/upgrade')}>Upgrade</button>
-                </span>
-              )}
+            </div>
+
+            {/* Description */}
+            <div className={styles.field}>
+              <label>Description <span className={styles.opt}>(optional)</span></label>
+              <textarea rows={2} value={form.description} placeholder="Any rules or notes…" onChange={e => set('description', e.target.value)} />
             </div>
 
             {/* Pro Only toggle */}
@@ -434,9 +448,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
                 <i className={form.pro_only ? 'ri-vip-crown-fill' : 'ri-vip-crown-line'} style={{ color: form.pro_only ? '#a855f7' : undefined }} />
                 <div>
                   <span className={styles.testToggleLabel} style={{ color: form.pro_only ? '#a855f7' : undefined }}>Pro & Elite Only</span>
-                  <span className={styles.testToggleHint}>
-                    {form.pro_only ? 'Only Pro, Elite & Team members can join.' : 'Restrict this tournament to paid plan members only.'}
-                  </span>
+                  <span className={styles.testToggleHint}>{form.pro_only ? 'Only Pro & Elite members can join.' : 'Restrict to paid plan members only.'}</span>
                 </div>
               </div>
               <div className={`${styles.testToggleSwitch} ${form.pro_only ? styles.testToggleSwitchOn : ''}`} style={{ background: form.pro_only ? '#a855f7' : undefined }}>
@@ -454,9 +466,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
                 <i className={form.is_test ? 'ri-flask-fill' : 'ri-flask-line'} />
                 <div>
                   <span className={styles.testToggleLabel}>Test Run</span>
-                  <span className={styles.testToggleHint}>
-                    {form.is_test ? 'Active — no notifications sent. Only you & admin can see this.' : 'Run a silent test — no notifications, hidden from other users.'}
-                  </span>
+                  <span className={styles.testToggleHint}>{form.is_test ? 'Silent test — no notifications sent.' : 'Run a silent test, hidden from others.'}</span>
                 </div>
               </div>
               <div className={`${styles.testToggleSwitch} ${form.is_test ? styles.testToggleSwitchOn : ''}`}>
@@ -471,64 +481,19 @@ function CreateForm({ user, profile, isAdmin, router }) {
                 <button className={styles.quotaErrBtn} onClick={() => router.push('/upgrade')}>Upgrade →</button>
               </div>
             )}
-          </div>
-        )}
-
-        {/* ── Step 2: Review ── */}
-        {step === 2 && (
-          <div className={styles.stepContent}>
-            <h2 className={styles.stepHeading}><i className="ri-rocket-line" /> Review & Launch</h2>
-            <p className={styles.stepHint}>Everything look good? Hit launch to go live.</p>
-            <div className={styles.reviewCard}>
-              {[
-                ['ri-trophy-line',              'Name',       form.name || '—'],
-                ['ri-gamepad-line',             'Game',       GAME_NAMES[form.game_slug] || form.game_slug],
-                ['ri-layout-grid-line',         'Format',     form.format || '—'],
-                ['ri-group-line',               'Slots',      form.slots],
-                ['ri-team-line',                'Match Type', form.team_size === 1 ? '1v1 — Solo' : `${form.team_size}v${form.team_size} — Team Battle`],
-                ...(form.team_size > 1 ? [['ri-group-2-line', 'Squads to Start', `${form.squads_needed} squads × ${form.team_size} = ${form.squads_needed * form.team_size} players`]] : []),
-                ['ri-money-dollar-circle-line', 'Prize',      form.prize ? `TZS ${form.prize}` : '—'],
-                ['ri-ticket-line',              'Entry Fee',  form.entrance_fee ? `TZS ${Number(String(form.entrance_fee).replace(/,/g,'')).toLocaleString()}` : 'Free'],
-                ['ri-calendar-event-line',      'Date',       form.date || '—'],
-              ].map(([icon, label, val]) => (
-                <div key={label} className={styles.reviewRow}>
-                  <span className={styles.reviewLabel}><i className={icon} /> {label}</span>
-                  <span className={styles.reviewVal}>{val}</span>
-                </div>
-              ))}
-              <div className={styles.reviewRow}>
-                <span className={styles.reviewLabel}><i className="ri-vip-crown-line" /> Access</span>
-                <span className={styles.reviewVal} style={{ color: form.pro_only ? '#a855f7' : 'var(--text-muted)' }}>
-                  {form.pro_only ? '👑 Pro & Elite only' : 'Open to all'}
-                </span>
-              </div>
-              <div className={styles.reviewRow}>
-                <span className={styles.reviewLabel}><i className="ri-flask-line" /> Mode</span>
-                <span className={styles.reviewVal} style={{ color: form.is_test ? '#f59e0b' : 'var(--text-muted)' }}>
-                  {form.is_test ? '🧪 Test Run (silent)' : 'Live'}
-                </span>
-              </div>
-              {form.description && (
-                <div className={`${styles.reviewRow} ${styles.reviewRowFull}`}>
-                  <span className={styles.reviewLabel}><i className="ri-file-text-line" /> Description</span>
-                  <span className={styles.reviewVal} style={{ fontSize: 12, color: 'var(--text-muted)' }}>{form.description}</span>
-                </div>
-              )}
-            </div>
             {errors._submit && <div className={styles.submitErr}><i className="ri-error-warning-line" /> {errors._submit}</div>}
           </div>
-        )}
-      </div>
+        </div>
 
-      <div className={styles.navRow}>
-        {step > 0 && <button className={styles.navBack} onClick={back}><i className="ri-arrow-left-line" /> Back</button>}
-        {step < STEPS.length - 1 && <button className={styles.navNext} onClick={next}>Next <i className="ri-arrow-right-line" /></button>}
-        {step === STEPS.length - 1 && (
+        <div className={styles.navRow}>
+          <button className={styles.navBack} onClick={() => setStep(0)}><i className="ri-arrow-left-line" /> Back</button>
           <button className={styles.navLaunch} onClick={submit} disabled={submitting}>
-            <i className="ri-rocket-line" /> Launch Tournament
+            <i className="ri-rocket-line" /> Launch
           </button>
-        )}
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
+
+  return null
 }

@@ -165,16 +165,16 @@ function buildLobbyBracket(maxSlots, teamSize = 1, squadsNeeded = null) {
     const activeTeamCount = (squadsNeeded && squadsNeeded > 0 && squadsNeeded <= totalTeamCount)
       ? squadsNeeded
       : totalTeamCount
-    const openTeam = () => ({
+    const openTeam = (idx) => ({
       members: Array.from({ length: teamSize }, () => ({ userId: null, name: 'Open', avatar: null, status: 'open' })),
-      status: 'open', teamId: null,
+      status: 'open', teamId: `squad_${idx}`,
     })
-    const inactiveTeam = () => ({
+    const inactiveTeam = (idx) => ({
       members: Array.from({ length: teamSize }, () => ({ userId: null, name: '—', avatar: null, status: 'inactive' })),
-      status: 'inactive', teamId: null,
+      status: 'inactive', teamId: `squad_${idx}`,
     })
     const teams = Array.from({ length: totalTeamCount }, (_, i) =>
-      i < activeTeamCount ? openTeam() : inactiveTeam()
+      i < activeTeamCount ? openTeam(i) : inactiveTeam(i)
     )
     const rounds = []
     let current = teams
@@ -3768,18 +3768,28 @@ function ChampDisplay({ entry, styles, isAdmin, onSetWinner, leaderboard, partic
 // into bracket_data by calling onRenameTeam(slotIdx, newName).
 
 function autoTeamName(team, globalIdx) {
+  // 1. Admin explicitly named this team — always use it
   if (team?.teamName) return team.teamName
-  const realMembers = (team?.members || []).filter(m => m?.userId && m.name && m.name !== '?' && m.name !== 'Open' && m.name !== 'BYE')
-  if (realMembers.length === 0) {
-    // Use stable teamId number if available (e.g. "team_4" → "Team 3")
-    if (team?.teamId && team.teamId.startsWith('team_')) {
-      const n = parseInt(team.teamId.replace('team_', ''), 10)
-      if (!isNaN(n)) return `Team ${Math.floor(n / (team.members?.length || 1)) + 1}`
-    }
-    return `Team ${globalIdx + 1}`
+
+  // 2. Any real members joined — build name from their usernames (even if squad not full yet)
+  const realMembers = (team?.members || []).filter(
+    m => m?.userId && m.name && m.name !== '?' && m.name !== 'Open' && m.name !== 'BYE' && m.name !== '—'
+  )
+  if (realMembers.length > 0) {
+    // Take up to 3 chars of each member name, join, max 10 chars
+    const combined = realMembers.map(m => m.name.slice(0, 3)).join('').slice(0, 10)
+    return combined.charAt(0).toUpperCase() + combined.slice(1)
   }
-  const combined = realMembers.map(m => m.name.slice(0, 3)).join('').slice(0, 8)
-  return combined.charAt(0).toUpperCase() + combined.slice(1)
+
+  // 3. No members yet — use stable squad number from teamId
+  if (team?.teamId) {
+    // Handles: "squad_0", "squad_3", "team_0", "team_4"
+    const match = team.teamId.match(/(\d+)$/)
+    if (match) return `Squad ${parseInt(match[1], 10) + 1}`
+  }
+
+  // 4. Final fallback using bracket position
+  return `Squad ${globalIdx + 1}`
 }
 
 function TeamMatchCard({ pair, styles, isAdmin, teamSize, onSetStatus, onRenameTeam, passPoints, currentUserId, globalPairIdx, onJoin }) {
