@@ -216,7 +216,7 @@ export default function Tournaments() {
   useEffect(() => { loadTournaments() }, [filter])
 
   useEffect(() => {
-    const ch = supabase.channel('tourney-list-count')
+    const ch = supabase.channel(`tourney-list-count-${Date.now()}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tournament_participants' }, loadTournaments)
       .subscribe()
     return () => supabase.removeChannel(ch)

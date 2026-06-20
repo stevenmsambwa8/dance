@@ -61,6 +61,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
     date: '', description: '',
     entrance_fee: '',
     team_size: 1,
+    squads_needed: 4,
     is_test: false,
     pro_only: false,
   })
@@ -152,6 +153,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
       description:      form.description,
       entrance_fee:     fee,
       team_size:        form.team_size || 1,
+      squads_needed:    form.team_size > 1 ? (form.squads_needed || 4) : null,
       is_test:          form.is_test,
       pro_only:         form.pro_only,
       status:           'active',
@@ -350,6 +352,40 @@ function CreateForm({ user, profile, isAdmin, router }) {
               )}
             </div>
 
+            {/* ── Squads Needed (only for team modes) ── */}
+            {form.team_size > 1 && (() => {
+              // Build valid squad count options: squads * team_size must not exceed total slots
+              const maxSquads = Math.floor(form.slots / form.team_size)
+              const squadOptions = [2, 4, 8, 16, 32].filter(n => n <= maxSquads && n >= 2)
+              if (squadOptions.length === 0) squadOptions.push(2)
+              // Auto-clamp squads_needed if current value exceeds max
+              const clampedSquads = Math.min(form.squads_needed, maxSquads)
+              return (
+                <div className={styles.field}>
+                  <label>Squads Required to Start</label>
+                  <div className={styles.chipRow}>
+                    {squadOptions.map(n => (
+                      <button key={n} type="button"
+                        className={`${styles.chip} ${(form.squads_needed === n || clampedSquads === n && !squadOptions.includes(form.squads_needed)) ? styles.chipActive : ''}`}
+                        onClick={() => set('squads_needed', n)}
+                        style={{ flexDirection: 'column', gap: 2, minWidth: 64, paddingTop: 8, paddingBottom: 8 }}
+                      >
+                        <span style={{ fontWeight: 800, fontSize: 14 }}>{n}</span>
+                        <span style={{ fontSize: 10, opacity: 0.7 }}>squads</span>
+                      </button>
+                    ))}
+                  </div>
+                  <span className={styles.feeHint} style={{ marginTop: 6 }}>
+                    <i className="ri-information-line" /> Tournament bracket needs{' '}
+                    <strong>{form.squads_needed} squads × {form.team_size} players = {form.squads_needed * form.team_size} players</strong>{' '}
+                    to start. Remaining {form.slots - form.squads_needed * form.team_size > 0
+                      ? `${form.slots - form.squads_needed * form.team_size} slots stay as Open`
+                      : 'all slots are used'}.
+                  </span>
+                </div>
+              )
+            })()}
+
             <div className={styles.fieldRow}>
               <div className={styles.field}>
                 <label>Prize Pool (TZS)</label>
@@ -450,6 +486,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
                 ['ri-layout-grid-line',         'Format',     form.format || '—'],
                 ['ri-group-line',               'Slots',      form.slots],
                 ['ri-team-line',                'Match Type', form.team_size === 1 ? '1v1 — Solo' : `${form.team_size}v${form.team_size} — Team Battle`],
+                ...(form.team_size > 1 ? [['ri-group-2-line', 'Squads to Start', `${form.squads_needed} squads × ${form.team_size} = ${form.squads_needed * form.team_size} players`]] : []),
                 ['ri-money-dollar-circle-line', 'Prize',      form.prize ? `TZS ${form.prize}` : '—'],
                 ['ri-ticket-line',              'Entry Fee',  form.entrance_fee ? `TZS ${Number(String(form.entrance_fee).replace(/,/g,'')).toLocaleString()}` : 'Free'],
                 ['ri-calendar-event-line',      'Date',       form.date || '—'],

@@ -153,18 +153,29 @@ function buildBracket(parts, teamSize = 1) {
  * Size is locked to the tournament's configured slot count (not power-of-2)
  * so it displays correctly before the admin generates the real bracket.
  */
-function buildLobbyBracket(maxSlots, teamSize = 1) {
+function buildLobbyBracket(maxSlots, teamSize = 1, squadsNeeded = null) {
   if (!maxSlots || maxSlots < 2) return null
   const size = nextPow2(maxSlots)
 
   // ── Team lobby mode ───────────────────────────────────────────────────
   if (teamSize > 1) {
-    const teamCount = Math.ceil(size / teamSize)
+    const totalTeamCount = Math.ceil(size / teamSize)
+    // FIX: if squadsNeeded is set, only that many squads are shown as open/active;
+    // remaining team slots in the bracket are hidden as inactive placeholders
+    const activeTeamCount = (squadsNeeded && squadsNeeded > 0 && squadsNeeded <= totalTeamCount)
+      ? squadsNeeded
+      : totalTeamCount
     const openTeam = () => ({
       members: Array.from({ length: teamSize }, () => ({ userId: null, name: 'Open', avatar: null, status: 'open' })),
       status: 'open', teamId: null,
     })
-    const teams = Array.from({ length: teamCount }, openTeam)
+    const inactiveTeam = () => ({
+      members: Array.from({ length: teamSize }, () => ({ userId: null, name: '—', avatar: null, status: 'inactive' })),
+      status: 'inactive', teamId: null,
+    })
+    const teams = Array.from({ length: totalTeamCount }, (_, i) =>
+      i < activeTeamCount ? openTeam() : inactiveTeam()
+    )
     const rounds = []
     let current = teams
     while (current.length > 1) {
@@ -179,7 +190,7 @@ function buildLobbyBracket(maxSlots, teamSize = 1) {
       }))
     }
     rounds.push([[{ members: Array.from({ length: teamSize }, () => ({ userId: null, name: 'TBD', avatar: null, status: 'pending' })), status: 'pending', teamId: null }, null]])
-    return { rounds, bracketSize: size, isEmpty: true, teamSize, isTeamBattle: true }
+    return { rounds, bracketSize: size, isEmpty: true, teamSize, squadsNeeded: activeTeamCount, isTeamBattle: true }
   }
 
   // ── Solo lobby mode (original) ────────────────────────────────────────
@@ -498,15 +509,16 @@ export default function TournamentDetail() {
     setEditForm(t)
     const _loadParsed   = parseBracketData(t.bracket_data)
     const _loadTeamSize = t.team_size || 1
+    const _loadSquads   = t.squads_needed || null
     let _loadFinal
     if (!_loadParsed) {
-      _loadFinal = (t.slots >= 2) ? buildLobbyBracket(t.slots, _loadTeamSize) : null
+      _loadFinal = (t.slots >= 2) ? buildLobbyBracket(t.slots, _loadTeamSize, _loadSquads) : null
     } else {
       const _loadMode     = _loadParsed.isTeamBattle ? (_loadParsed.teamSize || 2) : 1
       const _loadMismatch = _loadMode !== _loadTeamSize
       if (_loadMismatch && _loadParsed.isEmpty) {
         // Empty lobby built with wrong team_size — silently rebuild
-        _loadFinal = buildLobbyBracket(t.slots, _loadTeamSize)
+        _loadFinal = buildLobbyBracket(t.slots, _loadTeamSize, _loadSquads)
       } else if (_loadMismatch && !_loadParsed.isEmpty) {
         // Players exist but bracket mode doesn't match team_size — flag it
         _loadFinal = { ..._loadParsed, teamSizeMismatch: true, currentTeamSize: _loadTeamSize }
@@ -618,13 +630,14 @@ export default function TournamentDetail() {
 ;(() => {
           const _parsedBd2   = parseBracketData(t.bracket_data)
           const _dbTeamSize2 = t.team_size || 1
+          const _dbSquads2   = t.squads_needed || null
           const _bMode2      = _parsedBd2 ? (_parsedBd2.isTeamBattle ? (_parsedBd2.teamSize || 2) : 1) : null
           const _mismatch2   = _parsedBd2 && (_bMode2 !== _dbTeamSize2)
           let _finalBd2
           if (!_parsedBd2) {
-            _finalBd2 = (t.slots >= 2) ? buildLobbyBracket(t.slots, _dbTeamSize2) : null
+            _finalBd2 = (t.slots >= 2) ? buildLobbyBracket(t.slots, _dbTeamSize2, _dbSquads2) : null
           } else if (_mismatch2 && _parsedBd2.isEmpty) {
-            _finalBd2 = buildLobbyBracket(t.slots, _dbTeamSize2)
+            _finalBd2 = buildLobbyBracket(t.slots, _dbTeamSize2, _dbSquads2)
           } else if (_mismatch2 && !_parsedBd2.isEmpty) {
             _finalBd2 = { ..._parsedBd2, teamSizeMismatch: true, currentTeamSize: _dbTeamSize2 }
           } else {
@@ -653,12 +666,14 @@ export default function TournamentDetail() {
   // ── Utility helpers ───────────────────────────────────────────────────────
 
   async function syncCount() {
-    const { count } = await supabase
+    const { count, error } = await supabase
       .from('tournament_participants')
       .select('*', { count: 'exact', head: true })
       .eq('tournament_id', id)
-    if (count !== null) await supabase.from('tournaments').update({ registered_count: count }).eq('id', id)
-    return count ?? 0
+    // FIX: guard against network errors — fall back to local participant count
+    if (error || count === null) return participants.length
+    await supabase.from('tournaments').update({ registered_count: count }).eq('id', id)
+    return count
   }
 
   async function sendNotification(userId, title, body, type = 'tournament', meta = null) {
@@ -742,7 +757,16 @@ export default function TournamentDetail() {
   // always defined (with a safe empty fallback) regardless of render path. ──
 
   const realCount = participants.length
-  const isFull = !!(tournament?.slots) && realCount >= tournament.slots
+  // FIX: when squads_needed is set, effective capacity = squads_needed × team_size
+  // This lets a creator run e.g. 4 squads of 8 (32 players) inside a 64-slot bracket
+  const effectiveCapacity = (() => {
+    if (!tournament?.slots) return 0
+    const tSize = tournament.team_size || 1
+    const sNeeded = tournament.squads_needed
+    if (tSize > 1 && sNeeded && sNeeded > 0) return sNeeded * tSize
+    return tournament.slots
+  })()
+  const isFull = !!effectiveCapacity && realCount >= effectiveCapacity
 
   // Bracket-aware ranking: deepest bracket round reached beats raw points
   const rankedLeaderboard = (() => {
@@ -1005,7 +1029,7 @@ export default function TournamentDetail() {
     if (bracketData.isTeamBattle) {
       // ── Team mode ────────────────────────────────────────────────────────
       const team = bracketData.rounds[0]?.[targetPIdx]?.[targetSIdx]
-      if (!team || team.status === 'bye') {
+      if (!team || team.status === 'bye' || team.status === 'inactive') {
         showToast('That slot is not available.', 'error'); setRegistering(false); return
       }
 
@@ -1022,19 +1046,45 @@ export default function TournamentDetail() {
       const { error: regErr } = await supabase.from('tournament_participants').insert({ tournament_id: id, user_id: user.id })
       if (regErr) { showToast('Failed to register. Try again.', 'error'); setRegistering(false); return }
 
-      const { data: profile } = await supabase.from('profiles').select('username, avatar_url').eq('id', user.id).maybeSingle()
+      const [profileRes, freshTRes] = await Promise.all([
+        supabase.from('profiles').select('username, avatar_url').eq('id', user.id).maybeSingle(),
+        // FIX: fetch fresh bracket_data from DB to avoid overwriting concurrent joins
+        supabase.from('tournaments').select('bracket_data').eq('id', id).single(),
+      ])
+      const profile = profileRes.data
       const memberSlot = { userId: user.id, name: profile?.username || 'Player', avatar: profile?.avatar_url || null, status: 'active' }
 
-      const newRounds = bracketData.rounds.map((r, ri) => ri !== 0 ? r : r.map((pair, pi) => {
+      // Use fresh DB copy — not stale in-memory bracketData — to prevent race overwrites
+      const freshBd = parseBracketData(freshTRes.data?.bracket_data) ?? bracketData
+
+      // Re-locate the member slot in fresh data (another user may have taken the one we checked)
+      const freshTeam = freshBd.rounds[0]?.[targetPIdx]?.[targetSIdx]
+      if (!freshTeam || freshTeam.status === 'bye') {
+        // Roll back participation insert since slot is gone
+        await supabase.from('tournament_participants').delete().eq('tournament_id', id).eq('user_id', user.id)
+        showToast('That slot is no longer available.', 'error'); setRegistering(false); return
+      }
+      const freshMembers = freshTeam.members || []
+      const freshMIdx = targetMIdx !== undefined
+        ? targetMIdx
+        : freshMembers.findIndex(m => !m?.userId || m.status === 'open' || m.status === 'empty' || m.status === 'pending')
+
+      if (freshMIdx === -1 || (freshMembers[freshMIdx]?.userId && freshMembers[freshMIdx].status === 'active')) {
+        // All member slots taken — roll back
+        await supabase.from('tournament_participants').delete().eq('tournament_id', id).eq('user_id', user.id)
+        showToast('That spot was just taken. Try another.', 'error'); setRegistering(false); return
+      }
+
+      const newRounds = freshBd.rounds.map((r, ri) => ri !== 0 ? r : r.map((pair, pi) => {
         if (pi !== targetPIdx) return pair
         return pair.map((team, ti) => {
           if (ti !== targetSIdx) return team
-          const newMembers = team.members.map((m, mi) => mi === mIdx ? memberSlot : m)
+          const newMembers = team.members.map((m, mi) => mi === freshMIdx ? memberSlot : m)
           const allFilled = newMembers.every(m => m?.userId)
           return { ...team, members: newMembers, status: allFilled ? 'active' : 'open' }
         })
       }))
-      const updatedBd = { ...bracketData, rounds: newRounds, isEmpty: false }
+      const updatedBd = { ...freshBd, rounds: newRounds, isEmpty: false }
       await supabase.from('tournaments').update({ bracket_data: updatedBd }).eq('id', id)
       setBracketData(updatedBd)
 
@@ -1048,22 +1098,37 @@ export default function TournamentDetail() {
     }
 
     // ── Solo mode (original) ──────────────────────────────────────────────
-    const targetSlot = bracketData.rounds[0]?.[targetPIdx]?.[targetSIdx]
-    if (targetSlot?.userId || (targetSlot?.status !== 'open' && targetSlot?.status !== 'bye')) {
+    // Pre-check with stale state (fast UI feedback)
+    const preCheckSlot = bracketData.rounds[0]?.[targetPIdx]?.[targetSIdx]
+    if (preCheckSlot?.userId || (preCheckSlot?.status !== 'open' && preCheckSlot?.status !== 'bye')) {
       showToast('That slot was just taken. Pick another.', 'error'); setRegistering(false); return
     }
 
     const { error: regErr } = await supabase.from('tournament_participants').insert({ tournament_id: id, user_id: user.id })
     if (regErr) { showToast('Failed to register. Try again.', 'error'); setRegistering(false); return }
 
-    const { data: profile } = await supabase.from('profiles').select('username, avatar_url').eq('id', user.id).maybeSingle()
+    const [profileRes, freshTRes] = await Promise.all([
+      supabase.from('profiles').select('username, avatar_url').eq('id', user.id).maybeSingle(),
+      // FIX: fetch fresh bracket_data to avoid overwriting a concurrent solo join
+      supabase.from('tournaments').select('bracket_data').eq('id', id).single(),
+    ])
+    const profile = profileRes.data
     const playerSlot = { userId: user.id, name: profile?.username || 'Player', avatar: profile?.avatar_url || null, status: 'active' }
 
-    const newRounds = bracketData.rounds.map((r, ri) => ri !== 0 ? r : r.map((pair, pi) => {
+    const freshBdSolo = parseBracketData(freshTRes.data?.bracket_data) ?? bracketData
+    // Verify slot is still open in fresh data
+    const freshSlot = freshBdSolo.rounds[0]?.[targetPIdx]?.[targetSIdx]
+    if (freshSlot?.userId || (freshSlot?.status !== 'open' && freshSlot?.status !== 'bye')) {
+      // Slot taken by someone else — roll back and bail
+      await supabase.from('tournament_participants').delete().eq('tournament_id', id).eq('user_id', user.id)
+      showToast('That slot was just taken. Pick another.', 'error'); setRegistering(false); return
+    }
+
+    const newRounds = freshBdSolo.rounds.map((r, ri) => ri !== 0 ? r : r.map((pair, pi) => {
       if (pi !== targetPIdx) return pair
       return pair.map((s, si) => si === targetSIdx ? playerSlot : s)
     }))
-    const updatedBd = { ...bracketData, rounds: newRounds, isEmpty: false }
+    const updatedBd = { ...freshBdSolo, rounds: newRounds, isEmpty: false }
     await supabase.from('tournaments').update({ bracket_data: updatedBd }).eq('id', id)
     setBracketData(updatedBd)
 
