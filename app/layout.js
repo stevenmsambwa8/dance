@@ -72,19 +72,20 @@ export default function RootLayout({ children }) {
               <LoadingProvider>
                 <MusicPlayerProvider>          {/* ← NEW */}
                   <AuthGateProvider>
-                    {/* Fixed UI — must live OUTSIDE SlideTransition so it doesn't slide */}
-                    <NavWrapper />
-                    <PhoneGate />
-                    <PWAInstallPrompt />
+                    <MaintenanceGate>
+                      {/* Fixed UI — must live OUTSIDE SlideTransition so it doesn't slide */}
+                      <NavWrapper />
+                      <PhoneGate />
+                      <PWAInstallPrompt />
 
-                    {/* Slide wrapper — handles directional page transitions */}
-                    <SlideTransition>
-                      {/* Loading overlay sits inside slide so it covers the incoming page */}
-                      <PageTransition>
-                        <main>{children}</main>
-                      </PageTransition>
-                    </SlideTransition>
-
+                      {/* Slide wrapper — handles directional page transitions */}
+                      <SlideTransition>
+                        {/* Loading overlay sits inside slide so it covers the incoming page */}
+                        <PageTransition>
+                          <main>{children}</main>
+                        </PageTransition>
+                      </SlideTransition>
+                    </MaintenanceGate>
                   </AuthGateProvider>
                 </MusicPlayerProvider>          {/* ← NEW */}
               </LoadingProvider>
