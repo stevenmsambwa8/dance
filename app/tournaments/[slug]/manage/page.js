@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '../../../../components/AuthProvider'
 import { supabase } from '../../../../lib/supabase'
 import styles from './page.module.css'
+import BracketBuilder from '../../../../components/BracketBuilder'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function getPlayerBracketStatus(userId, bracketData) {
@@ -622,50 +623,73 @@ export default function TournamentManage() {
         </>}
 
         {/* ════ BRACKET ════ */}
-        {activeTab === 'bracket' && <>
-          {bracketData?.teamSizeMismatch && (
-            <div className={styles.mismatchBanner}>
-              <i className="ri-error-warning-line" style={{ color: '#f59e0b', fontSize: 18, flexShrink: 0 }} />
-              <div>
-                <div className={styles.mismatchTitle}>Match type changed to {bracketData.currentTeamSize}v{bracketData.currentTeamSize}</div>
-                <div className={styles.mismatchSub}>Reset and regenerate to apply the new format.</div>
-                <button className={styles.btnAmber} style={{ marginTop: 8 }} onClick={resetBracket}>
-                  <i className="ri-restart-line" /> Reset Now
-                </button>
-              </div>
-            </div>
-          )}
-          <div className={styles.btnRow}>
-            {!hasBracket
-              ? <button className={styles.btnPrimary} onClick={initBracket} disabled={realCount < 2}>
-                  <i className="ri-play-fill" /> Generate Bracket
-                  {realCount < 2 && <span style={{ fontSize: 10, opacity: 0.6 }}> (2+ needed)</span>}
-                </button>
-              : <button className={styles.btnDanger} onClick={resetBracket}>
-                  <i className="ri-restart-line" /> Reset Bracket
-                </button>
-            }
-            <button className={styles.btnGhost} onClick={() => router.push(`/tournaments/${tournament.slug || tournament.id}`)}>
-              <i className="ri-external-link-line" />
-            </button>
-          </div>
+        {activeTab === 'bracket' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-          {/* Unplaced players */}
-          {unplaced.length > 0 && (
-            <div className={styles.unplacedCard}>
-              <div className={styles.unplacedHead}>{unplaced.length} unplaced player{unplaced.length !== 1 ? 's' : ''}</div>
-              {unplaced.map(p => (
-                <div key={p.user_id} className={styles.unplacedRow}>
-                  <div className={styles.unplacedAvatar}>
-                    <Avatar src={p.profiles?.avatar_url} name={p.profiles?.username} size={28} radius={7} />
-                  </div>
-                  <span className={styles.unplacedName}>{p.profiles?.username || 'Player'}</span>
-                  <button className={styles.btnAdd} onClick={() => addToBracket(p)}>Add</button>
+            {/* mismatch warning */}
+            {bracketData?.teamSizeMismatch && (
+              <div className={styles.mismatchBanner}>
+                <i className="ri-error-warning-line" style={{ color: '#f59e0b', fontSize: 18, flexShrink: 0 }} />
+                <div>
+                  <div className={styles.mismatchTitle}>Match type changed to {bracketData.currentTeamSize}v{bracketData.currentTeamSize}</div>
+                  <div className={styles.mismatchSub}>Reset bracket to apply the new format.</div>
                 </div>
-              ))}
+              </div>
+            )}
+
+            {/* Action buttons */}
+            <div className={styles.btnRow}>
+              {!hasBracket
+                ? <button className={styles.btnPrimary} onClick={initBracket} disabled={realCount < 2}>
+                    <i className="ri-play-fill" /> Generate from Players
+                    {realCount < 2 && <span style={{ fontSize: 10, opacity: 0.6 }}> (2+ needed)</span>}
+                  </button>
+                : <button className={styles.btnDanger} onClick={resetBracket}>
+                    <i className="ri-restart-line" /> Reset Bracket
+                  </button>
+              }
+              <button className={styles.btnGhost} onClick={() => router.push(`/tournaments/${tournament.slug || tournament.id}`)}>
+                <i className="ri-eye-line" /> View
+              </button>
             </div>
-          )}
-        </>}
+
+            {/* Free-form bracket builder */}
+            <div className={styles.card} style={{ padding: '14px 16px' }}>
+              <div className={styles.cardHead}>
+                <i className="ri-node-tree" style={{ color: '#6366f1', fontSize: 16 }} />
+                <span className={styles.cardTitle}>Bracket Editor</span>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>
+                  Drag to swap · Tap to rename · Add rounds
+                </span>
+              </div>
+              <BracketBuilder
+                bracketData={bracketData}
+                onChange={(bd) => setBracketData(bd)}
+                onSave={saveBracket}
+                participants={participants}
+                teamSize={tournament?.team_size || 1}
+                saving={saving}
+                manageMode={true}
+              />
+            </div>
+
+            {/* Unplaced players */}
+            {unplaced.length > 0 && (
+              <div className={styles.unplacedCard}>
+                <div className={styles.unplacedHead}>{unplaced.length} unplaced player{unplaced.length !== 1 ? 's' : ''}</div>
+                {unplaced.map(p => (
+                  <div key={p.user_id} className={styles.unplacedRow}>
+                    <div className={styles.unplacedAvatar}>
+                      <Avatar src={p.profiles?.avatar_url} name={p.profiles?.username} size={28} radius={7} />
+                    </div>
+                    <span className={styles.unplacedName}>{p.profiles?.username || 'Player'}</span>
+                    <button className={styles.btnAdd} onClick={() => addToBracket(p)}>+ Add to bracket</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ════ PAYMENTS ════ */}
         {activeTab === 'payments' && <>
