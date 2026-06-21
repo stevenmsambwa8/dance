@@ -97,7 +97,10 @@ export default function PageTransition({ children }) {
           pointerEvents: overlayOpacity > 0 ? 'all' : 'none',
         }}
       >
-        <div className="loader" />
+        <div className="splash-box">
+          <img src="/logo.png"       alt="NaboGaming" className="splash-logo-light" />
+          <img src="/logo-black.png" alt="NaboGaming" className="splash-logo-dark" />
+        </div>
       </div>
       {children}
     </>

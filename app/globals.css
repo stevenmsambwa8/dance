@@ -135,16 +135,59 @@ button {
   }
 }
 
-/* ── Page Overlay Loader ── */
+/* ── Page Overlay Loader (branded splash) ── */
 .page-loader-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(var(--bg-rgb, 255,255,255), 0.6);
+  background: rgba(var(--bg-rgb, 255, 255, 255), 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 9999;
+  overflow: hidden;
 }
+
+.splash-box {
+  position: relative;
+  z-index: 1;
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+
+.splash-box img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
+/* Theme-aware logo swap — mirrors the pattern used in Nav.module.css */
+.splash-logo-light { display: block; }
+.splash-logo-dark  { display: none; }
+
+[data-theme="dark"]   .splash-logo-light,
+[data-theme="neon"]   .splash-logo-light,
+[data-theme="sunset"] .splash-logo-light,
+[data-theme="forest"] .splash-logo-light,
+[data-theme="gold"]   .splash-logo-light,
+[data-theme="ocean"]  .splash-logo-light { display: none; }
+
+[data-theme="dark"]   .splash-logo-dark,
+[data-theme="neon"]   .splash-logo-dark,
+[data-theme="sunset"] .splash-logo-dark,
+[data-theme="forest"] .splash-logo-dark,
+[data-theme="gold"]   .splash-logo-dark,
+[data-theme="ocean"]  .splash-logo-dark { display: block; }
+
+[data-theme="snow"] .splash-logo-light { display: block; }
+[data-theme="snow"] .splash-logo-dark  { display: none; }
 
 /* ── Inline Loader Wrapper ── */
 .loader-wrap {
