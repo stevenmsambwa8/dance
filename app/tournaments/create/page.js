@@ -13,7 +13,6 @@ const GAME_NAMES = Object.fromEntries(GAME_SLUGS.map(s => [s, GAME_META[s].name]
 function slugify(name) {
   return name.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-')
 }
-
 function parseFee(raw) {
   if (!raw) return null
   const n = Number(String(raw).replace(/[^0-9.]/g, ''))
@@ -23,54 +22,128 @@ function parseFee(raw) {
 const FREE_LIMIT_FREE_TOURNEYS = 2
 const FREE_LIMIT_PAID_TOURNEYS = 1
 
-// ── Mode definitions ──────────────────────────────────────────────────────────
-// Each mode is a complete preset: team_size, squads_needed, slots, label, icon, description
-// Creator picks a MODE then just fills name/game/prize — nothing else to configure
+// ─────────────────────────────────────────────────────────────────────────────
+// FORMAT CATEGORIES
+// Two types of tournaments:
+//
+// 1. BATTLE ROYALE (tournament_type = 'royale')
+//    → No bracket. All squads drop on the same map each match.
+//    → Points per match = placement points + kill points.
+//    → Admin records each match result. Standings auto-update.
+//    → Champion = squad with most total points after N matches.
+//    → This is how PUBG Mobile, eFootball group stages, etc. work.
+//
+// 2. BRACKET / 1v1 (tournament_type = 'bracket')  ← existing system
+//    → Single elimination bracket. Players pick slots. Admin sets winners.
+//    → Works for 1v1, 2v2, or any head-to-head matchup.
+// ─────────────────────────────────────────────────────────────────────────────
 
-const BATTLE_MODES = [
+const FORMAT_TYPES = [
   {
-    id: 'solo_16',
-    label: '1v1 Solo',
+    id: 'royale',
+    label: 'Battle Royale',
+    icon: 'ri-sword-line',
+    color: '#ef4444',
+    headline: 'Points-based — all squads play at once',
+    desc: 'PUBG Mobile style. Squads earn points each match from placement + kills. Most points after all matches = Champion. No bracket needed.',
+    examples: 'PUBG Mobile · eFootball Group Stage · Free Fire · COD Mobile BR',
+  },
+  {
+    id: 'bracket',
+    label: '1v1 / Team Bracket',
+    icon: 'ri-tournament-line',
+    color: '#6366f1',
+    headline: 'Elimination bracket — head to head',
+    desc: 'Classic single-elimination. Players or teams claim slots and face off directly. Winner advances each round until champion.',
+    examples: 'FIFA 1v1 · 2v2 Duos · 4v4 Squads · Boxing · Fighting games',
+  },
+]
+
+// Royale squad presets
+const ROYALE_PRESETS = [
+  {
+    id: 'solo_royale',
+    label: 'Solo',
     icon: 'ri-user-line',
     team_size: 1,
-    squads_needed: null,
-    defaultSlots: 16,
-    slotOptions: [8, 16, 32, 64],
-    desc: 'Every player for themselves. 1 champion.',
+    defaultSquads: 16,
+    squadOptions: [8, 16, 32],
+    desc: 'Every player for themselves',
     color: '#6366f1',
   },
   {
-    id: 'duo_8',
-    label: '2v2 Duos',
+    id: 'duo_royale',
+    label: 'Duos',
     icon: 'ri-user-2-line',
     team_size: 2,
-    squads_needed: 8,
-    defaultSlots: 16,
-    slotOptions: [8, 16, 32],
-    desc: '2-player teams. 8 duos fight to the last.',
+    defaultSquads: 12,
+    squadOptions: [8, 12, 16],
+    desc: '2-player teams per squad',
     color: '#22c55e',
   },
   {
-    id: 'squad_4v4',
-    label: '4v4 Squad',
+    id: 'squad_royale',
+    label: 'Squads (4)',
     icon: 'ri-group-line',
     team_size: 4,
-    squads_needed: 8,
-    defaultSlots: 32,
-    slotOptions: [16, 32, 64],
-    desc: '4-player squads. 8 squads enter, 1 wins.',
+    defaultSquads: 12,
+    squadOptions: [8, 12, 16, 20],
+    desc: '4 players per squad — PUBG Mobile standard',
     color: '#f59e0b',
   },
   {
-    id: 'squad_8v8',
-    label: '8-Player Squad',
+    id: 'squad8_royale',
+    label: 'Large Squad (8)',
     icon: 'ri-team-line',
     team_size: 8,
-    squads_needed: 8,
+    defaultSquads: 8,
+    squadOptions: [4, 8, 12, 16],
+    desc: '8 players per squad',
+    color: '#ec4899',
+  },
+]
+
+// Bracket presets
+const BRACKET_PRESETS = [
+  {
+    id: 'solo_bracket',
+    label: '1v1 Solo',
+    icon: 'ri-user-line',
+    team_size: 1,
+    defaultSlots: 16,
+    slotOptions: [8, 16, 32, 64],
+    desc: 'Single player head-to-head',
+    color: '#6366f1',
+  },
+  {
+    id: 'duo_bracket',
+    label: '2v2 Duos',
+    icon: 'ri-user-2-line',
+    team_size: 2,
+    defaultSlots: 16,
+    slotOptions: [8, 16, 32],
+    desc: '2-player teams face off',
+    color: '#22c55e',
+  },
+  {
+    id: 'squad4_bracket',
+    label: '4v4 Squads',
+    icon: 'ri-group-line',
+    team_size: 4,
+    defaultSlots: 32,
+    slotOptions: [16, 32, 64],
+    desc: '4v4 team elimination',
+    color: '#f59e0b',
+  },
+  {
+    id: 'squad8_bracket',
+    label: '8v8 Squads',
+    icon: 'ri-team-line',
+    team_size: 8,
     defaultSlots: 64,
-    slotOptions: [32, 64, 128],
-    desc: 'PUBG style — 8 squads of 8. Last squad standing wins.',
-    color: '#ef4444',
+    slotOptions: [32, 64],
+    desc: '8v8 team elimination',
+    color: '#ec4899',
   },
 ]
 
@@ -83,9 +156,7 @@ export default function CreateTournament() {
     return (
       <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16, background: 'var(--bg)', textAlign: 'center' }}>
         <p style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Sign in to create tournaments</p>
-        <button onClick={openAuthGate} style={{ padding: '11px 24px', background: 'var(--text)', color: 'var(--bg)', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)' }}>
-          Sign In
-        </button>
+        <button onClick={openAuthGate} style={{ padding: '11px 24px', background: 'var(--text)', color: 'var(--bg)', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)' }}>Sign In</button>
       </div>
     )
   }
@@ -94,16 +165,17 @@ export default function CreateTournament() {
 }
 
 function CreateForm({ user, profile, isAdmin, router }) {
-  const [step, setStep] = useState(0)  // 0=mode, 1=details, 2=review
+  // step: 0=type, 1=preset, 2=details
+  const [step, setStep] = useState(0)
+  const [formatType, setFormatType] = useState(null)  // 'royale' | 'bracket'
+  const [preset, setPreset] = useState(null)           // one of ROYALE_PRESETS or BRACKET_PRESETS
 
-  // Selected mode
-  const [mode, setMode] = useState(null) // one of BATTLE_MODES
-
-  // Details form
   const [form, setForm] = useState({
     name: '',
     game_slug: GAME_SLUGS[0] || 'pubg',
-    slots: 32,
+    slots: 64,          // total player slots (team_size × squads)
+    squads_needed: 12,  // for royale: number of squads
+    matches_count: 4,   // for royale: how many matches to play
     prize: '',
     date: '',
     description: '',
@@ -124,17 +196,30 @@ function CreateForm({ user, profile, isAdmin, router }) {
       .then(({ data }) => setMyCreated(data || []))
   }, [user.id])
 
-  const activePlan = getActivePlan(profile)
-  const isPaidPlan = isAdmin || activePlan === 'pro' || activePlan === 'elite' || activePlan === 'team'
-  const myFreeCount = (myCreated || []).filter(t => !parseFee(t.entrance_fee)).length
-  const myPaidCount = (myCreated || []).filter(t =>  parseFee(t.entrance_fee)).length
+  const activePlan   = getActivePlan(profile)
+  const isPaidPlan   = isAdmin || activePlan === 'pro' || activePlan === 'elite' || activePlan === 'team'
+  const myFreeCount  = (myCreated || []).filter(t => !parseFee(t.entrance_fee)).length
+  const myPaidCount  = (myCreated || []).filter(t =>  parseFee(t.entrance_fee)).length
 
   function set(key, val) { setForm(f => ({ ...f, [key]: val })); setErrors(e => ({ ...e, [key]: null })) }
 
-  function pickMode(m) {
-    setMode(m)
-    setForm(f => ({ ...f, slots: m.defaultSlots }))
+  function pickType(type) {
+    setFormatType(type.id)
     setStep(1)
+  }
+
+  function pickPreset(p) {
+    setPreset(p)
+    if (formatType === 'royale') {
+      setForm(f => ({
+        ...f,
+        squads_needed: p.defaultSquads,
+        slots: p.defaultSquads * p.team_size,
+      }))
+    } else {
+      setForm(f => ({ ...f, slots: p.defaultSlots, squads_needed: null }))
+    }
+    setStep(2)
   }
 
   function validate() {
@@ -151,33 +236,40 @@ function CreateForm({ user, profile, isAdmin, router }) {
   }
 
   async function submit() {
-    if (!user || submitting || !mode) return
+    if (!user || submitting || !preset) return
     if (!validate()) return
 
     setSubmitting(true); setProgress(0); setProgressLabel('Creating tournament…')
-    await tick(20, 'Setting up bracket…')
+    await tick(20, 'Setting up…')
 
-    const fee = form.entrance_fee ? Number(String(form.entrance_fee).replace(/,/g, '')) : 0
-    const teamSize = mode.team_size
-    const squadsNeeded = mode.squads_needed
+    const fee      = form.entrance_fee ? Number(String(form.entrance_fee).replace(/,/g, '')) : 0
+    const teamSize = preset.team_size
+    const isRoyale = formatType === 'royale'
+
+    // For royale: slots = squads × team_size
+    const totalSlots = isRoyale
+      ? form.squads_needed * teamSize
+      : Number(form.slots)
 
     const { data: newT, error } = await supabase.from('tournaments').insert({
-      name:             form.name.trim(),
-      slug:             slugify(form.name),
-      game_slug:        form.game_slug,
-      format:           mode.label,
-      prize:            form.prize,
-      slots:            Number(form.slots),
-      date:             form.date,
-      description:      form.description,
-      entrance_fee:     fee,
-      team_size:        teamSize,
-      squads_needed:    teamSize > 1 ? squadsNeeded : null,
-      is_test:          form.is_test,
-      pro_only:         form.pro_only,
-      status:           'active',
-      registered_count: 0,
-      created_by:       user.id,
+      name:              form.name.trim(),
+      slug:              slugify(form.name),
+      game_slug:         form.game_slug,
+      format:            preset.label,
+      tournament_type:   isRoyale ? 'royale' : 'bracket',
+      prize:             form.prize,
+      slots:             totalSlots,
+      date:              form.date,
+      description:       form.description,
+      entrance_fee:      fee,
+      team_size:         teamSize,
+      squads_needed:     isRoyale ? form.squads_needed : null,
+      matches_count:     isRoyale ? Number(form.matches_count) : null,
+      is_test:           form.is_test,
+      pro_only:          form.pro_only,
+      status:            'active',
+      registered_count:  0,
+      created_by:        user.id,
     }).select().single()
 
     if (error) { setSubmitting(false); setErrors({ _submit: error.message }); setProgress(0); return }
@@ -188,12 +280,13 @@ function CreateForm({ user, profile, isAdmin, router }) {
       setProgressLabel('Notifying players…')
       const { data: allProfiles } = await supabase.from('profiles').select('id').neq('id', user.id)
       if (allProfiles?.length) {
-        const feeNote = fee > 0 ? ` · Entry fee: TZS ${fee.toLocaleString()}` : ''
-        const proNote = form.pro_only ? ' · Pro & Elite only 👑' : ''
+        const feeNote  = fee > 0 ? ` · Entry: TZS ${fee.toLocaleString()}` : ''
+        const proNote  = form.pro_only ? ' · Pro & Elite only 👑' : ''
+        const typeNote = isRoyale ? ` · ${form.squads_needed} squads · ${form.matches_count} matches` : ''
         const notifications = allProfiles.map(p => ({
           user_id: p.id,
           title:   `New Tournament — ${newT.name}`,
-          body:    `${mode.label} tournament is open${newT.date ? ` on ${newT.date}` : ''}. ${newT.slots} slots${newT.prize ? ` · Prize: TZS ${newT.prize}` : ''}${feeNote}${proNote}. Join now!`,
+          body:    `${preset.label} tournament open${newT.date ? ` on ${newT.date}` : ''}. ${totalSlots} slots${typeNote}${newT.prize ? ` · Prize: TZS ${newT.prize}` : ''}${feeNote}${proNote}. Join now!`,
           type:    'tournament',
           meta:    { tournament_id: newT.id },
           read:    false,
@@ -225,7 +318,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
     })
   }
 
-  // ── Done ──────────────────────────────────────────────────────────────────
+  // ── Done ────────────────────────────────────────────────────────────────────
   if (done) {
     return (
       <div className={styles.page}>
@@ -246,7 +339,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
     )
   }
 
-  // ── Submitting ────────────────────────────────────────────────────────────
+  // ── Submitting ──────────────────────────────────────────────────────────────
   if (submitting) {
     return (
       <div className={styles.page}>
@@ -261,7 +354,9 @@ function CreateForm({ user, profile, isAdmin, router }) {
     )
   }
 
-  // ── Step 0: Pick battle mode ──────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
+  // STEP 0 — Pick tournament type
+  // ─────────────────────────────────────────────────────────────────────────────
   if (step === 0) {
     return (
       <div className={styles.page}>
@@ -271,53 +366,51 @@ function CreateForm({ user, profile, isAdmin, router }) {
           <span />
         </div>
 
-        <div style={{ padding: '4px 16px 12px' }}>
+        <div style={{ padding: '0 16px 16px' }}>
           <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)', fontWeight: 500 }}>
-            Pick a battle format to get started
+            What kind of tournament is this?
           </p>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '0 16px' }}>
-          {BATTLE_MODES.map(m => (
+          {FORMAT_TYPES.map(t => (
             <button
-              key={m.id}
-              onClick={() => pickMode(m)}
+              key={t.id}
+              onClick={() => pickType(t)}
               style={{
-                display: 'flex', alignItems: 'center', gap: 14,
-                padding: '16px 18px', borderRadius: 14,
-                border: '1.5px solid var(--border)',
-                background: 'var(--surface)',
+                display: 'flex', flexDirection: 'column', gap: 10,
+                padding: '18px 18px', borderRadius: 16,
+                border: `1.5px solid ${t.color}30`,
+                background: `${t.color}08`,
                 cursor: 'pointer', textAlign: 'left', width: '100%',
-                transition: 'border-color 0.15s, background 0.15s',
               }}
             >
-              <div style={{
-                width: 46, height: 46, borderRadius: 12, flexShrink: 0,
-                background: `${m.color}18`, border: `1.5px solid ${m.color}30`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 20, color: m.color,
-              }}>
-                <i className={m.icon} />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-                  <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)' }}>{m.label}</span>
-                  {m.squads_needed && (
-                    <span style={{ fontSize: 10, fontWeight: 700, color: m.color, background: `${m.color}18`, padding: '2px 7px', borderRadius: 5 }}>
-                      {m.squads_needed} squads
-                    </span>
-                  )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{
+                  width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+                  background: `${t.color}18`, border: `1.5px solid ${t.color}30`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 20, color: t.color,
+                }}>
+                  <i className={t.icon} />
                 </div>
-                <span style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.4 }}>{m.desc}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', marginBottom: 2 }}>{t.label}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: t.color }}>{t.headline}</div>
+                </div>
+                <i className="ri-arrow-right-s-line" style={{ color: 'var(--text-muted)', fontSize: 18, flexShrink: 0 }} />
               </div>
-              <i className="ri-arrow-right-s-line" style={{ color: 'var(--text-muted)', fontSize: 18, flexShrink: 0 }} />
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>{t.desc}</div>
+              <div style={{ fontSize: 11, color: t.color, background: `${t.color}12`, borderRadius: 6, padding: '4px 8px', alignSelf: 'flex-start', fontWeight: 600 }}>
+                <i className="ri-gamepad-line" style={{ marginRight: 4 }} />{t.examples}
+              </div>
             </button>
           ))}
         </div>
 
         {!isPaidPlan && myCreated !== null && (
-          <div style={{ margin: '20px 16px 0', padding: '10px 14px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--border)', fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <i className="ri-information-line" style={{ flexShrink: 0 }} />
+          <div style={{ margin: '20px 16px 0', padding: '10px 14px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--border)', fontSize: 12, color: 'var(--text-muted)', display: 'flex', gap: 8 }}>
+            <i className="ri-information-line" style={{ flexShrink: 0, marginTop: 1 }} />
             <span>Free plan: <strong>{myFreeCount}/{FREE_LIMIT_FREE_TOURNEYS}</strong> free &amp; <strong>{myPaidCount}/{FREE_LIMIT_PAID_TOURNEYS}</strong> paid used.</span>
           </div>
         )}
@@ -325,35 +418,105 @@ function CreateForm({ user, profile, isAdmin, router }) {
     )
   }
 
-  // ── Step 1: Details ───────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
+  // STEP 1 — Pick squad size preset
+  // ─────────────────────────────────────────────────────────────────────────────
   if (step === 1) {
-    const slotOpts = mode?.slotOptions || [16, 32, 64]
-    const totalPlayers = mode?.squads_needed
-      ? mode.squads_needed * mode.team_size
-      : form.slots
+    const presets = formatType === 'royale' ? ROYALE_PRESETS : BRACKET_PRESETS
+    const typeObj = FORMAT_TYPES.find(f => f.id === formatType)
 
     return (
       <div className={styles.page}>
         <div className={styles.topBar}>
           <button className={styles.backBtn} onClick={() => setStep(0)}><i className="ri-arrow-left-line" /></button>
-          <span className={styles.topTitle}>{mode?.label}</span>
-          <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>2 / 2</span>
+          <span className={styles.topTitle}>{typeObj?.label}</span>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Step 2 of 3</span>
         </div>
 
-        {/* Mode summary pill */}
         <div style={{ padding: '0 16px 16px' }}>
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)', fontWeight: 500 }}>
+            {formatType === 'royale'
+              ? 'How many players per squad?'
+              : 'What is the team size?'}
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '0 16px' }}>
+          {presets.map(p => (
+            <button
+              key={p.id}
+              onClick={() => pickPreset(p)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 14,
+                padding: '14px 16px', borderRadius: 14,
+                border: '1.5px solid var(--border)',
+                background: 'var(--surface)',
+                cursor: 'pointer', textAlign: 'left', width: '100%',
+              }}
+            >
+              <div style={{
+                width: 42, height: 42, borderRadius: 10, flexShrink: 0,
+                background: `${p.color}18`, border: `1.5px solid ${p.color}25`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 18, color: p.color,
+              }}>
+                <i className={p.icon} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)', marginBottom: 2 }}>{p.label}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{p.desc}</div>
+              </div>
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <div style={{ fontSize: 18, fontWeight: 900, color: p.color, lineHeight: 1 }}>{p.team_size}</div>
+                <div style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 600 }}>PLAYERS</div>
+              </div>
+              <i className="ri-arrow-right-s-line" style={{ color: 'var(--text-muted)', fontSize: 18, flexShrink: 0 }} />
+            </button>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // STEP 2 — Details
+  // ─────────────────────────────────────────────────────────────────────────────
+  if (step === 2) {
+    const isRoyale     = formatType === 'royale'
+    const totalPlayers = isRoyale
+      ? form.squads_needed * (preset?.team_size || 1)
+      : Number(form.slots)
+    const squadOpts    = isRoyale ? (preset?.squadOptions || [8, 12, 16]) : []
+    const slotOpts     = !isRoyale ? (preset?.slotOptions || [16, 32, 64]) : []
+    const matchOpts    = [3, 4, 5, 6, 8]
+
+    return (
+      <div className={styles.page}>
+        <div className={styles.topBar}>
+          <button className={styles.backBtn} onClick={() => setStep(1)}><i className="ri-arrow-left-line" /></button>
+          <span className={styles.topTitle}>{preset?.label}</span>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Step 3 of 3</span>
+        </div>
+
+        {/* Mode summary */}
+        <div style={{ padding: '0 16px 14px' }}>
           <div style={{
             display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
-            background: `${mode?.color}12`, borderRadius: 10, border: `1px solid ${mode?.color}25`,
+            background: `${preset?.color}10`, borderRadius: 10,
+            border: `1px solid ${preset?.color}25`,
           }}>
-            <i className={mode?.icon} style={{ color: mode?.color, fontSize: 18, flexShrink: 0 }} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: mode?.color }}>{mode?.label}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{mode?.desc}</div>
+            <i className={preset?.icon} style={{ color: preset?.color, fontSize: 20, flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: preset?.color }}>{preset?.label}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
+                {isRoyale
+                  ? `${form.squads_needed} squads × ${preset?.team_size} players = ${totalPlayers} total`
+                  : `${totalPlayers} player slots · single elimination`}
+              </div>
             </div>
-            {mode?.squads_needed && (
+            {isRoyale && (
               <div style={{ textAlign: 'center', flexShrink: 0 }}>
-                <div style={{ fontSize: 18, fontWeight: 900, color: mode?.color, lineHeight: 1 }}>{totalPlayers}</div>
+                <div style={{ fontSize: 20, fontWeight: 900, color: preset?.color, lineHeight: 1 }}>{totalPlayers}</div>
                 <div style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 600 }}>PLAYERS</div>
               </div>
             )}
@@ -367,11 +530,10 @@ function CreateForm({ user, profile, isAdmin, router }) {
             <div className={styles.field}>
               <label>Tournament Name <span className={styles.req}>*</span></label>
               <input
-                type="text" value={form.name}
-                placeholder={`e.g. PUBG ${mode?.label} Season 1`}
+                type="text" value={form.name} autoFocus
+                placeholder={isRoyale ? 'e.g. PUBG Mobile Season 3' : 'e.g. FIFA 1v1 Showdown'}
                 onChange={e => set('name', e.target.value)}
                 className={errors.name ? styles.inputError : ''}
-                autoFocus
               />
               {errors.name && <span className={styles.errMsg}>{errors.name}</span>}
             </div>
@@ -391,8 +553,44 @@ function CreateForm({ user, profile, isAdmin, router }) {
               </div>
             </div>
 
-            {/* Slots (only shown for solo where squads_needed is null) */}
-            {!mode?.squads_needed && (
+            {/* Royale: number of squads */}
+            {isRoyale && (
+              <div className={styles.field}>
+                <label>Number of Squads</label>
+                <div className={styles.chipRow}>
+                  {squadOpts.map(n => (
+                    <button key={n} type="button"
+                      className={`${styles.chip} ${form.squads_needed === n ? styles.chipActive : ''}`}
+                      onClick={() => { set('squads_needed', n); set('slots', n * (preset?.team_size || 1)) }}
+                    >{n} squads</button>
+                  ))}
+                </div>
+                <span className={styles.feeHint} style={{ marginTop: 6 }}>
+                  <i className="ri-information-line" /> {form.squads_needed} squads × {preset?.team_size} = <strong>{totalPlayers} players</strong>
+                </span>
+              </div>
+            )}
+
+            {/* Royale: number of matches */}
+            {isRoyale && (
+              <div className={styles.field}>
+                <label>Number of Matches</label>
+                <div className={styles.chipRow}>
+                  {matchOpts.map(n => (
+                    <button key={n} type="button"
+                      className={`${styles.chip} ${form.matches_count === n ? styles.chipActive : ''}`}
+                      onClick={() => set('matches_count', n)}
+                    >{n}</button>
+                  ))}
+                </div>
+                <span className={styles.feeHint} style={{ marginTop: 6 }}>
+                  <i className="ri-information-line" /> All {form.squads_needed} squads play <strong>{form.matches_count} matches</strong>. Admin records results after each. Most points wins.
+                </span>
+              </div>
+            )}
+
+            {/* Bracket: max slots */}
+            {!isRoyale && (
               <div className={styles.field}>
                 <label>Max Players</label>
                 <div className={styles.chipRow}>
@@ -406,10 +604,10 @@ function CreateForm({ user, profile, isAdmin, router }) {
               </div>
             )}
 
-            {/* Prize + Date side by side */}
+            {/* Prize + Date */}
             <div className={styles.fieldRow}>
               <div className={styles.field}>
-                <label>Prize Pool (TZS) <span className={styles.opt}>(optional)</span></label>
+                <label>Prize (TZS) <span className={styles.opt}>(optional)</span></label>
                 <input type="text" value={form.prize} placeholder="e.g. 500,000" onChange={e => set('prize', e.target.value)} />
               </div>
               <div className={styles.field}>
@@ -421,25 +619,18 @@ function CreateForm({ user, profile, isAdmin, router }) {
             {/* Entry fee */}
             <div className={styles.field}>
               <label><i className="ri-money-dollar-circle-line" style={{ marginRight: 4 }} />Entry Fee (TZS) <span className={styles.opt}>(optional)</span></label>
-              <input
-                type="text" value={form.entrance_fee}
-                placeholder="Leave blank for free entry"
-                onChange={e => set('entrance_fee', e.target.value)}
-              />
-              {form.entrance_fee && (
-                <span className={styles.feeHint}><i className="ri-information-line" /> Players submit M-Pesa proof — admin approves.</span>
-              )}
+              <input type="text" value={form.entrance_fee} placeholder="Leave blank for free" onChange={e => set('entrance_fee', e.target.value)} />
+              {form.entrance_fee && <span className={styles.feeHint}><i className="ri-information-line" /> Players submit M-Pesa proof — admin approves.</span>}
             </div>
 
             {/* Description */}
             <div className={styles.field}>
               <label>Description <span className={styles.opt}>(optional)</span></label>
-              <textarea rows={2} value={form.description} placeholder="Any rules or notes…" onChange={e => set('description', e.target.value)} />
+              <textarea rows={2} value={form.description} placeholder="Rules, map, server info…" onChange={e => set('description', e.target.value)} />
             </div>
 
-            {/* Pro Only toggle */}
-            <button
-              type="button"
+            {/* Pro Only */}
+            <button type="button"
               className={`${styles.testToggle} ${form.pro_only ? styles.testToggleOn : ''}`}
               onClick={() => set('pro_only', !form.pro_only)}
               style={{ borderColor: form.pro_only ? '#a855f7' : undefined, background: form.pro_only ? '#a855f720' : undefined }}
@@ -456,9 +647,8 @@ function CreateForm({ user, profile, isAdmin, router }) {
               </div>
             </button>
 
-            {/* Test Run toggle */}
-            <button
-              type="button"
+            {/* Test Run */}
+            <button type="button"
               className={`${styles.testToggle} ${form.is_test ? styles.testToggleOn : ''}`}
               onClick={() => set('is_test', !form.is_test)}
             >
@@ -466,7 +656,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
                 <i className={form.is_test ? 'ri-flask-fill' : 'ri-flask-line'} />
                 <div>
                   <span className={styles.testToggleLabel}>Test Run</span>
-                  <span className={styles.testToggleHint}>{form.is_test ? 'Silent test — no notifications sent.' : 'Run a silent test, hidden from others.'}</span>
+                  <span className={styles.testToggleHint}>{form.is_test ? 'Silent test — no notifications.' : 'Hidden test, no notifications sent.'}</span>
                 </div>
               </div>
               <div className={`${styles.testToggleSwitch} ${form.is_test ? styles.testToggleSwitchOn : ''}`}>
@@ -474,19 +664,13 @@ function CreateForm({ user, profile, isAdmin, router }) {
               </div>
             </button>
 
-            {errors._quota && (
-              <div className={styles.quotaErr}>
-                <i className="ri-shield-star-line" />
-                <span>{errors._quota}</span>
-                <button className={styles.quotaErrBtn} onClick={() => router.push('/upgrade')}>Upgrade →</button>
-              </div>
-            )}
+            {errors._quota  && <div className={styles.quotaErr}><i className="ri-shield-star-line" /><span>{errors._quota}</span><button className={styles.quotaErrBtn} onClick={() => router.push('/upgrade')}>Upgrade →</button></div>}
             {errors._submit && <div className={styles.submitErr}><i className="ri-error-warning-line" /> {errors._submit}</div>}
           </div>
         </div>
 
         <div className={styles.navRow}>
-          <button className={styles.navBack} onClick={() => setStep(0)}><i className="ri-arrow-left-line" /> Back</button>
+          <button className={styles.navBack} onClick={() => setStep(1)}><i className="ri-arrow-left-line" /> Back</button>
           <button className={styles.navLaunch} onClick={submit} disabled={submitting}>
             <i className="ri-rocket-line" /> Launch
           </button>

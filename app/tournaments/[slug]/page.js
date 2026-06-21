@@ -3781,14 +3781,14 @@ function autoTeamName(team, globalIdx) {
     return combined.charAt(0).toUpperCase() + combined.slice(1)
   }
 
-  // 3. No members yet — use stable squad number from teamId
+  // 3. No members yet — use stable squad number from teamId (new format: "squad_0", "squad_3")
   if (team?.teamId) {
-    // Handles: "squad_0", "squad_3", "team_0", "team_4"
     const match = team.teamId.match(/(\d+)$/)
     if (match) return `Squad ${parseInt(match[1], 10) + 1}`
   }
 
-  // 4. Final fallback using bracket position
+  // 4. Old bracket_data has teamId: null — use globalIdx (bracket position) as stable fallback
+  //    This always gives the correct Squad number since globalIdx is the team's position in round 0
   return `Squad ${globalIdx + 1}`
 }
 
@@ -3798,7 +3798,16 @@ function TeamMatchCard({ pair, styles, isAdmin, teamSize, onSetStatus, onRenameT
   const [renamingTeam, setRenamingTeam] = useState(null) // { slotIdx, value }
 
   const isByeMatch = teamA?.status === 'bye' || teamB?.status === 'bye'
-  const isPending = (t) => !t?.teamId && t?.status !== 'open' && t?.status !== 'bye' && t?.status !== 'active'
+  // FIX: old bracket_data has teamId: null on open slots — don't treat them as TBD/pending
+  // A team is truly "pending" (TBD) only if it's a later-round slot waiting for a winner
+  // Open slots in round 0 always have status 'open' or 'active', never 'pending'
+  const isPending = (t) => {
+    if (!t) return false
+    if (t.status === 'bye') return false
+    if (t.status === 'open' || t.status === 'active' || t.status === 'winner' || t.status === 'eliminated' || t.status === 'disqualified' || t.status === 'inactive') return false
+    // status === 'pending' explicitly, OR no status and no members (later-round TBD slot)
+    return t.status === 'pending' || (!t.status && !t.members?.some(m => m?.userId))
+  }
 
   // Figure out which team the current user is in (if any)
   const userTeamSlot = (() => {
