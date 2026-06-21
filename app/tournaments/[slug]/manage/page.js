@@ -166,6 +166,12 @@ export default function TournamentManage() {
   const [activeTab,    setActiveTab]    = useState('overview')
   const [confirm,      setConfirm]      = useState(null)
   const [toast,        setToast]        = useState(null)
+  // ── Transfer state ────────────────────────────────────────────────────────
+  const [showTransfer,     setShowTransfer]     = useState(false)
+  const [transferTargets,  setTransferTargets]  = useState([])   // tournaments to transfer to
+  const [transferTarget,   setTransferTarget]   = useState(null) // selected tournament id
+  const [transferLoading,  setTransferLoading]  = useState(false)
+  const [transferDone,     setTransferDone]     = useState(false)
   const toastTimer = useRef(null)
   const id = useRef(null)
 
@@ -372,6 +378,69 @@ export default function TournamentManage() {
     await supabase.from('tournaments').update({ status: newStatus }).eq('id', id.current)
     setTournament(t => ({ ...t, status: newStatus }))
     showToast(`Status → ${newStatus}`, 'success')
+  }
+
+  // ── Transfer players to another tournament ────────────────────────────────
+  async function loadTransferTargets() {
+    setShowTransfer(true)
+    setTransferLoading(true)
+    setTransferDone(false)
+    setTransferTarget(null)
+    // Load other active tournaments with matching team_size
+    const { data } = await supabase
+      .from('tournaments')
+      .select('id, name, slug, team_size, registered_count, slots, status')
+      .neq('id', id.current)
+      .eq('team_size', tournament?.team_size || 1)
+      .in('status', ['active', 'upcoming'])
+      .order('created_at', { ascending: false })
+      .limit(20)
+    setTransferTargets(data || [])
+    setTransferLoading(false)
+  }
+
+  async function transferPlayers() {
+    if (!transferTarget || !participants.length) return
+    setTransferLoading(true)
+    try {
+      // Get players already in target tournament (avoid duplicates)
+      const { data: existing } = await supabase
+        .from('tournament_participants')
+        .select('user_id')
+        .eq('tournament_id', transferTarget)
+      const existingIds = new Set((existing || []).map(e => e.user_id))
+
+      const toInsert = participants
+        .filter(p => !existingIds.has(p.user_id))
+        .map(p => ({ tournament_id: transferTarget, user_id: p.user_id }))
+
+      if (toInsert.length > 0) {
+        await supabase.from('tournament_participants').insert(toInsert)
+        // Update registered_count on target
+        const newCount = (existing?.length || 0) + toInsert.length
+        await supabase.from('tournaments').update({ registered_count: newCount }).eq('id', transferTarget)
+      }
+
+      // Notify transferred players
+      const targetT = transferTargets.find(t => t.id === transferTarget)
+      const notifs = participants.map(p => ({
+        user_id:     p.user_id,
+        title:       'You have been transferred',
+        body:        `You've been moved to "${targetT?.name || 'a new tournament'}". Check it out!`,
+        type:        'tournament',
+        meta:        { tournament_id: transferTarget },
+        read:        false,
+      }))
+      for (let i = 0; i < notifs.length; i += 100) {
+        await supabase.from('notifications').insert(notifs.slice(i, i + 100))
+      }
+
+      setTransferDone(true)
+      showToast(`${toInsert.length} player${toInsert.length !== 1 ? 's' : ''} transferred successfully!`)
+    } catch (err) {
+      showToast('Transfer failed: ' + err.message, 'error')
+    }
+    setTransferLoading(false)
   }
 
   async function deleteTournament() {
@@ -715,16 +784,120 @@ export default function TournamentManage() {
 
         {/* ════ DANGER ════ */}
         {activeTab === 'danger' && (
-          <div className={styles.dangerCard}>
-            <div className={styles.dangerHead}>
-              <i className="ri-error-warning-fill" style={{ fontSize: 18 }} /> Danger Zone
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+            {/* ── Transfer Players ── */}
+            <div className={styles.dangerCard} style={{ borderColor: '#6366f130', background: '#6366f108' }}>
+              <div className={styles.dangerHead} style={{ color: '#6366f1' }}>
+                <i className="ri-swap-line" style={{ fontSize: 18 }} /> Transfer Players
+              </div>
+              <p className={styles.dangerSub}>
+                Move all {participants.length} registered players from this tournament into another existing tournament.
+                Only tournaments with the same match type ({tournament?.team_size === 1 ? '1v1 Solo' : `${tournament?.team_size}v${tournament?.team_size} Team`}) are shown.
+                Players already in the target tournament won't be duplicated.
+              </p>
+
+              {!showTransfer ? (
+                <button
+                  className={styles.btnPrimary}
+                  onClick={loadTransferTargets}
+                  disabled={participants.length === 0}
+                  style={{ opacity: participants.length === 0 ? 0.5 : 1 }}
+                >
+                  <i className="ri-swap-line" /> Choose Destination Tournament
+                </button>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {transferLoading && !transferTargets.length && (
+                    <div style={{ fontSize: 13, color: 'var(--text-muted)', padding: '8px 0' }}>
+                      <i className="ri-loader-4-line" /> Loading tournaments…
+                    </div>
+                  )}
+
+                  {!transferLoading && !transferDone && transferTargets.length === 0 && (
+                    <div style={{ fontSize: 13, color: 'var(--text-muted)', padding: '8px 0' }}>
+                      No matching tournaments found. Create a new tournament with the same match type first.
+                    </div>
+                  )}
+
+                  {transferDone ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, background: '#22c55e15', border: '1px solid #22c55e30' }}>
+                      <i className="ri-checkbox-circle-fill" style={{ color: '#22c55e', fontSize: 18 }} />
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: '#22c55e' }}>Transfer complete!</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                          Players moved to "{transferTargets.find(t => t.id === transferTarget)?.name}". They were notified.
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {transferTargets.length > 0 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          {transferTargets.map(t => {
+                            const isFull = (t.registered_count || 0) >= (t.slots || 0)
+                            const isSelected = transferTarget === t.id
+                            return (
+                              <button
+                                key={t.id}
+                                onClick={() => setTransferTarget(isSelected ? null : t.id)}
+                                disabled={isFull}
+                                style={{
+                                  display: 'flex', alignItems: 'center', gap: 10,
+                                  padding: '10px 12px', borderRadius: 10,
+                                  border: `1.5px solid ${isSelected ? '#6366f1' : 'var(--border)'}`,
+                                  background: isSelected ? '#6366f112' : 'var(--surface)',
+                                  cursor: isFull ? 'not-allowed' : 'pointer',
+                                  opacity: isFull ? 0.5 : 1,
+                                  textAlign: 'left', width: '100%',
+                                }}
+                              >
+                                <i className="ri-tournament-line" style={{ color: isSelected ? '#6366f1' : 'var(--text-muted)', fontSize: 16, flexShrink: 0 }} />
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</div>
+                                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                                    {t.registered_count || 0}/{t.slots} players · {t.status}
+                                    {isFull && ' · FULL'}
+                                  </div>
+                                </div>
+                                {isSelected && <i className="ri-checkbox-circle-fill" style={{ color: '#6366f1', fontSize: 18, flexShrink: 0 }} />}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
+
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          onClick={transferPlayers}
+                          disabled={!transferTarget || transferLoading}
+                          style={{ flex: 1, padding: '10px', borderRadius: 9, background: transferTarget ? '#6366f1' : 'var(--border)', color: transferTarget ? '#fff' : 'var(--text-muted)', border: 'none', fontSize: 13, fontWeight: 800, cursor: transferTarget ? 'pointer' : 'default' }}
+                        >
+                          {transferLoading ? <><i className="ri-loader-4-line" /> Transferring…</> : <><i className="ri-swap-line" /> Transfer {participants.length} Players</>}
+                        </button>
+                        <button onClick={() => { setShowTransfer(false); setTransferTarget(null); setTransferDone(false) }}
+                          style={{ padding: '10px 14px', borderRadius: 9, background: 'var(--surface)', border: '1.5px solid var(--border)', fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', cursor: 'pointer' }}>
+                          Cancel
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
-            <p className={styles.dangerSub}>
-              Deleting this tournament permanently removes all bracket data, participants, payments, and leaderboard entries. This cannot be undone.
-            </p>
-            <button className={styles.btnDangerFull} onClick={deleteTournament}>
-              <i className="ri-delete-bin-fill" style={{ fontSize: 18 }} /> Delete Tournament
-            </button>
+
+            {/* ── Delete Tournament ── */}
+            <div className={styles.dangerCard}>
+              <div className={styles.dangerHead}>
+                <i className="ri-error-warning-fill" style={{ fontSize: 18 }} /> Danger Zone
+              </div>
+              <p className={styles.dangerSub}>
+                Deleting this tournament permanently removes all bracket data, participants, payments, and leaderboard entries. This cannot be undone.
+              </p>
+              <button className={styles.btnDangerFull} onClick={deleteTournament}>
+                <i className="ri-delete-bin-fill" style={{ fontSize: 18 }} /> Delete Tournament
+              </button>
+            </div>
           </div>
         )}
 
