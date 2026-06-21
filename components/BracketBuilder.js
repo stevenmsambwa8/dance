@@ -1,4 +1,20 @@
 'use client'
+/**
+ * BracketBuilder — completely free-form bracket editor
+ *
+ * Creator controls EVERYTHING:
+ *  - Add named rounds in any order (type the name yourself)
+ *  - Add/remove matches per round
+ *  - Rename any squad/slot inline
+ *  - Drag any slot to swap with any other slot
+ *  - Assign registered players to slots
+ *  - Mark slots as BYE
+ *
+ * Exports:
+ *   default              BracketBuilder
+ *   buildEmptyBracket    (roundMatchCounts[], teamSize) → bracketData
+ */
+
 import { useState, useRef } from 'react'
 
 // ── public helper ──────────────────────────────────────────────────────────────
@@ -103,11 +119,28 @@ export default function BracketBuilder({
   const BG   = 'var(--bg, #fff)'
 
   // ── commit ───────────────────────────────────────────────────────────────
+  // Always embeds round_names and slot_count into bracketData so they persist
+  // to the DB with the bracket and don't need a separate column read path.
   function commit(newBd, newNames) {
+    const resolvedNames = newNames ?? names
     setBd(newBd)
     if (newNames) setNames(newNames)
     setDirty(true)
-    onChange?.(newBd)
+    // Count real open slots from round 0 (non-BYE, non-pending)
+    const slotCount = (() => {
+      const r0 = newBd?.rounds?.[0] ?? []
+      if (teamSize > 1) {
+        // Each open team counts as teamSize slots
+        return r0.reduce((acc, pair) => {
+          return acc + pair.filter(t => t && t.status !== 'bye' && t.status !== 'inactive').length * teamSize
+        }, 0)
+      }
+      return r0.reduce((acc, pair) => {
+        return acc + pair.filter(s => s && s.status !== 'bye').length
+      }, 0)
+    })()
+    const enriched = { ...newBd, round_names: resolvedNames, slot_count: slotCount }
+    onChange?.(enriched)
   }
 
   // ── shape picker helpers ──────────────────────────────────────────────────
@@ -396,7 +429,8 @@ export default function BracketBuilder({
               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 {editRound === rIdx ? (
                   <input autoFocus value={names[rIdx] || ''} onChange={e => setNames(n => n.map((v, i) => i === rIdx ? e.target.value : v))}
-                    onBlur={() => setEditRound(null)} onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') setEditRound(null) }}
+                    onBlur={() => { setEditRound(null); if (bd) commit(bd, names) }}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') { setEditRound(null); if (bd) commit(bd, names) } }}
                     style={{ flex: 1, fontSize: 11, fontWeight: 800, color: ACC, background: 'transparent', border: 'none', outline: `1px solid ${ACC}`, borderRadius: 4, padding: '2px 4px', textTransform: 'uppercase', letterSpacing: 0.5 }}
                   />
                 ) : (

@@ -252,8 +252,21 @@ export default function TournamentManage() {
   async function saveBracket(bd) {
     setSaving(true)
     try {
-      const { error } = await supabase.from('tournaments').update({ bracket_data: bd }).eq('id', id.current)
+      // bd includes round_names and slot_count embedded by BracketBuilder
+      const updatePayload = {
+        bracket_data: bd,
+        // Persist round names as their own column so slug page / leaderboard can read without parsing full bracket
+        round_names: bd?.round_names ?? null,
+        // Update slots to match actual bracket capacity (counted from open slots in round 0)
+        ...(bd?.slot_count > 0 ? { slots: bd.slot_count } : {}),
+      }
+      const { error } = await supabase.from('tournaments').update(updatePayload).eq('id', id.current)
       if (error) showToast('Failed to save bracket.', 'error')
+      else {
+        showToast('Bracket saved!')
+        // Keep local tournament state in sync
+        setTournament(t => ({ ...t, round_names: bd?.round_names ?? t?.round_names, ...(bd?.slot_count > 0 ? { slots: bd.slot_count } : {}) }))
+      }
     } catch { showToast('Network error.', 'error') }
     finally { setSaving(false) }
   }

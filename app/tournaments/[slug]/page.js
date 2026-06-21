@@ -33,7 +33,11 @@ function nextPow2(n) {
   let s = 1; while (s < n) s *= 2; return s
 }
 
-function getRoundLabelSimple(rIdx, totalRounds, bracketSize) {
+// ── Round label helpers ────────────────────────────────────────────────────────
+// Priority: 1) custom names stored in bracket_data.round_names  2) fallback math
+function getRoundLabelSimple(rIdx, totalRounds, bracketSize, customNames) {
+  // Custom name set by creator takes highest priority
+  if (customNames?.[rIdx]) return customNames[rIdx]
   const fromEnd = (totalRounds - 2) - rIdx   // 0=Final,1=Semi,2=QF,...
   if (fromEnd === 0) return 'Final'
   if (fromEnd === 1) return 'Semi Final'
@@ -43,9 +47,10 @@ function getRoundLabelSimple(rIdx, totalRounds, bracketSize) {
   if (bracketSize >= 64 && fromEnd === 5) return 'Round of 64'
   return `Round ${rIdx + 1}`
 }
-function getRoundLabel(rIdx, totalRounds, bracketSize) {
+function getRoundLabel(rIdx, totalRounds, bracketSize, customNames) {
+  if (customNames?.[rIdx]) return customNames[rIdx]
   if (rIdx === totalRounds - 1) return 'Champion'
-  return getRoundLabelSimple(rIdx, totalRounds, bracketSize)
+  return getRoundLabelSimple(rIdx, totalRounds, bracketSize, customNames)
 }
 
 /**
@@ -297,7 +302,7 @@ function buildMatchHistory(userId, bracketData) {
         const myName = me.teamName || (me.members || []).filter(m => m?.userId).map(m => m.name.slice(0, 3)).join('').slice(0, 8) || 'My Team'
         const oppName = opp ? (opp.teamName || (opp.members || []).filter(m => m?.userId).map(m => m.name.slice(0, 3)).join('').slice(0, 8) || 'Opponents') : 'BYE'
         history.push({
-          round: getRoundLabelSimple(rIdx, totalRounds, bracketData.bracketSize),
+          round: getRoundLabelSimple(rIdx, totalRounds, bracketData.bracketSize, bracketData?.round_names),
           opponentName: oppName,
           status: me.status,
           isTeam: true,
@@ -307,7 +312,7 @@ function buildMatchHistory(userId, bracketData) {
         opp = pair.find(s => s?.userId !== userId)
         if (!me) return
         history.push({
-          round: getRoundLabelSimple(rIdx, totalRounds, bracketData.bracketSize),
+          round: getRoundLabelSimple(rIdx, totalRounds, bracketData.bracketSize, bracketData?.round_names),
           opponentName: opp?.name || 'BYE',
           status: me.status,
         })
@@ -335,7 +340,7 @@ function buildBracketShareText(tournament, bracketData, participants) {
   const lines = [`🏆 ${tournament.name} — Bracket`, '']
   const totalRounds = bracketData.rounds.length
   bracketData.rounds.slice(0, totalRounds - 1).forEach((pairs, rIdx) => {
-    const label = getRoundLabelSimple(rIdx, totalRounds, bracketData.bracketSize)
+    const label = getRoundLabelSimple(rIdx, totalRounds, bracketData.bracketSize, bracketData?.round_names)
     lines.push(`── ${label} ──`)
     pairs.forEach((pair) => {
       const [a, b] = pair
@@ -757,9 +762,11 @@ export default function TournamentDetail() {
   // always defined (with a safe empty fallback) regardless of render path. ──
 
   const realCount = participants.length
-  // FIX: when squads_needed is set, effective capacity = squads_needed × team_size
-  // This lets a creator run e.g. 4 squads of 8 (32 players) inside a 64-slot bracket
+  // Capacity priority:
+  // 1. slot_count embedded in bracket_data by BracketBuilder (real open slots from round 0)
+  // 2. slots column on tournament (set at create time or updated when bracket is saved)
   const effectiveCapacity = (() => {
+    if (bracketData?.slot_count > 0) return bracketData.slot_count
     if (!tournament?.slots) return 0
     const tSize = tournament.team_size || 1
     const sNeeded = tournament.squads_needed
@@ -1393,7 +1400,7 @@ export default function TournamentDetail() {
 
       // 3. Notify every real member of both teams
       const { winnerPts, loserPts } = getRoundPts(rIdx, totalRounds)
-      const roundName = getRoundLabelSimple(rIdx, totalRounds, freshBd.bracketSize)
+      const roundName = getRoundLabelSimple(rIdx, totalRounds, freshBd.bracketSize, bracketData?.round_names)
       const notifRows = []
       const realMembers = (t) => (t?.members || []).filter(m => m?.userId)
 
@@ -1506,7 +1513,7 @@ export default function TournamentDetail() {
     await saveBracket(newBd)
 
     // 3. Notifications (fire immediately after save, before slow RPCs)
-    const roundName = getRoundLabelSimple(rIdx, totalRounds, freshBd.bracketSize)
+    const roundName = getRoundLabelSimple(rIdx, totalRounds, freshBd.bracketSize, bracketData?.round_names)
     const notifRows = []
 
     if (status === 'winner' && actedSlot.userId) {
@@ -2616,7 +2623,7 @@ export default function TournamentDetail() {
                         <div key={rIdx} className={`${styles.bracketCol} ${isChampion ? styles.bracketColChamp : ''}`}>
                           <div className={`${styles.roundLabel} ${isChampion ? styles.roundLabelChamp : ''}`}>
                             {isChampion && <i className="ri-vip-crown-fill" style={{ marginRight: 4 }} />}
-                            {getRoundLabel(rIdx, bracketData.rounds.length, bracketData.bracketSize)}
+                            {getRoundLabel(rIdx, bracketData.rounds.length, bracketData.bracketSize, bracketData?.round_names)}
                           </div>
                           <div className={styles.matchList}>
                             {pairs.map((pair, pIdx) => isChampion
@@ -2747,7 +2754,7 @@ export default function TournamentDetail() {
             const totalRounds = bracketData.rounds.length
             const allMatchups = []
             bracketData.rounds.slice(0, totalRounds - 1).forEach((pairs, rIdx) => {
-              const roundLabel = getRoundLabelSimple(rIdx, totalRounds, bracketData.bracketSize)
+              const roundLabel = getRoundLabelSimple(rIdx, totalRounds, bracketData.bracketSize, bracketData?.round_names)
               pairs.forEach((pair, pIdx) => {
                 const [a, b] = pair
                 const isBye = (a?.status === 'bye') || (b?.status === 'bye') || (!a?.userId && !b?.userId)

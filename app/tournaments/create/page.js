@@ -157,12 +157,15 @@ function CreateForm({ user, profile, isAdmin, router }) {
       game_slug:        form.game_slug,
       format:           form.format,
       prize:            form.prize,
-      slots:            Number(form.slots),
+      // Use actual slot count from bracket editor — not the form.slots picker
+      // bracket_data.slot_count = real open slots counted from round 0
+      slots:            bracketDraft?.slot_count ?? Number(form.slots),
       date:             form.date,
       description:      form.description,
       entrance_fee:     fee,
       team_size:        form.team_size || 1,
-      bracket_data:     bracketDraft || null,   // save the bracket the creator built
+      bracket_data:     bracketDraft || null,
+      round_names:      bracketDraft?.round_names ?? null,
       is_test:          form.is_test,
       pro_only:         form.pro_only,
       status:           'active',
@@ -423,7 +426,10 @@ function CreateForm({ user, profile, isAdmin, router }) {
             <h2 className={styles.stepHeading}><i className="ri-node-tree" /> Build Your Bracket</h2>
             <p className={styles.stepHint}>
               Pick a starting shape then customise freely — add/remove rounds, drag slots to swap,
-              tap any name to rename, mark BYEs. You can also edit this after launch from Manage.
+              tap any name to rename, mark BYEs.{' '}
+              {bracketDraft?.slot_count > 0 && (
+                <strong style={{ color: '#22c55e' }}>{bracketDraft.slot_count} player slots</strong>
+              )} will be the tournament capacity. Edit more after launch from Manage.
             </p>
             <BracketBuilder
               bracketData={bracketDraft}
@@ -444,7 +450,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
                 ['ri-trophy-line',              'Name',       form.name || '—'],
                 ['ri-gamepad-line',             'Game',       GAME_NAMES[form.game_slug] || form.game_slug],
                 ['ri-layout-grid-line',         'Format',     form.format || '—'],
-                ['ri-group-line',               'Slots',      form.slots],
+                ['ri-group-line',               'Slots',      bracketDraft?.slot_count ?? form.slots],
                 ['ri-team-line',                'Match Type', form.team_size === 1 ? '1v1 — Solo' : `${form.team_size}v${form.team_size} — Team Battle`],
                 ['ri-node-tree',                'Bracket',    bracketDraft ? `${bracketDraft.rounds?.length} rounds · ${bracketDraft.rounds?.[0]?.length * 2} slots` : 'Auto-generated on launch'],
                 ['ri-money-dollar-circle-line', 'Prize',      form.prize ? `TZS ${form.prize}` : '—'],
