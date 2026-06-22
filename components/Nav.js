@@ -8,13 +8,17 @@ import { useAuth } from './AuthProvider'
 import { supabase } from '../lib/supabase'
 import NavMusicBar from './NavMusicBar'
 import styles from './Nav.module.css'
+import { getActivePlan, PLANS } from '../lib/plans'
 
 export default function Nav() {
   const path = usePathname()
   const router = useRouter()
   const { theme, toggle } = useTheme()
   const { user, profile, signOut, isAdmin } = useAuth()
-  const isPartner = profile?.tier === 'Partner'
+  const isPartner  = profile?.tier === 'Partner'
+  const activePlan = getActivePlan(profile)
+  const planMeta   = PLANS[activePlan] || PLANS.free
+  const isPaidPlan = activePlan !== 'free'
   
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
@@ -213,10 +217,28 @@ export default function Nav() {
             <i className="ri-refresh-line" />
           </button>
 
-          {/* ── Maximized Premium FIFA 26 CTA Button ── */}
-          <Link href="/fifa26" className={styles.fifaCta} title="FIFA 26 Hub">
-            <span>eSPORTS • FIFA 26</span>
-          </Link>
+          {/* ── Plan / Upgrade CTA ── */}
+          {user ? (
+            isPaidPlan ? (
+              // Paid user — show their current plan, links to account/upgrade
+              <Link href="/upgrade" className={styles.planCta} style={{ '--plan-color': planMeta.color }} title={`You are on the ${planMeta.label} plan`}>
+                <i className={planMeta.icon} />
+                <span>{planMeta.label}</span>
+              </Link>
+            ) : (
+              // Free user — show upgrade prompt
+              <Link href="/upgrade" className={styles.upgradeCta} title="Upgrade your plan">
+                <i className="ri-vip-crown-line" />
+                <span>Upgrade</span>
+              </Link>
+            )
+          ) : (
+            // Logged out — show login CTA
+            <Link href="/login" className={styles.upgradeCta} title="Sign in">
+              <i className="ri-user-line" />
+              <span>Sign In</span>
+            </Link>
+          )}
 
           {/* ── Combined Cluster Group ── */}
           {user && (
