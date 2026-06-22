@@ -119,12 +119,24 @@ function buildBracket(parts, teamSize = 1) {
 const fmtTZS = v => v ? `TZS ${Number(v).toLocaleString()}` : '—'
 const STATUS_COLORS = { active: '#22c55e', ongoing: '#6366f1', upcoming: '#f59e0b', completed: '#94a3b8' }
 
+const GAME_SLUGS_MANAGE = ['pubgm','freefire','codm','bussid','efootball','dls','fifa']
+const GAME_NAMES_MANAGE = { pubgm:'PUBGM', freefire:'Free Fire', codm:'Call of Duty', bussid:'Maleo BUSSID', efootball:'eFootball', dls:'DLS26', fifa:'FIFA 26' }
+const FORMATS_MANAGE    = ['Solo','Duo','Squad','Team','League','Round Robin','Bo3','Bo5']
+const STATUSES_MANAGE   = ['active','ongoing','upcoming','completed']
+const TEAM_SIZE_OPTS    = [
+  { value: 1, label: '1v1', sub: 'Solo' },
+  { value: 2, label: '2v2', sub: 'Team' },
+  { value: 4, label: '4v4', sub: 'Team' },
+  { value: 8, label: '8v8', sub: 'Team' },
+]
+
 const TABS = [
-  { key: 'overview',  icon: 'ri-dashboard-fill',        label: 'Overview'  },
-  { key: 'players',   icon: 'ri-group-fill',             label: 'Players'   },
-  { key: 'bracket',   icon: 'ri-node-tree',              label: 'Bracket'   },
-  { key: 'payments',  icon: 'ri-money-dollar-circle-fill',label: 'Payments'  },
-  { key: 'danger',    icon: 'ri-error-warning-fill',     label: 'Danger'    },
+  { key: 'overview',  icon: 'ri-dashboard-fill',         label: 'Overview' },
+  { key: 'players',   icon: 'ri-group-fill',              label: 'Players'  },
+  { key: 'bracket',   icon: 'ri-node-tree',               label: 'Bracket'  },
+  { key: 'edit',      icon: 'ri-settings-3-fill',         label: 'Edit'     },
+  { key: 'payments',  icon: 'ri-money-dollar-circle-fill', label: 'Payments' },
+  { key: 'danger',    icon: 'ri-error-warning-fill',      label: 'Danger'   },
 ]
 
 // ── Confirm modal ─────────────────────────────────────────────────────────────
@@ -165,6 +177,11 @@ export default function TournamentManage() {
   const [saving,       setSaving]       = useState(false)
   const [activeTab,    setActiveTab]    = useState('overview')
   const [confirm,      setConfirm]      = useState(null)
+  // ── Edit tab form state ───────────────────────────────────────────────────
+  const [editForm,     setEditForm]     = useState(null)   // populated when tournament loads
+  const [editSaving,   setEditSaving]   = useState(false)
+  const [editSaved,    setEditSaved]    = useState(false)
+  const [editError,    setEditError]    = useState('')
   const [toast,        setToast]        = useState(null)
   // ── Transfer state ────────────────────────────────────────────────────────
   const [showTransfer,     setShowTransfer]     = useState(false)
@@ -191,6 +208,19 @@ export default function TournamentManage() {
     if (error || !t) { setLoading(false); return }
     id.current = t.id
     setTournament(t)
+    setEditForm({
+      name:         t.name         || '',
+      description:  t.description  || '',
+      game_slug:    t.game_slug    || 'pubgm',
+      format:       t.format       || '',
+      slots:        t.slots        ?? '',
+      entrance_fee: t.entrance_fee ?? '',
+      date:         t.date         || '',
+      status:       t.status       || 'active',
+      team_size:    t.team_size    || 1,
+      prize:        t.prize        || '',
+      pro_only:     t.pro_only     || false,
+    })
 
     const [partsRes, lbRes, pmtsRes] = await Promise.all([
       supabase.from('tournament_participants')
@@ -394,6 +424,32 @@ export default function TournamentManage() {
   }
 
   // ── Transfer players to another tournament ────────────────────────────────
+  async function saveEdit() {
+    if (!editForm?.name?.trim()) { setEditError('Name is required'); return }
+    setEditSaving(true); setEditError(''); setEditSaved(false)
+    const { error: err } = await supabase.from('tournaments').update({
+      name:         editForm.name.trim(),
+      description:  editForm.description?.trim() || null,
+      game_slug:    editForm.game_slug,
+      format:       editForm.format,
+      slots:        Number(editForm.slots) || tournament.slots,
+      entrance_fee: editForm.entrance_fee !== '' ? String(editForm.entrance_fee) : null,
+      date:         editForm.date || null,
+      status:       editForm.status,
+      team_size:    Number(editForm.team_size) || 1,
+      prize:        editForm.prize || null,
+      pro_only:     editForm.pro_only || false,
+    }).eq('id', id.current)
+    setEditSaving(false)
+    if (err) { setEditError(err.message); return }
+    setEditSaved(true)
+    setTournament(t => ({ ...t, ...editForm }))
+    showToast('Tournament updated!')
+    setTimeout(() => setEditSaved(false), 2500)
+  }
+
+  function setEF(key, val) { setEditForm(f => ({ ...f, [key]: val })); setEditSaved(false); setEditError('') }
+
   async function loadTransferTargets() {
     setShowTransfer(true)
     setTransferLoading(true)
@@ -796,6 +852,108 @@ export default function TournamentManage() {
         </>}
 
         {/* ════ DANGER ════ */}
+        {/* ════ EDIT ════ */}
+        {activeTab === 'edit' && editForm && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+            <div className={styles.card} style={{ padding: '16px' }}>
+              <div className={styles.cardHead} style={{ marginBottom: 14 }}>
+                <i className="ri-settings-3-line" style={{ color: '#6366f1', fontSize: 16 }} />
+                <span className={styles.cardTitle}>Tournament Details</span>
+                <button onClick={saveEdit} disabled={editSaving} style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: 8, background: editSaved ? '#22c55e' : '#6366f1', color: '#fff', border: 'none', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>
+                  {editSaving ? <><i className="ri-loader-4-line" /> Saving…</> : editSaved ? <><i className="ri-check-line" /> Saved</> : <><i className="ri-save-line" /> Save Changes</>}
+                </button>
+              </div>
+
+              {editError && <div style={{ padding: '8px 12px', borderRadius: 8, background: '#ef444415', color: '#ef4444', fontSize: 12, fontWeight: 600, marginBottom: 12 }}><i className="ri-error-warning-line" /> {editError}</div>}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+                <div className={styles.field}>
+                  <label>Tournament Name</label>
+                  <input value={editForm.name} onChange={e => setEF('name', e.target.value)} placeholder="Tournament name" className={styles.input} />
+                </div>
+
+                <div className={styles.field}>
+                  <label>Description</label>
+                  <textarea rows={3} value={editForm.description} onChange={e => setEF('description', e.target.value)} placeholder="Optional rules or info…" className={styles.textarea} />
+                </div>
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <div className={styles.field} style={{ flex: 1 }}>
+                    <label>Game</label>
+                    <select value={editForm.game_slug} onChange={e => setEF('game_slug', e.target.value)} className={styles.select}>
+                      {GAME_SLUGS_MANAGE.map(s => <option key={s} value={s}>{GAME_NAMES_MANAGE[s]}</option>)}
+                    </select>
+                  </div>
+                  <div className={styles.field} style={{ flex: 1 }}>
+                    <label>Format</label>
+                    <select value={editForm.format} onChange={e => setEF('format', e.target.value)} className={styles.select}>
+                      {FORMATS_MANAGE.map(f => <option key={f}>{f}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <div className={styles.field} style={{ flex: 1 }}>
+                    <label>Status</label>
+                    <select value={editForm.status} onChange={e => setEF('status', e.target.value)} className={styles.select}>
+                      {STATUSES_MANAGE.map(s => <option key={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div className={styles.field} style={{ flex: 1 }}>
+                    <label>Date</label>
+                    <input value={editForm.date} onChange={e => setEF('date', e.target.value)} placeholder="e.g. Jun 28" className={styles.input} />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <div className={styles.field} style={{ flex: 1 }}>
+                    <label>Prize Pool (TZS)</label>
+                    <input value={editForm.prize} onChange={e => setEF('prize', e.target.value)} placeholder="e.g. 500,000" className={styles.input} />
+                  </div>
+                  <div className={styles.field} style={{ flex: 1 }}>
+                    <label>Entry Fee (TZS)</label>
+                    <input value={editForm.entrance_fee} onChange={e => setEF('entrance_fee', e.target.value)} placeholder="Leave blank = free" className={styles.input} />
+                  </div>
+                </div>
+
+                <div className={styles.field}>
+                  <label>Match Type</label>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+                    {TEAM_SIZE_OPTS.map(opt => (
+                      <button key={opt.value} type="button" onClick={() => setEF('team_size', opt.value)}
+                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '8px 14px', borderRadius: 10, border: 'none', fontFamily: 'inherit', cursor: 'pointer', minWidth: 60, background: editForm.team_size === opt.value ? '#6366f1' : 'var(--surface)', color: editForm.team_size === opt.value ? '#fff' : 'var(--text)' }}>
+                        <span style={{ fontWeight: 800, fontSize: 14 }}>{opt.label}</span>
+                        <span style={{ fontSize: 10, opacity: 0.75 }}>{opt.sub}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {editForm.team_size !== (tournament?.team_size || 1) && (
+                    <p style={{ marginTop: 8, fontSize: 12, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <i className="ri-information-line" />
+                      Match type changed — reset bracket in the Bracket tab to apply.
+                    </p>
+                  )}
+                </div>
+
+                {/* Pro Only toggle */}
+                <button type="button" onClick={() => setEF('pro_only', !editForm.pro_only)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 10, border: `1.5px solid ${editForm.pro_only ? '#a855f740' : 'var(--border)'}`, background: editForm.pro_only ? '#a855f710' : 'var(--surface)', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
+                  <i className={editForm.pro_only ? 'ri-vip-crown-fill' : 'ri-vip-crown-line'} style={{ color: editForm.pro_only ? '#a855f7' : 'var(--text-muted)', fontSize: 18 }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: editForm.pro_only ? '#a855f7' : 'var(--text)' }}>Pro & Elite Only</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{editForm.pro_only ? 'Only Pro & Elite members can join.' : 'Open to all players.'}</div>
+                  </div>
+                  <div style={{ width: 36, height: 20, borderRadius: 10, background: editForm.pro_only ? '#a855f7' : 'var(--border)', position: 'relative', flexShrink: 0, transition: 'background 0.2s' }}>
+                    <div style={{ position: 'absolute', top: 2, left: editForm.pro_only ? 18 : 2, width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'danger' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 

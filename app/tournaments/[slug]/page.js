@@ -780,12 +780,24 @@ export default function TournamentDetail() {
     if (!tournament) return []
     const lbMap = {}
     leaderboard.forEach(e => { lbMap[e.user_id] = e })
-    const full = participants.map(p => ({
-      user_id: p.user_id,
-      id: lbMap[p.user_id]?.id || null,
-      points: lbMap[p.user_id]?.points || 0,
-      profiles: p.profiles,
-      lbEntry: lbMap[p.user_id] || null,
+
+    // Build a profiles map from participants so we can look up names/avatars
+    const profileMap = {}
+    participants.forEach(p => { profileMap[p.user_id] = p.profiles })
+
+    // Union: everyone in participants OR everyone in leaderboard
+    // This ensures players who got points but were removed from participants still show
+    const allUserIds = new Set([
+      ...participants.map(p => p.user_id),
+      ...leaderboard.map(e => e.user_id),
+    ])
+
+    const full = Array.from(allUserIds).map(uid => ({
+      user_id: uid,
+      id: lbMap[uid]?.id || null,
+      points: lbMap[uid]?.points || 0,
+      profiles: profileMap[uid] || lbMap[uid]?.profiles || null,
+      lbEntry: lbMap[uid] || null,
     }))
 
     // Tier = how far a player progressed.
@@ -3522,6 +3534,9 @@ function MatchupPlanner({ participants, bracketData, onApply }) {
 
   // Build round label
   function roundLabel(rIdx) {
+    // Use creator's custom round names first (stored in bracketData.round_names)
+    const customNames = bracketData?.round_names
+    if (customNames?.[rIdx]) return customNames[rIdx]
     const fromEnd = (matchRounds - 1) - rIdx
     if (fromEnd === 0) return 'Final'
     if (fromEnd === 1) return 'Semi Final'
