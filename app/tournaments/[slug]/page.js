@@ -670,6 +670,42 @@ export default function TournamentDetail() {
 
   // ── Utility helpers ───────────────────────────────────────────────────────
 
+  // ── Lightweight targeted refreshes (no full page reload) ─────────────────
+  // These replace the old load() calls that were causing the visible flash/reload.
+  // Realtime subscriptions handle most updates automatically; these are surgical
+  // fallbacks for cases where we need fresh data immediately after a write.
+
+  async function refreshParticipants() {
+    const { data } = await supabase
+      .from('tournament_participants')
+      .select('*, profiles(username, avatar_url, email, country_flag, is_season_winner, plan, plan_expires_at)')
+      .eq('tournament_id', id)
+    if (data) setParticipants(data)
+  }
+
+  async function refreshLeaderboard() {
+    const { data } = await supabase
+      .from('tournament_leaderboard')
+      .select('*, profiles(username, avatar_url, email, country_flag, is_season_winner, plan, plan_expires_at)')
+      .eq('tournament_id', id)
+      .order('position', { ascending: true })
+    if (data) setLeaderboard(data)
+  }
+
+  async function refreshTournament() {
+    const { data: t } = await supabase.from('tournaments').select('*').eq('id', id).single()
+    if (!t) return
+    setTournament(t)
+    const parsed = parseBracketData(t.bracket_data)
+    const tSize  = t.team_size || 1
+    const squads = t.squads_needed || null
+    if (!parsed) {
+      if (t.slots >= 2) setBracketData(buildLobbyBracket(t.slots, tSize, squads))
+    } else {
+      setBracketData(parsed)
+    }
+  }
+
   async function syncCount() {
     const { count, error } = await supabase
       .from('tournament_participants')
@@ -1026,7 +1062,7 @@ export default function TournamentDetail() {
       showToast('Registration failed. Please try again.', 'error')
     }
     setRegistering(false)
-    load()
+    await refreshParticipants()
   }
 
   /** Register + immediately claim an open slot in round-0.
@@ -1112,7 +1148,7 @@ export default function TournamentDetail() {
       setTournament(t => ({ ...t, registered_count: count }))
       await sendNotification(user.id, `Joined — ${tournament?.name}`, `You've joined a team slot in the bracket!`, 'tournament', { tournament_id: id })
       setRegistering(false)
-      load()
+      await refreshParticipants()
       return
     }
 
@@ -1156,7 +1192,7 @@ export default function TournamentDetail() {
     setTournament(t => ({ ...t, registered_count: count }))
     await sendNotification(user.id, `Joined — ${tournament?.name}`, `You've joined and claimed a bracket slot!`, 'tournament', { tournament_id: id })
     setRegistering(false)
-    load()
+    await refreshParticipants()
   }
 
   async function leave() {
@@ -1234,7 +1270,7 @@ export default function TournamentDetail() {
         setTournament(t => ({ ...t, registered_count: count }))
         setLeaving(false)
         showToast('You have left the tournament.', 'info')
-        load()
+        await refreshParticipants()
       },
     })
   }
@@ -1314,7 +1350,6 @@ export default function TournamentDetail() {
         setBracketData(freshLobby)
 
         showToast(`Bracket reset to fresh ${teamSize > 1 ? teamSize + 'v' + teamSize : '1v1'} lobby.`, 'success')
-        load()
       },
     })
   }
@@ -1359,7 +1394,7 @@ export default function TournamentDetail() {
           type: 'tournament', meta: { tournament_id: id }, read: false,
         })
       }
-      await load()
+      await refreshParticipants()
       return
     }
 
@@ -1478,7 +1513,7 @@ export default function TournamentDetail() {
         })
       }
       if (notifRows.length) await supabase.from('notifications').insert(notifRows)
-      await load()
+      await Promise.all([refreshParticipants(), refreshLeaderboard()])
       return
     }
 
@@ -1605,7 +1640,7 @@ export default function TournamentDetail() {
       await recalcPositions()
     }
 
-    await load()
+    await Promise.all([refreshParticipants(), refreshLeaderboard()])
   }
 
   // ── Admin: add registered participant to an open bracket slot ───────────────
@@ -1672,7 +1707,7 @@ export default function TournamentDetail() {
     })
     const newCount = await syncCount()
     setTournament(t => ({ ...t, registered_count: newCount }))
-    await load()
+    await refreshParticipants()
   }
 
   // ── Admin: rename a team (one-time, stored in bracket_data) ─────────────────
@@ -1720,7 +1755,6 @@ export default function TournamentDetail() {
     setBracketData(newBd)
     await saveBracket(newBd)
     showToast('Players swapped!', 'success')
-    await load()
   }
 
   // ── Admin: crown champion ─────────────────────────────────────────────────
@@ -1791,7 +1825,7 @@ export default function TournamentDetail() {
       if ([...allNotifs, ...broadcasts].length) await supabase.from('notifications').insert([...allNotifs, ...broadcasts])
       await Promise.all(champMembers.map(m => supabase.rpc('log_earning', { p_user_id: m.userId, p_type: 'tournament_champion', p_points: CHAMPION_BONUS, p_description: `Champion — ${tName}`, p_ref_id: id })))
       await recalcPositions()
-      await load()
+      await Promise.all([refreshParticipants(), refreshLeaderboard()])
       return
     }
 
@@ -1872,7 +1906,7 @@ export default function TournamentDetail() {
       ...(p2?.user_id ? [supabase.rpc('log_earning', { p_user_id: p2.user_id, p_type: 'tournament_podium', p_points: 0, p_description: `Runner-up — ${tName}`, p_ref_id: id })] : []),
       ...(p3?.user_id ? [supabase.rpc('log_earning', { p_user_id: p3.user_id, p_type: 'tournament_podium', p_points: 0, p_description: `3rd place — ${tName}`, p_ref_id: id })] : []),
     ])
-    await load()
+    await Promise.all([refreshParticipants(), refreshLeaderboard()])
   }
 
   // ── Admin: leaderboard management ─────────────────────────────────────────
@@ -1886,7 +1920,7 @@ export default function TournamentDetail() {
     )
     await supabase.rpc('increment_points', { uid: lbEntry.userId, amount: Number(lbEntry.points) }).catch(() => {})
     setLbEntry({ userId: '', points: '', position: '' })
-    load()
+    await refreshLeaderboard()
     setLbUpdating(false)
   }
 
@@ -1928,7 +1962,7 @@ export default function TournamentDetail() {
         await recalcPositions()
         await sendNotification(entry.user_id, `Points removed — ${tournament?.name}`,
           `An admin removed ${pts} pts from your leaderboard score.`, 'tournament', { tournament_id: id })
-        load()
+        await refreshLeaderboard()
       },
     })
   }
@@ -1968,7 +2002,7 @@ export default function TournamentDetail() {
         await recalcPositions()
         await sendNotification(entry.user_id, `Disqualified — ${tournament?.name}`,
           `You've been disqualified. ${pts} pts removed from leaderboard and global profile.`, 'tournament', { tournament_id: id })
-        load()
+        await refreshLeaderboard()
       },
     })
   }
@@ -2007,7 +2041,7 @@ export default function TournamentDetail() {
         `${posLabel} finish — you've been awarded ${fmtTZS(amt)}! Check your wallet — your prize has been logged there.`, 'tournament_podium', { tournament_id: id })
       await supabase.rpc('log_earning', { p_user_id: userId, p_type: 'prize', p_points: amt, p_description: `Prize · ${posLabel} — ${tName}`, p_ref_id: id })
     }
-    await load()
+    await Promise.all([refreshParticipants(), refreshLeaderboard()])
     setPrizeDistribSaving(false)
     setPrizeDistribOpen(false)
     showToast('Prizes distributed!', 'success')
@@ -2050,7 +2084,7 @@ export default function TournamentDetail() {
     })()
     setEditMode(false)
     if (newSlug !== slug) router.replace(`/tournaments/${newSlug}`)
-    else load()
+    else await refreshTournament()
   }
 
   async function deleteTournament() {
@@ -3189,7 +3223,7 @@ export default function TournamentDetail() {
           <div className={styles.adminSection} style={{ marginTop: 16 }}>
             <div className={styles.adminSectionLabel}><i className="ri-group-line" /> Player Counter</div>
             <div className={styles.adminBracketActions}>
-              <button className={styles.adminActionBtn} onClick={async () => { await syncCount(); load() }}>
+              <button className={styles.adminActionBtn} onClick={async () => { const c = await syncCount(); setTournament(t => ({ ...t, registered_count: c })) }}>
                 <i className="ri-refresh-line" /> Sync Count
               </button>
               <span className={styles.countBadge}>{realCount} / {tournament.slots} players</span>
