@@ -6,9 +6,11 @@ import { useAuth } from './AuthProvider'
 import { supabase } from '../lib/supabase'
 import styles from './BottomNav.module.css'
 
-const mainLinks = [
+// Integrated all 5 items together to match Spotify's premium layout symmetry
+const navLinks = [
   { href: '/',        label: 'Home',    icon: 'ri-stack-line',     iconActive: 'ri-stack-fill' },
   { href: '/matches', label: 'Matches', icon: 'ri-sword-line',     iconActive: 'ri-sword-fill' },
+  { href: '/games',   label: 'Games',   icon: 'ri-gamepad-line',   iconActive: 'ri-gamepad-fill' },
   { href: '/wallet',  label: 'Wallet',  icon: 'ri-wallet-3-line',  iconActive: 'ri-wallet-3-fill' },
   { href: '/feed',    label: 'Feed',    icon: 'ri-compass-3-line', iconActive: 'ri-compass-3-fill' },
 ]
@@ -37,29 +39,23 @@ export default function BottomNav() {
     return () => supabase.removeChannel(channel)
   }, [user])
 
-  const isGamesActive = path.startsWith('/games')
-
   return (
-    <div className={styles.wrapper}>
-
-      {/* ── Floating pill — 4 main tabs ── */}
-      <nav className={styles.pill}>
-        {mainLinks.map(({ href, label, icon, iconActive }) => {
+    <nav className={styles.wrapper}>
+      <div className={styles.container}>
+        {navLinks.map(({ href, label, icon, iconActive }) => {
           const isActive = href === '/' ? path === '/' : path.startsWith(href)
           return (
-            <Link key={href} href={href} className={`${styles.item} ${isActive ? styles.active : ''}`}>
+            <Link 
+              key={href} 
+              href={href} 
+              className={`${styles.item} ${isActive ? styles.active : ''}`}
+            >
               <i className={isActive ? iconActive : icon} />
               <span className={styles.label}>{label}</span>
             </Link>
           )
         })}
-      </nav>
-
-      {/* ── Games circle — same height as pill ── */}
-      <Link href="/games" className={`${styles.gamesBtn} ${isGamesActive ? styles.gamesBtnActive : ''}`}>
-        <i className={isGamesActive ? 'ri-gamepad-fill' : 'ri-gamepad-line'} />
-      </Link>
-
-    </div>
+      </div>
+    </nav>
   )
 }
