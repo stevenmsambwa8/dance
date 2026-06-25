@@ -1,9 +1,9 @@
 /* ── Main Bar Wrapper ── */
 .wrapper {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  left: 16px;
+  right: 16px;
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
   z-index: 200;
   display: none; /* Handled by mobile media query below */
 
@@ -13,16 +13,18 @@
      explicit prevents it inheriting one by accident. */
   transform: none;
 
+  /* Floating pill look */
+  border-radius: 28px;
+  overflow: visible; /* allow the center circle to pop up above the pill */
+
   /* Creates a sleek, color-agnostic Spotify frosted glass look */
   background: color-mix(in srgb, var(--bg) 94%, transparent);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  
-  /* Subtle upper divider border */
-  border-top: 1px solid color-mix(in srgb, var(--border) 30%, transparent);
-  
-  /* Essential padding for bezel-less modern smartphones (iOS/Android) */
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* Subtle all-around border + lift shadow, since it's now floating */
+  border: 1px solid color-mix(in srgb, var(--border) 30%, transparent);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16);
 }
 
 /* ── Content Grid ── */
@@ -30,8 +32,9 @@
   display: grid;
   grid-template-columns: repeat(5, 1fr); /* Perfect geometric layout split */
   width: 100%;
-  height: 60px; /* Comfortable Spotify-style touch target height */
+  height: 64px;
   align-items: center;
+  position: relative; /* anchors the absolutely-positioned center circle */
 }
 
 /* ── Navigation Items ── */
@@ -68,6 +71,43 @@
   font-size: 10px;
   font-weight: 500;
   letter-spacing: -0.01em;
+}
+
+/* ── Center Raised Item (Games) ── */
+.centerItem {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.centerCircle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: var(--accent, #6366f1);
+  color: #fff;
+  transform: translateY(-16px); /* pokes up above the pill, like the reference */
+  transition: transform 0.15s ease;
+}
+
+.centerCircle i {
+  font-size: 24px;
+}
+
+.centerActive {
+  /* Already filled/colored by default — active state just keeps it consistent,
+     no extra glow/shadow per the no-glow direction used elsewhere in this nav. */
+  background: var(--accent, #6366f1);
+}
+
+.centerItem:active .centerCircle {
+  transform: translateY(-16px) scale(0.93);
 }
 
 /* ── Media Query for Mobile Display ── */

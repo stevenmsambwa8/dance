@@ -87,25 +87,24 @@
 .upgradeCta {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 14px;
-  height: 36px;
+  gap: 7px;
+  padding: 0 18px;
+  height: 42px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 800;
   letter-spacing: 0.03em;
   text-decoration: none;
   white-space: nowrap;
   box-sizing: border-box;
-  transition: transform 0.15s, box-shadow 0.15s;
+  transition: transform 0.15s;
   /* Uses CSS variables from ThemeProvider so it follows the active theme */
   background: var(--accent, #6366f1);
   color: #fff;
-  box-shadow: 0 2px 10px color-mix(in srgb, var(--accent, #6366f1) 40%, transparent);
 }
-.upgradeCta:hover  { transform: scale(1.04); box-shadow: 0 4px 16px color-mix(in srgb, var(--accent, #6366f1) 50%, transparent); }
+.upgradeCta:hover  { transform: scale(1.04); }
 .upgradeCta:active { transform: scale(0.96); }
-.upgradeCta i { font-size: 14px; }
+.upgradeCta i { font-size: 16px; }
 
 @keyframes moveGradient {
   0% { background-position: 0% 50%; }
@@ -559,7 +558,8 @@
   .hamburger { display: flex; }
   .desktopOnly { display: none !important; }
 
-  .planCta, .upgradeCta { height: 32px; padding: 0 11px; font-size: 11px; }
+  .planCta { height: 32px; padding: 0 11px; font-size: 11px; }
+  .upgradeCta { height: 38px; padding: 0 16px; font-size: 12.5px; }
 
   .notifDropdown {
     position: fixed;

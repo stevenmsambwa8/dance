@@ -10,7 +10,7 @@ import styles from './BottomNav.module.css'
 const navLinks = [
   { href: '/',        label: 'Home',    icon: 'ri-stack-line',     iconActive: 'ri-stack-fill' },
   { href: '/matches', label: 'Matches', icon: 'ri-sword-line',     iconActive: 'ri-sword-fill' },
-  { href: '/games',   label: 'Games',   icon: 'ri-gamepad-line',   iconActive: 'ri-gamepad-fill' },
+  { href: '/games',   label: 'Games',   icon: 'ri-gamepad-line',   iconActive: 'ri-gamepad-fill', center: true },
   { href: '/wallet',  label: 'Wallet',  icon: 'ri-wallet-3-line',  iconActive: 'ri-wallet-3-fill' },
   { href: '/feed',    label: 'Feed',    icon: 'ri-compass-3-line', iconActive: 'ri-compass-3-fill' },
 ]
@@ -42,8 +42,24 @@ export default function BottomNav() {
   return (
     <nav className={styles.wrapper}>
       <div className={styles.container}>
-        {navLinks.map(({ href, label, icon, iconActive }) => {
+        {navLinks.map(({ href, label, icon, iconActive, center }) => {
           const isActive = href === '/' ? path === '/' : path.startsWith(href)
+
+          if (center) {
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={styles.centerItem}
+                aria-label={label}
+              >
+                <span className={`${styles.centerCircle} ${isActive ? styles.centerActive : ''}`}>
+                  <i className={isActive ? iconActive : icon} />
+                </span>
+              </Link>
+            )
+          }
+
           return (
             <Link 
               key={href} 
