@@ -44,8 +44,17 @@ export default function SlideTransition({ children }) {
       })
     })
 
+    // Safety net: onTransitionEnd can be missed entirely if the tab is
+    // backgrounded mid-animation, the user navigates again very fast, or
+    // the browser drops the transitionend event under load. Without this,
+    // `phase` would stay stuck on 'enter' with a transform still applied
+    // forever, which is exactly the kind of stuck-state bug that caused
+    // visual glitches elsewhere in this app.
+    const safety = setTimeout(() => setPhase('idle'), 400)
+
     return () => {
       if (frameRef.current) cancelAnimationFrame(frameRef.current)
+      clearTimeout(safety)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname])
