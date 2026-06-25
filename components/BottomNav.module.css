@@ -1,8 +1,10 @@
 /* ── Main Bar Wrapper ── */
 .wrapper {
   position: fixed;
-  left: 16px;
-  right: 16px;
+  left: 32px;
+  right: 32px;
+  max-width: 380px;
+  margin: 0 auto;
   bottom: calc(8px + env(safe-area-inset-bottom, 0px));
   z-index: 200;
   display: none; /* Handled by mobile media query below */
@@ -53,7 +55,7 @@
 }
 
 .item i {
-  font-size: 22px;
+  font-size: 20px;
 }
 
 /* ── Active State ── */
@@ -68,7 +70,7 @@
 
 /* ── Typography ── */
 .label {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 500;
   letter-spacing: -0.01em;
 }
@@ -87,17 +89,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 54px;
-  height: 54px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   background: var(--accent, #6366f1);
   color: #fff;
-  transform: translateY(-16px); /* pokes up above the pill, like the reference */
+  transform: translateY(-14px); /* pokes up above the pill, like the reference */
   transition: transform 0.15s ease;
 }
 
 .centerCircle i {
-  font-size: 24px;
+  font-size: 21px;
 }
 
 .centerActive {
@@ -107,7 +109,7 @@
 }
 
 .centerItem:active .centerCircle {
-  transform: translateY(-16px) scale(0.93);
+  transform: translateY(-14px) scale(0.93);
 }
 
 /* ── Media Query for Mobile Display ── */
