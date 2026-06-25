@@ -35,7 +35,7 @@ export default function NavWrapper() {
     <>
       <Nav />
       <BottomNav />
-      <style>{`main { padding-bottom: 96px; }`}</style>
+      <style>{`main { padding-bottom: 80px; }`}</style>
     </>
   )
 }

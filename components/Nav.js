@@ -7,6 +7,7 @@ import ThemePicker from './ThemePicker'
 import { useAuth } from './AuthProvider'
 import { supabase } from '../lib/supabase'
 import NavMusicBar from './NavMusicBar'
+import SearchSidebar from './SearchSidebar'
 import styles from './Nav.module.css'
 import { getActivePlan, PLANS } from '../lib/plans'
 
@@ -22,6 +23,7 @@ export default function Nav() {
   
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
   const [notifications, setNotifications] = useState([])
   const [unread, setUnread] = useState(0)
   const [showArrow, setShowArrow] = useState(true)
@@ -212,10 +214,18 @@ export default function Nav() {
           {isAdmin && <Link href="/dashboard" className={`${path === '/dashboard' ? styles.active : ''} ${styles.adminLink}`}>Admin</Link>}
         </nav>
 
+        {/* ── Search trigger — sits between logo/nav and the CTA cluster ── */}
+        <button className={styles.searchTrigger} onClick={() => setSearchOpen(true)} title="Search Nabogaming">
+          <i className="ri-search-line" />
+          <span className={styles.searchTriggerText}>Search</span>
+        </button>
+
         <div className={styles.right}>
+          {/* Refresh button removed per request — replaced by the search bar below.
           <button className={styles.refreshBtn} onClick={() => window.location.reload()} title="Refresh Page">
             <i className="ri-refresh-line" />
           </button>
+          */}
 
           {/* ── Plan / Upgrade CTA ── */}
           {user ? (
@@ -472,6 +482,8 @@ export default function Nav() {
           </div>
         </div>
       </aside>
+
+      <SearchSidebar open={searchOpen} onClose={() => setSearchOpen(false)} />
     </>
   )
 }

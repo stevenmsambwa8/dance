@@ -33,6 +33,43 @@
 .nav a:hover { color: var(--text); }
 .active { color: var(--text) !important; font-weight: 700; }
 
+/* ── Search trigger — sits between nav links and the CTA cluster ── */
+.searchTrigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  max-width: 280px;
+  margin: 0 16px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.searchTrigger:hover {
+  background: var(--surface-dim, var(--surface));
+  border-color: var(--border-dark, var(--border));
+  color: var(--text);
+}
+
+.searchTrigger i {
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.searchTriggerText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .right { 
   display: flex; 
   gap: 8px; 
@@ -560,6 +597,15 @@
 
   .planCta { height: 32px; padding: 0 11px; font-size: 11px; }
   .upgradeCta { height: 38px; padding: 0 16px; font-size: 12.5px; }
+
+  .searchTrigger {
+    flex: 1;
+    max-width: none;
+    margin: 0 10px;
+    height: 38px;
+    padding: 0 0 0 14px;
+  }
+  .searchTriggerText { display: none; }
 
   .notifDropdown {
     position: fixed;
