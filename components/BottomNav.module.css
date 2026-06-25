@@ -6,7 +6,13 @@
   right: 0;
   z-index: 200;
   display: none; /* Handled by mobile media query below */
-  
+
+  /* Defends against the nav silently breaking if any ancestor ever picks
+     up a transform/filter again (those create a new containing block for
+     fixed descendants). Forcing this nav's own positioning context to be
+     explicit prevents it inheriting one by accident. */
+  transform: none;
+
   /* Creates a sleek, color-agnostic Spotify frosted glass look */
   background: color-mix(in srgb, var(--bg) 94%, transparent);
   backdrop-filter: blur(24px);

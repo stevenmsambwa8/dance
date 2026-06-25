@@ -5,12 +5,23 @@ import { useEffect, useRef, useState } from 'react'
 /**
  * SlideTransition — native-app-style page slides, zero dependencies.
  *
- * KEY FIX: transform is set to `none` (not translateX(0%)) during idle phase.
+ * KEY FIX #1: transform is set to `none` (not translateX(0%)) during idle phase.
  * Any CSS transform — even translateX(0%) — creates a new stacking context
  * that breaks position:fixed children (modals, popups, bottom sheets).
  * By removing the transform entirely when idle, fixed elements work normally.
+ *
+ * KEY FIX #2 (bottom-nav-disappears + horizontal-scrollbar bug):
+ * This wrapper div sits between <body> and <main>. body/main both have
+ * overflow-x:hidden, but THIS div didn't — so during the offscreen/enter
+ * phases, translateX(100%) produced a real layout box extending a full
+ * viewport-width past the right edge. On mobile Chrome/Safari, once an
+ * element's geometry exceeds its overflow-x:hidden ancestor like that, the
+ * ancestor can briefly re-establish itself as the containing block for
+ * position:fixed descendants instead of the viewport — which is exactly
+ * when the fixed BottomNav would shift/vanish, and exactly why a horizontal
+ * scrollbar track appeared. Containing the overflow HERE, at the source,
+ * stops it from ever reaching body.
  */
-
 function getDepth(path) {
   return path.split('/').filter(Boolean).length
 }
@@ -48,8 +59,7 @@ export default function SlideTransition({ children }) {
     // backgrounded mid-animation, the user navigates again very fast, or
     // the browser drops the transitionend event under load. Without this,
     // `phase` would stay stuck on 'enter' with a transform still applied
-    // forever, which is exactly the kind of stuck-state bug that caused
-    // visual glitches elsewhere in this app.
+    // forever.
     const safety = setTimeout(() => setPhase('idle'), 400)
 
     return () => {
@@ -75,11 +85,16 @@ export default function SlideTransition({ children }) {
     phase === 'enter' ? 'transform 0.28s cubic-bezier(0.32, 0.72, 0, 1)' : 'none'
 
   return (
-    <div
-      style={{ transform, transition, minHeight: '100%' }}
-      onTransitionEnd={() => setPhase('idle')}
-    >
-      {displayed}
+    // Outer div: fixed to the real viewport width and clips its own overflow.
+    // This is what stops the translated child from ever affecting body's
+    // layout width / triggering the fixed-positioning bug described above.
+    <div style={{ width: '100%', overflowX: 'hidden', position: 'relative' }}>
+      <div
+        style={{ transform, transition, minHeight: '100%', width: '100%' }}
+        onTransitionEnd={() => setPhase('idle')}
+      >
+        {displayed}
+      </div>
     </div>
   )
 }
