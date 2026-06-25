@@ -2,7 +2,7 @@ import './globals.css'
 import Script from 'next/script'
 import NavWrapper from '../components/NavWrapper'
 import ThemeProvider from '../components/ThemeProvider'
-import PageTransition from '../components/PageTransition'
+import PageTransition, { PageLoaderOverlay } from '../components/PageTransition'
 import SlideTransition from '../components/SlideTransition'
 import AuthProvider from '../components/AuthProvider'
 import { ToastProvider } from '../components/ToastProvider'
@@ -77,10 +77,16 @@ export default function RootLayout({ children }) {
                       <NavWrapper />
                       <PhoneGate />
                       <PWAInstallPrompt />
+                      {/* Loader overlay also lives OUTSIDE SlideTransition — see
+                          PageTransition.js notes. Rendering it inside the slide
+                          wrapper made it inherit that wrapper's transform as its
+                          containing block, causing it to render off-center during
+                          the slide animation and only "snap" to true center once
+                          the transform cleared. */}
+                      <PageLoaderOverlay />
 
                       {/* Slide wrapper — handles directional page transitions */}
                       <SlideTransition>
-                        {/* Loading overlay sits inside slide so it covers the incoming page */}
                         <PageTransition>
                           <main>{children}</main>
                         </PageTransition>

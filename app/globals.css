@@ -146,6 +146,20 @@ button {
   z-index: 9999;
 }
 
+/* Backdrop box that sits behind the spinner, pinned to dead-center of the
+   viewport via the flex centering on .page-loader-overlay above. */
+.loader-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 84px;
+  height: 84px;
+  border-radius: 20px;
+  background: var(--surface, rgba(0,0,0,0.06));
+  border: 1px solid var(--border, rgba(0,0,0,0.08));
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}
+
 /* ── Inline Loader Wrapper ── */
 .loader-wrap {
   display: flex;
