@@ -33,24 +33,23 @@
 .nav a:hover { color: var(--text); }
 .active { color: var(--text) !important; font-weight: 700; }
 
-/* ── Search trigger — sits between nav links and the CTA cluster ── */
+/* ── Search trigger — icon-only, copied size from .groupIconBtn (the
+   notification bell) so it matches exactly: 34×34 circle, 15px icon. ── */
 .searchTrigger {
+  width: 34px;
+  height: 34px;
   display: flex;
   align-items: center;
-  gap: 7px;
-  flex: 1;
-  max-width: 260px;
-  margin: 0 16px;
-  height: 34px;
-  padding: 0 12px;
-  border-radius: 999px;
+  justify-content: center;
+  border-radius: 50%;
   background: var(--surface);
   border: 1px solid var(--border);
   color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 500;
   cursor: pointer;
-  transition: background 0.1s, border-color 0.1s;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  margin: 0 12px;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
 }
 
 .searchTrigger:hover {
@@ -60,14 +59,7 @@
 }
 
 .searchTrigger i {
-  font-size: 14px;
-  flex-shrink: 0;
-}
-
-.searchTriggerText {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 15px;
 }
 
 .right { 
@@ -116,7 +108,7 @@
 }
 .planIconBtn:hover  { background: var(--surface-dim, var(--surface)); transform: scale(1.05); }
 .planIconBtn:active { transform: scale(0.95); }
-.planIconBtn i { font-size: 16px; }
+.planIconBtn i { font-size: 15px; }
 
 /* ── Upgrade CTA (free users / logged out) ── */
 .upgradeCta {
@@ -611,14 +603,7 @@
   .ctaTitle { font-size: 11px; }
   .ctaSubtitle { font-size: 8px; }
 
-  .searchTrigger {
-    flex: 1;
-    max-width: none;
-    margin: 0 10px;
-    height: 34px;
-    padding: 0 0 0 12px;
-  }
-  .searchTriggerText { display: none; }
+  .searchTrigger { margin: 0 8px; }
 
   .notifDropdown {
     position: fixed;

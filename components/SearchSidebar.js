@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { supabase } from '../lib/supabase'
 import { GAME_SLUGS, GAME_META } from '../lib/constants'
+import { getRecentStories } from '../lib/news'
 import styles from './SearchSidebar.module.css'
 
 /**
@@ -29,6 +30,8 @@ export default function SearchSidebar({ open, onClose }) {
   const [loading, setLoading]   = useState(false)
   const [results, setResults]   = useState({ games: [], tournaments: [], players: [], shop: [] })
   const [recommended, setRecommended] = useState({ tournaments: [], players: [] })
+  const [stories, setStories]         = useState([])
+  const [storiesLoading, setStoriesLoading] = useState(false)
   const inputRef  = useRef(null)
   const debounce  = useRef(null)
 
@@ -37,6 +40,7 @@ export default function SearchSidebar({ open, onClose }) {
     if (!open) return
     setTimeout(() => inputRef.current?.focus(), 50)
     loadRecommended()
+    loadStories()
   }, [open])
 
   // Lock body scroll while the panel is open
@@ -62,6 +66,13 @@ export default function SearchSidebar({ open, onClose }) {
         .order('level', { ascending: false }).limit(4),
     ])
     setRecommended({ tournaments: tournaments || [], players: players || [] })
+  }
+
+  async function loadStories() {
+    setStoriesLoading(true)
+    const data = await getRecentStories(4)
+    setStories(data)
+    setStoriesLoading(false)
   }
 
   function searchGames(q) {
@@ -140,7 +151,7 @@ export default function SearchSidebar({ open, onClose }) {
             ref={inputRef}
             value={query}
             onChange={handleChange}
-            placeholder="Search games, tournaments, players, shop…"
+            placeholder="Search anything…"
             className={styles.input}
           />
           {query && (
@@ -157,6 +168,8 @@ export default function SearchSidebar({ open, onClose }) {
           {/* ── Before typing: friendly recommended snapshot ── */}
           {!hasQuery && (
             <>
+              <NewsStrip stories={stories} loading={storiesLoading} onClick={handleClose} />
+
               <SectionLabel text="Browse games" />
               <div className={styles.gameGrid}>
                 {GAME_SLUGS.map(slug => (
@@ -255,6 +268,29 @@ export default function SearchSidebar({ open, onClose }) {
 
 function SectionLabel({ text }) {
   return <div className={styles.sectionLabel}>{text}</div>
+}
+
+function NewsStrip({ stories, loading, onClick }) {
+  if (!loading && stories.length === 0) return null
+
+  return (
+    <div className={styles.newsSection}>
+      <SectionLabel text="Recent activity" />
+      <div className={styles.newsTrack}>
+        {loading && stories.length === 0 && (
+          <div className={styles.newsCardSkeleton} />
+        )}
+        {stories.map(s => (
+          <Link key={s.id} href={s.href} className={styles.newsCard} onClick={onClick}>
+            <div className={styles.newsCardIcon}><i className={s.icon} /></div>
+            <span className={styles.newsCardHeadline}>{s.headline}</span>
+            <span className={styles.newsCardSub}>{s.sub}</span>
+            <span className={styles.newsCardTime}>{s.timeLabel}</span>
+          </Link>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 function TournamentRow({ t, onClick }) {
