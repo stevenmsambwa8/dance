@@ -95,26 +95,28 @@
   background: var(--surface); 
 }
 
-/* ── Plan CTA (paid users — colour follows their plan) ── */
-.planCta {
+/* ── Plan CTA (paid users) — icon-only.
+   The icon itself is colored with the plan's theme color (--plan-color,
+   injected from JS), but the circle's background/border follow the site
+   theme tokens (--surface/--border) rather than the plan color, so it
+   blends into the header like the other icon buttons. ── */
+.planIconBtn {
+  width: 34px;
+  height: 34px; /* matches .groupIconBtn (notification bell) height */
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 12px;
-  height: 34px; /* matches .groupIconBtn (notification bell) height */
-  border-radius: 999px;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--plan-color, var(--text));
   text-decoration: none;
-  white-space: nowrap;
   box-sizing: border-box;
-  transition: transform 0.15s, opacity 0.15s;
-  /* colour injected via --plan-color CSS var from JS */
-  background: color-mix(in srgb, var(--plan-color, #a855f7) 15%, transparent);
-  color: var(--plan-color, #a855f7);
-  border: 1.5px solid color-mix(in srgb, var(--plan-color, #a855f7) 35%, transparent);
+  transition: transform 0.15s, background 0.1s;
 }
-.planCta:hover  { transform: scale(1.03); opacity: 0.9; }
-.planCta:active { transform: scale(0.97); }
-.planCta > i { font-size: 15px; flex-shrink: 0; }
+.planIconBtn:hover  { background: var(--surface-dim, var(--surface)); transform: scale(1.05); }
+.planIconBtn:active { transform: scale(0.95); }
+.planIconBtn i { font-size: 16px; }
 
 /* ── Upgrade CTA (free users / logged out) ── */
 .upgradeCta {
@@ -605,7 +607,6 @@
   .hamburger { display: flex; }
   .desktopOnly { display: none !important; }
 
-  .planCta { height: 34px; padding: 0 11px; }
   .upgradeCta { height: 34px; padding: 0 11px; }
   .ctaTitle { font-size: 11px; }
   .ctaSubtitle { font-size: 8px; }

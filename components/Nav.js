@@ -227,17 +227,21 @@ export default function Nav() {
           </button>
           */}
 
-          {/* ── Plan / Upgrade / Sign-in CTA — icon + two-line text:
-                main label on top, smaller "Unlock more power" caption below ── */}
+          {/* ── Plan / Upgrade / Sign-in CTA ──
+                Paid plan: icon-only, filled icon in the plan's theme color,
+                            circle background/border use the site theme (not
+                            the plan color) so it blends with the header.
+                Free / signed-out: icon + two-line text (title + caption). ── */}
           {user ? (
             isPaidPlan ? (
-              // Paid user — show their current plan, links to account/upgrade
-              <Link href="/upgrade" className={styles.planCta} style={{ '--plan-color': planMeta.color }} title={`You are on the ${planMeta.label} plan`}>
-                <i className={planMeta.icon} />
-                <span className={styles.ctaTextCol}>
-                  <span className={styles.ctaTitle}>{planMeta.label}</span>
-                  <span className={styles.ctaSubtitle}>Unlock more power</span>
-                </span>
+              // Paid user — icon-only, links to account/upgrade
+              <Link
+                href="/upgrade"
+                className={styles.planIconBtn}
+                style={{ '--plan-color': planMeta.color }}
+                title={`You are on the ${planMeta.label} plan`}
+              >
+                <i className={planMeta.icon.replace('-line', '-fill')} />
               </Link>
             ) : (
               // Free user — show upgrade prompt
