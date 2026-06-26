@@ -248,7 +248,7 @@ export default function Nav() {
               <Link href="/upgrade" className={styles.upgradeCta} title="Upgrade your plan">
                 <i className="ri-vip-crown-line" />
                 <span className={styles.ctaTextCol}>
-                  <span className={styles.ctaTitle}>Upgrade</span>
+                  <span className={styles.ctaTitle}>Upgrade Plan</span>
                   <span className={styles.ctaSubtitle}>Unlock more power</span>
                 </span>
               </Link>
