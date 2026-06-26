@@ -449,11 +449,7 @@ export default function TournamentDetail() {
   const [leaving, setLeaving] = useState(false)
   const [bracketSaving, setBracketSaving] = useState(false)
   const [activeTab, setActiveTab] = useState('bracket')
-  const [adminView, setAdminView] = useState(true)
-  const [editMode, setEditMode] = useState(false)
-  const [editForm, setEditForm] = useState({})
   const [saving, setSaving] = useState(false)
-  const [showAdminPanel, setShowAdminPanel] = useState(false)
   const [historyModal, setHistoryModal] = useState(null)
   const [shareCopied, setShareCopied] = useState(false)
   const [bracketShareCopied, setBracketShareCopied] = useState(false)
@@ -511,7 +507,6 @@ export default function TournamentDetail() {
 
     setId(t.id)
     setTournament(t)
-    setEditForm(t)
     const _loadParsed   = parseBracketData(t.bracket_data)
     const _loadTeamSize = t.team_size || 1
     const _loadSquads   = t.squads_needed || null
@@ -629,9 +624,8 @@ export default function TournamentDetail() {
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tournaments', filter: `id=eq.${id}` }, payload => {
         const t = payload.new
         setTournament(t)
-        setEditForm(t)   // keep inline edit form in sync with latest DB state (incl. team_size)
         // Always rebuild the lobby bracket from fresh t.team_size so a
-        // solo→team upgrade on the edit page is immediately reflected here
+        // solo→team upgrade made on /manage is immediately reflected here
 ;(() => {
           const _parsedBd2   = parseBracketData(t.bracket_data)
           const _dbTeamSize2 = t.team_size || 1
@@ -1643,72 +1637,8 @@ export default function TournamentDetail() {
     await Promise.all([refreshParticipants(), refreshLeaderboard()])
   }
 
-  // ── Admin: add registered participant to an open bracket slot ───────────────
-  async function adminAddToBracket(userId) {
-    if (!await verifyCanManage()) return
-    if (!bracketData) { showToast('No bracket yet. Generate it first.', 'error'); return }
-    // Check not already in bracket
-    let alreadyIn = false
-    bracketData.rounds[0]?.forEach(pair => pair.forEach(s => { if (s?.userId === userId) alreadyIn = true }))
-    if (alreadyIn) { showToast('Player is already in the bracket.', 'info'); return }
-
-    const { data: freshT } = await supabase.from('tournaments').select('bracket_data').eq('id', id).single()
-    const freshBd = parseBracketData(freshT?.bracket_data) ?? bracketData
-    if (!freshBd) return
-
-    const { data: profile } = await supabase.from('profiles').select('username, avatar_url').eq('id', userId).maybeSingle()
-    const playerSlot = { userId, name: profile?.username || 'Player', avatar: profile?.avatar_url || null, status: 'active' }
-
-    let newRounds, newBd
-
-    if (freshBd.isTeamBattle) {
-      // Team mode: place the player into the first open member slot
-      const { data: profile2 } = await supabase.from('profiles').select('username, avatar_url').eq('id', userId).maybeSingle()
-      const memberSlot = { userId, name: profile2?.username || 'Player', avatar: profile2?.avatar_url || null, status: 'active' }
-      let placed = false
-      newRounds = freshBd.rounds.map((r, ri) => {
-        if (ri !== 0 || placed) return r
-        return r.map(pair =>
-          pair.map(team => {
-            if (placed || !team || team.status === 'bye') return team
-            const mi = (team.members || []).findIndex(m => !m?.userId || m.status === 'open' || m.status === 'empty' || m.status === 'pending')
-            if (mi === -1) return team
-            placed = true
-            const newMembers = team.members.map((m, idx) => idx === mi ? memberSlot : m)
-            return { ...team, members: newMembers, status: newMembers.every(m => m?.userId) ? 'active' : 'open' }
-          })
-        )
-      })
-      if (!placed) { showToast('No open member slots in the bracket.', 'error'); return }
-      newBd = { ...freshBd, rounds: newRounds, isEmpty: false }
-    } else {
-      // Solo mode: find first open slot in round 0
-      let pick = null
-      freshBd.rounds[0]?.forEach((pair, pi) => {
-        pair.forEach((s, si) => {
-          if (!pick && !s?.userId && (s?.status === 'open' || s?.status === 'bye')) pick = { pi, si }
-        })
-      })
-      if (!pick) { showToast('No open slots in the bracket.', 'error'); return }
-      newRounds = freshBd.rounds.map((r, ri) => ri !== 0 ? r : r.map((pair, pi) => {
-        if (pi !== pick.pi) return pair
-        return pair.map((s, si) => si === pick.si ? playerSlot : s)
-      }))
-      newBd = { ...freshBd, rounds: newRounds, isEmpty: false }
-    }
-    setBracketData(newBd)
-    await saveBracket(newBd)
-    showToast(`${profile?.username || 'Player'} added to bracket!`, 'success')
-    await supabase.from('notifications').insert({
-      user_id: userId,
-      title: `Added to bracket — ${tournament?.name || 'Tournament'}`,
-      body: 'An organiser has placed you in the tournament bracket. Good luck!',
-      type: 'tournament', meta: { tournament_id: id }, read: false,
-    })
-    const newCount = await syncCount()
-    setTournament(t => ({ ...t, registered_count: newCount }))
-    await refreshParticipants()
-  }
+  // NOTE: adminAddToBracket removed from here — its functionality (with the
+  // player notification it sent) now lives in /manage as `addToBracket`.
 
   // ── Admin: rename a team (one-time, stored in bracket_data) ─────────────────
   async function adminRenameTeam(rIdx, pIdx, slotIdx, newName) {
@@ -2047,59 +1977,13 @@ export default function TournamentDetail() {
     showToast('Prizes distributed!', 'success')
   }
 
-  // ── Tournament edit / delete ──────────────────────────────────────────────
+  // NOTE: saveEdit removed — editing now happens entirely on /manage. This
+  // page's existing realtime subscription (see "Realtime subscriptions"
+  // above) already rebuilds bracketData here when /manage saves a change
+  // to slug/team_size/slots, so no local duplicate-rebuild logic is needed.
 
-  async function saveEdit() {
-    if (!await verifyCanManage()) return
-    setSaving(true)
-    const newSlug = slugify(editForm.name)
-    const newTeamSize = editForm.team_size || 1
-    const { error } = await supabase.from('tournaments').update({
-      name: editForm.name, slug: newSlug, description: editForm.description,
-      slots: Number(editForm.slots), date: editForm.date,
-      format: editForm.format, status: editForm.status,
-      team_size: newTeamSize,
-    }).eq('id', id)
-    setSaving(false)
-    if (error) { showToast(error.message, 'error'); return }
-    // Immediately update tournament state so hero badge reflects new team_size
-    setTournament(t => ({ ...t, ...editForm, slug: newSlug, team_size: newTeamSize }))
-    // Rebuild bracket immediately — covers same-tab saves before realtime fires
-    ;(() => {
-      const _slots3      = Number(editForm.slots) || 32
-      const _parsedBd3   = bracketData
-      const _bMode3      = _parsedBd3 ? (_parsedBd3.isTeamBattle ? (_parsedBd3.teamSize || 2) : 1) : null
-      const _mismatch3   = _parsedBd3 && (_bMode3 !== newTeamSize)
-      let _finalBd3
-      if (!_parsedBd3) {
-        _finalBd3 = buildLobbyBracket(_slots3, newTeamSize)
-      } else if (_mismatch3 && _parsedBd3.isEmpty) {
-        _finalBd3 = buildLobbyBracket(_slots3, newTeamSize)
-      } else if (_mismatch3 && !_parsedBd3.isEmpty) {
-        _finalBd3 = { ..._parsedBd3, teamSizeMismatch: true, currentTeamSize: newTeamSize }
-      } else {
-        _finalBd3 = _parsedBd3
-      }
-      setBracketData(_finalBd3)
-    })()
-    setEditMode(false)
-    if (newSlug !== slug) router.replace(`/tournaments/${newSlug}`)
-    else await refreshTournament()
-  }
-
-  async function deleteTournament() {
-    if (!await verifyCanManage()) return
-    setConfirmModal({
-      message: 'Permanently delete this tournament? Cannot be undone.',
-      onConfirm: async () => {
-        await supabase.from('tournament_leaderboard').delete().eq('tournament_id', id)
-        await supabase.from('tournament_participants').delete().eq('tournament_id', id)
-        await supabase.from('tournament_payments').delete().eq('tournament_id', id)
-        await supabase.from('tournaments').delete().eq('id', id)
-        router.replace('/tournaments')
-      },
-    })
-  }
+  // NOTE: deleteTournament removed — deletion now lives only in /manage's
+  // Danger tab, which has a stronger type-DELETE-to-confirm safeguard.
 
   // ── Derived state ─────────────────────────────────────────────────────────
 
@@ -2253,19 +2137,12 @@ export default function TournamentDetail() {
         <button className={styles.back} onClick={() => router.back()}>
           <i className="ri-arrow-left-line" /> Back
         </button>
-        {canManage && tournament && (
-          <div className={styles.adminActions}>
-            <button className={styles.editBtn} onClick={() => router.push(`/tournaments/${tournament?.slug || tournament?.id}/edit`)}>
-              <i className="ri-edit-line" /> Edit
-            </button>
-            <button className={styles.deleteBtn} onClick={deleteTournament}>
-              <i className="ri-delete-bin-line" />
-            </button>
-          </div>
-        )}
       </div>
 
-      {/* ── Admin manage button ── */}
+      {/* ── Single admin entry point — replaces the old separate Edit/Delete
+          buttons + "Open Command Centre" button, which all did overlapping
+          things. Everything (edit, delete, payments, transfer, bracket
+          tools, prize distribution) now lives in one place: /manage. ── */}
       {canManage && tournament && (
         <div style={{ padding: '0 16px 12px' }}>
           <button
@@ -2280,7 +2157,7 @@ export default function TournamentDetail() {
             }}
           >
             <i className="ri-shield-star-fill" style={{ fontSize: 16, color: '#818cf8' }} />
-            Open Command Centre
+            Manage Tournament
             <i className="ri-arrow-right-line" style={{ marginLeft: 'auto', opacity: 0.5 }} />
           </button>
         </div>
@@ -2553,7 +2430,6 @@ export default function TournamentDetail() {
           { key: 'matches',     icon: 'ri-sword-line',    title: 'Matches' },
           { key: 'leaderboard', icon: 'ri-bar-chart-line',title: 'Leaderboard' },
           { key: 'players',     icon: 'ri-group-line',    title: `Players (${loadingParticipants ? '…' : realCount})` },
-          ...(canManage ? [{ key: 'manage', icon: 'ri-settings-3-line', title: 'Manage' }] : []),
         ].map(tab => (
           <button
             key={tab.key}
@@ -3184,187 +3060,13 @@ export default function TournamentDetail() {
       )}
 
 
-      {/* ── MANAGE TAB ── */}
-      {activeTab === 'manage' && canManage && (
-        <section className={styles.section}>
-
-          {/* ── Bracket Management ── */}
-          <div className={styles.adminSection} style={{ marginBottom: 16 }}>
-            <div className={styles.adminSectionLabel}><i className="ri-node-tree" /> Bracket Management</div>
-            <div className={styles.adminBracketActions}>
-              {!bracketData || bracketData.isEmpty
-                ? <button className={styles.adminActionBtn} onClick={initBracket} disabled={participants.length < 2}>
-                    <i className="ri-play-circle-line" /> Generate Bracket
-                  </button>
-                : <button className={styles.adminActionBtnDanger} onClick={resetBracket}>
-                    <i className="ri-restart-line" /> Reset Bracket
-                  </button>
-              }
-              {bracketSaving && <span className={styles.savingLabel}><i className="ri-loader-4-line" /> Saving…</span>}
-            </div>
-            <p className={styles.adminHint}>Tap any player card in the Bracket tab to pass, eliminate, or disqualify.</p>
-          </div>
-
-          {/* ── Matchup Planner ── */}
-          <MatchupPlanner
-            participants={participants}
-            bracketData={bracketData}
-            onApply={async (newRounds) => {
-              const freshT = await supabase.from('tournaments').select('bracket_data').eq('id', id).single()
-              const freshBd = parseBracketData(freshT?.data?.bracket_data) ?? bracketData
-              const newBd = { ...freshBd, rounds: newRounds, isEmpty: false }
-              setBracketData(newBd)
-              await saveBracket(newBd)
-              showToast('Matchups saved!', 'success')
-            }}
-          />
-
-          {/* ── Player Counter ── */}
-          <div className={styles.adminSection} style={{ marginTop: 16 }}>
-            <div className={styles.adminSectionLabel}><i className="ri-group-line" /> Player Counter</div>
-            <div className={styles.adminBracketActions}>
-              <button className={styles.adminActionBtn} onClick={async () => { const c = await syncCount(); setTournament(t => ({ ...t, registered_count: c })) }}>
-                <i className="ri-refresh-line" /> Sync Count
-              </button>
-              <span className={styles.countBadge}>{realCount} / {tournament.slots} players</span>
-            </div>
-          </div>
-
-          {/* ── Add unplaced participants ── */}
-          {bracketData && (() => {
-            const inBracket = new Set()
-            bracketData.rounds[0]?.forEach(pair => pair.forEach(s => {
-              if (bracketData.isTeamBattle) {
-                ;(s?.members || []).forEach(m => { if (m?.userId) inBracket.add(m.userId) })
-              } else {
-                if (s?.userId) inBracket.add(s.userId)
-              }
-            }))
-            const unplaced = participants.filter(p => !inBracket.has(p.user_id))
-            if (unplaced.length === 0) return null
-            return (
-              <div className={styles.adminSection} style={{ marginTop: 16 }}>
-                <div className={styles.adminSectionLabel}><i className="ri-user-add-line" /> Add to Bracket ({unplaced.length} unplaced)</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
-                  {unplaced.map(p => (
-                    <div key={p.user_id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: 'var(--bg)', borderRadius: 10, border: '1px solid var(--border)' }}>
-                      <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0, fontSize: 11, fontWeight: 800 }}>
-                        {p.profiles?.avatar_url
-                          ? <img src={p.profiles.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          : (p.profiles?.username || '?').slice(0, 2).toUpperCase()
-                        }
-                      </div>
-                      <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{p.profiles?.username || 'Player'}</span>
-                      <button className={styles.adminActionBtn} style={{ padding: '5px 12px', fontSize: 11 }} onClick={() => adminAddToBracket(p.user_id)}>
-                        <i className="ri-add-line" /> Add
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <p className={styles.adminHint}>These players registered but have no bracket slot yet.</p>
-              </div>
-            )
-          })()}
-
-          {/* ── Prize Distribution ── */}
-          {isCompleted && (
-            <div className={styles.adminSection} style={{ marginTop: 16 }}>
-              <div className={styles.adminSectionLabel}><i className="ri-money-dollar-circle-line" /> Prize Distribution</div>
-              <div className={styles.adminBracketActions}>
-                <button className={styles.adminActionBtn} onClick={openPrizeDistrib}>
-                  <i className="ri-gift-line" /> Distribute Prize
-                </button>
-              </div>
-              <p className={styles.adminHint}>
-                Set custom prize amounts and notify winners instantly.
-                {prizeTotal ? ` Pool: ${fmtTZS(prizeTotal)}` : ' No prize pool set.'}
-              </p>
-            </div>
-          )}
-
-        </section>
-      )}
-
-      {/* ── Edit tournament modal ── */}
-      {editMode && (
-        <div className={styles.editOverlay} onClick={() => setEditMode(false)}>
-          <div className={styles.editBox} onClick={e => e.stopPropagation()}>
-            <div className={styles.editHeader}>
-              <span>Edit Tournament</span>
-              <button onClick={() => setEditMode(false)}><i className="ri-close-line" /></button>
-            </div>
-            <div className={styles.editBody}>
-              {[
-                { label: 'Name', key: 'name', type: 'text' },
-                { label: 'Format', key: 'format', type: 'text' },
-                { label: 'Max Slots', key: 'slots', type: 'number' },
-                { label: 'Date', key: 'date', type: 'text' },
-              ].map(f => (
-                <div key={f.key} className={styles.editField}>
-                  <label>{f.label}</label>
-                  <input type={f.type} value={editForm[f.key] || ''} onChange={e => setEditForm(x => ({ ...x, [f.key]: e.target.value }))} />
-                </div>
-              ))}
-              <div className={styles.editField}>
-                <label>Status</label>
-                <select value={editForm.status || 'active'} onChange={e => setEditForm(x => ({ ...x, status: e.target.value }))}>
-                  <option value="active">Active</option>
-                  <option value="ongoing">Ongoing</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-              </div>
-              <div className={styles.editField}>
-                <label>Description</label>
-                <textarea rows={3} value={editForm.description || ''} onChange={e => setEditForm(x => ({ ...x, description: e.target.value }))} />
-              </div>
-
-              {/* ── Match Type — upgrade only ── */}
-              <div className={styles.editField}>
-                <label>Match Type</label>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
-                  {[
-                    { value: 1, label: '1v1' },
-                    { value: 2, label: '2v2' },
-                    { value: 4, label: '4v4' },
-                    { value: 8, label: '8v8' },
-                  ].map(opt => {
-                    const currentSize = tournament?.team_size || 1
-                    const isDowngrade = opt.value < currentSize
-                    const isActive    = (editForm.team_size || 1) === opt.value
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        disabled={isDowngrade}
-                        onClick={() => !isDowngrade && setEditForm(x => ({ ...x, team_size: opt.value }))}
-                        style={{
-                          padding: '6px 12px', borderRadius: 8, border: 'none', fontFamily: 'inherit',
-                          fontWeight: 800, fontSize: 13, cursor: isDowngrade ? 'not-allowed' : 'pointer',
-                          background: isActive ? 'var(--accent)' : 'var(--surface-raised)',
-                          color: isActive ? '#fff' : isDowngrade ? 'var(--text-muted)' : 'var(--text)',
-                          opacity: isDowngrade ? 0.35 : 1,
-                        }}
-                      >
-                        {opt.label}
-                      </button>
-                    )
-                  })}
-                </div>
-                {(editForm.team_size || 1) > (tournament?.team_size || 1) && (
-                  <p style={{ marginTop: 6, fontSize: 11, color: '#f59e0b' }}>
-                    <i className="ri-information-line" /> Upgrading to {editForm.team_size}v{editForm.team_size} — next generated bracket will use teams of {editForm.team_size}.
-                  </p>
-                )}
-              </div>
-
-              <button className={styles.saveBtn} onClick={saveEdit} disabled={saving}>
-                {saving ? 'Saving…' : <><i className="ri-check-line" /> Save Changes</>}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* NOTE: the in-page "Manage" tab (bracket generate/reset, matchup
+          planner, player counter sync, add-to-bracket, prize distribution)
+          has been removed from here. All of that now lives in one place —
+          the /manage route — reached via the "Manage Tournament" button
+          near the top of this page. This eliminates the duplicate admin
+          surfaces that used to exist across this in-page tab, the header
+          Edit/Delete buttons, and the separate /edit page. */}
 
       {/* ── Match history modal ── */}
       {historyModal && (
@@ -3404,47 +3106,12 @@ export default function TournamentDetail() {
         </div>
       )}
 
-      {/* ── Prize distribution modal ── */}
-      {prizeDistribOpen && canManage && (
-        <div className={styles.confirmOverlay} onClick={() => setPrizeDistribOpen(false)}>
-          <div className={styles.confirmBox} style={{ maxWidth: 380 }} onClick={e => e.stopPropagation()}>
-            <div className={styles.confirmIcon}><i className="ri-gift-line" style={{ color: '#f59e0b' }} /></div>
-            <p className={styles.confirmMessage}>Distribute Prize</p>
-            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 18, textAlign: 'center' }}>
-              Set amount per winner. Players are notified instantly.{prizeTotal ? ` Pool: ${fmtTZS(prizeTotal)}` : ''}
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 360, overflowY: 'auto' }}>
-              {rankedLeaderboard.filter(e => e.user_id in prizeDistrib).map((e, i) => {
-                const posIcons = ['🥇', '🥈', '🥉']
-                const posLabel = i < 3 ? posIcons[i] : `#${e.position}`
-                return (
-                  <div key={e.user_id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: i < 3 ? 20 : 13, fontWeight: 800, flexShrink: 0, minWidth: 28, textAlign: 'center', color: 'var(--text-muted)' }}>{posLabel}</span>
-                    <span style={{ flex: 1, fontSize: 13, color: 'var(--text)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {e.profiles?.username || '—'}
-                    </span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'var(--surface)', border: '1px solid var(--border-dark)', borderRadius: 8, padding: '7px 10px', flexShrink: 0 }}>
-                      <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 700 }}>TZS</span>
-                      <input
-                        type="number" min="0" value={prizeDistrib[e.user_id] || ''}
-                        onChange={ev => setPrizeDistrib(p => ({ ...p, [e.user_id]: ev.target.value }))}
-                        placeholder="0"
-                        style={{ width: 88, background: 'transparent', border: 'none', outline: 'none', color: 'var(--text)', fontSize: 14, fontWeight: 700 }}
-                      />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-            <div className={styles.confirmActions} style={{ marginTop: 22 }}>
-              <button className={styles.confirmCancel} onClick={() => setPrizeDistribOpen(false)}>Cancel</button>
-              <button className={styles.confirmOk} onClick={savePrizeDistrib} disabled={prizeDistribSaving}>
-                {prizeDistribSaving ? 'Sending…' : <><i className="ri-send-plane-fill" /> Send & Notify</>}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* NOTE: Prize distribution modal removed from here — its trigger
+          button lived in the now-deleted in-page Manage tab, so this modal
+          was unreachable. The underlying logic (openPrizeDistrib,
+          savePrizeDistrib, prizeDistrib state above) is left in place,
+          unused for now, so it can be ported into /manage as a new tab
+          in a follow-up pass rather than rewritten from scratch. */}
 
       {/* ── Confirm modal ── */}
       {confirmModal && (
@@ -3473,259 +3140,8 @@ export default function TournamentDetail() {
 }
 
 
-// ─── MatchupPlanner component ─────────────────────────────────────────────────
-// Lets admin/creator swap who vs who in any round that hasn't had results yet.
-// A round is "editable" if NONE of its matches have a winner/eliminated/DQ slot.
-// Once any result exists in a round, that round is locked.
-
-function MatchupPlanner({ participants, bracketData, onApply }) {
-  const [editRound, setEditRound] = useState(0)
-  const [localRounds, setLocalRounds] = useState(null)
-  const [applying, setApplying] = useState(false)
-  const [changed, setChanged] = useState(false)
-
-  useEffect(() => {
-    if (!bracketData?.rounds) return
-    setLocalRounds(bracketData.rounds.map(round => round.map(pair => [...pair])))
-    setChanged(false)
-  }, [bracketData])
-
-  if (!bracketData?.rounds || participants.length < 2) return (
-    <div style={{ padding: '16px 0', color: 'var(--text-muted)', fontSize: 13, textAlign: 'center' }}>
-      <i className="ri-node-tree" /> Generate the bracket first to plan matchups.
-    </div>
-  )
-
-  const totalRounds = bracketData.rounds.length
-  // Only show rounds that are actual match rounds (exclude champion slot)
-  const matchRounds = totalRounds - 1
-
-  // Check if a round is locked — has any decisive result
-  function isRoundLocked(rIdx) {
-    return bracketData.rounds[rIdx]?.some(pair =>
-      pair.some(s => s?.status === 'winner' || s?.status === 'eliminated' || s?.status === 'disqualified')
-    )
-  }
-
-  // Get players eligible for a round — those who are 'active' or 'winner' advancing into it
-  function getEligibleForRound(rIdx) {
-    if (rIdx === 0) return participants
-    // Players who advanced from previous round (status === 'winner' in rIdx-1, now active in rIdx)
-    const ids = new Set()
-    bracketData.rounds[rIdx]?.forEach(pair =>
-      pair.forEach(s => { if (s?.userId && s.status !== 'bye' && s.status !== 'pending') ids.add(s.userId) })
-    )
-    // Also include pending slots — they're placeholders for winners not yet determined
-    return participants.filter(p => ids.has(p.user_id))
-  }
-
-  function getProfile(userId) {
-    return participants.find(p => p.user_id === userId)?.profiles
-  }
-
-  function swapSlots(rIdx, p1, s1, p2, s2) {
-    setLocalRounds(prev => {
-      const next = prev.map(r => r.map(pair => [...pair]))
-      const tmp = { ...next[rIdx][p1][s1] }
-      next[rIdx][p1][s1] = { ...next[rIdx][p2][s2] }
-      next[rIdx][p2][s2] = tmp
-      return next
-    })
-    setChanged(true)
-  }
-
-  function setSlotPlayer(rIdx, pairIdx, slotIdx, userId) {
-    setLocalRounds(prev => {
-      const next = prev.map(r => r.map(pair => [...pair]))
-      // Clear this userId from anywhere else in this round
-      next[rIdx].forEach((pair, pi) => pair.forEach((s, si) => {
-        if (s?.userId === userId && !(pi === pairIdx && si === slotIdx)) {
-          next[rIdx][pi][si] = { userId: null, name: 'Open', avatar: null, status: 'open' }
-        }
-      }))
-      const prof = getProfile(userId)
-      next[rIdx][pairIdx][slotIdx] = userId
-        ? { userId, name: prof?.username || '?', avatar: prof?.avatar_url || null, status: 'active' }
-        : { userId: null, name: 'Open', avatar: null, status: 'open' }
-      return next
-    })
-    setChanged(true)
-  }
-
-  async function applyChanges() {
-    if (!localRounds) return
-    setApplying(true)
-    await onApply(localRounds)
-    setChanged(false)
-    setApplying(false)
-  }
-
-  function resetChanges() {
-    if (!bracketData?.rounds) return
-    setLocalRounds(bracketData.rounds.map(round => round.map(pair => [...pair])))
-    setChanged(false)
-  }
-
-  // Build round label
-  function roundLabel(rIdx) {
-    // Use creator's custom round names first (stored in bracketData.round_names)
-    const customNames = bracketData?.round_names
-    if (customNames?.[rIdx]) return customNames[rIdx]
-    const fromEnd = (matchRounds - 1) - rIdx
-    if (fromEnd === 0) return 'Final'
-    if (fromEnd === 1) return 'Semi Final'
-    if (fromEnd === 2) return 'Quarter Final'
-    return `Round ${rIdx + 1}`
-  }
-
-  const currentRound = localRounds?.[editRound] || []
-  const locked = isRoundLocked(editRound)
-
-  // Players placed in current round
-  const placedInRound = new Set()
-  currentRound.forEach(pair => pair.forEach(s => { if (s?.userId) placedInRound.add(s.userId) }))
-
-  // For round 0 show all participants; for later rounds show only active players in that round
-  const eligiblePlayers = editRound === 0
-    ? participants
-    : participants.filter(p => {
-        // Show players who appear in current round slots
-        return currentRound.some(pair => pair.some(s => s?.userId === p.user_id))
-          // Or who won previous round
-          || bracketData.rounds[editRound - 1]?.some(pair => pair.some(s => s?.userId === p.user_id && s.status === 'winner'))
-      })
-
-  return (
-    <div style={{ marginTop: 8 }}>
-      {/* Header */}
-      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-        <i className="ri-shuffle-line" style={{ fontSize: 14 }} /> Matchup Planner
-      </div>
-
-      {/* Round selector */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
-        {Array.from({ length: matchRounds }, (_, rIdx) => {
-          const isLocked = isRoundLocked(rIdx)
-          return (
-            <button
-              key={rIdx}
-              onClick={() => { setEditRound(rIdx); resetChanges() }}
-              style={{
-                padding: '6px 12px', borderRadius: 20, border: `1.5px solid ${editRound === rIdx ? 'var(--accent)' : 'var(--border)'}`,
-                background: editRound === rIdx ? 'color-mix(in srgb, var(--accent) 10%, var(--bg))' : 'var(--surface)',
-                color: editRound === rIdx ? 'var(--accent)' : isLocked ? 'var(--text-muted)' : 'var(--text)',
-                fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', gap: 5,
-              }}
-            >
-              {isLocked && <i className="ri-lock-line" style={{ fontSize: 11 }} />}
-              {roundLabel(rIdx)}
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Locked notice */}
-      {locked ? (
-        <div style={{ padding: '12px 14px', background: 'var(--surface)', borderRadius: 10, border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)', fontSize: 13 }}>
-          <i className="ri-lock-line" style={{ fontSize: 16, flexShrink: 0 }} />
-          <span>This round has match results — matchups are locked and cannot be changed.</span>
-        </div>
-      ) : (
-        <>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12, lineHeight: 1.5 }}>
-            Drag players between matches to plan {roundLabel(editRound)}. Tap a dropdown to reassign.
-          </p>
-
-          {/* Match pairs */}
-          {currentRound.map((pair, pairIdx) => {
-            const isByeInPair = pair.some(s => s?.status === 'bye')
-            return (
-              <div key={pairIdx} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, padding: '10px 12px' }}>
-                <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-muted)', width: 22, textAlign: 'center', flexShrink: 0 }}>M{pairIdx + 1}</span>
-                {[0, 1].map(slotIdx => {
-                  const slot = pair[slotIdx]
-                  const isByeSlot = slot?.status === 'bye'
-                  const hasPlayer = !!slot?.userId
-                  return (
-                    <React.Fragment key={slotIdx}>
-                      {slotIdx === 1 && <span style={{ fontSize: 10, fontWeight: 900, color: 'var(--text-muted)', flexShrink: 0 }}>VS</span>}
-                      <div style={{ flex: 1 }}>
-                        {isByeSlot ? (
-                          <div style={{ padding: '7px 10px', borderRadius: 8, background: 'var(--surface)', border: '1px solid var(--border)', fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>BYE</div>
-                        ) : (
-                          <select
-                            value={slot?.userId || ''}
-                            onChange={e => setSlotPlayer(editRound, pairIdx, slotIdx, e.target.value || null)}
-                            style={{
-                              width: '100%', padding: '7px 10px', borderRadius: 8,
-                              border: `1.5px solid ${hasPlayer ? 'var(--accent)' : 'var(--border)'}`,
-                              background: hasPlayer ? 'color-mix(in srgb, var(--accent) 6%, var(--surface))' : 'var(--surface)',
-                              color: hasPlayer ? 'var(--text)' : 'var(--text-muted)',
-                              fontSize: 12, fontWeight: 600, outline: 'none', cursor: 'pointer',
-                            }}
-                          >
-                            <option value="">— Empty —</option>
-                            {eligiblePlayers.map(p => (
-                              <option
-                                key={p.user_id}
-                                value={p.user_id}
-                                disabled={placedInRound.has(p.user_id) && slot?.userId !== p.user_id}
-                              >
-                                {p.profiles?.username || 'Player'}
-                                {placedInRound.has(p.user_id) && slot?.userId !== p.user_id ? ' ✓' : ''}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                      </div>
-                    </React.Fragment>
-                  )
-                })}
-                {/* Quick swap button within same match */}
-                {pair[0]?.userId && pair[1]?.userId && (
-                  <button
-                    title="Swap these two"
-                    onClick={() => swapSlots(editRound, pairIdx, 0, pairIdx, 1)}
-                    style={{ padding: '6px 8px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 14, flexShrink: 0 }}
-                  >
-                    <i className="ri-arrow-left-right-line" />
-                  </button>
-                )}
-              </div>
-            )
-          })}
-
-          {/* Action buttons */}
-          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-            {changed && (
-              <button onClick={resetChanges} style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-muted)', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-                <i className="ri-refresh-line" /> Reset
-              </button>
-            )}
-            <button
-              onClick={applyChanges}
-              disabled={applying || !changed}
-              style={{
-                flex: 2, padding: '10px', borderRadius: 10, border: 'none',
-                background: changed ? 'var(--accent)' : 'var(--border)',
-                color: changed ? '#fff' : 'var(--text-muted)',
-                fontWeight: 700, fontSize: 13, cursor: changed ? 'pointer' : 'not-allowed',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              }}
-            >
-              {applying ? <><i className="ri-loader-4-line" /> Saving…</> : <><i className="ri-check-double-line" /> Apply to Bracket</>}
-            </button>
-          </div>
-          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, textAlign: 'center' }}>
-            Changes only affect {roundLabel(editRound)} slots. No points are changed.
-          </p>
-        </>
-      )}
-    </div>
-  )
-}
-
+// NOTE: MatchupPlanner moved to components/MatchupPlanner.js — it's now
+// used from the consolidated /manage command center instead of here.
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
