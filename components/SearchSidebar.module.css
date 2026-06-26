@@ -263,10 +263,9 @@
   letter-spacing: 0.01em;
   line-height: 1.25;
   color: #fff;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .newsCardSub {
@@ -282,26 +281,52 @@
   color: rgba(255,255,255,0.55);
 }
 
-/* ── Duo avatars (match headlines — two players mentioned) ── */
+/* ── Duo avatars (match headlines — two players mentioned).
+   Each avatar fills HALF the card edge-to-edge, like a diagonal split,
+   so the pair reads as one full-bleed background — same visual weight
+   as the single-image game/avatar cards — instead of floating profile
+   circles pasted on top. ── */
 .newsCardDuo {
   position: absolute;
   inset: 0;
+  display: flex;
   background: var(--surface);
 }
 
-.newsCardDuoBack,
-.newsCardDuoFront {
-  position: absolute;
-  top: 14px;
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid var(--bg);
+.newsCardDuoHalf {
+  position: relative;
+  flex: 1 1 50%;
+  height: 100%;
+  overflow: hidden;
 }
 
-.newsCardDuoBack  { left: 22px; }
-.newsCardDuoFront { left: 60px; z-index: 1; }
+.newsCardDuoHalf img,
+.newsCardDuoHalf .newsCardAvatarFallback {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.newsCardDuoHalf:first-child {
+  clip-path: polygon(0 0, 100% 0, 88% 100%, 0 100%);
+}
+.newsCardDuoHalf:last-child {
+  clip-path: polygon(12% 0, 100% 0, 100% 100%, 0 100%);
+  margin-left: -8%;
+}
+
+/* Thin diagonal divider between the two halves */
+.newsCardDuoHalf:first-child::after {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  right: -1px;
+  width: 2px;
+  background: var(--bg);
+  transform: skewX(-12deg);
+}
 
 .newsCardAvatarFallback {
   display: flex;

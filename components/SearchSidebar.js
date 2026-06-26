@@ -151,7 +151,7 @@ export default function SearchSidebar({ open, onClose }) {
             ref={inputRef}
             value={query}
             onChange={handleChange}
-            placeholder="Search anything…"
+            placeholder="Search tournaments, games, users & more"
             className={styles.input}
           />
           {query && (
@@ -368,12 +368,16 @@ function NewsCardMedia({ media, icon }) {
   if (media?.kind === 'duo' && (media.a || media.b)) {
     return (
       <div className={styles.newsCardDuo}>
-        {media.b
-          ? <img src={media.b} alt="" className={styles.newsCardDuoBack} />
-          : <div className={`${styles.newsCardDuoBack} ${styles.newsCardAvatarFallback}`}><i className="ri-user-3-line" /></div>}
-        {media.a
-          ? <img src={media.a} alt="" className={styles.newsCardDuoFront} />
-          : <div className={`${styles.newsCardDuoFront} ${styles.newsCardAvatarFallback}`}><i className="ri-user-3-line" /></div>}
+        <div className={styles.newsCardDuoHalf}>
+          {media.a
+            ? <img src={media.a} alt="" />
+            : <div className={styles.newsCardAvatarFallback}><i className="ri-user-3-line" /></div>}
+        </div>
+        <div className={styles.newsCardDuoHalf}>
+          {media.b
+            ? <img src={media.b} alt="" />
+            : <div className={styles.newsCardAvatarFallback}><i className="ri-user-3-line" /></div>}
+        </div>
       </div>
     )
   }
