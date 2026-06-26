@@ -275,7 +275,7 @@ function NewsStrip({ stories, loading, onClick }) {
 
   return (
     <div className={styles.newsSection}>
-      <SectionLabel text="Recent activity" />
+      <SectionLabel text="Headlines" />
       <div className={styles.newsTrack}>
         {loading && stories.length === 0 && (
           <div className={styles.newsCardSkeleton} />

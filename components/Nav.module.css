@@ -33,22 +33,26 @@
 .nav a:hover { color: var(--text); }
 .active { color: var(--text) !important; font-weight: 700; }
 
-/* ── Search trigger — icon-only, copied size from .groupIconBtn (the
-   notification bell) so it matches exactly: 34×34 circle, 15px icon. ── */
+/* ── Search trigger — wide pill, height matched to .groupIconBtn (the
+   notification bell, 34px) so it sits flush with the rest of the header,
+   but it reads as an actual search bar rather than another icon circle. ── */
 .searchTrigger {
-  width: 34px;
-  height: 34px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  border-radius: 50%;
+  gap: 8px;
+  flex: 1;
+  max-width: 280px;
+  margin: 0 16px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
   background: var(--surface);
   border: 1px solid var(--border);
   color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 500;
   cursor: pointer;
   box-sizing: border-box;
-  flex-shrink: 0;
-  margin: 0 12px;
   transition: background 0.1s, border-color 0.1s, color 0.1s;
 }
 
@@ -60,6 +64,13 @@
 
 .searchTrigger i {
   font-size: 15px;
+  flex-shrink: 0;
+}
+
+.searchTriggerText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .right { 
@@ -603,7 +614,13 @@
   .ctaTitle { font-size: 11px; }
   .ctaSubtitle { font-size: 8px; }
 
-  .searchTrigger { margin: 0 8px; }
+  .searchTrigger {
+    flex: 1;
+    max-width: none;
+    margin: 0 10px;
+    padding: 0 0 0 14px;
+  }
+  .searchTriggerText { display: none; }
 
   .notifDropdown {
     position: fixed;

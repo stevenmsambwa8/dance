@@ -214,9 +214,10 @@ export default function Nav() {
           {isAdmin && <Link href="/dashboard" className={`${path === '/dashboard' ? styles.active : ''} ${styles.adminLink}`}>Admin</Link>}
         </nav>
 
-        {/* ── Search trigger — icon-only, sized to match the notification bell ── */}
+        {/* ── Search trigger — wide pill, sized to match the notification bell's height ── */}
         <button className={styles.searchTrigger} onClick={() => setSearchOpen(true)} title="Search Nabogaming">
           <i className="ri-search-line" />
+          <span className={styles.searchTriggerText}>Search</span>
         </button>
 
         <div className={styles.right}>
