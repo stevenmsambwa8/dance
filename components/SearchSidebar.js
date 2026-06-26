@@ -270,25 +270,120 @@ function SectionLabel({ text }) {
   return <div className={styles.sectionLabel}>{text}</div>
 }
 
+/**
+ * NewsStrip — auto-scrolling, infinite-loop horizontal strip of headline
+ * cards. Each card shows real media behind a dark gradient fade:
+ *   - tournament/chat cards → the game's cover image (GAME_META.image)
+ *   - match cards (2 people mentioned) → both avatars, overlapping
+ *   - feed post cards → the poster's single avatar
+ * Falls back to a plain icon tile if no image is available.
+ *
+ * Auto-scroll implementation: the story list is rendered twice back-to-back
+ * (stories + a duplicate copy), and a requestAnimationFrame loop nudges
+ * scrollLeft forward continuously. When scrollLeft passes the width of one
+ * full set, it's snapped back by that same width — since the duplicate is
+ * pixel-identical, the snap is invisible and the strip *looks* like it
+ * scrolls forever. Manual touch/drag pauses the auto-scroll (so it doesn't
+ * fight the person's finger) and resumes a moment after they let go.
+ */
 function NewsStrip({ stories, loading, onClick }) {
+  const trackRef   = useRef(null)
+  const rafRef      = useRef(null)
+  const pausedRef   = useRef(false)
+  const resumeTimer = useRef(null)
+
+  useEffect(() => {
+    const track = trackRef.current
+    if (!track || stories.length === 0) return
+
+    const speed = 0.4 // px per frame, slow/ambient
+
+    function step() {
+      if (!pausedRef.current && track) {
+        const halfWidth = track.scrollWidth / 2
+        track.scrollLeft += speed
+        // Once we've scrolled past the first full set, snap back by exactly
+        // that width — since set #2 is an identical duplicate of set #1,
+        // this is visually seamless.
+        if (track.scrollLeft >= halfWidth) {
+          track.scrollLeft -= halfWidth
+        }
+      }
+      rafRef.current = requestAnimationFrame(step)
+    }
+    rafRef.current = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(rafRef.current)
+  }, [stories])
+
+  function pause() {
+    pausedRef.current = true
+    clearTimeout(resumeTimer.current)
+  }
+  function resumeSoon() {
+    clearTimeout(resumeTimer.current)
+    resumeTimer.current = setTimeout(() => { pausedRef.current = false }, 1200)
+  }
+
   if (!loading && stories.length === 0) return null
+
+  // Duplicate the list so the loop has a seamless second half to scroll into.
+  const looped = stories.length > 0 ? [...stories, ...stories] : []
 
   return (
     <div className={styles.newsSection}>
       <SectionLabel text="Headlines" />
-      <div className={styles.newsTrack}>
+      <div
+        ref={trackRef}
+        className={styles.newsTrack}
+        onPointerDown={pause}
+        onPointerUp={resumeSoon}
+        onPointerLeave={resumeSoon}
+      >
         {loading && stories.length === 0 && (
           <div className={styles.newsCardSkeleton} />
         )}
-        {stories.map(s => (
-          <Link key={s.id} href={s.href} className={styles.newsCard} onClick={onClick}>
-            <div className={styles.newsCardIcon}><i className={s.icon} /></div>
-            <span className={styles.newsCardHeadline}>{s.headline}</span>
-            <span className={styles.newsCardSub}>{s.sub}</span>
-            <span className={styles.newsCardTime}>{s.timeLabel}</span>
+        {looped.map((s, i) => (
+          <Link key={`${s.id}-${i}`} href={s.href} className={styles.newsCard} onClick={onClick}>
+            <NewsCardMedia media={s.media} icon={s.icon} />
+            <div className={styles.newsCardFade} />
+            <div className={styles.newsCardText}>
+              <span className={styles.newsCardHeadline}>{s.headline}</span>
+              <span className={styles.newsCardSub}>{s.sub}</span>
+              <span className={styles.newsCardTime}>{s.timeLabel}</span>
+            </div>
           </Link>
         ))}
       </div>
+    </div>
+  )
+}
+
+/** Renders the background media for a headline card: a game cover image,
+ *  two overlapping avatars (match winner/loser), a single avatar (feed
+ *  post), or a plain icon tile if nothing real is available. */
+function NewsCardMedia({ media, icon }) {
+  if (media?.kind === 'game' && media.src) {
+    return <img src={media.src} alt="" className={styles.newsCardBg} />
+  }
+  if (media?.kind === 'duo' && (media.a || media.b)) {
+    return (
+      <div className={styles.newsCardDuo}>
+        {media.b
+          ? <img src={media.b} alt="" className={styles.newsCardDuoBack} />
+          : <div className={`${styles.newsCardDuoBack} ${styles.newsCardAvatarFallback}`}><i className="ri-user-3-line" /></div>}
+        {media.a
+          ? <img src={media.a} alt="" className={styles.newsCardDuoFront} />
+          : <div className={`${styles.newsCardDuoFront} ${styles.newsCardAvatarFallback}`}><i className="ri-user-3-line" /></div>}
+      </div>
+    )
+  }
+  if (media?.kind === 'avatar' && media.src) {
+    return <img src={media.src} alt="" className={styles.newsCardBg} />
+  }
+  // Fallback: no real image available — plain icon tile
+  return (
+    <div className={`${styles.newsCardBg} ${styles.newsCardIconFallback}`}>
+      <i className={icon} />
     </div>
   )
 }
