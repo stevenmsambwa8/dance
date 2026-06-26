@@ -139,31 +139,130 @@ const TABS = [
   { key: 'settings',  icon: 'ri-settings-3-fill',   label: 'Settings'  },
 ]
 
-// ── Tutorial steps ─────────────────────────────────────────────────────────────
+// ── Tutorial steps with visual previews ──────────────────────────────────────
 const TUTORIAL_STEPS = [
   {
     icon: 'ri-dashboard-fill',
     color: '#6366f1',
     title: 'Overview',
-    desc: 'See your tournament stats, set status (Active / Ongoing / Completed), and view top scores — all at a glance.',
+    desc: 'See live stats, set tournament status with one tap, and quickly generate or reset the bracket.',
+    preview: () => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+        {/* Mini status bar */}
+        <div style={{ background: '#6366f112', border: '1.5px solid #6366f130', borderRadius: 10, padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <i className="ri-live-fill" style={{ color: '#6366f1', fontSize: 16 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Status</div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: '#6366f1' }}>Ongoing</div>
+          </div>
+          {['Active','Ongoing','Upcoming'].map((s,i) => (
+            <div key={s} style={{ padding: '3px 7px', borderRadius: 6, fontSize: 9, fontWeight: 700, background: i===1 ? '#6366f1' : 'var(--bg)', color: i===1 ? '#fff' : 'var(--text-muted)', border: `1px solid ${i===1 ? '#6366f1' : 'var(--border)'}` }}>{s}</div>
+          ))}
+        </div>
+        {/* Mini KPI row */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 5 }}>
+          {[['16','Players','#22c55e','ri-group-fill'],['4','Rounds','#6366f1','ri-node-tree'],['0','Scored','#f59e0b','ri-bar-chart-fill']].map(([v,l,c,ic])=>(
+            <div key={l} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px', textAlign: 'center' }}>
+              <i className={ic} style={{ color: c, fontSize: 12 }} />
+              <div style={{ fontSize: 14, fontWeight: 900, color: c }}>{v}</div>
+              <div style={{ fontSize: 8, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>{l}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
   },
   {
     icon: 'ri-group-fill',
     color: '#22c55e',
     title: 'Players',
-    desc: 'Manage registered players. Approve entry-fee payments inline, or remove a player if needed.',
+    desc: 'See all registered players, their bracket status, and approve pending entry-fee payments — all in one list.',
+    preview: () => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+        {/* Pending payments callout */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 10px', borderRadius: 9, background: '#f59e0b10', border: '1.5px solid #f59e0b30' }}>
+          <i className="ri-alarm-warning-fill" style={{ color: '#f59e0b', fontSize: 14 }} />
+          <div style={{ fontSize: 11, fontWeight: 800, color: '#f59e0b' }}>2 payments awaiting approval</div>
+        </div>
+        {/* Mock player rows */}
+        {[['JK','JohnK','PAID','#22c55e'],['MN','Nashe','PENDING','#f59e0b'],['AB','AlphaB',null,null]].map(([init,name,badge,bc])=>(
+          <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10 }}>
+            <div style={{ width: 28, height: 28, borderRadius: 8, background: '#6366f120', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 900, color: '#6366f1', flexShrink: 0 }}>{init}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)' }}>{name}</div>
+              <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>Lv.12</div>
+            </div>
+            {badge && <div style={{ fontSize: 8, fontWeight: 900, padding: '2px 6px', borderRadius: 4, background: bc + '20', color: bc }}>{badge}</div>}
+            <div style={{ width: 22, height: 22, borderRadius: 6, border: '1px solid #dc262630', background: '#dc262608', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#dc2626' }}><i className="ri-user-unfollow-line" /></div>
+          </div>
+        ))}
+      </div>
+    ),
   },
   {
     icon: 'ri-node-tree',
     color: '#a78bfa',
     title: 'Bracket',
-    desc: 'Generate the bracket from your players with one tap. Drag slots to swap, add unplaced players, or reset to start fresh.',
+    desc: 'Generate the bracket from your players with one tap. Drag slots to reorder, add unplaced players, or reset and start fresh.',
+    preview: () => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+        {/* Generate button */}
+        <div style={{ display: 'flex', gap: 7 }}>
+          <div style={{ flex: 1, padding: '9px', borderRadius: 10, background: '#a78bfa', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, fontSize: 12, fontWeight: 800, color: '#fff' }}>
+            <i className="ri-play-fill" /> Generate Bracket
+          </div>
+          <div style={{ padding: '9px 12px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <i className="ri-eye-line" /> View
+          </div>
+        </div>
+        {/* Mini bracket preview */}
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px', display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {[['PlayerA','#22c55e'],['PlayerB','#22c55e'],['PlayerC','#22c55e'],['PlayerD','#22c55e']].map(([n,c])=>(
+              <div key={n} style={{ padding: '4px 8px', background: c + '12', border: `1px solid ${c}30`, borderRadius: 6, fontSize: 9, fontWeight: 700, color: c, minWidth: 60, textAlign: 'center' }}>{n}</div>
+            ))}
+          </div>
+          <div style={{ color: 'var(--border)', fontSize: 20 }}>›</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {[['?','#a78bfa'],['?','#a78bfa']].map(([n,c],i)=>(
+              <div key={i} style={{ padding: '4px 8px', background: c + '12', border: `1px solid ${c}30`, borderRadius: 6, fontSize: 9, fontWeight: 700, color: c, minWidth: 52, textAlign: 'center' }}>{n}</div>
+            ))}
+          </div>
+          <div style={{ color: 'var(--border)', fontSize: 20 }}>›</div>
+          <div style={{ padding: '4px 8px', background: '#f59e0b12', border: '1px solid #f59e0b30', borderRadius: 6, fontSize: 9, fontWeight: 700, color: '#f59e0b', textAlign: 'center' }}>🏆 TBD</div>
+        </div>
+      </div>
+    ),
   },
   {
     icon: 'ri-settings-3-fill',
     color: '#f59e0b',
     title: 'Settings',
-    desc: 'Edit tournament details (name, date, prize, etc.), transfer players to another tournament, or permanently delete.',
+    desc: 'Edit tournament details (name, date, prize, entry fee). Use Advanced to transfer all players to another tournament or delete.',
+    preview: () => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+        {/* Toggle */}
+        <div style={{ display: 'flex', background: 'var(--bg)', borderRadius: 10, padding: 3, gap: 3, border: '1px solid var(--border)' }}>
+          {[['ri-edit-line','Edit Details','#f59e0b',true],['ri-error-warning-line','Advanced','#ef4444',false]].map(([ic,l,c,active])=>(
+            <div key={l} style={{ flex: 1, padding: '6px', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, fontSize: 11, fontWeight: 700, background: active ? c + '18' : 'transparent', color: active ? c : 'var(--text-muted)' }}>
+              <i className={ic} /> {l}
+            </div>
+          ))}
+        </div>
+        {/* Mock form fields */}
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {[['Tournament Name','STRONG HAND ✋'],['Prize Pool (TZS)','500,000'],['Entry Fee (TZS)','2,000']].map(([label,val])=>(
+            <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <div style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
+              <div style={{ padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg)', fontSize: 11, color: 'var(--text)', fontWeight: 600 }}>{val}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ padding: '8px 10px', borderRadius: 9, background: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 12, fontWeight: 800, color: '#000' }}>
+          <i className="ri-save-line" /> Save Changes
+        </div>
+      </div>
+    ),
   },
 ]
 
@@ -172,78 +271,84 @@ function TutorialOverlay({ onClose }) {
   const [step, setStep] = useState(0)
   const current = TUTORIAL_STEPS[step]
   const isLast = step === TUTORIAL_STEPS.length - 1
+  const Preview = current.preview
 
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 200,
-      background: 'rgba(0,0,0,0.72)',
+      background: 'rgba(0,0,0,0.78)',
       display: 'flex', alignItems: 'flex-end',
-      padding: '0 0 32px',
-    }}>
-      <div style={{
-        width: '100%', padding: '0 16px',
-      }}>
-        {/* Card */}
+      padding: '0 0 24px',
+    }} onClick={onClose}>
+      <div style={{ width: '100%', padding: '0 16px' }} onClick={e => e.stopPropagation()}>
         <div style={{
-          background: 'var(--surface)', borderRadius: 20,
-          padding: '24px 20px 20px', position: 'relative',
+          background: 'var(--surface)', borderRadius: 24,
+          padding: '20px 18px 18px', position: 'relative',
           border: '1px solid var(--border)',
+          boxShadow: '0 -8px 40px rgba(0,0,0,0.25)',
         }}>
-          {/* Close */}
-          <button onClick={onClose} style={{
-            position: 'absolute', top: 14, right: 14,
-            width: 30, height: 30, borderRadius: 8,
-            border: '1px solid var(--border)', background: 'var(--bg)',
-            color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 16, cursor: 'pointer',
-          }}>
-            <i className="ri-close-line" />
-          </button>
+          {/* Header row */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 11, background: current.color + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: current.color, flexShrink: 0 }}>
+              <i className={current.icon} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                Step {step + 1} of {TUTORIAL_STEPS.length}
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{current.title}</div>
+            </div>
+            <button onClick={onClose} style={{
+              width: 28, height: 28, borderRadius: 8,
+              border: '1px solid var(--border)', background: 'var(--bg)',
+              color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 15, cursor: 'pointer', flexShrink: 0,
+            }}>
+              <i className="ri-close-line" />
+            </button>
+          </div>
 
-          {/* Step dots */}
-          <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
-            {TUTORIAL_STEPS.map((_, i) => (
+          {/* Progress bar */}
+          <div style={{ display: 'flex', gap: 5, marginBottom: 14 }}>
+            {TUTORIAL_STEPS.map((s, i) => (
               <div key={i} onClick={() => setStep(i)} style={{
-                height: 4, borderRadius: 4,
-                flex: i === step ? 2 : 1,
-                background: i === step ? current.color : 'var(--border)',
-                transition: 'all 0.25s', cursor: 'pointer',
+                height: 3, borderRadius: 3, flex: 1, cursor: 'pointer',
+                background: i <= step ? s.color : 'var(--border)',
+                transition: 'background 0.25s',
               }} />
             ))}
           </div>
 
-          {/* Icon */}
+          {/* Visual preview */}
           <div style={{
-            width: 52, height: 52, borderRadius: 16,
-            background: current.color + '18',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 24, color: current.color, marginBottom: 14,
+            background: 'var(--bg)', borderRadius: 14,
+            border: '1px solid var(--border)',
+            padding: '12px', marginBottom: 12,
+            minHeight: 120,
           }}>
-            <i className={current.icon} />
+            <Preview />
           </div>
 
-          <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', marginBottom: 8 }}>
-            {current.title}
-          </div>
-          <div style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.55, marginBottom: 24 }}>
+          {/* Description */}
+          <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: 16 }}>
             {current.desc}
           </div>
 
           {/* Navigation */}
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 8 }}>
             {step > 0 && (
               <button onClick={() => setStep(s => s - 1)} style={{
                 flex: 1, padding: '11px', borderRadius: 12,
                 border: '1.5px solid var(--border)', background: 'var(--bg)',
-                color: 'var(--text-muted)', fontWeight: 700, fontSize: 14, cursor: 'pointer',
+                color: 'var(--text-muted)', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
               }}>
-                Back
+                ← Back
               </button>
             )}
             <button onClick={isLast ? onClose : () => setStep(s => s + 1)} style={{
               flex: 2, padding: '11px', borderRadius: 12,
               border: 'none', background: current.color,
-              color: '#fff', fontWeight: 800, fontSize: 14, cursor: 'pointer',
+              color: isLast ? '#000' : '#fff', fontWeight: 800, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
             }}>
               {isLast ? 'Got it 🎮' : 'Next →'}
             </button>
