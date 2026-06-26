@@ -628,7 +628,6 @@
     flex-shrink: 0;
     color: var(--text-muted);
   }
-  .searchTriggerText { display: none; }
 
   .notifDropdown {
     position: fixed;
