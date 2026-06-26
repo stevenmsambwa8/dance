@@ -95,18 +95,14 @@
   background: var(--surface); 
 }
 
-/* ── Maximized Premium FIFA 26 Button Configuration ── */
 /* ── Plan CTA (paid users — colour follows their plan) ── */
 .planCta {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 14px;
-  height: 36px;
+  gap: 8px;
+  padding: 0 12px;
+  height: 34px; /* matches .groupIconBtn (notification bell) height */
   border-radius: 999px;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.03em;
   text-decoration: none;
   white-space: nowrap;
   box-sizing: border-box;
@@ -116,32 +112,46 @@
   color: var(--plan-color, #a855f7);
   border: 1.5px solid color-mix(in srgb, var(--plan-color, #a855f7) 35%, transparent);
 }
-.planCta:hover  { transform: scale(1.04); opacity: 0.9; }
-.planCta:active { transform: scale(0.96); }
-.planCta i { font-size: 14px; }
+.planCta:hover  { transform: scale(1.03); opacity: 0.9; }
+.planCta:active { transform: scale(0.97); }
+.planCta > i { font-size: 15px; flex-shrink: 0; }
 
 /* ── Upgrade CTA (free users / logged out) ── */
 .upgradeCta {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 14px;
-  height: 34px;
+  gap: 8px;
+  padding: 0 12px;
+  height: 34px; /* matches .groupIconBtn (notification bell) height */
   border-radius: 999px;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.03em;
   text-decoration: none;
   white-space: nowrap;
   box-sizing: border-box;
   transition: transform 0.15s;
-  /* Uses CSS variables from ThemeProvider so it follows the active theme */
   background: var(--accent, #6366f1);
   color: #fff;
 }
-.upgradeCta:hover  { transform: scale(1.04); }
-.upgradeCta:active { transform: scale(0.96); }
-.upgradeCta i { font-size: 14px; }
+.upgradeCta:hover  { transform: scale(1.03); }
+.upgradeCta:active { transform: scale(0.97); }
+.upgradeCta > i { font-size: 15px; flex-shrink: 0; }
+
+/* ── Two-line text used inside both CTAs: title on top, small caption below ── */
+.ctaTextCol {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+.ctaTitle {
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.ctaSubtitle {
+  font-size: 8.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  opacity: 0.8;
+}
 
 @keyframes moveGradient {
   0% { background-position: 0% 50%; }
@@ -595,8 +605,10 @@
   .hamburger { display: flex; }
   .desktopOnly { display: none !important; }
 
-  .planCta { height: 32px; padding: 0 11px; font-size: 11px; }
-  .upgradeCta { height: 34px; padding: 0 13px; font-size: 11.5px; }
+  .planCta { height: 34px; padding: 0 11px; }
+  .upgradeCta { height: 34px; padding: 0 11px; }
+  .ctaTitle { font-size: 11px; }
+  .ctaSubtitle { font-size: 8px; }
 
   .searchTrigger {
     flex: 1;

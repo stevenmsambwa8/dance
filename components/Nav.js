@@ -227,26 +227,36 @@ export default function Nav() {
           </button>
           */}
 
-          {/* ── Plan / Upgrade CTA ── */}
+          {/* ── Plan / Upgrade / Sign-in CTA — icon + two-line text:
+                main label on top, smaller "Unlock more power" caption below ── */}
           {user ? (
             isPaidPlan ? (
               // Paid user — show their current plan, links to account/upgrade
               <Link href="/upgrade" className={styles.planCta} style={{ '--plan-color': planMeta.color }} title={`You are on the ${planMeta.label} plan`}>
                 <i className={planMeta.icon} />
-                <span>{planMeta.label}</span>
+                <span className={styles.ctaTextCol}>
+                  <span className={styles.ctaTitle}>{planMeta.label}</span>
+                  <span className={styles.ctaSubtitle}>Unlock more power</span>
+                </span>
               </Link>
             ) : (
               // Free user — show upgrade prompt
               <Link href="/upgrade" className={styles.upgradeCta} title="Upgrade your plan">
                 <i className="ri-vip-crown-line" />
-                <span>Upgrade</span>
+                <span className={styles.ctaTextCol}>
+                  <span className={styles.ctaTitle}>Upgrade</span>
+                  <span className={styles.ctaSubtitle}>Unlock more power</span>
+                </span>
               </Link>
             )
           ) : (
             // Logged out — show login CTA
             <Link href="/login" className={styles.upgradeCta} title="Sign in">
               <i className="ri-user-line" />
-              <span>Sign In</span>
+              <span className={styles.ctaTextCol}>
+                <span className={styles.ctaTitle}>Sign In</span>
+                <span className={styles.ctaSubtitle}>Unlock more power</span>
+              </span>
             </Link>
           )}
 
