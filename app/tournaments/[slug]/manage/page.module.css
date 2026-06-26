@@ -572,3 +572,9 @@
   align-items: center;
   justify-content: center;
 }
+
+/* ── Settings section toggle (used inside Settings tab) ── */
+/* Already handled inline — no extra CSS needed */
+
+/* ── Pending payments callout in Players tab ── */
+/* Already handled inline */

@@ -118,6 +118,7 @@ function buildBracket(parts, teamSize = 1) {
 
 const fmtTZS = v => v ? `TZS ${Number(v).toLocaleString()}` : '—'
 const STATUS_COLORS = { active: '#22c55e', ongoing: '#6366f1', upcoming: '#f59e0b', completed: '#94a3b8' }
+const STATUS_ICONS  = { active: 'ri-checkbox-circle-fill', ongoing: 'ri-live-fill', upcoming: 'ri-time-fill', completed: 'ri-trophy-fill' }
 
 const GAME_SLUGS_MANAGE = ['pubgm','freefire','codm','bussid','efootball','dls','fifa']
 const GAME_NAMES_MANAGE = { pubgm:'PUBGM', freefire:'Free Fire', codm:'Call of Duty', bussid:'Maleo BUSSID', efootball:'eFootball', dls:'DLS26', fifa:'FIFA 26' }
@@ -130,14 +131,128 @@ const TEAM_SIZE_OPTS    = [
   { value: 8, label: '8v8', sub: 'Team' },
 ]
 
+// Slimmed-down tabs — Edit & Danger moved to Settings, Payments folded into Players
 const TABS = [
-  { key: 'overview',  icon: 'ri-dashboard-fill',         label: 'Overview' },
-  { key: 'players',   icon: 'ri-group-fill',              label: 'Players'  },
-  { key: 'bracket',   icon: 'ri-node-tree',               label: 'Bracket'  },
-  { key: 'edit',      icon: 'ri-settings-3-fill',         label: 'Edit'     },
-  { key: 'payments',  icon: 'ri-money-dollar-circle-fill', label: 'Payments' },
-  { key: 'danger',    icon: 'ri-error-warning-fill',      label: 'Danger'   },
+  { key: 'overview',  icon: 'ri-dashboard-fill',   label: 'Overview'  },
+  { key: 'players',   icon: 'ri-group-fill',        label: 'Players'   },
+  { key: 'bracket',   icon: 'ri-node-tree',         label: 'Bracket'   },
+  { key: 'settings',  icon: 'ri-settings-3-fill',   label: 'Settings'  },
 ]
+
+// ── Tutorial steps ─────────────────────────────────────────────────────────────
+const TUTORIAL_STEPS = [
+  {
+    icon: 'ri-dashboard-fill',
+    color: '#6366f1',
+    title: 'Overview',
+    desc: 'See your tournament stats, set status (Active / Ongoing / Completed), and view top scores — all at a glance.',
+  },
+  {
+    icon: 'ri-group-fill',
+    color: '#22c55e',
+    title: 'Players',
+    desc: 'Manage registered players. Approve entry-fee payments inline, or remove a player if needed.',
+  },
+  {
+    icon: 'ri-node-tree',
+    color: '#a78bfa',
+    title: 'Bracket',
+    desc: 'Generate the bracket from your players with one tap. Drag slots to swap, add unplaced players, or reset to start fresh.',
+  },
+  {
+    icon: 'ri-settings-3-fill',
+    color: '#f59e0b',
+    title: 'Settings',
+    desc: 'Edit tournament details (name, date, prize, etc.), transfer players to another tournament, or permanently delete.',
+  },
+]
+
+// ── Tutorial overlay ──────────────────────────────────────────────────────────
+function TutorialOverlay({ onClose }) {
+  const [step, setStep] = useState(0)
+  const current = TUTORIAL_STEPS[step]
+  const isLast = step === TUTORIAL_STEPS.length - 1
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 200,
+      background: 'rgba(0,0,0,0.72)',
+      display: 'flex', alignItems: 'flex-end',
+      padding: '0 0 32px',
+    }}>
+      <div style={{
+        width: '100%', padding: '0 16px',
+      }}>
+        {/* Card */}
+        <div style={{
+          background: 'var(--surface)', borderRadius: 20,
+          padding: '24px 20px 20px', position: 'relative',
+          border: '1px solid var(--border)',
+        }}>
+          {/* Close */}
+          <button onClick={onClose} style={{
+            position: 'absolute', top: 14, right: 14,
+            width: 30, height: 30, borderRadius: 8,
+            border: '1px solid var(--border)', background: 'var(--bg)',
+            color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 16, cursor: 'pointer',
+          }}>
+            <i className="ri-close-line" />
+          </button>
+
+          {/* Step dots */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
+            {TUTORIAL_STEPS.map((_, i) => (
+              <div key={i} onClick={() => setStep(i)} style={{
+                height: 4, borderRadius: 4,
+                flex: i === step ? 2 : 1,
+                background: i === step ? current.color : 'var(--border)',
+                transition: 'all 0.25s', cursor: 'pointer',
+              }} />
+            ))}
+          </div>
+
+          {/* Icon */}
+          <div style={{
+            width: 52, height: 52, borderRadius: 16,
+            background: current.color + '18',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 24, color: current.color, marginBottom: 14,
+          }}>
+            <i className={current.icon} />
+          </div>
+
+          <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', marginBottom: 8 }}>
+            {current.title}
+          </div>
+          <div style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.55, marginBottom: 24 }}>
+            {current.desc}
+          </div>
+
+          {/* Navigation */}
+          <div style={{ display: 'flex', gap: 10 }}>
+            {step > 0 && (
+              <button onClick={() => setStep(s => s - 1)} style={{
+                flex: 1, padding: '11px', borderRadius: 12,
+                border: '1.5px solid var(--border)', background: 'var(--bg)',
+                color: 'var(--text-muted)', fontWeight: 700, fontSize: 14, cursor: 'pointer',
+              }}>
+                Back
+              </button>
+            )}
+            <button onClick={isLast ? onClose : () => setStep(s => s + 1)} style={{
+              flex: 2, padding: '11px', borderRadius: 12,
+              border: 'none', background: current.color,
+              color: '#fff', fontWeight: 800, fontSize: 14, cursor: 'pointer',
+            }}>
+              {isLast ? 'Got it 🎮' : 'Next →'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // ── Confirm modal ─────────────────────────────────────────────────────────────
 function ConfirmModal({ message, onConfirm, onCancel }) {
@@ -177,18 +292,21 @@ export default function TournamentManage() {
   const [saving,       setSaving]       = useState(false)
   const [activeTab,    setActiveTab]    = useState('overview')
   const [confirm,      setConfirm]      = useState(null)
-  // ── Edit tab form state ───────────────────────────────────────────────────
-  const [editForm,     setEditForm]     = useState(null)   // populated when tournament loads
+  const [showTutorial, setShowTutorial] = useState(false)
+  // ── Edit form state ───────────────────────────────────────────────────────
+  const [editForm,     setEditForm]     = useState(null)
   const [editSaving,   setEditSaving]   = useState(false)
   const [editSaved,    setEditSaved]    = useState(false)
   const [editError,    setEditError]    = useState('')
   const [toast,        setToast]        = useState(null)
   // ── Transfer state ────────────────────────────────────────────────────────
   const [showTransfer,     setShowTransfer]     = useState(false)
-  const [transferTargets,  setTransferTargets]  = useState([])   // tournaments to transfer to
-  const [transferTarget,   setTransferTarget]   = useState(null) // selected tournament id
+  const [transferTargets,  setTransferTargets]  = useState([])
+  const [transferTarget,   setTransferTarget]   = useState(null)
   const [transferLoading,  setTransferLoading]  = useState(false)
   const [transferDone,     setTransferDone]     = useState(false)
+  // ── Settings accordion ────────────────────────────────────────────────────
+  const [settingsSection,  setSettingsSection]  = useState('edit') // 'edit' | 'danger'
   const toastTimer = useRef(null)
   const id = useRef(null)
 
@@ -238,7 +356,6 @@ export default function TournamentManage() {
     if (partsRes.error) console.error('manage: participants fetch error', partsRes.error)
     if (lbRes.error)    console.error('manage: leaderboard fetch error', lbRes.error)
 
-    // Merge payment status onto each participant
     const payMap = Object.fromEntries((pmtsRes.data || []).map(p => [p.user_id, p.status]))
     const partsWithPayment = (partsRes.data || []).map(p => ({ ...p, payment_status: payMap[p.user_id] || null }))
 
@@ -282,19 +399,15 @@ export default function TournamentManage() {
   async function saveBracket(bd) {
     setSaving(true)
     try {
-      // bd includes round_names and slot_count embedded by BracketBuilder
       const updatePayload = {
         bracket_data: bd,
-        // Persist round names as their own column so slug page / leaderboard can read without parsing full bracket
         round_names: bd?.round_names ?? null,
-        // Update slots to match actual bracket capacity (counted from open slots in round 0)
         ...(bd?.slot_count > 0 ? { slots: bd.slot_count } : {}),
       }
       const { error } = await supabase.from('tournaments').update(updatePayload).eq('id', id.current)
       if (error) showToast('Failed to save bracket.', 'error')
       else {
         showToast('Bracket saved!')
-        // Keep local tournament state in sync
         setTournament(t => ({ ...t, round_names: bd?.round_names ?? t?.round_names, ...(bd?.slot_count > 0 ? { slots: bd.slot_count } : {}) }))
       }
     } catch { showToast('Network error.', 'error') }
@@ -407,7 +520,6 @@ export default function TournamentManage() {
     showToast(`${prof?.username || 'Player'} added to bracket.`, 'success')
   }
 
-  // ── Other actions ─────────────────────────────────────────────────────────
   async function syncCount() {
     if (!await verifyCanManage()) return
     const { count } = await supabase.from('tournament_participants').select('*', { count: 'exact', head: true }).eq('tournament_id', id.current)
@@ -423,7 +535,6 @@ export default function TournamentManage() {
     showToast(`Status → ${newStatus}`, 'success')
   }
 
-  // ── Transfer players to another tournament ────────────────────────────────
   async function saveEdit() {
     if (!editForm?.name?.trim()) { setEditError('Name is required'); return }
     setEditSaving(true); setEditError(''); setEditSaved(false)
@@ -455,7 +566,6 @@ export default function TournamentManage() {
     setTransferLoading(true)
     setTransferDone(false)
     setTransferTarget(null)
-    // Load other active tournaments with matching team_size
     const { data } = await supabase
       .from('tournaments')
       .select('id, name, slug, team_size, registered_count, slots, status')
@@ -472,43 +582,24 @@ export default function TournamentManage() {
     if (!transferTarget || !participants.length) return
     setTransferLoading(true)
     try {
-      // Get players already in target tournament (avoid duplicates)
-      const { data: existing } = await supabase
-        .from('tournament_participants')
-        .select('user_id')
-        .eq('tournament_id', transferTarget)
+      const { data: existing } = await supabase.from('tournament_participants').select('user_id').eq('tournament_id', transferTarget)
       const existingIds = new Set((existing || []).map(e => e.user_id))
-
-      const toInsert = participants
-        .filter(p => !existingIds.has(p.user_id))
-        .map(p => ({ tournament_id: transferTarget, user_id: p.user_id }))
-
+      const toInsert = participants.filter(p => !existingIds.has(p.user_id)).map(p => ({ tournament_id: transferTarget, user_id: p.user_id }))
       if (toInsert.length > 0) {
         await supabase.from('tournament_participants').insert(toInsert)
-        // Update registered_count on target
         const newCount = (existing?.length || 0) + toInsert.length
         await supabase.from('tournaments').update({ registered_count: newCount }).eq('id', transferTarget)
       }
-
-      // Notify transferred players
       const targetT = transferTargets.find(t => t.id === transferTarget)
       const notifs = participants.map(p => ({
-        user_id:     p.user_id,
-        title:       'You have been transferred',
-        body:        `You've been moved to "${targetT?.name || 'a new tournament'}". Check it out!`,
-        type:        'tournament',
-        meta:        { tournament_id: transferTarget },
-        read:        false,
+        user_id: p.user_id, title: 'You have been transferred',
+        body: `You've been moved to "${targetT?.name || 'a new tournament'}". Check it out!`,
+        type: 'tournament', meta: { tournament_id: transferTarget }, read: false,
       }))
-      for (let i = 0; i < notifs.length; i += 100) {
-        await supabase.from('notifications').insert(notifs.slice(i, i + 100))
-      }
-
+      for (let i = 0; i < notifs.length; i += 100) await supabase.from('notifications').insert(notifs.slice(i, i + 100))
       setTransferDone(true)
       showToast(`${toInsert.length} player${toInsert.length !== 1 ? 's' : ''} transferred successfully!`)
-    } catch (err) {
-      showToast('Transfer failed: ' + err.message, 'error')
-    }
+    } catch (err) { showToast('Transfer failed: ' + err.message, 'error') }
     setTransferLoading(false)
   }
 
@@ -530,23 +621,15 @@ export default function TournamentManage() {
   }
 
   // ── Guards ────────────────────────────────────────────────────────────────
-  if (loading) return (
-    <div className={styles.loadWrap}>
-      <div className="loader" />
-    </div>
-  )
-  if (!tournament) return (
-    <div className={styles.loadWrap}>
-      <p style={{ color: 'var(--text-muted)' }}>Tournament not found.</p>
-    </div>
-  )
+  if (loading) return <div className={styles.loadWrap}><div className="loader" /></div>
+  if (!tournament) return <div className={styles.loadWrap}><p style={{ color: 'var(--text-muted)' }}>Tournament not found.</p></div>
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const realCount       = participants.length
   const openSlots       = Math.max(0, (tournament.slots || 0) - realCount)
   const bracketRounds   = bracketData?.rounds?.length ?? 0
   const hasBracket      = bracketData && !bracketData.isEmpty
-  const pendingPayments = participants.filter(p => p.payment?.[0]?.status === 'payment_submitted')
+  const pendingPayments = participants.filter(p => p.payment_status === 'payment_submitted')
 
   const inBracketSet = new Set()
   bracketData?.rounds[0]?.forEach(pair => pair.forEach(s => {
@@ -558,6 +641,9 @@ export default function TournamentManage() {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className={styles.page}>
+
+      {/* ── Tutorial overlay ── */}
+      {showTutorial && <TutorialOverlay onClose={() => setShowTutorial(false)} />}
 
       {/* ── Toast ── */}
       {toast && (
@@ -580,9 +666,9 @@ export default function TournamentManage() {
           </div>
           <div className={styles.headerTitle}>{tournament.name}</div>
         </div>
-        <button className={`${styles.headerIconBtn} ${styles.headerIconBtnAccent}`}
-          onClick={() => router.push(`/tournaments/${tournament.slug || tournament.id}/edit`)}>
-          <i className="ri-edit-line" />
+        {/* Tutorial help button */}
+        <button className={styles.headerIconBtn} onClick={() => setShowTutorial(true)} title="How this works">
+          <i className="ri-question-line" />
         </button>
         <button className={styles.headerIconBtn}
           onClick={() => router.push(`/tournaments/${tournament.slug || tournament.id}`)}>
@@ -590,11 +676,40 @@ export default function TournamentManage() {
         </button>
       </div>
 
+      {/* ── Status banner — most important action at the top ── */}
+      <div style={{ padding: '12px 16px 0' }}>
+        <div style={{
+          background: 'var(--surface)', borderRadius: 14,
+          border: `1.5px solid ${STATUS_COLORS[tournament.status]}33`,
+          padding: '12px 14px',
+          display: 'flex', alignItems: 'center', gap: 12,
+        }}>
+          <i className={STATUS_ICONS[tournament.status]} style={{ color: STATUS_COLORS[tournament.status], fontSize: 20, flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Status</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: STATUS_COLORS[tournament.status], textTransform: 'capitalize' }}>{tournament.status}</div>
+          </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {['active','ongoing','upcoming','completed'].map(s => (
+              <button key={s} onClick={() => updateStatus(s)} style={{
+                padding: '5px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                border: `1.5px solid ${tournament.status === s ? STATUS_COLORS[s] : 'var(--border)'}`,
+                background: tournament.status === s ? STATUS_COLORS[s] : 'var(--bg)',
+                color: tournament.status === s ? '#fff' : 'var(--text-muted)',
+                cursor: 'pointer', textTransform: 'capitalize',
+              }}>
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* ── KPI strip ── */}
       <div className={styles.kpis}>
         {[
           { val: realCount, sub: `/ ${tournament.slots}`, label: 'Players', color: '#22c55e', icon: 'ri-group-fill' },
-          { val: openSlots, sub: 'open slots',            label: 'Available', color: openSlots > 0 ? '#f59e0b' : 'var(--text-muted)', icon: 'ri-door-open-line' },
+          { val: openSlots, sub: 'open slots', label: 'Available', color: openSlots > 0 ? '#f59e0b' : 'var(--text-muted)', icon: 'ri-door-open-line' },
           { val: bracketRounds, sub: hasBracket ? 'bracket live' : 'no bracket', label: 'Rounds', color: '#6366f1', icon: 'ri-node-tree' },
           { val: leaderboard.length, sub: 'ranked', label: 'Scored', color: '#f59e0b', icon: 'ri-bar-chart-fill' },
         ].map(k => (
@@ -607,36 +722,44 @@ export default function TournamentManage() {
         ))}
       </div>
 
-      {/* ── Chips ── */}
-      <div className={styles.chipsRow}>
-        <div className={`${styles.chip} ${styles.chip}`} style={{ color: STATUS_COLORS[tournament.status], borderColor: STATUS_COLORS[tournament.status] + '33', background: STATUS_COLORS[tournament.status] + '11' }}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: STATUS_COLORS[tournament.status], flexShrink: 0 }} />
-          {tournament.status}
+      {/* ── Chip row (contextual info only) ── */}
+      {((tournament.team_size || 1) > 1 || tournament.entrance_fee > 0 || pendingPayments.length > 0) && (
+        <div className={styles.chipsRow}>
+          {(tournament.team_size || 1) > 1 && (
+            <div className={`${styles.chip} ${styles.chipIndigo}`}>
+              <i className="ri-team-line" /> {tournament.team_size}v{tournament.team_size}
+            </div>
+          )}
+          {tournament.entrance_fee > 0 && (
+            <div className={`${styles.chip} ${styles.chipAmber}`}>
+              <i className="ri-money-dollar-circle-line" /> {fmtTZS(tournament.entrance_fee)}
+            </div>
+          )}
+          {pendingPayments.length > 0 && (
+            <div className={`${styles.chip} ${styles.chipDanger}`} onClick={() => setActiveTab('players')}>
+              <i className="ri-alarm-warning-fill" /> {pendingPayments.length} payment{pendingPayments.length !== 1 ? 's' : ''} pending
+            </div>
+          )}
         </div>
-        {(tournament.team_size || 1) > 1 && (
-          <div className={`${styles.chip} ${styles.chipIndigo}`}>
-            <i className="ri-team-line" /> {tournament.team_size}v{tournament.team_size}
-          </div>
-        )}
-        {tournament.entrance_fee > 0 && (
-          <div className={`${styles.chip} ${styles.chipAmber}`}>
-            <i className="ri-money-dollar-circle-line" /> {fmtTZS(tournament.entrance_fee)}
-          </div>
-        )}
-        {pendingPayments.length > 0 && (
-          <div className={`${styles.chip} ${styles.chipDanger}`} onClick={() => setActiveTab('payments')}>
-            <i className="ri-alarm-warning-fill" /> {pendingPayments.length} pending
-          </div>
-        )}
-      </div>
+      )}
 
-      {/* ── Tab bar ── */}
+      {/* ── Tab bar (4 tabs now) ── */}
       <div className={styles.tabs}>
         {TABS.map(t => (
-          <button key={t.key} className={`${styles.tab} ${activeTab === t.key ? (t.key === 'danger' ? styles.tabDanger : styles.tabActive) : ''}`}
+          <button key={t.key}
+            className={`${styles.tab} ${activeTab === t.key ? styles.tabActive : ''}`}
             onClick={() => setActiveTab(t.key)}>
             <i className={t.icon} />
             {t.label}
+            {/* Badge for pending payments on Players tab */}
+            {t.key === 'players' && pendingPayments.length > 0 && (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                width: 16, height: 16, borderRadius: '50%',
+                background: '#ef4444', color: '#fff', fontSize: 9, fontWeight: 900,
+                marginLeft: 2,
+              }}>{pendingPayments.length}</span>
+            )}
           </button>
         ))}
       </div>
@@ -647,7 +770,7 @@ export default function TournamentManage() {
         {/* ════ OVERVIEW ════ */}
         {activeTab === 'overview' && <>
 
-          {/* Bracket card */}
+          {/* Quick-action bracket card */}
           <div className={styles.card}>
             <div className={styles.cardHead}>
               <i className="ri-node-tree" style={{ color: '#6366f1', fontSize: 16 }} />
@@ -685,27 +808,16 @@ export default function TournamentManage() {
                     <i className="ri-restart-line" /> Reset Bracket
                   </button>
               }
+              <button className={styles.btnGhost} onClick={() => setActiveTab('bracket')}>
+                <i className="ri-edit-line" /> Edit
+              </button>
               <button className={styles.btnGhost} onClick={() => router.push(`/tournaments/${tournament.slug || tournament.id}`)}>
                 <i className="ri-eye-line" />
               </button>
             </div>
           </div>
 
-          {/* Status */}
-          <div className={styles.card}>
-            <div className={styles.sectionLabel}>Set Status</div>
-            <div className={styles.statusRow}>
-              {['active','ongoing','upcoming','completed'].map(s => (
-                <button key={s} className={`${styles.statusChip} ${tournament.status === s ? styles.statusChipActive : ''}`}
-                  style={tournament.status === s ? { background: STATUS_COLORS[s], borderColor: STATUS_COLORS[s] } : {}}
-                  onClick={() => updateStatus(s)}>
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Sync */}
+          {/* Sync count */}
           <button className={styles.btnFull} onClick={syncCount}>
             <i className="ri-refresh-line" /> Sync Player Count
           </button>
@@ -727,6 +839,21 @@ export default function TournamentManage() {
 
         {/* ════ PLAYERS ════ */}
         {activeTab === 'players' && <>
+          {/* Pending payments callout */}
+          {pendingPayments.length > 0 && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '10px 14px', borderRadius: 12,
+              background: '#f59e0b12', border: '1.5px solid #f59e0b33', marginBottom: 4,
+            }}>
+              <i className="ri-alarm-warning-fill" style={{ color: '#f59e0b', fontSize: 18 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: '#f59e0b' }}>{pendingPayments.length} payment{pendingPayments.length !== 1 ? 's' : ''} awaiting approval</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>Tap Approve on each player below</div>
+              </div>
+            </div>
+          )}
+
           {participants.length === 0
             ? <p className={styles.empty}>No players yet</p>
             : participants.map(p => {
@@ -741,7 +868,16 @@ export default function TournamentManage() {
                     </div>
                     <div className={styles.playerInfo}>
                       <span className={styles.playerName}>{p.profiles?.username || 'Unknown'}</span>
-                      <span className={styles.playerMeta}>Lv.{p.profiles?.level ?? 1}</span>
+                      <span className={styles.playerMeta}>Lv.{p.profiles?.level ?? 1}
+                        {payStatus && (
+                          <span style={{ marginLeft: 6, padding: '1px 6px', borderRadius: 4, fontSize: 9, fontWeight: 800,
+                            background: payStatus === 'approved' ? '#22c55e20' : '#f59e0b20',
+                            color: payStatus === 'approved' ? '#22c55e' : '#f59e0b',
+                          }}>
+                            {payStatus === 'approved' ? 'PAID' : 'PENDING'}
+                          </span>
+                        )}
+                      </span>
                     </div>
                     <div className={styles.playerBadges}>
                       {bStatus === 'champion' && <span>🏆</span>}
@@ -749,7 +885,6 @@ export default function TournamentManage() {
                       {payStatus === 'payment_submitted' && (
                         <button className={styles.btnAmber} onClick={() => approvePayment(p.user_id)}>Approve</button>
                       )}
-                      {payStatus === 'approved' && <span className={styles.badgePaid}>PAID</span>}
                       <button className={styles.btnRemove} onClick={() => removeParticipant(p.user_id, p.profiles?.username)}>
                         <i className="ri-user-unfollow-line" />
                       </button>
@@ -763,8 +898,6 @@ export default function TournamentManage() {
         {/* ════ BRACKET ════ */}
         {activeTab === 'bracket' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-            {/* mismatch warning */}
             {bracketData?.teamSizeMismatch && (
               <div className={styles.mismatchBanner}>
                 <i className="ri-error-warning-line" style={{ color: '#f59e0b', fontSize: 18, flexShrink: 0 }} />
@@ -774,8 +907,6 @@ export default function TournamentManage() {
                 </div>
               </div>
             )}
-
-            {/* Action buttons */}
             <div className={styles.btnRow}>
               {!hasBracket
                 ? <button className={styles.btnPrimary} onClick={initBracket} disabled={realCount < 2}>
@@ -790,14 +921,12 @@ export default function TournamentManage() {
                 <i className="ri-eye-line" /> View
               </button>
             </div>
-
-            {/* Free-form bracket builder */}
             <div className={styles.card} style={{ padding: '14px 16px' }}>
               <div className={styles.cardHead}>
                 <i className="ri-node-tree" style={{ color: '#6366f1', fontSize: 16 }} />
                 <span className={styles.cardTitle}>Bracket Editor</span>
                 <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>
-                  Drag to swap · Tap to rename · Add rounds
+                  Drag to swap · Tap to rename
                 </span>
               </div>
               <BracketBuilder
@@ -810,8 +939,6 @@ export default function TournamentManage() {
                 manageMode={true}
               />
             </div>
-
-            {/* Unplaced players */}
             {unplaced.length > 0 && (
               <div className={styles.unplacedCard}>
                 <div className={styles.unplacedHead}>{unplaced.length} unplaced player{unplaced.length !== 1 ? 's' : ''}</div>
@@ -829,246 +956,225 @@ export default function TournamentManage() {
           </div>
         )}
 
-        {/* ════ PAYMENTS ════ */}
-        {activeTab === 'payments' && <>
-          {participants.filter(p => p.payment_status).length === 0
-            ? <p className={styles.empty}>No payment records</p>
-            : participants.filter(p => p.payment_status).map(p => (
-                <div key={p.id} className={`${styles.payCard} ${p.payment_status === 'approved' ? styles.payApprovedBorder : p.payment_status === 'payment_submitted' ? styles.payPendingBorder : ''}`}>
-                  <Avatar src={p.profiles?.avatar_url} name={p.profiles?.username} size={36} radius={10} />
-                  <div className={styles.playerInfo}>
-                    <span className={styles.playerName}>{p.profiles?.username || 'Unknown'}</span>
-                    <span className={styles.playerMeta}>{fmtTZS(tournament.entrance_fee)} entry fee</span>
-                  </div>
-                  {p.payment_status === 'approved'
-                    ? <span className={styles.badgePaid}>APPROVED</span>
-                    : p.payment_status === 'payment_submitted'
-                      ? <button className={styles.btnAmber} onClick={() => approvePayment(p.user_id)}>Approve</button>
-                      : <span className={styles.playerMeta}>{p.payment_status}</span>
-                  }
-                </div>
-              ))
-          }
-        </>}
+        {/* ════ SETTINGS ════ */}
+        {activeTab === 'settings' && editForm && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
 
-        {/* ════ DANGER ════ */}
-        {/* ════ EDIT ════ */}
-        {activeTab === 'edit' && editForm && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-
-            <div className={styles.card} style={{ padding: '16px' }}>
-              <div className={styles.cardHead} style={{ marginBottom: 14 }}>
-                <i className="ri-settings-3-line" style={{ color: '#6366f1', fontSize: 16 }} />
-                <span className={styles.cardTitle}>Tournament Details</span>
-                <button onClick={saveEdit} disabled={editSaving} style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: 8, background: editSaved ? '#22c55e' : '#6366f1', color: '#fff', border: 'none', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>
-                  {editSaving ? <><i className="ri-loader-4-line" /> Saving…</> : editSaved ? <><i className="ri-check-line" /> Saved</> : <><i className="ri-save-line" /> Save Changes</>}
+            {/* Section toggle */}
+            <div style={{ display: 'flex', background: 'var(--surface)', borderRadius: 12, padding: 4, gap: 4, border: '1px solid var(--border)' }}>
+              {[
+                { key: 'edit', label: 'Edit Details', icon: 'ri-edit-line' },
+                { key: 'danger', label: 'Advanced', icon: 'ri-error-warning-line' },
+              ].map(s => (
+                <button key={s.key} onClick={() => setSettingsSection(s.key)} style={{
+                  flex: 1, padding: '8px 12px', borderRadius: 9, display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', gap: 6, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                  border: 'none', fontFamily: 'inherit',
+                  background: settingsSection === s.key
+                    ? (s.key === 'danger' ? '#ef444418' : '#6366f118')
+                    : 'transparent',
+                  color: settingsSection === s.key
+                    ? (s.key === 'danger' ? '#ef4444' : '#6366f1')
+                    : 'var(--text-muted)',
+                }}>
+                  <i className={s.icon} /> {s.label}
                 </button>
-              </div>
-
-              {editError && <div style={{ padding: '8px 12px', borderRadius: 8, background: '#ef444415', color: '#ef4444', fontSize: 12, fontWeight: 600, marginBottom: 12 }}><i className="ri-error-warning-line" /> {editError}</div>}
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-                <div className={styles.field}>
-                  <label>Tournament Name</label>
-                  <input value={editForm.name} onChange={e => setEF('name', e.target.value)} placeholder="Tournament name" className={styles.input} />
-                </div>
-
-                <div className={styles.field}>
-                  <label>Description</label>
-                  <textarea rows={3} value={editForm.description} onChange={e => setEF('description', e.target.value)} placeholder="Optional rules or info…" className={styles.textarea} />
-                </div>
-
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <div className={styles.field} style={{ flex: 1 }}>
-                    <label>Game</label>
-                    <select value={editForm.game_slug} onChange={e => setEF('game_slug', e.target.value)} className={styles.select}>
-                      {GAME_SLUGS_MANAGE.map(s => <option key={s} value={s}>{GAME_NAMES_MANAGE[s]}</option>)}
-                    </select>
-                  </div>
-                  <div className={styles.field} style={{ flex: 1 }}>
-                    <label>Format</label>
-                    <select value={editForm.format} onChange={e => setEF('format', e.target.value)} className={styles.select}>
-                      {FORMATS_MANAGE.map(f => <option key={f}>{f}</option>)}
-                    </select>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <div className={styles.field} style={{ flex: 1 }}>
-                    <label>Status</label>
-                    <select value={editForm.status} onChange={e => setEF('status', e.target.value)} className={styles.select}>
-                      {STATUSES_MANAGE.map(s => <option key={s}>{s}</option>)}
-                    </select>
-                  </div>
-                  <div className={styles.field} style={{ flex: 1 }}>
-                    <label>Date</label>
-                    <input value={editForm.date} onChange={e => setEF('date', e.target.value)} placeholder="e.g. Jun 28" className={styles.input} />
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <div className={styles.field} style={{ flex: 1 }}>
-                    <label>Prize Pool (TZS)</label>
-                    <input value={editForm.prize} onChange={e => setEF('prize', e.target.value)} placeholder="e.g. 500,000" className={styles.input} />
-                  </div>
-                  <div className={styles.field} style={{ flex: 1 }}>
-                    <label>Entry Fee (TZS)</label>
-                    <input value={editForm.entrance_fee} onChange={e => setEF('entrance_fee', e.target.value)} placeholder="Leave blank = free" className={styles.input} />
-                  </div>
-                </div>
-
-                <div className={styles.field}>
-                  <label>Match Type</label>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
-                    {TEAM_SIZE_OPTS.map(opt => (
-                      <button key={opt.value} type="button" onClick={() => setEF('team_size', opt.value)}
-                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '8px 14px', borderRadius: 10, border: 'none', fontFamily: 'inherit', cursor: 'pointer', minWidth: 60, background: editForm.team_size === opt.value ? '#6366f1' : 'var(--surface)', color: editForm.team_size === opt.value ? '#fff' : 'var(--text)' }}>
-                        <span style={{ fontWeight: 800, fontSize: 14 }}>{opt.label}</span>
-                        <span style={{ fontSize: 10, opacity: 0.75 }}>{opt.sub}</span>
-                      </button>
-                    ))}
-                  </div>
-                  {editForm.team_size !== (tournament?.team_size || 1) && (
-                    <p style={{ marginTop: 8, fontSize: 12, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <i className="ri-information-line" />
-                      Match type changed — reset bracket in the Bracket tab to apply.
-                    </p>
-                  )}
-                </div>
-
-                {/* Pro Only toggle */}
-                <button type="button" onClick={() => setEF('pro_only', !editForm.pro_only)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 10, border: `1.5px solid ${editForm.pro_only ? '#a855f740' : 'var(--border)'}`, background: editForm.pro_only ? '#a855f710' : 'var(--surface)', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
-                  <i className={editForm.pro_only ? 'ri-vip-crown-fill' : 'ri-vip-crown-line'} style={{ color: editForm.pro_only ? '#a855f7' : 'var(--text-muted)', fontSize: 18 }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: editForm.pro_only ? '#a855f7' : 'var(--text)' }}>Pro & Elite Only</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{editForm.pro_only ? 'Only Pro & Elite members can join.' : 'Open to all players.'}</div>
-                  </div>
-                  <div style={{ width: 36, height: 20, borderRadius: 10, background: editForm.pro_only ? '#a855f7' : 'var(--border)', position: 'relative', flexShrink: 0, transition: 'background 0.2s' }}>
-                    <div style={{ position: 'absolute', top: 2, left: editForm.pro_only ? 18 : 2, width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
-                  </div>
-                </button>
-              </div>
+              ))}
             </div>
-          </div>
-        )}
 
-        {activeTab === 'danger' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {/* ── Edit Details section ── */}
+            {settingsSection === 'edit' && (
+              <div className={styles.card} style={{ padding: '16px' }}>
+                <div className={styles.cardHead} style={{ marginBottom: 14 }}>
+                  <i className="ri-settings-3-line" style={{ color: '#6366f1', fontSize: 16 }} />
+                  <span className={styles.cardTitle}>Tournament Details</span>
+                  <button onClick={saveEdit} disabled={editSaving} style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: 8, background: editSaved ? '#22c55e' : '#6366f1', color: '#fff', border: 'none', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>
+                    {editSaving ? <><i className="ri-loader-4-line" /> Saving…</> : editSaved ? <><i className="ri-check-line" /> Saved</> : <><i className="ri-save-line" /> Save</>}
+                  </button>
+                </div>
 
-            {/* ── Transfer Players ── */}
-            <div className={styles.dangerCard} style={{ borderColor: '#6366f130', background: '#6366f108' }}>
-              <div className={styles.dangerHead} style={{ color: '#6366f1' }}>
-                <i className="ri-swap-line" style={{ fontSize: 18 }} /> Transfer Players
+                {editError && <div style={{ padding: '8px 12px', borderRadius: 8, background: '#ef444415', color: '#ef4444', fontSize: 12, fontWeight: 600, marginBottom: 12 }}><i className="ri-error-warning-line" /> {editError}</div>}
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div className={styles.field}>
+                    <label>Tournament Name</label>
+                    <input value={editForm.name} onChange={e => setEF('name', e.target.value)} placeholder="Tournament name" className={styles.input} />
+                  </div>
+
+                  <div className={styles.field}>
+                    <label>Description</label>
+                    <textarea rows={3} value={editForm.description} onChange={e => setEF('description', e.target.value)} placeholder="Optional rules or info…" className={styles.textarea} />
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <div className={styles.field} style={{ flex: 1 }}>
+                      <label>Game</label>
+                      <select value={editForm.game_slug} onChange={e => setEF('game_slug', e.target.value)} className={styles.select}>
+                        {GAME_SLUGS_MANAGE.map(s => <option key={s} value={s}>{GAME_NAMES_MANAGE[s]}</option>)}
+                      </select>
+                    </div>
+                    <div className={styles.field} style={{ flex: 1 }}>
+                      <label>Format</label>
+                      <select value={editForm.format} onChange={e => setEF('format', e.target.value)} className={styles.select}>
+                        {FORMATS_MANAGE.map(f => <option key={f}>{f}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <div className={styles.field} style={{ flex: 1 }}>
+                      <label>Status</label>
+                      <select value={editForm.status} onChange={e => setEF('status', e.target.value)} className={styles.select}>
+                        {STATUSES_MANAGE.map(s => <option key={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <div className={styles.field} style={{ flex: 1 }}>
+                      <label>Date</label>
+                      <input value={editForm.date} onChange={e => setEF('date', e.target.value)} placeholder="e.g. Jun 28" className={styles.input} />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <div className={styles.field} style={{ flex: 1 }}>
+                      <label>Prize Pool (TZS)</label>
+                      <input value={editForm.prize} onChange={e => setEF('prize', e.target.value)} placeholder="e.g. 500,000" className={styles.input} />
+                    </div>
+                    <div className={styles.field} style={{ flex: 1 }}>
+                      <label>Entry Fee (TZS)</label>
+                      <input value={editForm.entrance_fee} onChange={e => setEF('entrance_fee', e.target.value)} placeholder="Leave blank = free" className={styles.input} />
+                    </div>
+                  </div>
+
+                  <div className={styles.field}>
+                    <label>Match Type</label>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+                      {TEAM_SIZE_OPTS.map(opt => (
+                        <button key={opt.value} type="button" onClick={() => setEF('team_size', opt.value)}
+                          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '8px 14px', borderRadius: 10, border: 'none', fontFamily: 'inherit', cursor: 'pointer', minWidth: 60, background: editForm.team_size === opt.value ? '#6366f1' : 'var(--surface)', color: editForm.team_size === opt.value ? '#fff' : 'var(--text)' }}>
+                          <span style={{ fontWeight: 800, fontSize: 14 }}>{opt.label}</span>
+                          <span style={{ fontSize: 10, opacity: 0.75 }}>{opt.sub}</span>
+                        </button>
+                      ))}
+                    </div>
+                    {editForm.team_size !== (tournament?.team_size || 1) && (
+                      <p style={{ marginTop: 8, fontSize: 12, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <i className="ri-information-line" />
+                        Match type changed — reset bracket in the Bracket tab to apply.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className={styles.field}>
+                    <label>Slots</label>
+                    <input type="number" value={editForm.slots} onChange={e => setEF('slots', e.target.value)} placeholder="e.g. 32" className={styles.input} />
+                  </div>
+
+                  {/* Pro Only toggle */}
+                  <button type="button" onClick={() => setEF('pro_only', !editForm.pro_only)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 10, border: `1.5px solid ${editForm.pro_only ? '#a855f740' : 'var(--border)'}`, background: editForm.pro_only ? '#a855f710' : 'var(--surface)', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
+                    <i className={editForm.pro_only ? 'ri-vip-crown-fill' : 'ri-vip-crown-line'} style={{ color: editForm.pro_only ? '#a855f7' : 'var(--text-muted)', fontSize: 18 }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: editForm.pro_only ? '#a855f7' : 'var(--text)' }}>Pro & Elite Only</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{editForm.pro_only ? 'Only Pro & Elite members can join.' : 'Open to all players.'}</div>
+                    </div>
+                    <div style={{ width: 36, height: 20, borderRadius: 10, background: editForm.pro_only ? '#a855f7' : 'var(--border)', position: 'relative', flexShrink: 0, transition: 'background 0.2s' }}>
+                      <div style={{ position: 'absolute', top: 2, left: editForm.pro_only ? 18 : 2, width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
+                    </div>
+                  </button>
+                </div>
               </div>
-              <p className={styles.dangerSub}>
-                Move all {participants.length} registered players from this tournament into another existing tournament.
-                Only tournaments with the same match type ({tournament?.team_size === 1 ? '1v1 Solo' : `${tournament?.team_size}v${tournament?.team_size} Team`}) are shown.
-                Players already in the target tournament won't be duplicated.
-              </p>
+            )}
 
-              {!showTransfer ? (
-                <button
-                  className={styles.btnPrimary}
-                  onClick={loadTransferTargets}
-                  disabled={participants.length === 0}
-                  style={{ opacity: participants.length === 0 ? 0.5 : 1 }}
-                >
-                  <i className="ri-swap-line" /> Choose Destination Tournament
-                </button>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {transferLoading && !transferTargets.length && (
-                    <div style={{ fontSize: 13, color: 'var(--text-muted)', padding: '8px 0' }}>
-                      <i className="ri-loader-4-line" /> Loading tournaments…
-                    </div>
-                  )}
+            {/* ── Advanced / Danger section ── */}
+            {settingsSection === 'danger' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-                  {!transferLoading && !transferDone && transferTargets.length === 0 && (
-                    <div style={{ fontSize: 13, color: 'var(--text-muted)', padding: '8px 0' }}>
-                      No matching tournaments found. Create a new tournament with the same match type first.
-                    </div>
-                  )}
-
-                  {transferDone ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, background: '#22c55e15', border: '1px solid #22c55e30' }}>
-                      <i className="ri-checkbox-circle-fill" style={{ color: '#22c55e', fontSize: 18 }} />
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: '#22c55e' }}>Transfer complete!</div>
-                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                          Players moved to "{transferTargets.find(t => t.id === transferTarget)?.name}". They were notified.
-                        </div>
-                      </div>
-                    </div>
+                {/* Transfer Players */}
+                <div className={styles.dangerCard} style={{ borderColor: '#6366f130', background: '#6366f108' }}>
+                  <div className={styles.dangerHead} style={{ color: '#6366f1' }}>
+                    <i className="ri-swap-line" style={{ fontSize: 18 }} /> Transfer Players
+                  </div>
+                  <p className={styles.dangerSub}>
+                    Move all {participants.length} registered players into another tournament with the same match type ({tournament?.team_size === 1 ? '1v1 Solo' : `${tournament?.team_size}v${tournament?.team_size} Team`}).
+                  </p>
+                  {!showTransfer ? (
+                    <button className={styles.btnPrimary} onClick={loadTransferTargets} disabled={participants.length === 0} style={{ opacity: participants.length === 0 ? 0.5 : 1 }}>
+                      <i className="ri-swap-line" /> Choose Destination Tournament
+                    </button>
                   ) : (
-                    <>
-                      {transferTargets.length > 0 && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          {transferTargets.map(t => {
-                            const isFull = (t.registered_count || 0) >= (t.slots || 0)
-                            const isSelected = transferTarget === t.id
-                            return (
-                              <button
-                                key={t.id}
-                                onClick={() => setTransferTarget(isSelected ? null : t.id)}
-                                disabled={isFull}
-                                style={{
-                                  display: 'flex', alignItems: 'center', gap: 10,
-                                  padding: '10px 12px', borderRadius: 10,
-                                  border: `1.5px solid ${isSelected ? '#6366f1' : 'var(--border)'}`,
-                                  background: isSelected ? '#6366f112' : 'var(--surface)',
-                                  cursor: isFull ? 'not-allowed' : 'pointer',
-                                  opacity: isFull ? 0.5 : 1,
-                                  textAlign: 'left', width: '100%',
-                                }}
-                              >
-                                <i className="ri-tournament-line" style={{ color: isSelected ? '#6366f1' : 'var(--text-muted)', fontSize: 16, flexShrink: 0 }} />
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                  <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</div>
-                                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                                    {t.registered_count || 0}/{t.slots} players · {t.status}
-                                    {isFull && ' · FULL'}
-                                  </div>
-                                </div>
-                                {isSelected && <i className="ri-checkbox-circle-fill" style={{ color: '#6366f1', fontSize: 18, flexShrink: 0 }} />}
-                              </button>
-                            )
-                          })}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {transferLoading && !transferTargets.length && (
+                        <div style={{ fontSize: 13, color: 'var(--text-muted)', padding: '8px 0' }}>
+                          <i className="ri-loader-4-line" /> Loading tournaments…
                         </div>
                       )}
-
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <button
-                          onClick={transferPlayers}
-                          disabled={!transferTarget || transferLoading}
-                          style={{ flex: 1, padding: '10px', borderRadius: 9, background: transferTarget ? '#6366f1' : 'var(--border)', color: transferTarget ? '#fff' : 'var(--text-muted)', border: 'none', fontSize: 13, fontWeight: 800, cursor: transferTarget ? 'pointer' : 'default' }}
-                        >
-                          {transferLoading ? <><i className="ri-loader-4-line" /> Transferring…</> : <><i className="ri-swap-line" /> Transfer {participants.length} Players</>}
-                        </button>
-                        <button onClick={() => { setShowTransfer(false); setTransferTarget(null); setTransferDone(false) }}
-                          style={{ padding: '10px 14px', borderRadius: 9, background: 'var(--surface)', border: '1.5px solid var(--border)', fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', cursor: 'pointer' }}>
-                          Cancel
-                        </button>
-                      </div>
-                    </>
+                      {!transferLoading && !transferDone && transferTargets.length === 0 && (
+                        <div style={{ fontSize: 13, color: 'var(--text-muted)', padding: '8px 0' }}>
+                          No matching tournaments found. Create a new tournament with the same match type first.
+                        </div>
+                      )}
+                      {transferDone ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, background: '#22c55e15', border: '1px solid #22c55e30' }}>
+                          <i className="ri-checkbox-circle-fill" style={{ color: '#22c55e', fontSize: 18 }} />
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 800, color: '#22c55e' }}>Transfer complete!</div>
+                            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                              Players moved to "{transferTargets.find(t => t.id === transferTarget)?.name}". They were notified.
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          {transferTargets.length > 0 && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              {transferTargets.map(t => {
+                                const isFull = (t.registered_count || 0) >= (t.slots || 0)
+                                const isSelected = transferTarget === t.id
+                                return (
+                                  <button key={t.id} onClick={() => setTransferTarget(isSelected ? null : t.id)} disabled={isFull}
+                                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, border: `1.5px solid ${isSelected ? '#6366f1' : 'var(--border)'}`, background: isSelected ? '#6366f112' : 'var(--surface)', cursor: isFull ? 'not-allowed' : 'pointer', opacity: isFull ? 0.5 : 1, textAlign: 'left', width: '100%' }}>
+                                    <i className="ri-tournament-line" style={{ color: isSelected ? '#6366f1' : 'var(--text-muted)', fontSize: 16, flexShrink: 0 }} />
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</div>
+                                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{t.registered_count || 0}/{t.slots} players · {t.status}{isFull && ' · FULL'}</div>
+                                    </div>
+                                    {isSelected && <i className="ri-checkbox-circle-fill" style={{ color: '#6366f1', fontSize: 18, flexShrink: 0 }} />}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button onClick={transferPlayers} disabled={!transferTarget || transferLoading}
+                              style={{ flex: 1, padding: '10px', borderRadius: 9, background: transferTarget ? '#6366f1' : 'var(--border)', color: transferTarget ? '#fff' : 'var(--text-muted)', border: 'none', fontSize: 13, fontWeight: 800, cursor: transferTarget ? 'pointer' : 'default' }}>
+                              {transferLoading ? <><i className="ri-loader-4-line" /> Transferring…</> : <><i className="ri-swap-line" /> Transfer {participants.length} Players</>}
+                            </button>
+                            <button onClick={() => { setShowTransfer(false); setTransferTarget(null); setTransferDone(false) }}
+                              style={{ padding: '10px 14px', borderRadius: 9, background: 'var(--surface)', border: '1.5px solid var(--border)', fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', cursor: 'pointer' }}>
+                              Cancel
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
 
-            {/* ── Delete Tournament ── */}
-            <div className={styles.dangerCard}>
-              <div className={styles.dangerHead}>
-                <i className="ri-error-warning-fill" style={{ fontSize: 18 }} /> Danger Zone
+                {/* Delete Tournament */}
+                <div className={styles.dangerCard}>
+                  <div className={styles.dangerHead}>
+                    <i className="ri-error-warning-fill" style={{ fontSize: 18 }} /> Danger Zone
+                  </div>
+                  <p className={styles.dangerSub}>
+                    Deleting this tournament permanently removes all bracket data, participants, payments, and leaderboard entries. This cannot be undone.
+                  </p>
+                  <button className={styles.btnDangerFull} onClick={deleteTournament}>
+                    <i className="ri-delete-bin-fill" style={{ fontSize: 18 }} /> Delete Tournament
+                  </button>
+                </div>
               </div>
-              <p className={styles.dangerSub}>
-                Deleting this tournament permanently removes all bracket data, participants, payments, and leaderboard entries. This cannot be undone.
-              </p>
-              <button className={styles.btnDangerFull} onClick={deleteTournament}>
-                <i className="ri-delete-bin-fill" style={{ fontSize: 18 }} /> Delete Tournament
-              </button>
-            </div>
+            )}
+
           </div>
         )}
 
