@@ -97,58 +97,24 @@
 .dropdownItem i { font-size: 16px; color: var(--text-muted); }
 
 /* ─────────────────────────────────────────────────
-   HERO — centered, clean, Daniel Ayomide-style
+   HERO — avatar left, info right
 ───────────────────────────────────────────────── */
 .hero {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: 28px 20px 24px;
-  gap: 0;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px 16px 18px;
 }
 
 /* ── Avatar ── */
 .avatarWrap {
   position: relative;
   flex-shrink: 0;
-  width: 104px;
-  height: 104px;
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
-  margin-bottom: 16px;
 }
-
-/* Tier ring */
-.avatarWrap::before {
-  content: '';
-  position: absolute;
-  inset: -4px;
-  border-radius: 50%;
-  z-index: 0;
-  animation: spinRing 4s linear infinite;
-}
-.avatarWrap::after {
-  content: '';
-  position: absolute;
-  inset: 3px;
-  border-radius: 50%;
-  background: var(--bg);
-  z-index: 1;
-}
-.avatarWrap > * { position: relative; z-index: 2; }
-
-@keyframes spinRing {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
-}
-
-/* Tier ring colours */
-.avatarWrap[data-tier="Gold"]::before     { background: conic-gradient(#f59e0b, #fcd34d, #f59e0b, #92400e, #f59e0b); animation-duration: 5s; }
-.avatarWrap[data-tier="Platinum"]::before { background: conic-gradient(#94a3b8, #e2e8f0, #94a3b8, #475569, #94a3b8); animation-duration: 5s; }
-.avatarWrap[data-tier="Diamond"]::before  { background: conic-gradient(#38bdf8, #bae6fd, #6366f1, #38bdf8); animation-duration: 4s; }
-.avatarWrap[data-tier="Ace"]::before      { background: conic-gradient(#a78bfa, #ddd6fe, #7c3aed, #a78bfa); animation-duration: 3.5s; }
-.avatarWrap[data-tier="Conquer"]::before  { background: conic-gradient(#ef4444, #fca5a5, #f97316, #ef4444); animation-duration: 3s; }
-.avatarWrap[data-tier="Partner"]::before  { background: conic-gradient(#22c55e, #86efac, #06b6d4, #67e8f9, #22c55e); animation-duration: 2.5s; }
 
 .avatarImg {
   width: 100%;
@@ -163,7 +129,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 30px;
+  font-size: 22px;
   font-weight: 900;
   color: var(--text);
   border-radius: 50%;
@@ -176,7 +142,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
+  font-size: 18px;
   color: #fff;
   opacity: 0;
   border-radius: 50%;
@@ -184,20 +150,27 @@
 }
 .avatarWrap:hover .avatarCamera { opacity: 1; }
 
+/* ── Info column ── */
+.heroInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 /* ── Name row ── */
 .heroNameRow {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
-  margin-bottom: 10px;
 }
 .heroName {
-  font-size: 26px;
+  font-size: 20px;
   font-weight: 900;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
   color: var(--text);
   margin: 0;
 }
@@ -206,28 +179,26 @@
 .heroBadgeRow {
   display: flex;
   align-items: center;
-  justify-content: center;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 12px;
+  gap: 5px;
 }
 
-/* Creator badge — amber glow */
+/* Creator badge — plain, no color */
 .creatorBadge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
+  font-weight: 700;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
-  padding: 3px 9px;
+  padding: 3px 8px;
   border-radius: 20px;
-  background: rgba(245,158,11,0.15);
-  border: 1px solid rgba(245,158,11,0.5);
-  color: #f59e0b;
+  background: var(--bg-2);
+  border: 1px solid var(--border-dark);
+  color: var(--text-muted);
 }
-.creatorBadge i { font-size: 11px; }
+.creatorBadge i { font-size: 10px; }
 
 .tierBadge {
   display: inline-flex;
@@ -278,40 +249,29 @@
   text-transform: capitalize;
 }
 
-/* ── Bio ── */
-.heroBio {
-  font-size: 13.5px;
-  line-height: 1.65;
-  color: var(--text-dim);
-  max-width: 320px;
-  margin: 0 0 16px;
-  text-align: center;
-}
-
-/* ── Follower stats — inline like design reference ── */
+/* ── Inline stats ── */
 .heroStats {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 0;
-  margin-bottom: 16px;
 }
 .heroStatItem {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 1px;
-  padding: 0 20px;
+  padding-right: 14px;
 }
+.heroStatItem:first-child { padding-left: 0; }
 .heroStatItem strong {
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 900;
   letter-spacing: -0.03em;
   color: var(--text);
   line-height: 1;
 }
 .heroStatItem span {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -319,9 +279,33 @@
 }
 .heroStatDivider {
   width: 1px;
-  height: 32px;
+  height: 26px;
   background: var(--border);
   flex-shrink: 0;
+  margin-right: 14px;
+}
+
+/* ── CTA ── */
+.heroCta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Bio + tags below hero ── */
+.heroBelowHero {
+  padding: 0 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ── Bio ── */
+.heroBio {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-dim);
+  margin: 0;
 }
 
 /* ── Game tags ── */
@@ -329,8 +313,6 @@
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
-  justify-content: center;
-  margin-bottom: 18px;
 }
 .heroTag {
   font-size: 10px;
@@ -342,18 +324,9 @@
   letter-spacing: 0.02em;
 }
 
-/* ── CTA — full-width pill like design ── */
-.heroCta {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  max-width: 320px;
-}
-
 .followPill {
-  flex: 1;
-  height: 46px;
+  height: 36px;
+  padding: 0 18px;
   border-radius: 100px;
   background: var(--bg-2);
   border: 1.5px solid var(--border-dark);
@@ -385,8 +358,8 @@
 }
 
 .msgIconBtn {
-  width: 46px;
-  height: 46px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background: var(--bg-2);
   border: 1.5px solid var(--border-dark);
@@ -401,8 +374,8 @@
 .msgIconBtn:hover { background: var(--surface); border-color: var(--text); }
 
 .editPill {
-  height: 46px;
-  padding: 0 32px;
+  height: 36px;
+  padding: 0 20px;
   border-radius: 100px;
   background: var(--bg-2);
   border: 1.5px solid var(--border-dark);
@@ -993,15 +966,68 @@
 .lightboxChangeBtn:hover { background: rgba(255,255,255,0.2); }
 
 /* ─────────────────────────────────────────────────
+   TOURNAMENT LIST (creator tab)
+───────────────────────────────────────────────── */
+.tournamentList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tournamentRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  text-decoration: none;
+  color: var(--text);
+  transition: border-color 0.12s;
+}
+.tournamentRow:hover { border-color: var(--border-dark); }
+.tournamentRowLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.tournamentTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tournamentMeta {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.tournamentRowRight {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.tournamentFee {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-muted);
+}
+
+/* ─────────────────────────────────────────────────
    RESPONSIVE
 ───────────────────────────────────────────────── */
 @media (max-width: 520px) {
-  .avatarWrap { width: 88px; height: 88px; }
-  .heroName { font-size: 22px; }
-  .heroStatItem { padding: 0 14px; }
-  .heroStatItem strong { font-size: 17px; }
+  .hero { padding: 16px 14px 14px; gap: 12px; }
+  .avatarWrap { width: 60px; height: 60px; }
+  .heroName { font-size: 17px; }
+  .heroStatItem strong { font-size: 14px; }
   .statsBar { grid-template-columns: repeat(2, 1fr); }
   .body { padding: 0 10px; padding-top: 18px; }
   .tab { margin-right: 12px; font-size: 12px; }
-  .heroCta { max-width: 100%; }
+  .heroBelowHero { padding: 0 14px 14px; }
 }
