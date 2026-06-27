@@ -1,5 +1,7 @@
 /* ═══════════════════════════════════════════════
-   Profile [id] — Apple Music artist–style layout
+   Profile [id] — Inspired by Daniel Ayomide design
+   Clean, centered, minimal. Big avatar, inline stats,
+   pill Follow button.
    ═══════════════════════════════════════════════ */
 
 /* ── Page shell ── */
@@ -20,9 +22,6 @@
   align-items: center;
   justify-content: space-between;
   padding: 14px 16px 0;
-  max-width: 600px;
-  margin: 0 auto;
-  width: 100%;
 }
 
 .backBtn {
@@ -40,12 +39,8 @@
 }
 .backBtn:hover { background: var(--surface); }
 
-.heroEditBtn { display: none; } /* kept for helpdesk section if referenced */
-
 /* 3-dots menu */
-.menuWrap {
-  position: relative;
-}
+.menuWrap { position: relative; }
 .dotsBtn {
   width: 36px;
   height: 36px;
@@ -102,83 +97,104 @@
 .dropdownItem i { font-size: 16px; color: var(--text-muted); }
 
 /* ─────────────────────────────────────────────────
-   HERO (clean, no cover photo)
+   HERO — centered, clean, Daniel Ayomide-style
 ───────────────────────────────────────────────── */
 .hero {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  padding: 24px 20px 16px;
   text-align: center;
+  padding: 28px 20px 24px;
+  gap: 0;
 }
 
 /* ── Avatar ── */
 .avatarWrap {
   position: relative;
   flex-shrink: 0;
-  width: 96px;
-  height: 96px;
+  width: 104px;
+  height: 104px;
   border-radius: 50%;
-  border: none;
-  background: transparent;
-  box-shadow: none;
-  margin-bottom: 4px;
+  margin-bottom: 16px;
 }
+
+/* Tier ring */
+.avatarWrap::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  z-index: 0;
+  animation: spinRing 4s linear infinite;
+}
+.avatarWrap::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--bg);
+  z-index: 1;
+}
+.avatarWrap > * { position: relative; z-index: 2; }
+
+@keyframes spinRing {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Tier ring colours */
+.avatarWrap[data-tier="Gold"]::before     { background: conic-gradient(#f59e0b, #fcd34d, #f59e0b, #92400e, #f59e0b); animation-duration: 5s; }
+.avatarWrap[data-tier="Platinum"]::before { background: conic-gradient(#94a3b8, #e2e8f0, #94a3b8, #475569, #94a3b8); animation-duration: 5s; }
+.avatarWrap[data-tier="Diamond"]::before  { background: conic-gradient(#38bdf8, #bae6fd, #6366f1, #38bdf8); animation-duration: 4s; }
+.avatarWrap[data-tier="Ace"]::before      { background: conic-gradient(#a78bfa, #ddd6fe, #7c3aed, #a78bfa); animation-duration: 3.5s; }
+.avatarWrap[data-tier="Conquer"]::before  { background: conic-gradient(#ef4444, #fca5a5, #f97316, #ef4444); animation-duration: 3s; }
+.avatarWrap[data-tier="Partner"]::before  { background: conic-gradient(#22c55e, #86efac, #06b6d4, #67e8f9, #22c55e); animation-duration: 2.5s; }
+
 .avatarImg {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
   border-radius: 50%;
-  overflow: hidden;
 }
-
 .avatarInner {
   width: 100%;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 26px;
+  font-size: 30px;
   font-weight: 900;
   color: var(--text);
   border-radius: 50%;
-  overflow: hidden;
   background: var(--bg-2);
 }
 .avatarCamera {
   position: absolute;
   inset: 0;
-  background: rgba(0,0,0,0.55);
+  background: rgba(0,0,0,0.52);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 22px;
   color: #fff;
   opacity: 0;
+  border-radius: 50%;
   transition: opacity 0.15s;
 }
 .avatarWrap:hover .avatarCamera { opacity: 1; }
 
-/* ── Hero text ── */
-.heroMeta {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-}
-
+/* ── Name row ── */
 .heroNameRow {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: 8px;
   flex-wrap: wrap;
+  margin-bottom: 10px;
 }
 .heroName {
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 900;
   letter-spacing: -0.03em;
   line-height: 1.1;
@@ -186,13 +202,33 @@
   margin: 0;
 }
 
-.heroSubRow {
+/* ── Badge row ── */
+.heroBadgeRow {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
   flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
 }
+
+/* Creator badge — amber glow */
+.creatorBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 20px;
+  background: rgba(245,158,11,0.15);
+  border: 1px solid rgba(245,158,11,0.5);
+  color: #f59e0b;
+}
+.creatorBadge i { font-size: 11px; }
+
 .tierBadge {
   display: inline-flex;
   align-items: center;
@@ -206,27 +242,95 @@
   border: 1px solid;
 }
 .tierBadge i { font-size: 11px; }
-.heroDot {
-  color: var(--text-muted);
+
+.partnerChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: linear-gradient(135deg, rgba(34,197,94,0.22), rgba(6,182,212,0.18));
+  border: 1px solid rgba(34,197,94,0.55);
+  color: #22c55e;
   font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.10em;
+  padding: 3px 8px;
+  border-radius: 20px;
 }
-.heroLevel {
-  font-size: 11px;
+
+.levelChip {
+  font-size: 10px;
   font-weight: 700;
+  letter-spacing: 0.06em;
   color: var(--text-muted);
-  letter-spacing: 0.04em;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  padding: 3px 8px;
+  border-radius: 20px;
 }
-.heroPlayStyle {
-  font-size: 11px;
+.playStyleChip {
+  font-size: 10px;
   font-weight: 600;
   color: var(--text-muted);
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  padding: 3px 8px;
+  border-radius: 20px;
   text-transform: capitalize;
 }
 
+/* ── Bio ── */
+.heroBio {
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--text-dim);
+  max-width: 320px;
+  margin: 0 0 16px;
+  text-align: center;
+}
+
+/* ── Follower stats — inline like design reference ── */
+.heroStats {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 16px;
+}
+.heroStatItem {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 0 20px;
+}
+.heroStatItem strong {
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  line-height: 1;
+}
+.heroStatItem span {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.heroStatDivider {
+  width: 1px;
+  height: 32px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+/* ── Game tags ── */
 .heroTags {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
+  justify-content: center;
+  margin-bottom: 18px;
 }
 .heroTag {
   font-size: 10px;
@@ -238,128 +342,88 @@
   letter-spacing: 0.02em;
 }
 
-/* ─────────────────────────────────────────────────
-   BODY
-───────────────────────────────────────────────── */
-.body {
-  padding: 0 16px;
-  width: 100%;
-}
-
-/* ── Social / CTA row ── */
-.socialRow {
+/* ── CTA — full-width pill like design ── */
+.heroCta {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 16px;
-  padding: 14px 0;
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 14px;
+  gap: 10px;
   width: 100%;
+  max-width: 320px;
 }
 
-.followStats {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  justify-content: center;
-}
-.followStat {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1px;
-  background: none;
-  border: none;
-  padding: 0 18px 0 0;
-  cursor: default;
-}
-.followStat strong {
-  font-size: 18px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+.followPill {
+  flex: 1;
+  height: 46px;
+  border-radius: 100px;
+  background: var(--bg-2);
+  border: 1.5px solid var(--border-dark);
   color: var(--text);
-}
-.followStat span {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-.followDivider {
-  width: 1px;
-  height: 28px;
-  background: var(--border);
-  margin-right: 18px;
-}
-
-.ctaButtons {
+  font-size: 14px;
+  font-weight: 700;
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
+  justify-content: center;
+  gap: 7px;
+  transition: background 0.14s, border-color 0.14s, color 0.14s;
+  letter-spacing: 0.01em;
 }
+.followPill:hover {
+  background: var(--surface);
+  border-color: var(--text);
+}
+.followPill i { font-size: 16px; }
 
-.followBtn {
-  height: 36px;
-  padding: 0 22px;
+.followingPill {
   background: var(--text);
   color: var(--bg);
-  border: none;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  transition: opacity 0.12s;
-  white-space: nowrap;
+  border-color: var(--text);
 }
-.followBtn:hover { opacity: 0.82; }
-.followingBtn {
-  background: transparent;
-  color: var(--text);
-  border: 1.5px solid var(--border-dark);
+.followingPill:hover {
+  background: var(--text-muted);
+  border-color: var(--text-muted);
+  color: var(--bg);
 }
-.followingBtn:hover { border-color: var(--text); opacity: 1; }
 
-.msgBtn {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
+.msgIconBtn {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
   background: var(--bg-2);
   border: 1.5px solid var(--border-dark);
   color: var(--text);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 17px;
+  font-size: 18px;
+  flex-shrink: 0;
   transition: background 0.12s, border-color 0.12s;
 }
-.msgBtn:hover { background: var(--surface); border-color: var(--text); }
+.msgIconBtn:hover { background: var(--surface); border-color: var(--text); }
 
-.editProfileBtn {
-  height: 36px;
-  padding: 0 20px;
-  background: transparent;
-  color: var(--text);
+.editPill {
+  height: 46px;
+  padding: 0 32px;
+  border-radius: 100px;
+  background: var(--bg-2);
   border: 1.5px solid var(--border-dark);
-  border-radius: 8px;
+  color: var(--text);
   font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.02em;
-  transition: border-color 0.12s, background 0.12s;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  transition: background 0.12s, border-color 0.12s;
 }
-.editProfileBtn:hover { border-color: var(--text); background: var(--bg-2); }
+.editPill:hover { background: var(--surface); border-color: var(--text); }
 
-/* ── Bio ── */
-.bio {
-  font-size: 13px;
-  line-height: 1.65;
-  color: var(--text-dim);
-  margin-bottom: 0;
-  text-align: center;
-  padding: 0 8px 14px;
+/* ─────────────────────────────────────────────────
+   BODY
+───────────────────────────────────────────────── */
+.body {
+  padding: 0 16px;
+  width: 100%;
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
 }
 
 /* ── Stats bar ── */
@@ -381,9 +445,7 @@
   align-items: center;
   gap: 4px;
 }
-.statItem i {
-  font-size: 16px;
-}
+.statItem i { font-size: 16px; }
 .statItem strong {
   font-size: 17px;
   font-weight: 800;
@@ -408,7 +470,6 @@
   scrollbar-width: none;
 }
 .achievementsScroll::-webkit-scrollbar { display: none; }
-
 .achievementPill {
   flex-shrink: 0;
   display: flex;
@@ -477,10 +538,7 @@
   font-size: 13px;
   text-align: center;
 }
-.emptyState i {
-  font-size: 32px;
-  opacity: 0.35;
-}
+.emptyState i { font-size: 32px; opacity: 0.35; }
 .emptyState p { margin: 0; }
 .emptyStateBtn {
   display: inline-flex;
@@ -502,7 +560,6 @@
   flex-direction: column;
   gap: 10px;
 }
-
 .postCard {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -514,7 +571,6 @@
   transition: border-color 0.12s;
 }
 .postCard:hover { border-color: var(--border-dark); }
-
 .postHeader {
   display: flex;
   align-items: center;
@@ -534,11 +590,7 @@
   font-weight: 800;
   color: var(--text-muted);
 }
-.postAvatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
+.postAvatar img { width: 100%; height: 100%; object-fit: cover; }
 .postMeta {
   flex: 1;
   min-width: 0;
@@ -561,11 +613,7 @@
   max-width: 180px;
 }
 .postUser:hover { text-decoration: underline; }
-.postTime {
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
+.postTime { font-size: 11px; color: var(--text-muted); }
 .deleteBtn {
   background: none;
   border: none;
@@ -580,14 +628,12 @@
   transition: color 0.1s;
 }
 .deleteBtn:hover { color: #ef4444; }
-
 .postContent {
   font-size: 14px;
   line-height: 1.6;
   color: var(--text);
   word-break: break-word;
 }
-
 .postActions {
   display: flex;
   align-items: center;
@@ -627,12 +673,7 @@
   transition: border-color 0.15s;
 }
 .shopCard:hover { border-color: var(--border-dark); }
-.shopCardImg {
-  width: 100%;
-  aspect-ratio: 1;
-  object-fit: cover;
-  display: block;
-}
+.shopCardImg { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
 .shopCardNoImg {
   width: 100%;
   aspect-ratio: 1;
@@ -700,8 +741,7 @@
   text-align: center;
 }
 .helpdeskAvatar {
-  width: 72px;
-  height: 72px;
+  width: 72px; height: 72px;
   border-radius: 50%;
   background: var(--accent);
   display: flex;
@@ -850,8 +890,7 @@
 }
 .commentInput input:focus { border-color: var(--text); }
 .commentInput button {
-  width: 36px;
-  height: 36px;
+  width: 36px; height: 36px;
   border-radius: 50%;
   background: var(--text);
   color: var(--bg);
@@ -889,22 +928,18 @@
   font-size: 12px;
   padding: 20px 0;
 }
-.comment {
-  display: flex;
-  gap: 6px;
-  font-size: 13px;
-}
+.comment { display: flex; gap: 6px; font-size: 13px; }
 .commentUser { font-weight: 700; color: var(--text); flex-shrink: 0; }
 .commentText { color: var(--text-dim); }
 
 /* ─────────────────────────────────────────────────
-   AVATAR ZOOM LIGHTBOX (Instagram-style)
+   AVATAR ZOOM LIGHTBOX
 ───────────────────────────────────────────────── */
 .lightbox {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  background: rgba(0, 0, 0, 0.88);
+  background: rgba(0,0,0,0.88);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -914,29 +949,21 @@
   -webkit-backdrop-filter: blur(6px);
   animation: fadeIn 0.18s ease;
 }
-@keyframes fadeIn {
-  from { opacity: 0 }
-  to   { opacity: 1 }
-}
+@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
 .lightboxImg {
   width: min(82vw, 380px);
   height: min(82vw, 380px);
-  border-radius: 28px;
+  border-radius: 50%;
   object-fit: cover;
   border: 3px solid rgba(255,255,255,0.12);
   box-shadow: 0 8px 48px rgba(0,0,0,0.6);
   animation: scaleIn 0.2s cubic-bezier(0.34,1.56,0.64,1);
 }
-@keyframes scaleIn {
-  from { transform: scale(0.88) }
-  to   { transform: scale(1) }
-}
+@keyframes scaleIn { from { transform: scale(0.88) } to { transform: scale(1) } }
 .lightboxClose {
   position: absolute;
-  top: 18px;
-  right: 18px;
-  width: 38px;
-  height: 38px;
+  top: 18px; right: 18px;
+  width: 38px; height: 38px;
   border-radius: 50%;
   background: rgba(255,255,255,0.12);
   border: none;
@@ -969,91 +996,12 @@
    RESPONSIVE
 ───────────────────────────────────────────────── */
 @media (max-width: 520px) {
-  .avatarWrap { width: 80px; height: 80px; }
+  .avatarWrap { width: 88px; height: 88px; }
   .heroName { font-size: 22px; }
+  .heroStatItem { padding: 0 14px; }
+  .heroStatItem strong { font-size: 17px; }
   .statsBar { grid-template-columns: repeat(2, 1fr); }
-  .body { padding: 0 10px; }
-  .socialRow { flex-wrap: wrap; gap: 10px; }
+  .body { padding: 0 10px; padding-top: 18px; }
   .tab { margin-right: 12px; font-size: 12px; }
-}
-
-/* ═══════════════════════════════════════════════
-   ANIMATED TIER RINGS — all tiers
-   ═══════════════════════════════════════════════ */
-
-@keyframes spinRing {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
-}
-
-/* Ring layer sits behind the avatar */
-.avatarWrap::before {
-  content: '';
-  position: absolute;
-  inset: -4px;
-  border-radius: 26px;
-  z-index: 0;
-  animation: spinRing 4s linear infinite;
-}
-
-/* Mask layer — covers the ring inward so only the border shows */
-.avatarWrap::after {
-  content: '';
-  position: absolute;
-  inset: 3px;
-  border-radius: 20px;
-  background: var(--bg);
-  z-index: 1;
-}
-
-/* Avatar content sits on top */
-.avatarWrap > * {
-  position: relative;
-  z-index: 2;
-}
-
-/* Gold */
-.avatarWrap[data-tier="Gold"]::before {
-  background: conic-gradient(#f59e0b, #fcd34d, #f59e0b, #92400e, #f59e0b);
-  animation-duration: 5s;
-}
-/* Platinum */
-.avatarWrap[data-tier="Platinum"]::before {
-  background: conic-gradient(#94a3b8, #e2e8f0, #94a3b8, #475569, #94a3b8);
-  animation-duration: 5s;
-}
-/* Diamond */
-.avatarWrap[data-tier="Diamond"]::before {
-  background: conic-gradient(#38bdf8, #bae6fd, #6366f1, #38bdf8);
-  animation-duration: 4s;
-}
-/* Ace */
-.avatarWrap[data-tier="Ace"]::before {
-  background: conic-gradient(#a78bfa, #ddd6fe, #7c3aed, #a78bfa);
-  animation-duration: 3.5s;
-}
-/* Conquer */
-.avatarWrap[data-tier="Conquer"]::before {
-  background: conic-gradient(#ef4444, #fca5a5, #f97316, #ef4444);
-  animation-duration: 3s;
-}
-/* Partner — fastest + multi-colour */
-.avatarWrap[data-tier="Partner"]::before {
-  background: conic-gradient(#22c55e, #86efac, #06b6d4, #67e8f9, #22c55e);
-  animation-duration: 2.5s;
-}
-
-/* Partner chip badge */
-.partnerChip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: linear-gradient(135deg, rgba(34,197,94,0.22), rgba(6,182,212,0.18));
-  border: 1px solid rgba(34,197,94,0.55);
-  color: #22c55e;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.10em;
-  padding: 3px 8px;
-  border-radius: 20px;
+  .heroCta { max-width: 100%; }
 }

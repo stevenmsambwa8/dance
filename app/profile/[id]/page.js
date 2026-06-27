@@ -44,9 +44,9 @@ export default function PublicProfile() {
   const [activeTab, setActiveTab]         = useState('posts')
   const [zoomedAvatar, setZoomedAvatar]   = useState(false)
   const [menuOpen, setMenuOpen]           = useState(false)
+  const [isCreator, setIsCreator]         = useState(false)
 
   // Currency hook — must be unconditional (Rules of Hooks)
-  // profile may be null during load; hook handles null via optional chaining
   const { fmtAmt } = useCurrency(profile?.country_flag ?? null)
 
   // Edit profile
@@ -81,6 +81,7 @@ export default function PublicProfile() {
       { data: postsData },
       { data: achData },
       { data: shopData },
+      { count: tournamentsCreated },
     ] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', id).single(),
       supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', id),
@@ -97,6 +98,7 @@ export default function PublicProfile() {
         .eq('active', true)
         .order('created_at', { ascending: false })
         .limit(6),
+      supabase.from('tournaments').select('*', { count: 'exact', head: true }).eq('created_by', id),
     ])
 
     setProfile(prof)
@@ -105,6 +107,7 @@ export default function PublicProfile() {
     setAchievements(achData || [])
     setShopItems(shopData || [])
     setShopLoading(false)
+    setIsCreator((tournamentsCreated || 0) > 0)
 
     if (prof) {
       setEditUsername(prof.username || '')
@@ -328,9 +331,12 @@ export default function PublicProfile() {
         </div>
       </div>
 
-      {/* ── Profile hero ── */}
+      {/* ══════════════════════════════════════
+          NEW HERO — inspired by design reference
+          ══════════════════════════════════════ */}
       <div className={styles.hero}>
-        {/* Avatar */}
+
+        {/* Large avatar — centered, big, with tier ring */}
         <div
           className={styles.avatarWrap}
           data-tier={profile.tier || 'Gold'}
@@ -339,7 +345,7 @@ export default function PublicProfile() {
         >
           {avatarLoading ? (
             <div className={styles.avatarInner}>
-              <i className="ri-loader-4-line" style={{ fontSize: 26, opacity: 0.5 }} />
+              <i className="ri-loader-4-line" style={{ fontSize: 30, opacity: 0.4 }} />
             </div>
           ) : profile.avatar_url ? (
             <img src={profile.avatar_url} className={styles.avatarImg} alt="" />
@@ -352,52 +358,103 @@ export default function PublicProfile() {
           <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarChange} />
         </div>
 
-        {/* Name + meta */}
-        <div className={styles.heroMeta}>
-          <div className={styles.heroNameRow}>
-            <h1 className={styles.heroName}>{profile.username}</h1>
-            <UserBadges
-              email={profile.email}
-              countryFlag={profile.country_flag}
-              isSeasonWinner={profile.is_season_winner}
-              size={20}
-            />
-          </div>
+        {/* Name row — username + verified-style badge row */}
+        <div className={styles.heroNameRow}>
+          <h1 className={styles.heroName}>{profile.username}</h1>
+          <UserBadges
+            email={profile.email}
+            countryFlag={profile.country_flag}
+            isSeasonWinner={profile.is_season_winner}
+            size={20}
+          />
+        </div>
 
-          {/* Tier badge + play style */}
-          <div className={styles.heroSubRow}>
-            {isPartner ? (
-              <span className={styles.partnerChip}>
-                <i className="ri-shield-star-fill" /> PARTNER
-              </span>
-            ) : (
-              <span
-                className={styles.tierBadge}
-                style={{ color: tierMeta.color, borderColor: tierMeta.color + '55', background: tierMeta.color + '18' }}
-              >
-                <i className={tierMeta.icon} />
-                {profile.tier || 'Gold'}
-              </span>
-            )}
-            <span className={styles.heroDot}>·</span>
-            <span className={styles.heroLevel}>Lv.{profile.level ?? 1}</span>
-            {profile.play_style && (
-              <>
-                <span className={styles.heroDot}>·</span>
-                <span className={styles.heroPlayStyle}>{profile.play_style}</span>
-              </>
-            )}
-          </div>
-
-          {/* Game tags */}
-          {(profile.game_tags || []).length > 0 && (
-            <div className={styles.heroTags}>
-              {profile.game_tags.map(g => (
-                <span key={g} className={styles.heroTag}>{g}</span>
-              ))}
-            </div>
+        {/* Creator + tier chips */}
+        <div className={styles.heroBadgeRow}>
+          {isCreator && (
+            <span className={styles.creatorBadge}>
+              <i className="ri-trophy-fill" /> Creator
+            </span>
+          )}
+          {isPartner ? (
+            <span className={styles.partnerChip}>
+              <i className="ri-shield-star-fill" /> PARTNER
+            </span>
+          ) : (
+            <span
+              className={styles.tierBadge}
+              style={{ color: tierMeta.color, borderColor: tierMeta.color + '55', background: tierMeta.color + '18' }}
+            >
+              <i className={tierMeta.icon} />
+              {profile.tier || 'Gold'}
+            </span>
+          )}
+          <span className={styles.levelChip}>Lv.{profile.level ?? 1}</span>
+          {profile.play_style && (
+            <span className={styles.playStyleChip}>{profile.play_style}</span>
           )}
         </div>
+
+        {/* Bio */}
+        {profile.bio && (
+          <p className={styles.heroBio}>{profile.bio}</p>
+        )}
+
+        {/* Followers / Posts stats — inline like the design */}
+        <div className={styles.heroStats}>
+          <div className={styles.heroStatItem}>
+            <strong>{stats.followers.toLocaleString()}</strong>
+            <span>Followers</span>
+          </div>
+          <div className={styles.heroStatDivider} />
+          <div className={styles.heroStatItem}>
+            <strong>{stats.following.toLocaleString()}</strong>
+            <span>Following</span>
+          </div>
+          <div className={styles.heroStatDivider} />
+          <div className={styles.heroStatItem}>
+            <strong>{posts.length}</strong>
+            <span>Posts</span>
+          </div>
+        </div>
+
+        {/* Game tags */}
+        {(profile.game_tags || []).length > 0 && (
+          <div className={styles.heroTags}>
+            {profile.game_tags.map(g => (
+              <span key={g} className={styles.heroTag}>{g}</span>
+            ))}
+          </div>
+        )}
+
+        {/* CTA row — Follow pill + message icon */}
+        {!isOwnProfile ? (
+          <div className={styles.heroCta}>
+            <button
+              className={`${styles.followPill} ${following ? styles.followingPill : ''}`}
+              onClick={toggleFollow}
+              disabled={followLoading}
+            >
+              {following
+                ? <><i className="ri-check-line" /> Following</>
+                : <><i className="ri-add-line" /> Follow</>
+              }
+            </button>
+            <button
+              className={styles.msgIconBtn}
+              onClick={() => user
+                ? (isHelpdeskEmail(profile?.email) ? router.push('/help-desk') : router.push(`/dm/${id}`))
+                : openAuthGate()
+              }
+            >
+              <i className="ri-message-3-line" />
+            </button>
+          </div>
+        ) : (
+          <button className={styles.editPill} onClick={() => setEditModal(true)}>
+            <i className="ri-edit-line" /> Edit Profile
+          </button>
+        )}
       </div>
 
       {/* ── Avatar zoom lightbox ── */}
@@ -414,58 +471,17 @@ export default function PublicProfile() {
           </button>
         </div>
       )}
+
+      {/* ── Body ── */}
       <div className={styles.body}>
-
-        {/* ── Social stats + CTA row ── */}
-        <div className={styles.socialRow}>
-          <div className={styles.followStats}>
-            <button className={styles.followStat} onClick={() => {}}>
-              <strong>{stats.followers.toLocaleString()}</strong>
-              <span>Followers</span>
-            </button>
-            <div className={styles.followDivider} />
-            <button className={styles.followStat} onClick={() => {}}>
-              <strong>{stats.following.toLocaleString()}</strong>
-              <span>Following</span>
-            </button>
-          </div>
-
-          <div className={styles.ctaButtons}>
-            {!isOwnProfile ? (
-              <>
-                <button
-                  className={`${styles.followBtn} ${following ? styles.followingBtn : ''}`}
-                  onClick={toggleFollow}
-                  disabled={followLoading}
-                >
-                  {following ? <><i className="ri-check-line" /> Following</> : 'Follow'}
-                </button>
-                <button
-                  className={styles.msgBtn}
-                  onClick={() => user
-                    ? (isHelpdeskEmail(profile?.email) ? router.push('/help-desk') : router.push(`/dm/${id}`))
-                    : openAuthGate()
-                  }
-                >
-                  <i className="ri-message-3-line" />
-                </button>
-              </>
-            ) : null}
-          </div>
-        </div>
-
-        {/* ── Bio ── */}
-        {profile.bio && (
-          <p className={styles.bio}>{profile.bio}</p>
-        )}
 
         {/* ── Stats bar ── */}
         <div className={styles.statsBar}>
           {[
-            { icon: 'ri-sword-line',       label: 'Wins',     value: profile.wins ?? 0 },
-            { icon: 'ri-close-circle-line', label: 'Losses',   value: profile.losses ?? 0 },
-            { icon: 'ri-percent-line',      label: 'Win Rate', value: winRate },
-            { icon: 'ri-star-line',         label: 'Points',   value: (profile.points || 0).toLocaleString() },
+            { icon: 'ri-sword-line',        label: 'Wins',     value: profile.wins ?? 0 },
+            { icon: 'ri-close-circle-line',  label: 'Losses',   value: profile.losses ?? 0 },
+            { icon: 'ri-percent-line',       label: 'Win Rate', value: winRate },
+            { icon: 'ri-star-line',          label: 'Points',   value: (profile.points || 0).toLocaleString() },
           ].map(s => (
             <div key={s.label} className={styles.statItem}>
               <i className={s.icon} style={{ color: theme.primary }} />
@@ -597,10 +613,7 @@ export default function PublicProfile() {
                           <span className={styles.shopCategory}>{item.category}</span>
                           <span className={styles.shopTitle}>{item.title}</span>
                           <span className={styles.shopPrice}>
-                            {fmtAmt(Number(String(item.price).replace(/,/g, ''))) /* converted */}
-                            {false && isNaN(Number(String(item.price).replace(/,/g, '')))
-                              ? item.price
-                              : Number(String(item.price).replace(/,/g, '')).toLocaleString()}
+                            {fmtAmt(Number(String(item.price).replace(/,/g, '')))}
                           </span>
                         </div>
                       </Link>
@@ -772,4 +785,3 @@ function timeAgo(iso) {
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
   return `${Math.floor(diff / 86400)}d ago`
 }
-
