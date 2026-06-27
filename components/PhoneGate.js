@@ -12,7 +12,6 @@ export default function PhoneGate() {
   const [error, setError]   = useState('')
 
   useEffect(() => {
-    // Show only when logged in and profile loaded but no phone saved
     if (user && profile && !profile.phone) {
       setShow(true)
     } else {
@@ -42,6 +41,14 @@ export default function PhoneGate() {
 
   if (!show) return null
 
+  const COUNTRIES = [
+    { code: '254', flag: '/kenya.png',        label: '+254', name: 'Kenya'    },
+    { code: '255', flag: '/tanzania.png',     label: '+255', name: 'Tanzania' },
+    { code: '256', flag: '/uganda.png',       label: '+256', name: 'Uganda'   },
+    { code: '27',  flag: '/south-africa.png', label: '+27',  name: 'S.Africa' },
+    { code: '234', flag: '/nigeria.png',      label: '+234', name: 'Nigeria'  },
+  ]
+
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 9999,
@@ -53,7 +60,7 @@ export default function PhoneGate() {
       <div style={{
         background: 'var(--bg)',
         borderRadius: 20,
-        padding: '32px 24px',
+        padding: '28px 20px',
         width: '100%',
         maxWidth: 360,
         display: 'flex',
@@ -62,6 +69,7 @@ export default function PhoneGate() {
         border: '1px solid var(--border)',
         boxShadow: '0 24px 60px rgba(0,0,0,0.3)',
       }}>
+
         {/* Icon */}
         <div style={{ textAlign: 'center' }}>
           <div style={{
@@ -85,38 +93,37 @@ export default function PhoneGate() {
           </p>
         </div>
 
-        {/* Input */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {/* Country code buttons */}
-          <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
-            {[
-              { code: '254', flag: '/kenya.png',        label: '+254' },
-              { code: '255', flag: '/tanzania.png',     label: '+255' },
-              { code: '256', flag: '/uganda.png',       label: '+256' },
-              { code: '27',  flag: '/south-africa.png', label: '+27'  },
-              { code: '234', flag: '/nigeria.png',      label: '+234' },
-            ].map(c => (
+        {/* Country grid — 5 columns, no overflow */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
+          {COUNTRIES.map(c => {
+            const active = code === c.code
+            return (
               <button
                 key={c.code}
                 type="button"
                 onClick={() => setCode(c.code)}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '8px 14px', borderRadius: 99,
-                  border: `1.5px solid ${code === c.code ? 'var(--accent)' : 'var(--border)'}`,
-                  background: code === c.code ? 'color-mix(in srgb, var(--accent) 8%, var(--bg))' : 'var(--surface)',
-                  cursor: 'pointer', fontWeight: 700, fontSize: 13,
-                  color: code === c.code ? 'var(--accent)' : 'var(--text-muted)',
-                  transition: 'all 0.15s',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                  padding: '8px 4px', borderRadius: 12,
+                  border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                  background: active ? 'color-mix(in srgb, var(--accent) 10%, var(--bg))' : 'var(--surface)',
+                  cursor: 'pointer', fontWeight: 700, fontSize: 10,
+                  color: active ? 'var(--accent)' : 'var(--text-muted)',
+                  transition: 'all 0.15s', width: '100%', fontFamily: 'inherit',
                 }}
               >
-                <img src={c.flag} alt={c.code} style={{ width: 18, height: 18, borderRadius: 3, objectFit: 'cover' }} />
+                <img
+                  src={c.flag} alt={c.name}
+                  style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }}
+                />
                 {c.label}
               </button>
-            ))}
-          </div>
+            )
+          })}
+        </div>
 
-          {/* Number input */}
+        {/* Number input */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div style={{
             display: 'flex', alignItems: 'center', gap: 8,
             background: 'var(--surface)', border: `1.5px solid ${error ? '#ef4444' : 'var(--border)'}`,
@@ -157,6 +164,7 @@ export default function PhoneGate() {
             fontWeight: 700, fontSize: 14, cursor: phone.trim() ? 'pointer' : 'not-allowed',
             transition: 'background 0.2s, color 0.2s',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            fontFamily: 'inherit',
           }}
         >
           {saving
