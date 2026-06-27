@@ -141,12 +141,409 @@ const TABS = [
 
 // ── Tutorial steps with visual previews ──────────────────────────────────────
 const TUTORIAL_STEPS = [
+  // ── 1. Welcome ──────────────────────────────────────────────────────────
+  {
+    icon: 'ri-gamepad-fill',
+    color: '#6366f1',
+    title: 'Welcome to Command Centre',
+    desc: 'This is your full control panel for managing a tournament. You can set status, handle players, build the bracket, and edit settings — all from here.',
+    preview: () => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: '#6366f112', borderRadius: 12, border: '1.5px solid #6366f130' }}>
+          <i className="ri-shield-star-fill" style={{ color: '#6366f1', fontSize: 22 }} />
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 900, color: '#6366f1' }}>Admin · Command Centre</div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Full control over this tournament</div>
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 5 }}>
+          {[['ri-dashboard-fill','Overview','#6366f1'],['ri-group-fill','Players','#22c55e'],['ri-node-tree','Bracket','#a78bfa'],['ri-settings-3-fill','Settings','#f59e0b']].map(([ic,l,c])=>(
+            <div key={l} style={{ padding: '8px 4px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 9, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+              <i className={ic} style={{ color: c, fontSize: 16 }} />
+              <div style={{ fontSize: 8, fontWeight: 700, color: 'var(--text-muted)' }}>{l}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+  },
+  // ── 2. Status ────────────────────────────────────────────────────────────
+  {
+    icon: 'ri-live-fill',
+    color: '#6366f1',
+    title: 'Setting Tournament Status',
+    desc: 'The status banner is always at the top. Tap any of the 4 status cards to instantly update how the tournament appears to players.',
+    preview: () => (
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+        {[
+          { s: 'Active',    col: '#22c55e', ic: 'ri-checkbox-circle-fill', sub: 'Open for registration', active: false },
+          { s: 'Ongoing',   col: '#6366f1', ic: 'ri-live-fill',            sub: 'Tournament in progress', active: true  },
+          { s: 'Upcoming',  col: '#f59e0b', ic: 'ri-time-fill',            sub: 'Not started yet',        active: false },
+          { s: 'Completed', col: '#94a3b8', ic: 'ri-trophy-fill',          sub: 'Tournament ended',       active: false },
+        ].map(({ s, col, ic, sub, active }) => (
+          <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 9px', borderRadius: 10, border: `1.5px solid ${active ? col : 'var(--border)'}`, background: active ? col + '15' : 'var(--surface)' }}>
+            <i className={ic} style={{ color: active ? col : 'var(--text-muted)', fontSize: 15, flexShrink: 0 }} />
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: active ? col : 'var(--text)' }}>{s}</div>
+              <div style={{ fontSize: 8, color: 'var(--text-muted)' }}>{sub}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    ),
+  },
+  // ── 3. KPI strip ─────────────────────────────────────────────────────────
+  {
+    icon: 'ri-bar-chart-2-fill',
+    color: '#22c55e',
+    title: 'Stats at a Glance',
+    desc: 'The 4 stat cards show Players registered, Available open slots, how many Bracket rounds exist, and how many players are Scored on the leaderboard.',
+    preview: () => (
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 5 }}>
+        {[['16','Players','/ 16','#22c55e','ri-group-fill'],['0','Avail.','open','#f59e0b','ri-door-open-line'],['4','Rounds','live','#6366f1','ri-node-tree'],['8','Scored','ranked','#f59e0b','ri-bar-chart-fill']].map(([v,l,sub,c,ic])=>(
+          <div key={l} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+            <i className={ic} style={{ color: c, fontSize: 13 }} />
+            <div style={{ fontSize: 15, fontWeight: 900, color: c }}>{v}</div>
+            <div style={{ fontSize: 8, fontWeight: 700, color: 'var(--text)', textTransform: 'uppercase' }}>{l}</div>
+            <div style={{ fontSize: 7, color: 'var(--text-muted)' }}>{sub}</div>
+          </div>
+        ))}
+      </div>
+    ),
+  },
+  // ── 4. Overview tab ──────────────────────────────────────────────────────
   {
     icon: 'ri-dashboard-fill',
     color: '#6366f1',
-    title: 'Overview',
-    desc: 'See live stats, set tournament status with one tap, and quickly generate or reset the bracket.',
+    title: 'Overview Tab',
+    desc: 'The Overview shows your bracket summary, quick Generate/Reset buttons, and a mini leaderboard of the top 5 scores. No need to dig into other tabs for a quick check.',
     preview: () => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 11, padding: '10px 12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+            <i className="ri-node-tree" style={{ color: '#6366f1', fontSize: 14 }} />
+            <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--text)' }}>Bracket</span>
+          </div>
+          <div style={{ display: 'flex', gap: 5 }}>
+            {[['4','Rounds','#6366f1'],['16','Slots','#22c55e'],['1v1','Format','var(--text-muted)']].map(([v,l,c])=>(
+              <div key={l} style={{ flex: 1, textAlign: 'center', padding: '6px 0', background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 14, fontWeight: 900, color: c }}>{v}</div>
+                <div style={{ fontSize: 8, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 11, padding: '10px 12px' }}>
+          <div style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Top Scores</div>
+          {[['🥇','NasGaming','320'],['🥈','AlphaX','280'],['🥉','ZeroK','240']].map(([badge,name,pts])=>(
+            <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 0', borderBottom: '1px solid var(--border)' }}>
+              <span style={{ fontSize: 12 }}>{badge}</span>
+              <span style={{ flex: 1, fontSize: 11, fontWeight: 700, color: 'var(--text)' }}>{name}</span>
+              <span style={{ fontSize: 11, fontWeight: 900, color: '#f59e0b' }}>{pts} pts</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+  },
+  // ── 5. Players tab ───────────────────────────────────────────────────────
+  {
+    icon: 'ri-group-fill',
+    color: '#22c55e',
+    title: 'Players Tab',
+    desc: 'Every registered player appears here. You can see their level, bracket status (In / Out / Champion), and remove them if needed.',
+    preview: () => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+        {[
+          { init: 'NG', name: 'NasGaming', lv: 'Lv.24', badge: '🏆', bc: null, dot: '#f59e0b' },
+          { init: 'AX', name: 'AlphaX',   lv: 'Lv.18', badge: null, bc: null, dot: '#22c55e' },
+          { init: 'ZK', name: 'ZeroK',    lv: 'Lv.12', badge: 'OUT', bc: '#dc2626', dot: '#dc2626' },
+        ].map(p => (
+          <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10 }}>
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 9, background: '#6366f120', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 900, color: '#6366f1' }}>{p.init}</div>
+              <div style={{ position: 'absolute', bottom: 0, right: 0, width: 8, height: 8, borderRadius: '50%', background: p.dot, border: '1.5px solid var(--surface)' }} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>{p.name}</div>
+              <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>{p.lv}</div>
+            </div>
+            {p.badge && !p.bc && <span style={{ fontSize: 14 }}>{p.badge}</span>}
+            {p.badge && p.bc && <span style={{ fontSize: 9, fontWeight: 900, padding: '2px 6px', borderRadius: 4, background: p.bc + '20', color: p.bc }}>{p.badge}</span>}
+            <div style={{ width: 24, height: 24, borderRadius: 7, border: '1px solid #dc262630', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#dc2626' }}><i className="ri-user-unfollow-line" /></div>
+          </div>
+        ))}
+      </div>
+    ),
+  },
+  // ── 6. Entry fee payments ────────────────────────────────────────────────
+  {
+    icon: 'ri-money-dollar-circle-fill',
+    color: '#f59e0b',
+    title: 'Approving Payments',
+    desc: 'If your tournament has an entry fee, players submit payment screenshots. A yellow warning appears on the Players tab when payments need your approval — tap Approve on each player.',
+    preview: () => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 11px', borderRadius: 10, background: '#f59e0b10', border: '1.5px solid #f59e0b30' }}>
+          <i className="ri-alarm-warning-fill" style={{ color: '#f59e0b', fontSize: 16 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: '#f59e0b' }}>2 payments awaiting approval</div>
+            <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>Tap Approve on each player below</div>
+          </div>
+        </div>
+        {[['JK','JohnK','PENDING'],['MN','Nashe','PENDING']].map(([init,name,status])=>(
+          <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10 }}>
+            <div style={{ width: 28, height: 28, borderRadius: 8, background: '#6366f120', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 900, color: '#6366f1', flexShrink: 0 }}>{init}</div>
+            <div style={{ flex: 1 }}><div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)' }}>{name}</div></div>
+            <span style={{ fontSize: 8, fontWeight: 900, padding: '2px 6px', borderRadius: 4, background: '#f59e0b20', color: '#f59e0b' }}>{status}</span>
+            <div style={{ padding: '4px 9px', borderRadius: 6, background: '#22c55e', fontSize: 9, fontWeight: 800, color: '#fff' }}>Approve</div>
+          </div>
+        ))}
+      </div>
+    ),
+  },
+  // ── 7. Generate bracket ──────────────────────────────────────────────────
+  {
+    icon: 'ri-node-tree',
+    color: '#a78bfa',
+    title: 'Generating the Bracket',
+    desc: 'Go to the Bracket tab and tap "Generate from Players". It randomly seeds all registered players into a single-elimination bracket. You need at least 2 players.',
+    preview: () => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+        <div style={{ padding: '11px', borderRadius: 11, background: '#a78bfa', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontSize: 13, fontWeight: 800, color: '#fff' }}>
+          <i className="ri-play-fill" /> Generate from Players
+        </div>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 11, padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-around' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            {['PlayerA','PlayerB','PlayerC','PlayerD'].map(n=>(
+              <div key={n} style={{ padding: '4px 9px', background: '#22c55e12', border: '1px solid #22c55e30', borderRadius: 6, fontSize: 9, fontWeight: 700, color: '#22c55e' }}>{n}</div>
+            ))}
+          </div>
+          <div style={{ color: 'var(--text-muted)', fontSize: 18 }}>›</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {['?','?'].map((n,i)=>(
+              <div key={i} style={{ padding: '4px 9px', background: '#a78bfa12', border: '1px solid #a78bfa30', borderRadius: 6, fontSize: 9, fontWeight: 700, color: '#a78bfa' }}>{n}</div>
+            ))}
+          </div>
+          <div style={{ color: 'var(--text-muted)', fontSize: 18 }}>›</div>
+          <div style={{ padding: '4px 9px', background: '#f59e0b12', border: '1px solid #f59e0b30', borderRadius: 6, fontSize: 9, fontWeight: 700, color: '#f59e0b' }}>🏆 TBD</div>
+        </div>
+        <div style={{ fontSize: 10, color: 'var(--text-muted)', textAlign: 'center' }}>Players are randomly seeded into slots</div>
+      </div>
+    ),
+  },
+  // ── 8. Bracket editor ────────────────────────────────────────────────────
+  {
+    icon: 'ri-edit-box-fill',
+    color: '#a78bfa',
+    title: 'Editing the Bracket',
+    desc: 'After generating, you can drag players to swap slots, and tap the bracket in the public view to mark winners and advance them. The editor updates live.',
+    preview: () => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 11, padding: '10px 12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+            <i className="ri-node-tree" style={{ color: '#a78bfa', fontSize: 14 }} />
+            <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--text)' }}>Bracket Editor</span>
+            <span style={{ marginLeft: 'auto', fontSize: 9, color: 'var(--text-muted)' }}>Drag to swap</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', padding: '4px 0' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {[['NasG','active','#22c55e'],['AlphaX','active','#22c55e']].map(([n,s,c])=>(
+                <div key={n} style={{ padding: '5px 8px', background: c+'12', border: `1.5px solid ${c}40`, borderRadius: 7, fontSize: 9, fontWeight: 800, color: c, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <i className="ri-draggable" style={{ opacity: 0.5, fontSize: 10 }} /> {n}
+                </div>
+              ))}
+            </div>
+            <div style={{ width: 16, height: 40, borderTop: '2px solid var(--border)', borderRight: '2px solid var(--border)', borderBottom: '2px solid var(--border)', marginRight: 4 }} />
+            <div style={{ padding: '5px 8px', background: '#a78bfa12', border: '1.5px solid #a78bfa40', borderRadius: 7, fontSize: 9, fontWeight: 800, color: '#a78bfa' }}>?</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 10px', borderRadius: 9, background: '#6366f108', border: '1px solid #6366f120' }}>
+          <i className="ri-information-line" style={{ color: '#6366f1', fontSize: 13 }} />
+          <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Unplaced players appear below the bracket for easy adding</div>
+        </div>
+      </div>
+    ),
+  },
+  // ── 9. Reset bracket ─────────────────────────────────────────────────────
+  {
+    icon: 'ri-restart-line',
+    color: '#ef4444',
+    title: 'Resetting the Bracket',
+    desc: 'Use Reset Bracket to clear all placements and start fresh — useful when match type changes (e.g. switching from 1v1 to 2v2). This also clears the leaderboard scores.',
+    preview: () => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+        <div style={{ padding: '10px 12px', borderRadius: 11, background: '#ef444412', border: '1.5px solid #ef444430', display: 'flex', alignItems: 'center', gap: 9 }}>
+          <i className="ri-error-warning-fill" style={{ color: '#ef4444', fontSize: 20 }} />
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: '#ef4444' }}>Reset Bracket?</div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>Clears all placements and scores</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 7 }}>
+          <div style={{ flex: 1, padding: '9px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--border)', textAlign: 'center', fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>Cancel</div>
+          <div style={{ flex: 1, padding: '9px', borderRadius: 10, background: '#ef4444', textAlign: 'center', fontSize: 12, fontWeight: 800, color: '#fff' }}>Confirm Reset</div>
+        </div>
+        <div style={{ fontSize: 10, color: 'var(--text-muted)', textAlign: 'center' }}>A confirm dialog always appears before resetting</div>
+      </div>
+    ),
+  },
+  // ── 10. Match types ──────────────────────────────────────────────────────
+  {
+    icon: 'ri-team-fill',
+    color: '#a78bfa',
+    title: 'Match Types (1v1 to 8v8)',
+    desc: 'You can run Solo (1v1), Duo (2v2), Squad (4v4), or full team (8v8) tournaments. Change the match type in Settings → Edit Details → Match Type, then reset and regenerate the bracket.',
+    preview: () => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+        <div style={{ display: 'flex', gap: 7 }}>
+          {[['1v1','Solo',true],['2v2','Team',false],['4v4','Team',false],['8v8','Team',false]].map(([l,s,active])=>(
+            <div key={l} style={{ flex: 1, padding: '8px 4px', borderRadius: 10, border: `1.5px solid ${active ? '#a78bfa' : 'var(--border)'}`, background: active ? '#a78bfa' : 'var(--surface)', textAlign: 'center' }}>
+              <div style={{ fontSize: 12, fontWeight: 900, color: active ? '#fff' : 'var(--text)' }}>{l}</div>
+              <div style={{ fontSize: 8, color: active ? '#ffffff99' : 'var(--text-muted)' }}>{s}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ padding: '8px 10px', borderRadius: 9, background: '#f59e0b10', border: '1px solid #f59e0b30', display: 'flex', alignItems: 'center', gap: 7 }}>
+          <i className="ri-information-line" style={{ color: '#f59e0b', fontSize: 14 }} />
+          <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Changing match type requires a bracket reset to take effect</div>
+        </div>
+      </div>
+    ),
+  },
+  // ── 11. Settings — Edit Details ──────────────────────────────────────────
+  {
+    icon: 'ri-settings-3-fill',
+    color: '#f59e0b',
+    title: 'Settings → Edit Details',
+    desc: 'Edit the tournament name, description, game, format, date, prize pool, entry fee, slots, and match type. Hit Save after any changes.',
+    preview: () => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {[
+          ['Tournament Name', 'STRONG HAND ✋'],
+          ['Game', 'eFootball'],
+          ['Prize Pool (TZS)', '500,000'],
+          ['Entry Fee (TZS)', '2,000'],
+          ['Slots', '16'],
+        ].map(([label, val]) => (
+          <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <div style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
+            <div style={{ padding: '6px 9px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg)', fontSize: 11, color: 'var(--text)', fontWeight: 600 }}>{val}</div>
+          </div>
+        ))}
+        <div style={{ marginTop: 2, padding: '9px', borderRadius: 10, background: '#f59e0b', textAlign: 'center', fontSize: 12, fontWeight: 800, color: '#000' }}>
+          <i className="ri-save-line" /> Save Changes
+        </div>
+      </div>
+    ),
+  },
+  // ── 12. Pro & Elite toggle ───────────────────────────────────────────────
+  {
+    icon: 'ri-vip-crown-fill',
+    color: '#a855f7',
+    title: 'Pro & Elite Only Mode',
+    desc: 'Toggle this in Settings to restrict the tournament to Pro and Elite tier members only. Regular players won\'t be able to join or see the register button.',
+    preview: () => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {[false, true].map(on => (
+          <div key={String(on)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 13px', borderRadius: 12, border: `1.5px solid ${on ? '#a855f740' : 'var(--border)'}`, background: on ? '#a855f710' : 'var(--surface)' }}>
+            <i className={on ? 'ri-vip-crown-fill' : 'ri-vip-crown-line'} style={{ color: on ? '#a855f7' : 'var(--text-muted)', fontSize: 20 }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: on ? '#a855f7' : 'var(--text)' }}>Pro & Elite Only</div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{on ? 'Only Pro & Elite members can join.' : 'Open to all players.'}</div>
+            </div>
+            <div style={{ width: 36, height: 20, borderRadius: 10, background: on ? '#a855f7' : 'var(--border)', position: 'relative', flexShrink: 0 }}>
+              <div style={{ position: 'absolute', top: 2, left: on ? 18 : 2, width: 16, height: 16, borderRadius: '50%', background: '#fff' }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    ),
+  },
+  // ── 13. Transfer players ─────────────────────────────────────────────────
+  {
+    icon: 'ri-swap-line',
+    color: '#6366f1',
+    title: 'Transferring Players',
+    desc: 'In Settings → Advanced, you can move all registered players to a different tournament at once. Useful when merging tournaments or rescheduling. Players get notified automatically.',
+    preview: () => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+        <div style={{ padding: '9px 12px', borderRadius: 10, background: '#6366f108', border: '1.5px solid #6366f130' }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: '#6366f1', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}><i className="ri-swap-line" /> Transfer Players</div>
+          {['NABO CUP S2','STRONG HAND 2'].map((name,i)=>(
+            <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 9px', marginTop: 4, borderRadius: 9, border: `1.5px solid ${i===0 ? '#6366f1' : 'var(--border)'}`, background: i===0 ? '#6366f112' : 'var(--surface)' }}>
+              <i className="ri-tournament-line" style={{ color: i===0 ? '#6366f1' : 'var(--text-muted)', fontSize: 14 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)' }}>{name}</div>
+                <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>8/32 players · active</div>
+              </div>
+              {i===0 && <i className="ri-checkbox-circle-fill" style={{ color: '#6366f1', fontSize: 16 }} />}
+            </div>
+          ))}
+        </div>
+        <div style={{ padding: '9px', borderRadius: 10, background: '#6366f1', textAlign: 'center', fontSize: 12, fontWeight: 800, color: '#fff' }}>
+          <i className="ri-swap-line" /> Transfer 16 Players
+        </div>
+      </div>
+    ),
+  },
+  // ── 14. Delete ───────────────────────────────────────────────────────────
+  {
+    icon: 'ri-delete-bin-fill',
+    color: '#ef4444',
+    title: 'Deleting a Tournament',
+    desc: 'In Settings → Advanced → Danger Zone. Deleting permanently removes all players, bracket, payments, and scores. A confirmation dialog appears first — this cannot be undone.',
+    preview: () => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+        <div style={{ padding: '12px 13px', borderRadius: 12, background: '#ef444410', border: '1.5px solid #ef444430' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+            <i className="ri-error-warning-fill" style={{ color: '#ef4444', fontSize: 18 }} />
+            <span style={{ fontSize: 13, fontWeight: 800, color: '#ef4444' }}>Danger Zone</span>
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 10 }}>
+            Permanently removes all bracket data, participants, payments, and scores. Cannot be undone.
+          </div>
+          <div style={{ padding: '9px', borderRadius: 10, background: '#ef4444', textAlign: 'center', fontSize: 12, fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <i className="ri-delete-bin-fill" /> Delete Tournament
+          </div>
+        </div>
+      </div>
+    ),
+  },
+  // ── 15. Sync + notifications ─────────────────────────────────────────────
+  {
+    icon: 'ri-refresh-line',
+    color: '#22c55e',
+    title: 'Sync & Notifications',
+    desc: 'Use "Sync Player Count" in Overview to fix the registered count if it looks off. Players are auto-notified when the bracket is generated or they are transferred to another tournament.',
+    preview: () => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+        <div style={{ padding: '10px 12px', borderRadius: 11, border: '1.5px solid var(--border)', background: 'var(--surface)', display: 'flex', alignItems: 'center', gap: 9 }}>
+          <i className="ri-refresh-line" style={{ color: '#22c55e', fontSize: 18 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text)' }}>Sync Player Count</div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Fixes mismatched registered_count</div>
+          </div>
+          <div style={{ padding: '5px 10px', borderRadius: 8, background: '#22c55e', fontSize: 11, fontWeight: 800, color: '#fff' }}>Sync</div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+          {[
+            { ic: 'ri-node-tree', col: '#a78bfa', title: 'Bracket generated', sub: 'All players notified with their slot' },
+            { ic: 'ri-swap-line', col: '#6366f1', title: 'Transfer complete', sub: 'Players notified of new tournament' },
+          ].map(n => (
+            <div key={n.title} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 10, background: n.col+'10', border: `1px solid ${n.col}25` }}>
+              <i className={n.ic} style={{ color: n.col, fontSize: 15 }} />
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)' }}>{n.title}</div>
+                <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>{n.sub}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+  },
+]
       <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
         {/* Mini status bar */}
         <div style={{ background: '#6366f112', border: '1.5px solid #6366f130', borderRadius: 10, padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -781,31 +1178,47 @@ export default function TournamentManage() {
         </button>
       </div>
 
-      {/* ── Status banner — most important action at the top ── */}
+      {/* ── Status banner ── */}
       <div style={{ padding: '12px 16px 0' }}>
         <div style={{
-          background: 'var(--surface)', borderRadius: 14,
+          background: 'var(--surface)', borderRadius: 16,
           border: `1.5px solid ${STATUS_COLORS[tournament.status]}33`,
-          padding: '12px 14px',
-          display: 'flex', alignItems: 'center', gap: 12,
+          padding: '14px',
         }}>
-          <i className={STATUS_ICONS[tournament.status]} style={{ color: STATUS_COLORS[tournament.status], fontSize: 20, flexShrink: 0 }} />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Status</div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: STATUS_COLORS[tournament.status], textTransform: 'capitalize' }}>{tournament.status}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            <div style={{ width: 38, height: 38, borderRadius: 11, background: STATUS_COLORS[tournament.status] + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: STATUS_COLORS[tournament.status], flexShrink: 0 }}>
+              <i className={STATUS_ICONS[tournament.status]} />
+            </div>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Current Status</div>
+              <div style={{ fontSize: 16, fontWeight: 900, color: STATUS_COLORS[tournament.status], textTransform: 'capitalize' }}>{tournament.status}</div>
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: 6 }}>
-            {['active','ongoing','upcoming','completed'].map(s => (
-              <button key={s} onClick={() => updateStatus(s)} style={{
-                padding: '5px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700,
-                border: `1.5px solid ${tournament.status === s ? STATUS_COLORS[s] : 'var(--border)'}`,
-                background: tournament.status === s ? STATUS_COLORS[s] : 'var(--bg)',
-                color: tournament.status === s ? '#fff' : 'var(--text-muted)',
-                cursor: 'pointer', textTransform: 'capitalize',
-              }}>
-                {s}
-              </button>
-            ))}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7 }}>
+            {[
+              { s: 'active',    icon: 'ri-checkbox-circle-fill', label: 'Active',    sub: 'Open for registration' },
+              { s: 'ongoing',   icon: 'ri-live-fill',            label: 'Ongoing',   sub: 'Tournament in progress' },
+              { s: 'upcoming',  icon: 'ri-time-fill',            label: 'Upcoming',  sub: 'Not started yet' },
+              { s: 'completed', icon: 'ri-trophy-fill',          label: 'Completed', sub: 'Tournament ended' },
+            ].map(({ s, icon, label, sub }) => {
+              const isActive = tournament.status === s
+              const col = STATUS_COLORS[s]
+              return (
+                <button key={s} onClick={() => updateStatus(s)} style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '9px 10px', borderRadius: 11, cursor: 'pointer',
+                  border: `1.5px solid ${isActive ? col : 'var(--border)'}`,
+                  background: isActive ? col + '18' : 'var(--bg)',
+                  textAlign: 'left', width: '100%', fontFamily: 'inherit',
+                }}>
+                  <i className={icon} style={{ color: isActive ? col : 'var(--text-muted)', fontSize: 16, flexShrink: 0 }} />
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: isActive ? col : 'var(--text)' }}>{label}</div>
+                    <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub}</div>
+                  </div>
+                </button>
+              )
+            })}
           </div>
         </div>
       </div>
