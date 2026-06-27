@@ -1687,7 +1687,7 @@ export default function TournamentManage() {
                     Deleting this tournament permanently removes all bracket data, participants, payments, and leaderboard entries. This cannot be undone.
                   </p>
                   <button className={styles.btnDangerFull} onClick={deleteTournament}>
-                    <i className="ri-delete-bin-fill" style={{ fontSize: 18 }} /> Delete Tournament
+                    <i className="ri-delete-bin-fill" style={{ fontSize: 18 }} /> Delete This Tournament
                   </button>
                 </div>
               </div>
