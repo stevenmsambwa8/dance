@@ -95,22 +95,33 @@
 
 /* ── Bio banner — hero at the very top ── */
 .bioBanner {
-  padding: 28px 20px 20px;
+  padding: 36px 24px 40px;
   background: linear-gradient(160deg, var(--user-accent-dim, var(--bg-2)) 0%, transparent 100%);
-  border-bottom: 1px solid var(--border);
-  min-height: 80px;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  position: relative;
+}
+.bioBanner::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 48px;
+  background: linear-gradient(to bottom, transparent, var(--bg));
+  pointer-events: none;
 }
 .bioText {
-  font-size: 15px;
-  font-weight: 500;
-  line-height: 1.65;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.5;
   color: var(--text);
   margin: 0;
-  max-width: 480px;
-  font-style: italic;
-  opacity: 0.88;
+  max-width: 340px;
+  font-style: normal;
+  opacity: 1;
 }
 
 /* ─────────────────────────────────────────────────
