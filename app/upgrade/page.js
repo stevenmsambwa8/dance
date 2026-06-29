@@ -5,6 +5,7 @@ import { useAuthGate } from '../../components/AuthGateModal'
 import UpgradeModal from '../../components/UpgradeModal'
 import { PLANS, getPlanPrice, getActivePlan, FEATURE_PLAN } from '../../lib/plans'
 import styles from './page.module.css'
+import { DiamondBadge, ProBadge } from '../../components/UserBadges'
 
 const ORDER = ['free', 'pro', 'elite', 'team']
 
@@ -60,7 +61,7 @@ export default function UpgradePage() {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ width: 44, height: 44, borderRadius: 12, background: plan.color + '20', border: `1.5px solid ${plan.color}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>
-                    {plan.badge}
+                    {(plan.key === 'elite' || plan.key === 'team') ? <DiamondBadge size={26} /> : plan.key === 'pro' ? <ProBadge size={26} /> : <span style={{ fontSize: 22 }}>{plan.badge}</span>}
                   </div>
                   <div>
                     <p style={{ fontSize: 18, fontWeight: 900, color: 'var(--text)', margin: 0 }}>{plan.label}</p>
