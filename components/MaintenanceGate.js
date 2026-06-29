@@ -4,7 +4,7 @@ import { useTheme } from './ThemeProvider'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-const MAINTENANCE_END = new Date('2026-06-07T00:00:00')
+const MAINTENANCE_END = new Date('2026-07-03T00:00:00')
 
 function useCountdown(target) {
   const [timeLeft, setTimeLeft] = useState(() => Math.max(0, target - Date.now()))
