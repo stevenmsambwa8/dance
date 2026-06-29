@@ -2,6 +2,7 @@ import './globals.css'
 import Script from 'next/script'
 import NavWrapper from '../components/NavWrapper'
 import ThemeProvider from '../components/ThemeProvider'
+import LanguageProvider from '../components/LanguageProvider'
 import PageTransition, { PageLoaderOverlay } from '../components/PageTransition'
 import SlideTransition from '../components/SlideTransition'
 import AuthProvider from '../components/AuthProvider'
@@ -69,6 +70,7 @@ export default function RootLayout({ children }) {
         <AuthProvider>
           <ToastProvider>
             <ThemeProvider>
+              <LanguageProvider>
               <LoadingProvider>
                 <MusicPlayerProvider>          {/* ← NEW */}
                   <AuthGateProvider>
@@ -95,6 +97,7 @@ export default function RootLayout({ children }) {
                   </AuthGateProvider>
                 </MusicPlayerProvider>          {/* ← NEW */}
               </LoadingProvider>
+              </LanguageProvider>
             </ThemeProvider>
           </ToastProvider>
         </AuthProvider>

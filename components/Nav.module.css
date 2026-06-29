@@ -515,6 +515,26 @@
 .sidebarVersion { font-size: 11px; font-weight: 600; color: var(--text-muted); }
 .sidebarSocials { display: flex; align-items: center; gap: 6px; }
 
+.langToggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 16px;
+  border: 1px solid var(--border-dark);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: color 0.1s, background 0.1s, border-color 0.1s;
+}
+.langToggle:hover { background: var(--bg); border-color: var(--text-muted); }
+.langDivider { color: var(--border-dark); font-weight: 400; }
+.langActive { color: var(--text); }
+
 .socialBtn {
   width: 30px;
   height: 30px;
