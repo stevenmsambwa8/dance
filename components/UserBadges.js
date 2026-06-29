@@ -1,6 +1,6 @@
 /**
  * UserBadges — renders the badge row for a user:
- *   [tick.png if admin OR elite/team subscriber] [flag.png if set] [fire.png if season winner]
+ *   [tick.png if admin | tick-pre.png if elite/team subscriber] [flag.png if set] [fire.png if season winner]
  *
  * Props:
  *   email          – string  – user's email (to detect admin)
@@ -28,9 +28,11 @@ export default function UserBadges({
   const activePlan = getActivePlan({ plan, plan_expires_at: planExpiresAt })
   const hasVerified = activePlan === 'elite' || activePlan === 'team'
 
-  const showTick = isAdmin || hasVerified
-  const showFlag = !!countryFlag
-  const showFire = !!isSeasonWinner
+  const showTick    = isAdmin || hasVerified
+  const tickSrc     = isAdmin ? '/tick.png' : '/tick-pre.png'
+  const tickAlt     = isAdmin ? 'Admin' : 'Verified'
+  const showFlag    = !!countryFlag
+  const showFire    = !!isSeasonWinner
 
   if (!showTick && !showFlag && !showFire) return null
 
@@ -47,9 +49,9 @@ export default function UserBadges({
     >
       {showTick && (
         <img
-          src="/tick.png"
-          alt={isAdmin ? 'Admin' : 'Verified'}
-          title={isAdmin ? 'Admin' : 'Verified'}
+          src={tickSrc}
+          alt={tickAlt}
+          title={tickAlt}
           style={{ width: size, height: size, display: 'block' }}
         />
       )}
