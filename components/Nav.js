@@ -3,22 +3,19 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTheme } from './ThemeProvider'
-import { useLanguage } from './LanguageProvider'
 import ThemePicker from './ThemePicker'
-import useTranslation from '../lib/useTranslation'
 import { useAuth } from './AuthProvider'
 import { supabase } from '../lib/supabase'
 import NavMusicBar from './NavMusicBar'
 import SearchSidebar from './SearchSidebar'
 import styles from './Nav.module.css'
 import { getActivePlan, PLANS } from '../lib/plans'
+import { DiamondBadge, ProBadge } from './UserBadges'
 
 export default function Nav() {
   const path = usePathname()
   const router = useRouter()
   const { theme, toggle } = useTheme()
-  const { toggle: toggleLang } = useLanguage()
-  const { t, lang } = useTranslation()
   const { user, profile, signOut, isAdmin } = useAuth()
   const isPartner  = profile?.tier === 'Partner'
   const activePlan = getActivePlan(profile)
@@ -245,7 +242,12 @@ export default function Nav() {
                 style={{ '--plan-color': planMeta.color }}
                 title={`You are on the ${planMeta.label} plan`}
               >
-                <i className={planMeta.icon.replace('-line', '-fill')} />
+                {(activePlan === 'elite' || activePlan === 'team')
+                  ? <DiamondBadge size={18} />
+                  : activePlan === 'pro'
+                  ? <ProBadge size={18} />
+                  : <i className={planMeta.icon.replace('-line', '-fill')} />
+                }
               </Link>
             ) : (
               // Free user — show upgrade prompt
@@ -368,18 +370,18 @@ export default function Nav() {
 
             <Link href="/settings" className={styles.sidebarTopBtn} onClick={() => setSidebarOpen(false)}>
               <i className="ri-settings-3-line" />
-              <span>{t('settings.settings')}</span>
+              <span>Settings</span>
             </Link>
 
             {user ? (
               <button className={`${styles.sidebarTopBtn} ${styles.sidebarSignOutBtn}`} onClick={handleSignOut}>
                 <i className="ri-logout-box-r-line" />
-                <span>{t('auth.signOut')}</span>
+                <span>Sign out</span>
               </button>
             ) : (
               <Link href="/login" className={styles.sidebarTopBtn} onClick={() => setSidebarOpen(false)}>
                 <i className="ri-user-4-line" />
-                <span>{t('auth.logIn')}</span>
+                <span>Log in</span>
               </Link>
             )}
           </div>
@@ -397,7 +399,7 @@ export default function Nav() {
               <div className={styles.sidebarUsername}>{profile?.username || 'Player'}</div>
               <div className={`${styles.sidebarTier} ${profile?.tier === 'Partner' ? styles.sidebarTierPartner : ''}`}>
                 {profile?.tier === 'Partner' && <i className="ri-shield-star-fill" style={{ marginRight: 3, fontSize: 11 }} />}
-                {profile?.tier || ''} · {t('profile.rank')} #{profile?.rank || '—'}
+                {profile?.tier || ''} · Rank #{profile?.rank || '—'}
               </div>
             </div>
             <i className={`ri-edit-line ${styles.sidebarEditIcon}`} />
@@ -406,16 +408,16 @@ export default function Nav() {
 
         <nav className={styles.sidebarNav} ref={sidebarNavRef} onScroll={handleSidebarScroll}>
           {[
-            { href: '/',            label: t('navigation.home'),        icon: 'ri-stack-line' },
-            { href: '/matches',     label: t('navigation.matches'),     icon: 'ri-sword-line' },
-            { href: '/feed',        label: t('navigation.feed'),        icon: 'ri-compass-3-line' },
-            { href: '/games',       label: t('navigation.games'),       icon: 'ri-gamepad-line' },
-            { href: '/tournaments', label: t('navigation.tournaments'), icon: 'ri-trophy-line' },
-            { href: '/season',      label: t('navigation.season'),      icon: 'ri-dashboard-line' },
-            { href: '/players',     label: t('navigation.players'),     icon: 'ri-group-line' },
-            { href: '/shop',        label: t('navigation.shop'),        icon: 'ri-store-2-line' },
-            { href: '/my-requests', label: t('navigation.myRequests'),  icon: 'ri-file-list-3-line' },
-            { href: '/music',       label: t('navigation.music'),       icon: 'ri-music-2-line' },
+            { href: '/',            label: 'Home',        icon: 'ri-stack-line' },
+            { href: '/matches',     label: 'Matches',     icon: 'ri-sword-line' },
+            { href: '/feed',        label: 'Feed',        icon: 'ri-compass-3-line' },
+            { href: '/games',       label: 'Games',       icon: 'ri-gamepad-line' },
+            { href: '/tournaments', label: 'Tournaments', icon: 'ri-trophy-line' },
+            { href: '/season',      label: 'Season',      icon: 'ri-dashboard-line' },
+            { href: '/players',     label: 'Players',     icon: 'ri-group-line' },
+            { href: '/shop',        label: 'Shop',        icon: 'ri-store-2-line' },
+            { href: '/my-requests', label: 'My Requests', icon: 'ri-file-list-3-line' },
+            { href: '/music',       label: 'Music',       icon: 'ri-music-2-line' },
           ].map(({ href, label, icon }) => {
             const isActive = href === '/' ? path === '/' : path.startsWith(href)
             return (
@@ -430,7 +432,7 @@ export default function Nav() {
           {user && (
             <Link href="/dm" className={`${styles.sidebarLink} ${path.startsWith('/dm') ? styles.sidebarLinkActive : ''}`} onClick={() => setSidebarOpen(false)}>
               <i className="ri-chat-private-line" />
-              {t('navigation.directMessages')}
+              Messages
               {!path.startsWith('/dm') && <i className={`ri-arrow-right-s-line ${styles.sidebarArrow}`} />}
             </Link>
           )}
@@ -438,7 +440,7 @@ export default function Nav() {
           {user && (
             <Link href="/notifications" className={`${styles.sidebarLink} ${path === '/notifications' ? styles.sidebarLinkActive : ''}`} onClick={() => setSidebarOpen(false)}>
               <i className="ri-notification-3-line" />
-              {t('navigation.notifications')}
+              Notifications
               {unread > 0 && <span className={styles.sidebarBadge}>{unread}</span>}
               {path !== '/notifications' && unread === 0 && <i className={`ri-arrow-right-s-line ${styles.sidebarArrow}`} />}
             </Link>
@@ -447,7 +449,7 @@ export default function Nav() {
           {isAdmin && (
             <Link href="/dashboard" className={`${styles.sidebarLink} ${styles.sidebarAdmin} ${path === '/dashboard' ? styles.sidebarLinkActive : ''}`} onClick={() => setSidebarOpen(false)}>
               <i className="ri-shield-line" />
-              {t('navigation.admin')}
+              Admin
               {path !== '/dashboard' && <i className={`ri-arrow-right-s-line ${styles.sidebarArrow}`} />}
             </Link>
           )}
@@ -455,7 +457,7 @@ export default function Nav() {
           {isPartner && !isAdmin && (
             <Link href="/partner" className={`${styles.sidebarLink} ${styles.sidebarPartner} ${path === '/partner' ? styles.sidebarLinkActive : ''}`} onClick={() => setSidebarOpen(false)}>
               <i className="ri-shield-star-fill" />
-              {t('partner.partner')} Hub
+              Partner Hub
               {path !== '/partner' && <i className={`ri-arrow-right-s-line ${styles.sidebarArrow}`} />}
             </Link>
           )}
@@ -487,18 +489,6 @@ export default function Nav() {
 
         <div className={styles.sidebarFooter}>
           <span className={styles.sidebarVersion}>v1.2.3</span>
-
-          <button
-            className={styles.langToggle}
-            onClick={toggleLang}
-            title={lang === 'sw' ? 'Switch to English' : 'Badilisha kwenda Kiswahili'}
-            type="button"
-          >
-            <span className={lang === 'sw' ? styles.langActive : ''}>SW</span>
-            <span className={styles.langDivider}>/</span>
-            <span className={lang === 'en' ? styles.langActive : ''}>EN</span>
-          </button>
-
           <div className={styles.sidebarSocials}>
             <a href="https://www.facebook.com/profile.php?id=61578110769264" target="_blank" rel="noopener noreferrer" className={styles.socialBtn} title="Facebook">
               <i className="ri-facebook-fill" />

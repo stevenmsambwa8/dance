@@ -9,7 +9,6 @@ import styles from './page.module.css'
 import usePageLoading from '../../components/usePageLoading'
 import { getCurrentSeason, getSeasonDateRange, getDaysRemaining } from '../../lib/seasons'
 import UserBadges from '../../components/UserBadges'
-import PlanBadge from '../../components/PlanBadge'
 import { useOnlineUsers } from '../../lib/usePresence'
 import { RANK_META, GAME_SLUGS, GAME_META } from '../../lib/constants'
 
@@ -188,7 +187,6 @@ export default function Contact() {
               <div className={styles.playerInfo}>
                 <span className={styles.playerName}>
                   {p.username}
-                  <PlanBadge plan={p.plan} planExpiresAt={p.plan_expires_at} size="sm" />
                   <UserBadges email={p.email} plan={p.plan} planExpiresAt={p.plan_expires_at} countryFlag={p.country_flag} isSeasonWinner={p.is_season_winner} size={13} gap={2} />
                 </span>
                 {!isHelpdeskEmail(p.email) ? (
