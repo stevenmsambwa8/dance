@@ -3,78 +3,88 @@
 .backLink {
   display: flex; align-items: center; gap: 6px;
   background: none; border: none; color: var(--text-muted);
-  font-size: 12px; font-weight: 600; cursor: pointer; padding: 0; margin-bottom: 16px;
+  font-size: 12px; font-weight: 600; cursor: pointer; padding: 0; margin-bottom: 18px;
+  transition: color 0.15s;
 }
+.backLink:hover { color: var(--text); }
 .backLink i { font-size: 15px; }
 
-.headline { font-size: 24px; font-weight: 900; margin-bottom: 4px; }
-.sub { font-size: 12.5px; color: var(--text-muted); margin: 0 0 24px; line-height: 1.5; }
+.headline { font-size: 25px; font-weight: 900; margin-bottom: 5px; letter-spacing: -0.01em; }
+.sub { font-size: 12.5px; color: var(--text-muted); margin: 0 0 26px; line-height: 1.55; }
 
-.field { margin-bottom: 20px; }
+.field { margin-bottom: 22px; }
 .field label {
   display: block; font-size: 10px; font-weight: 700;
   letter-spacing: 0.1em; text-transform: uppercase;
-  color: var(--text-muted); margin-bottom: 8px;
+  color: var(--text-muted); margin-bottom: 9px;
 }
 
-.gameGrid { display: flex; flex-wrap: wrap; gap: 6px; }
+.gameGrid { display: flex; flex-wrap: wrap; gap: 7px; }
 .gameBtn {
-  display: flex; align-items: center; gap: 5px;
-  padding: 7px 13px; border-radius: 18px;
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: 20px;
   border: 1px solid var(--border-dark); background: transparent;
   color: var(--text-dim); font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: all 0.15s;
 }
+.gameBtn:hover { border-color: var(--text); color: var(--text); }
 .gameBtn i { font-size: 13px; }
 .gameBtnActive { background: var(--text); color: var(--bg); border-color: var(--text); }
 
 .logoPicker {
-  width: 88px; height: 88px; border-radius: 18px;
+  width: 92px; height: 92px; border-radius: 20px;
   border: 1.5px dashed var(--border-dark);
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; overflow: hidden; background: var(--surface);
+  transition: border-color 0.15s;
 }
-.logoPicker i { font-size: 26px; color: var(--text-muted); }
+.logoPicker:hover { border-color: var(--accent); }
+.logoPicker i { font-size: 27px; color: var(--text-muted); }
 .logoPicker img { width: 100%; height: 100%; object-fit: cover; }
 
 .textInput, .textArea {
   width: 100%; background: var(--surface); border: 1px solid var(--border);
-  border-radius: 10px; padding: 11px 14px; font-family: var(--font);
+  border-radius: 11px; padding: 12px 15px; font-family: var(--font);
   font-size: 14px; font-weight: 500; color: var(--text); outline: none;
   box-sizing: border-box; transition: border-color 0.15s;
 }
 .textInput::placeholder, .textArea::placeholder { color: var(--text-muted); }
-.textInput:focus, .textArea:focus { border-color: var(--border-dark); }
+.textInput:focus, .textArea:focus { border-color: var(--accent); }
 .textArea { resize: none; font-family: var(--font); line-height: 1.5; }
 
 .prefixHint {
-  font-size: 11px; color: var(--accent); margin: 8px 0 0; line-height: 1.4;
+  font-size: 11px; color: var(--accent); margin: 9px 0 0; line-height: 1.45; font-weight: 600;
 }
 .prefixHint strong { font-weight: 800; }
 
 .errorMsg {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 12px; color: #ef4444; margin: -8px 0 16px;
+  display: flex; align-items: center; gap: 7px;
+  font-size: 12px; color: #ef4444; font-weight: 600; margin: -10px 0 18px;
 }
 
 .submitBtn {
-  width: 100%; display: flex; align-items: center; justify-content: center; gap: 7px;
-  padding: 14px 0; border-radius: 12px;
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 15px 0; border-radius: 13px;
   background: var(--text); color: var(--bg);
   border: none; font-size: 14px; font-weight: 800; cursor: pointer;
+  transition: opacity 0.15s;
 }
 .submitBtn:disabled { opacity: 0.45; cursor: not-allowed; }
+.submitBtn:active { opacity: 0.85; }
 
-.loadingBox { height: 200px; border-radius: 14px; background: var(--surface); }
+.loadingBox { height: 200px; border-radius: 16px; background: var(--surface); }
 
 .blockedState {
-  display: flex; flex-direction: column; align-items: center; gap: 10px;
-  text-align: center; padding: 60px 20px; color: var(--text-muted);
+  display: flex; flex-direction: column; align-items: center; gap: 11px;
+  text-align: center; padding: 70px 20px; color: var(--text-muted);
 }
-.blockedState i { font-size: 36px; color: var(--accent); opacity: 0.7; }
+.blockedState i { font-size: 38px; color: var(--accent); opacity: 0.7; }
 .blockedState h2 { font-size: 17px; font-weight: 800; color: var(--text); margin: 4px 0 0; }
-.blockedState p { font-size: 12.5px; margin: 0; line-height: 1.5; }
+.blockedState p { font-size: 12.5px; margin: 0; line-height: 1.55; }
 .backBtn {
-  margin-top: 10px; padding: 10px 20px; border-radius: 10px;
+  margin-top: 10px; padding: 11px 22px; border-radius: 11px;
   background: var(--text); color: var(--bg); border: none;
   font-size: 12px; font-weight: 700; cursor: pointer;
+  transition: opacity 0.15s;
 }
+.backBtn:active { opacity: 0.85; }
