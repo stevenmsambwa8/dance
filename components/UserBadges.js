@@ -1,5 +1,7 @@
 /**
  * UserBadges — badge row for a user.
+ * Tooltip uses globals.css tokens (var(--bg), var(--surface), var(--border),
+ * var(--text), var(--text-muted), var(--font)).
  * Exports: default UserBadges, DiamondBadge, ProBadge
  */
 'use client'
@@ -8,7 +10,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { ADMIN_EMAILS } from './AuthProvider'
 import { getActivePlan } from '../lib/plans'
 
-/* ── Inject styles once ──────────────────────────────────── */
+/* ── Inject once ─────────────────────────────────────────── */
 const BADGE_CSS = `
 @keyframes nb-diamond-shine {
   0%,100% { opacity:.5; transform:rotate(-30deg) translateX(-2px); }
@@ -23,52 +25,57 @@ const BADGE_CSS = `
   to   { opacity:1; transform:translateY(0)   scale(1);   }
 }
 .nb-tip {
-  position:fixed;
-  z-index:9999;
-  background:#18181b;
-  border:1px solid #3f3f46;
-  border-radius:14px;
-  padding:13px 14px 11px;
-  width:min(210px,calc(100vw - 20px));
-  box-shadow:0 10px 36px #000b;
-  animation:nb-tip-in .16s ease;
-  box-sizing:border-box;
+  position: fixed;
+  z-index: 9999;
+  background: var(--surface);
+  border: 1px solid var(--border-dark);
+  border-radius: 14px;
+  padding: 12px 13px 11px;
+  width: min(200px, calc(100vw - 24px));
+  box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+  animation: nb-tip-in .15s ease;
+  box-sizing: border-box;
+  font-family: var(--font);
 }
 .nb-tip-title {
-  font-size:12.5px;
-  font-weight:700;
-  margin:0 0 4px;
-  display:flex;
-  align-items:center;
-  gap:5px;
+  font-size: 12px;
+  font-weight: 700;
+  margin: 0 0 5px;
+  line-height: 1.3;
 }
 .nb-tip-desc {
-  font-size:11px;
-  font-weight:400;
-  color:#a1a1aa;
-  margin:0 0 11px;
-  line-height:1.55;
-  word-break:break-word;
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin: 0 0 10px;
+  line-height: 1.55;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  white-space: normal;
 }
 .nb-tip-ctas {
-  display:flex;
-  gap:6px;
+  display: flex;
+  gap: 6px;
 }
 .nb-tip-btn {
-  flex:1;
-  padding:7px 0;
-  border-radius:8px;
-  font-size:11px;
-  font-weight:700;
-  text-align:center;
-  text-decoration:none;
-  cursor:pointer;
-  border:none;
-  display:block;
-  letter-spacing:.01em;
+  flex: 1;
+  padding: 7px 0;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font);
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+  display: block;
+  letter-spacing: .01em;
 }
-.nb-tip-primary { color:#000; }
-.nb-tip-secondary { background:#27272a; color:#d4d4d8; border:1px solid #3f3f46; }
+.nb-tip-secondary {
+  background: var(--bg);
+  color: var(--text-dim);
+  border: 1px solid var(--border-dark) !important;
+}
 `
 function injectStyles() {
   if (typeof document === 'undefined' || document.getElementById('nb-bs')) return
@@ -81,45 +88,47 @@ function injectStyles() {
 /* ── Tooltip ─────────────────────────────────────────────── */
 function Tooltip({ anchorEl, title, desc, color, onClose }) {
   const ref = useRef(null)
-  const [pos, setPos] = useState({ top: -999, left: -999 })
+  const [pos, setPos] = useState({ top: -999, left: -999, opacity: 0 })
 
   useEffect(() => {
     if (!anchorEl || !ref.current) return
-    const a = anchorEl.getBoundingClientRect()
-    const tw = ref.current.offsetWidth || 210
-    const th = ref.current.offsetHeight || 120
+    const a  = anchorEl.getBoundingClientRect()
+    const tw = ref.current.offsetWidth  || 200
+    const th = ref.current.offsetHeight || 110
     const vw = window.innerWidth
     const vh = window.innerHeight
     let left = a.left + a.width / 2 - tw / 2
     let top  = a.bottom + 8
-    if (left < 10) left = 10
+    if (left < 10)          left = 10
     if (left + tw > vw - 10) left = vw - tw - 10
-    if (top + th > vh - 10) top = a.top - th - 8
-    setPos({ top, left })
+    if (top + th > vh - 10)  top  = a.top - th - 8
+    setPos({ top, left, opacity: 1 })
   }, [anchorEl])
 
-  const onDown = useCallback((e) => {
+  const dismiss = useCallback((e) => {
     if (ref.current && !ref.current.contains(e.target) &&
         anchorEl && !anchorEl.contains(e.target)) onClose()
   }, [anchorEl, onClose])
 
   useEffect(() => {
-    document.addEventListener('mousedown', onDown)
-    document.addEventListener('touchstart', onDown)
+    document.addEventListener('mousedown', dismiss)
+    document.addEventListener('touchstart', dismiss)
     return () => {
-      document.removeEventListener('mousedown', onDown)
-      document.removeEventListener('touchstart', onDown)
+      document.removeEventListener('mousedown', dismiss)
+      document.removeEventListener('touchstart', dismiss)
     }
-  }, [onDown])
+  }, [dismiss])
 
   return (
-    <div ref={ref} className="nb-tip" style={{ top: pos.top, left: pos.left }}
+    <div ref={ref} className="nb-tip"
+      style={{ top: pos.top, left: pos.left, opacity: pos.opacity }}
       onClick={e => e.stopPropagation()}>
       <p className="nb-tip-title" style={{ color }}>{title}</p>
       <p className="nb-tip-desc">{desc}</p>
       <div className="nb-tip-ctas">
-        <a href="/upgrade" className="nb-tip-btn nb-tip-primary"
-          style={{ background: color }} onClick={onClose}>Upgrade</a>
+        <a href="/upgrade" className="nb-tip-btn"
+          style={{ background: color, color: '#000' }}
+          onClick={onClose}>Upgrade</a>
         <a href="/help-desk" className="nb-tip-btn nb-tip-secondary"
           onClick={onClose}>Help</a>
       </div>
@@ -127,7 +136,7 @@ function Tooltip({ anchorEl, title, desc, color, onClose }) {
   )
 }
 
-/* ── Badge wrapper (click → tooltip) ────────────────────── */
+/* ── Badge wrapper ───────────────────────────────────────── */
 function BadgeBtn({ children, tip }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
@@ -139,7 +148,9 @@ function BadgeBtn({ children, tip }) {
                  WebkitTapHighlightColor:'transparent' }}>
         {children}
       </span>
-      {open && <Tooltip anchorEl={ref.current} {...tip} onClose={() => setOpen(false)} />}
+      {open && (
+        <Tooltip anchorEl={ref.current} {...tip} onClose={() => setOpen(false)} />
+      )}
     </>
   )
 }
@@ -170,7 +181,7 @@ export function DiamondBadge({ size = 16 }) {
           <stop offset="100%" stopColor="#93c5fd"/>
         </linearGradient>
         <filter id="nb-dg" x="-25%" y="-25%" width="150%" height="150%">
-          <feGaussianBlur stdDeviation="0.9" result="b"/>
+          <feGaussianBlur stdDeviation=".9" result="b"/>
           <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
         </filter>
       </defs>
@@ -207,7 +218,9 @@ export function ProBadge({ size = 16 }) {
 }
 
 /* ── Main export ─────────────────────────────────────────── */
-export default function UserBadges({ email, plan, planExpiresAt, countryFlag, isSeasonWinner, size = 16, gap = 3 }) {
+export default function UserBadges({
+  email, plan, planExpiresAt, countryFlag, isSeasonWinner, size = 16, gap = 3
+}) {
   useEffect(injectStyles, [])
   const isAdmin  = ADMIN_EMAILS.includes(email)
   const ap       = getActivePlan({ plan, plan_expires_at: planExpiresAt })
@@ -215,37 +228,47 @@ export default function UserBadges({ email, plan, planExpiresAt, countryFlag, is
   const isPro    = ap === 'pro'
   const showFlag = !!countryFlag
   const showFire = !!isSeasonWinner
-
   if (!isAdmin && !isElite && !isPro && !showFlag && !showFire) return null
 
-  const flagLabel = countryFlag ? countryFlag.charAt(0).toUpperCase() + countryFlag.slice(1) : ''
+  const flagLabel = countryFlag
+    ? countryFlag.charAt(0).toUpperCase() + countryFlag.slice(1) : ''
 
   return (
-    <span style={{ display:'inline-flex', alignItems:'center', gap, verticalAlign:'middle', marginLeft:gap, flexShrink:0 }}>
+    <span style={{ display:'inline-flex', alignItems:'center', gap,
+                   verticalAlign:'middle', marginLeft:gap, flexShrink:0 }}>
       {isAdmin && (
-        <BadgeBtn tip={{ title:'Admin', desc:'This user is a Nabogaming platform administrator.', color:'#22c55e' }}>
-          <img src="/tick.png" alt="Admin" style={{ width:size, height:size, display:'block' }}/>
+        <BadgeBtn tip={{ title:'Admin', color:'#22c55e',
+          desc:'This user is a Nabogaming platform administrator.' }}>
+          <img src="/tick.png" alt="Admin"
+            style={{ width:size, height:size, display:'block' }}/>
         </BadgeBtn>
       )}
       {isElite && (
-        <BadgeBtn tip={{ title:'Elite', desc: ap === 'team' ? 'Team plan — includes Elite perks plus full team features.' : 'Elite subscriber. Can create tournaments, sell in the shop, and more.', color:'#38bdf8' }}>
+        <BadgeBtn tip={{ title:'Elite', color:'#38bdf8',
+          desc: ap === 'team'
+            ? 'Team plan member. Includes Elite perks and full team features.'
+            : 'Elite subscriber. Can create tournaments, sell in the shop, and more.' }}>
           <DiamondBadge size={size}/>
         </BadgeBtn>
       )}
       {isPro && (
-        <BadgeBtn tip={{ title:'Pro', desc:'Pro subscriber. Unlimited tournament entries, DMs, and access to Pro-only events.', color:'#a855f7' }}>
+        <BadgeBtn tip={{ title:'Pro', color:'#a855f7',
+          desc:'Pro subscriber. Unlimited tournament entries, DMs, and Pro-only events.' }}>
           <ProBadge size={size}/>
         </BadgeBtn>
       )}
       {showFlag && (
-        <BadgeBtn tip={{ title: flagLabel, desc:`This player is based in ${flagLabel}.`, color:'#f59e0b' }}>
+        <BadgeBtn tip={{ title: flagLabel, color:'#f59e0b',
+          desc:`This player is based in ${flagLabel}.` }}>
           <img src={`/${countryFlag}.png`} alt={countryFlag}
             style={{ width:size, height:size, display:'block', borderRadius:2 }}/>
         </BadgeBtn>
       )}
       {showFire && (
-        <BadgeBtn tip={{ title:'Season Champion', desc:'This player has won a past season championship.', color:'#f97316' }}>
-          <img src="/fire.png" alt="Season Champion" style={{ width:size, height:size, display:'block' }}/>
+        <BadgeBtn tip={{ title:'Season Champion', color:'#f97316',
+          desc:'This player has won a past season championship.' }}>
+          <img src="/fire.png" alt="Season Champion"
+            style={{ width:size, height:size, display:'block' }}/>
         </BadgeBtn>
       )}
     </span>

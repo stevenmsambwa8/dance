@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Modal from '../../components/Modal'
 import { useAuth, isHelpdeskEmail } from '../../components/AuthProvider'
@@ -13,11 +13,82 @@ import { useOnlineUsers } from '../../lib/usePresence'
 import { RANK_META, GAME_SLUGS, GAME_META } from '../../lib/constants'
 
 const GAME_MODES = ['Elimination', 'Capture', 'Deathmatch', 'Sniper', 'Team Battle']
+const PAGE_SIZE  = 30
 
+/* ── Daily Spotlight Cards ───────────────────────────────── */
+function SpotlightCards({ players, onlineIds, onNavigate }) {
+  const scrollRef = useRef(null)
+
+  // Pick 3 deterministic random users per calendar day
+  const featured = useMemo(() => {
+    if (!players.length) return []
+    const today   = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
+    const seed    = today.split('-').reduce((a, b) => a + Number(b), 0)
+    const pool    = players.filter(p => !isHelpdeskEmail(p.email))
+    const shuffled = [...pool].sort((a, b) => {
+      const ha = ((seed ^ a.id.charCodeAt?.(0) ?? 0) * 2654435761) >>> 0
+      const hb = ((seed ^ b.id.charCodeAt?.(0) ?? 0) * 2654435761) >>> 0
+      return ha - hb
+    })
+    return shuffled.slice(0, 3)
+  }, [players])
+
+  if (!featured.length) return null
+
+  return (
+    <div className={styles.spotlightWrap}>
+      <p className={styles.spotlightLabel}>
+        <i className="ri-sparkling-line"/> Daily Spotlight
+      </p>
+      <div ref={scrollRef} className={styles.spotlightScroll}>
+        {featured.map(p => {
+          const rank   = RANK_META[p.tier] || RANK_META.Gold
+          const online = onlineIds.has(p.id)
+          const wr     = p.wins && p.total_matches
+            ? Math.round((p.wins / p.total_matches) * 100) : null
+          return (
+            <div key={p.id} className={styles.spotlightCard}
+              onClick={() => onNavigate(`/profile/${p.id}`)}>
+              {/* Avatar */}
+              <div className={styles.spAvatarWrap}>
+                <div className={styles.spAvatar}>
+                  {p.avatar_url
+                    ? <img src={p.avatar_url} alt=""/>
+                    : <span>{(p.username || '?').slice(0, 2).toUpperCase()}</span>
+                  }
+                </div>
+                <span className={styles.spOnline}
+                  style={{ background: online ? '#22c55e' : 'var(--border-dark)' }}/>
+              </div>
+              {/* Info */}
+              <div className={styles.spName}>
+                {(p.username || '?').length > 12
+                  ? (p.username || '?').slice(0, 12) + '…'
+                  : (p.username || '?')}
+                <UserBadges
+                  email={p.email} plan={p.plan} planExpiresAt={p.plan_expires_at}
+                  countryFlag={p.country_flag} isSeasonWinner={p.is_season_winner}
+                  size={11} gap={2}/>
+              </div>
+              <div className={styles.spMeta} style={{ color: rank.color }}>{p.tier}</div>
+              <div className={styles.spStats}>
+                <span>{p.wins ?? 0}W</span>
+                {wr !== null && <span>{wr}%</span>}
+                <span>Lv.{p.level ?? 1}</span>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+/* ── Main page ───────────────────────────────────────────── */
 export default function PlayersPage() {
   const { user, profile } = useAuth()
-  const { openAuthGate } = useAuthGate()
-  const router = useRouter()
+  const { openAuthGate }  = useAuthGate()
+  const router            = useRouter()
   const [players, setPlayers]           = useState([])
   const [following, setFollowing]       = useState({})
   const [challengeTarget, setChallengeTarget] = useState(null)
@@ -40,12 +111,10 @@ export default function PlayersPage() {
   const [recruitSent, setRecruitSent]       = useState(false)
   const [recruitSending, setRecruitSending] = useState(false)
 
-  const PAGE_SIZE = 30
-
   useEffect(() => { loadPlayers(0) }, [])
 
   useEffect(() => {
-    if (!user || players.length === 0) return
+    if (!user || !players.length) return
     supabase.from('follows').select('following_id').eq('follower_id', user.id)
       .then(({ data }) => {
         if (!data) return
@@ -63,14 +132,10 @@ export default function PlayersPage() {
       .from('profiles')
       .select('*')
       .order('level', { ascending: false })
-      .order('wins', { ascending: false })
+      .order('wins',  { ascending: false })
       .range(from, to)
     const rows = data || []
-    if (pageNum === 0) {
-      setPlayers(rows)
-    } else {
-      setPlayers(p => [...p, ...rows])
-    }
+    setPlayers(prev => pageNum === 0 ? rows : [...prev, ...rows])
     setHasMore(rows.length === PAGE_SIZE)
     setPage(pageNum)
     setLoading(false)
@@ -82,7 +147,8 @@ export default function PlayersPage() {
     const isF = following[playerId]
     setFollowing(f => ({ ...f, [playerId]: !isF }))
     if (isF) {
-      await supabase.from('follows').delete().eq('follower_id', user.id).eq('following_id', playerId)
+      await supabase.from('follows').delete()
+        .eq('follower_id', user.id).eq('following_id', playerId)
     } else {
       await supabase.from('follows').insert({ follower_id: user.id, following_id: playerId })
     }
@@ -90,7 +156,7 @@ export default function PlayersPage() {
 
   async function sendChallenge() {
     if (!user) { openAuthGate(); return }
-    const slug = `${(profile?.username || 'player').toLowerCase().replace(/[^a-z0-9]/g, '')}-vs-${(challengeTarget.username || 'player').toLowerCase().replace(/[^a-z0-9]/g, '')}-${Math.random().toString(36).slice(2, 8)}`
+    const slug = `${(profile?.username||'p').toLowerCase().replace(/[^a-z0-9]/g,'')}-vs-${(challengeTarget.username||'p').toLowerCase().replace(/[^a-z0-9]/g,'')}-${Math.random().toString(36).slice(2,8)}`
     await supabase.from('matches').insert({
       challenger_id: user.id, challenged_id: challengeTarget.id,
       game, game_mode: mode, format, status: 'pending',
@@ -103,7 +169,7 @@ export default function PlayersPage() {
   async function sendRecruit() {
     if (!user) { openAuthGate(); return }
     setRecruitSending(true)
-    const slug = `open-${recruitGame}-${Math.random().toString(36).slice(2, 8)}`
+    const slug = `open-${recruitGame}-${Math.random().toString(36).slice(2,8)}`
     const { data: match, error } = await supabase.from('matches').insert({
       challenger_id: user.id, challenged_id: null,
       game: recruitGame, game_mode: recruitMode,
@@ -130,6 +196,8 @@ export default function PlayersPage() {
 
   return (
     <div className={styles.page}>
+
+      {/* Header */}
       <div className={styles.header}>
         <div>
           <p className={styles.eyebrow}>Season {getCurrentSeason()} · PlayWithFriends</p>
@@ -137,29 +205,56 @@ export default function PlayersPage() {
         </div>
         <button className={styles.recruitHeaderBtn}
           onClick={() => { if (!user) { openAuthGate(); return } setRecruitOpen(true) }}>
-          <i className="ri-megaphone-line" /> Recruit
+          <i className="ri-megaphone-line"/> Recruit
         </button>
       </div>
 
+      {/* Spotlight cards — only shown before search */}
+      {!search && (
+        <SpotlightCards
+          players={players}
+          onlineIds={onlineIds}
+          onNavigate={router.push.bind(router)}
+        />
+      )}
+
+      {/* Search */}
       <div className={styles.searchWrap}>
-        <i className="ri-search-line" />
+        <i className="ri-search-line"/>
         <input className={styles.searchInput} placeholder="Search players…"
-          value={search} onChange={e => setSearch(e.target.value)} />
+          value={search} onChange={e => setSearch(e.target.value)}/>
         {search && (
           <button onClick={() => setSearch('')}
-            style={{ background:'none', border:'none', color:'var(--text-muted)', cursor:'pointer', padding:0, fontSize:16 }}>
-            <i className="ri-close-line" />
+            style={{ background:'none', border:'none', color:'var(--text-muted)',
+                     cursor:'pointer', padding:0, fontSize:16, lineHeight:1 }}>
+            <i className="ri-close-line"/>
           </button>
         )}
       </div>
 
       {/* Stats strip */}
-      <div style={{ display:'flex', gap:8, marginBottom:14, fontSize:11, color:'var(--text-muted)', fontWeight:600 }}>
-        <span><i className="ri-group-line" style={{ marginRight:3 }}/>{players.length} players</span>
+      <div className={styles.statsStrip}>
+        <span><i className="ri-group-line"/> {players.length} players</span>
         <span>·</span>
-        <span style={{ color:'#22c55e' }}><i className="ri-radio-button-line" style={{ marginRight:3 }}/>{onlineIds.size} online</span>
+        <span style={{ color:'#22c55e' }}>
+          <i className="ri-radio-button-line"/> {onlineIds.size} online
+        </span>
       </div>
 
+      {/* Skeleton */}
+      {loading && page === 0 && (
+        <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+          {[...Array(7)].map((_, i) => (
+            <div key={i} style={{
+              height:64, borderRadius:14,
+              background:'var(--surface)', border:'1px solid var(--border)',
+              opacity: 1 - i * 0.1,
+            }}/>
+          ))}
+        </div>
+      )}
+
+      {/* List */}
       {!loading && (
         <div className={styles.list}>
           {filtered.map((p, idx) => {
@@ -167,39 +262,32 @@ export default function PlayersPage() {
             const isOnline  = onlineIds.has(p.id)
             const isSupport = isHelpdeskEmail(p.email)
             const isPartner = p.tier === 'Partner'
-            const winRate   = p.wins && p.total_matches
+            const wr        = p.wins && p.total_matches
               ? Math.round((p.wins / p.total_matches) * 100) : null
 
             return (
               <div key={p.id} className={styles.playerRow}
-                style={isSupport ? { border:'1px solid var(--accent)', background:'var(--card)' } : {}}
+                style={isSupport ? { border:'1px solid var(--accent)' } : {}}
                 onClick={() => router.push(`/profile/${p.id}`)}>
 
-                {/* Rank number */}
+                {/* Rank */}
                 {!isSupport
                   ? <span className={styles.rankNum}>#{idx + 1}</span>
-                  : <span style={{ fontSize:18, width:32, textAlign:'center' }}>
+                  : <span style={{ fontSize:18, width:28, textAlign:'center', flexShrink:0 }}>
                       <i className="ri-customer-service-2-line" style={{ color:'var(--accent)' }}/>
                     </span>
                 }
 
-                {/* Avatar */}
-                <div className={styles.playerAvatar} style={
-                  isSupport ? { border:'2px solid var(--accent)' } :
-                  isPartner ? { border:'2px solid #22c55e', boxShadow:'0 0 0 2px rgba(34,197,94,.2)' } :
-                  {}
-                }>
-                  {p.avatar_url
-                    ? <img src={p.avatar_url} alt=""/>
-                    : <span>{(p.username || '?').slice(0, 2).toUpperCase()}</span>
-                  }
-                  {/* Online dot overlaid on avatar */}
-                  <span style={{
-                    position:'absolute', bottom:0, right:0,
-                    width:9, height:9, borderRadius:'50%',
-                    background: isOnline ? '#22c55e' : 'var(--border-dark)',
-                    border:'2px solid var(--bg)',
-                  }}/>
+                {/* Avatar — no border, online dot overlay */}
+                <div className={styles.avatarWrap}>
+                  <div className={styles.playerAvatar}>
+                    {p.avatar_url
+                      ? <img src={p.avatar_url} alt=""/>
+                      : <span>{(p.username || '?').slice(0, 2).toUpperCase()}</span>
+                    }
+                  </div>
+                  <span className={styles.onlineDot}
+                    style={{ background: isOnline ? '#22c55e' : 'var(--border-dark)' }}/>
                 </div>
 
                 {/* Info */}
@@ -209,10 +297,8 @@ export default function PlayersPage() {
                     <UserBadges
                       email={p.email} plan={p.plan} planExpiresAt={p.plan_expires_at}
                       countryFlag={p.country_flag} isSeasonWinner={p.is_season_winner}
-                      size={13} gap={2}
-                    />
+                      size={13} gap={2}/>
                   </span>
-
                   {!isSupport ? (
                     <span className={styles.playerMeta}>
                       {isPartner ? (
@@ -224,11 +310,11 @@ export default function PlayersPage() {
                       )}
                       {' · '}Lv.{p.level ?? 1}
                       {' · '}{p.wins ?? 0}W
-                      {winRate !== null && <span style={{ color:'var(--text-dim)' }}> · {winRate}%WR</span>}
-                      {' · '}<i className="ri-user-follow-line"/> {p.followers_count ?? 0}
+                      {wr !== null && <span style={{ color:'var(--text-dim)' }}> · {wr}%WR</span>}
                     </span>
                   ) : (
-                    <span className={styles.playerMeta} style={{ color:'var(--accent)', fontWeight:600 }}>
+                    <span className={styles.playerMeta}
+                      style={{ color:'var(--accent)', fontWeight:600 }}>
                       Official Support · Tap to contact
                     </span>
                   )}
@@ -256,38 +342,20 @@ export default function PlayersPage() {
             )
           })}
 
-          {filtered.length === 0 && !loading && (
-            <div style={{ padding:'32px 0', textAlign:'center', color:'var(--text-muted)', fontSize:13 }}>
-              <i className="ri-user-search-line" style={{ fontSize:28, display:'block', marginBottom:8, opacity:.4 }}/>
+          {filtered.length === 0 && (
+            <div style={{ padding:'36px 0', textAlign:'center', color:'var(--text-muted)', fontSize:13 }}>
+              <i className="ri-user-search-line"
+                style={{ fontSize:28, display:'block', marginBottom:8, opacity:.35 }}/>
               No players found.
             </div>
           )}
 
-          {/* Load more */}
           {!search && hasMore && (
-            <button
-              onClick={() => loadPlayers(page + 1)}
-              style={{
-                width:'100%', padding:'12px 0', marginTop:6,
-                background:'var(--surface)', border:'1px solid var(--border)',
-                borderRadius:10, color:'var(--text-muted)', fontSize:12, fontWeight:700,
-                cursor:'pointer',
-              }}>
+            <button className={styles.loadMoreBtn}
+              onClick={() => loadPlayers(page + 1)}>
               Load more players
             </button>
           )}
-        </div>
-      )}
-
-      {loading && (
-        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-          {[...Array(8)].map((_, i) => (
-            <div key={i} style={{
-              height:62, borderRadius:12, background:'var(--surface)',
-              border:'1px solid var(--border)',
-              opacity: 1 - i * 0.1,
-            }}/>
-          ))}
         </div>
       )}
 
@@ -295,12 +363,11 @@ export default function PlayersPage() {
       <Modal open={!!challengeTarget}
         onClose={() => { setChallengeTarget(null); setSent(false); setFormat(''); setScheduledAt('') }}
         title="Request Match" size="sm"
-        footer={
-          sent
-            ? <span className={styles.sentMsg}><i className="ri-check-line"/> Request sent!</span>
-            : <button className={styles.sendBtn} onClick={sendChallenge}>
-                <i className="ri-send-plane-line"/> Send Challenge
-              </button>
+        footer={sent
+          ? <span className={styles.sentMsg}><i className="ri-check-line"/> Request sent!</span>
+          : <button className={styles.sendBtn} onClick={sendChallenge}>
+              <i className="ri-send-plane-line"/> Send Challenge
+            </button>
         }>
         {challengeTarget && (
           <div className={styles.challengeBody}>
@@ -323,7 +390,7 @@ export default function PlayersPage() {
                 {GAME_SLUGS.map(g => (
                   <button key={g} className={`${styles.modeBtn} ${game === g ? styles.modeActive : ''}`}
                     onClick={() => setGame(g)}>
-                    <i className={GAME_META[g]?.icon} style={{ marginRight:5 }}/>{GAME_META[g]?.name || g}
+                    <i className={GAME_META[g]?.icon} style={{ marginRight:4 }}/>{GAME_META[g]?.name || g}
                   </button>
                 ))}
               </div>
@@ -339,11 +406,11 @@ export default function PlayersPage() {
             </div>
             <div className={styles.formField}>
               <label>Format</label>
-              <input className={styles.textInput} placeholder="e.g. Bo3, Bo5, Round Robin…"
+              <input className={styles.textInput} placeholder="e.g. Bo3, Bo5…"
                 value={format} onChange={e => setFormat(e.target.value)}/>
             </div>
             <div className={styles.formField}>
-              <label>Proposed Date & Time</label>
+              <label>Date & Time</label>
               <input type="datetime-local" className={styles.textInput}
                 value={scheduledAt} onChange={e => setScheduledAt(e.target.value)}/>
             </div>
@@ -355,12 +422,11 @@ export default function PlayersPage() {
       <Modal open={recruitOpen}
         onClose={() => { if (!recruitSending) { setRecruitOpen(false); setRecruitSent(false); setRecruitMessage('') } }}
         title="Recruit an Opponent" size="sm"
-        footer={
-          recruitSent
-            ? <span className={styles.sentMsg}><i className="ri-check-line"/> Call-out sent!</span>
-            : <button className={styles.sendBtn} disabled={recruitSending} onClick={sendRecruit}>
-                <i className="ri-megaphone-line"/> {recruitSending ? 'Sending…' : 'Post & Notify'}
-              </button>
+        footer={recruitSent
+          ? <span className={styles.sentMsg}><i className="ri-check-line"/> Call-out sent!</span>
+          : <button className={styles.sendBtn} disabled={recruitSending} onClick={sendRecruit}>
+              <i className="ri-megaphone-line"/> {recruitSending ? 'Sending…' : 'Post & Notify'}
+            </button>
         }>
         <div className={styles.challengeBody}>
           <p style={{ fontSize:12, color:'var(--text-muted)', margin:0, lineHeight:1.5 }}>
@@ -372,7 +438,7 @@ export default function PlayersPage() {
               {GAME_SLUGS.map(g => (
                 <button key={g} className={`${styles.modeBtn} ${recruitGame === g ? styles.modeActive : ''}`}
                   onClick={() => setRecruitGame(g)}>
-                  <i className={GAME_META[g]?.icon} style={{ marginRight:5 }}/>{GAME_META[g]?.name || g}
+                  <i className={GAME_META[g]?.icon} style={{ marginRight:4 }}/>{GAME_META[g]?.name || g}
                 </button>
               ))}
             </div>

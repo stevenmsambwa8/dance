@@ -14,6 +14,68 @@
 .recruitHeaderBtn i { font-size: 14px; }
 .recruitHeaderBtn:active { opacity: 0.8; }
 
+/* ── Daily Spotlight ── */
+.spotlightWrap { margin-bottom: 18px; }
+.spotlightLabel {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-muted); margin-bottom: 10px;
+}
+.spotlightLabel i { color: #f59e0b; font-size: 13px; }
+
+.spotlightScroll {
+  display: flex; gap: 10px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 4px;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.spotlightScroll::-webkit-scrollbar { display: none; }
+
+.spotlightCard {
+  scroll-snap-align: start;
+  flex: 0 0 auto;
+  width: 132px;
+  padding: 14px 12px;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  transition: border-color 0.12s, transform 0.12s;
+}
+.spotlightCard:active { transform: scale(0.97); border-color: var(--border-dark); }
+
+.spAvatarWrap { position: relative; margin-bottom: 9px; }
+.spAvatar {
+  width: 52px; height: 52px; border-radius: 14px;
+  background: var(--bg-2);
+  color: var(--text); font-size: 14px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.spAvatar img { width: 100%; height: 100%; object-fit: cover; }
+.spOnline {
+  position: absolute; bottom: -2px; right: -2px;
+  width: 12px; height: 12px; border-radius: 50%;
+  border: 2.5px solid var(--surface);
+}
+
+.spName {
+  font-size: 12.5px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; gap: 2px;
+  white-space: nowrap; max-width: 100%;
+}
+.spMeta { font-size: 10px; font-weight: 700; margin-top: 2px; }
+.spStats {
+  display: flex; gap: 6px; margin-top: 7px;
+  font-size: 10px; color: var(--text-muted); font-weight: 600;
+}
+
 .searchWrap {
   display: flex; align-items: center; gap: 8px;
   background: var(--surface); border: 1px solid var(--border);
@@ -22,6 +84,12 @@
 .searchWrap i { color: var(--text-muted); font-size: 16px; flex-shrink: 0; }
 .searchInput { flex: 1; background: none; border: none; outline: none; font-family: var(--font); font-size: 13px; color: var(--text); }
 .searchInput::placeholder { color: var(--text-muted); }
+
+.statsStrip {
+  display: flex; gap: 8px; align-items: center;
+  margin-bottom: 14px; font-size: 11px; color: var(--text-muted); font-weight: 600;
+}
+.statsStrip i { margin-right: 3px; }
 
 .list { display: flex; flex-direction: column; gap: 6px; }
 
@@ -44,14 +112,27 @@
   width: 28px; flex-shrink: 0; text-align: right;
 }
 
+/* Avatar — no border, online dot reliably overlaid */
+.avatarWrap { position: relative; flex-shrink: 0; line-height: 0; }
 .playerAvatar {
   width: 42px; height: 42px; border-radius: 10px;
-  background: var(--surface-dim, var(--surface));
+  background: var(--bg-2);
   color: var(--text); font-size: 12px; font-weight: 800;
   display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; overflow: visible; position: relative;
+  overflow: hidden;
 }
-.playerAvatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 9px; }
+.playerAvatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.onlineDot {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 2.5px solid var(--bg);
+  box-sizing: border-box;
+  z-index: 2;
+}
 
 .playerInfo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .playerName {
@@ -76,6 +157,14 @@
 .followBtn:hover  { background: var(--surface); color: var(--text); }
 .following { background: var(--text) !important; color: var(--bg) !important; border-color: var(--text) !important; }
 .challengeBtn:hover { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+.loadMoreBtn {
+  width: 100%; padding: 12px 0; margin-top: 6px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; color: var(--text-muted); font-size: 12px; font-weight: 700;
+  cursor: pointer;
+}
+.loadMoreBtn:hover { color: var(--text); border-color: var(--border-dark); }
 
 /* Challenge / recruit modal */
 .challengeBody { display: flex; flex-direction: column; gap: 16px; }
@@ -110,4 +199,5 @@
   .rankNum { display: none; }
   .rowActions { gap: 4px; }
   .followBtn, .challengeBtn { width: 30px; height: 30px; font-size: 14px; }
+  .spotlightCard { width: 116px; padding: 12px 10px; }
 }
