@@ -67,40 +67,33 @@ export default function ClansPage() {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <div>
-          <p className={styles.eyebrow}>Squad up · Compete together</p>
-          <h1 className={styles.headline}>CLANS</h1>
+        <p className={styles.eyebrow}>Squad up · Compete together</p>
+        <h1 className={styles.headline}>CLANS</h1>
+      </div>
+
+      <div className={styles.toolbar}>
+        <div className={styles.searchWrap}>
+          <i className="ri-search-line"/>
+          <input className={styles.searchInput} placeholder="Search…"
+            value={search} onChange={e => setSearch(e.target.value)}/>
         </div>
+
+        <select className={styles.gameSelect} value={game} onChange={e => setGame(e.target.value)}>
+          <option value="all">All games</option>
+          {GAME_SLUGS.map(g => (
+            <option key={g} value={g}>{GAME_META[g]?.name || g}</option>
+          ))}
+        </select>
+
         {myClanCode ? (
           <button className={styles.myClanBtn} onClick={() => router.push(`/clans/${myClanCode}`)}>
             <i className="ri-shield-star-line"/> My Clan
           </button>
         ) : (
           <button className={styles.createBtn} onClick={handleCreate}>
-            <i className="ri-add-line"/> Create Clan
+            <i className="ri-add-line"/> Create
           </button>
         )}
-      </div>
-
-      <div className={styles.gameTabs}>
-        <button
-          className={`${styles.gameTab} ${game === 'all' ? styles.gameTabActive : ''}`}
-          onClick={() => setGame('all')}>
-          <i className="ri-apps-2-line"/> All
-        </button>
-        {GAME_SLUGS.map(g => (
-          <button key={g}
-            className={`${styles.gameTab} ${game === g ? styles.gameTabActive : ''}`}
-            onClick={() => setGame(g)}>
-            <i className={GAME_META[g]?.icon}/> {GAME_META[g]?.name || g}
-          </button>
-        ))}
-      </div>
-
-      <div className={styles.searchWrap}>
-        <i className="ri-search-line"/>
-        <input className={styles.searchInput} placeholder="Search clans…"
-          value={search} onChange={e => setSearch(e.target.value)}/>
       </div>
 
       <div className={styles.infoStrip}>
