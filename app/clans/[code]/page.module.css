@@ -116,7 +116,7 @@
   border: 2px solid var(--bg);
 }
 .memberInfo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.memberName { font-size: 12.5px; font-weight: 700; }
+.memberName { font-size: 12.5px; font-weight: 700; display: flex; align-items: center; }
 .memberRole { font-size: 10.5px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
 
 .loadingHero { height: 200px; border-radius: 16px; background: var(--surface); }

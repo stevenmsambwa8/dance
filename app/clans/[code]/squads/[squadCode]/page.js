@@ -1,7 +1,6 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import Link from 'next/link'
 import Modal from '../../../../../components/Modal'
 import MemberPreviewModal from '../../../../../components/MemberPreviewModal'
 import UserBadges from '../../../../../components/UserBadges'
@@ -20,33 +19,29 @@ export default function SquadPage() {
   const { user } = useAuth()
   const { openAuthGate } = useAuthGate()
   const onlineIds = useOnlineUsers()
+  const imgRef = useRef()
 
   const [clan, setClan]       = useState(null)
   const [squad, setSquad]     = useState(null)
   const [members, setMembers] = useState([])
-  const [myMembership, setMyMembership] = useState(null) // clan_members row for current user
+  const [myMembership, setMyMembership] = useState(null)
   const [loading, setLoading] = useState(true)
   usePageLoading(loading)
 
-  const [confirmOpen, setConfirmOpen] = useState(null) // 'leave' | 'kick' | null
-  const [kickTarget, setKickTarget]   = useState(null)
-  const [acting, setActing]           = useState(false)
-
   const [previewMember, setPreviewMember] = useState(null)
 
-  // Edit squad (squad leader only)
+  const [confirmOpen, setConfirmOpen] = useState(null) // 'leave' | 'kick' | 'delete_squad' | null
+  const [kickTarget, setKickTarget]   = useState(null)
+  const [acting, setActing]           = useState(false)
+  const [actionError, setActionError] = useState('')
+
+  // Squad edit (name/image) — squad leader or clan leader only
   const [editOpen, setEditOpen]       = useState(false)
   const [editSuffix, setEditSuffix]   = useState('')
   const [editImgFile, setEditImgFile] = useState(null)
   const [editImgPreview, setEditImgPreview] = useState(null)
-  const [editSaving, setEditSaving]   = useState(false)
+  const [savingEdit, setSavingEdit]   = useState(false)
   const [editError, setEditError]     = useState('')
-
-  // Delete squad (squad leader only)
-  const [deleteOpen, setDeleteOpen]       = useState(false)
-  const [deleteConfirmText, setDeleteConfirmText] = useState('')
-  const [deleting, setDeleting]           = useState(false)
-  const [deleteError, setDeleteError]     = useState('')
 
   useEffect(() => { if (code && squadCode) loadAll() }, [code, squadCode, user])
 
@@ -66,6 +61,11 @@ export default function SquadPage() {
     setClan(clanData)
     setSquad(squadData)
     setMembers(memberData || [])
+    setEditImgPreview(squadData.image_url)
+    // strip the clan prefix off for editing convenience
+    setEditSuffix(squadData.name.startsWith(clanData.tag_prefix)
+      ? squadData.name.slice(clanData.tag_prefix.length)
+      : squadData.name)
 
     if (user) {
       const { data: mine } = await supabase.from('clan_members')
@@ -75,17 +75,15 @@ export default function SquadPage() {
     setLoading(false)
   }
 
-  const isInThisSquad = myMembership?.squad_id === squad?.id
-  const isSquadLeader = squad?.leader_id === user?.id
-  const isClanLeader  = clan?.leader_id === user?.id
+  const isInThisSquad   = myMembership?.squad_id === squad?.id
+  const isSquadLeader   = squad?.leader_id === user?.id
+  const isClanLeader    = clan?.leader_id === user?.id
   const isInClanNoSquad = myMembership && !myMembership.squad_id
+  const canManage        = isSquadLeader || isClanLeader
 
   async function handleJoinSquad() {
     if (!user) { openAuthGate(); return }
-    if (!myMembership) {
-      router.push(`/clans/${code}`) // must join clan first
-      return
-    }
+    if (!myMembership) { router.push(`/clans/${code}`); return }
     if (squad.member_count >= SQUAD_SIZE) return
     await supabase.from('clan_members')
       .update({ squad_id: squad.id, role: myMembership.role === 'leader' ? 'leader' : 'member' })
@@ -112,9 +110,16 @@ export default function SquadPage() {
   async function handleKick() {
     if (!kickTarget) return
     setActing(true)
-    await supabase.from('clan_members')
+    setActionError('')
+    const { error } = await supabase.from('clan_members')
       .update({ squad_id: null, role: 'member' })
       .eq('id', kickTarget.id)
+
+    if (error) {
+      setActionError(error.message)
+      setActing(false)
+      return
+    }
 
     if (squad.leader_id === kickTarget.user_id) {
       await supabase.rpc('reassign_squad_leader', { p_squad_id: squad.id })
@@ -125,13 +130,9 @@ export default function SquadPage() {
     loadAll()
   }
 
-  // ── Edit squad (squad leader only) ──
-  function openEditSquad() {
-    if (!isSquadLeader) return
-    const prefix = clan.tag_prefix || ''
-    setEditSuffix(squad.name.startsWith(prefix) ? squad.name.slice(prefix.length) : squad.name)
-    setEditImgFile(null)
-    setEditImgPreview(squad.image_url)
+  // ── Edit squad name/image ──
+  function openEdit() {
+    if (!canManage) return
     setEditError('')
     setEditOpen(true)
   }
@@ -143,12 +144,13 @@ export default function SquadPage() {
     setEditImgPreview(URL.createObjectURL(file))
   }
 
-  async function handleSaveSquad() {
-    if (!isSquadLeader || !squad) return
+  async function handleSaveEdit() {
+    if (!squad || !clan) return
     const suffix = editSuffix.trim()
     if (!suffix) { setEditError('Squad name is required.'); return }
+    const fullName = `${clan.tag_prefix}${suffix}`
 
-    setEditSaving(true)
+    setSavingEdit(true)
     setEditError('')
 
     let image_url = squad.image_url
@@ -158,40 +160,37 @@ export default function SquadPage() {
       const { error: upErr } = await supabase.storage.from('squad-images').upload(path, editImgFile)
       if (upErr) {
         setEditError(`Image upload failed: ${upErr.message}`)
-        setEditSaving(false)
+        setSavingEdit(false)
         return
       }
       const { data: pub } = supabase.storage.from('squad-images').getPublicUrl(path)
       image_url = pub.publicUrl
     }
 
-    const { error } = await supabase
-      .from('clan_squads')
-      .update({ name: `${clan.tag_prefix}${suffix}`, image_url })
+    const { error } = await supabase.from('clan_squads')
+      .update({ name: fullName, image_url })
       .eq('id', squad.id)
 
     if (error) {
-      setEditError(error.message)
-      setEditSaving(false)
+      setEditError(error.message.includes('duplicate') ? 'A squad with this name already exists.' : error.message)
+      setSavingEdit(false)
       return
     }
 
-    setEditSaving(false)
+    setSavingEdit(false)
     setEditOpen(false)
+    setEditImgFile(null)
     loadAll()
   }
 
-  // ── Delete squad (squad leader only) ──
+  // ── Delete squad ──
   async function handleDeleteSquad() {
-    if (!isSquadLeader || !squad) return
-    if (deleteConfirmText.trim() !== squad.name) {
-      setDeleteError(`Type "${squad.name}" exactly to confirm.`)
-      return
-    }
-    setDeleting(true)
-    setDeleteError('')
+    if (!squad || !canManage) return
+    setActing(true)
+    setActionError('')
 
-    // Unassign all members from the squad before removing it
+    // Unassign all members first (squad_id -> null) so they stay in the
+    // clan, then delete the squad row itself.
     await supabase.from('clan_members')
       .update({ squad_id: null, role: 'member' })
       .eq('squad_id', squad.id)
@@ -199,13 +198,13 @@ export default function SquadPage() {
     const { error } = await supabase.from('clan_squads').delete().eq('id', squad.id)
 
     if (error) {
-      setDeleteError(error.message)
-      setDeleting(false)
+      setActionError(error.message)
+      setActing(false)
       return
     }
 
-    setDeleting(false)
-    setDeleteOpen(false)
+    setActing(false)
+    setConfirmOpen(null)
     router.push(`/clans/${code}`)
   }
 
@@ -214,10 +213,6 @@ export default function SquadPage() {
   if (!squad)  return <div className={styles.page}><p className={styles.notFound}>Squad not found.</p></div>
 
   const isFull = squad.member_count >= SQUAD_SIZE
-  // Squad-scoped management (edit details, remove players, delete squad) is
-  // exclusive to the squad leader — the clan leader does not have authority
-  // inside a squad they don't lead.
-  const canManage = isSquadLeader
 
   return (
     <div className={styles.page}>
@@ -229,29 +224,26 @@ export default function SquadPage() {
         <div className={styles.squadImgLarge}>
           {squad.image_url ? <img src={squad.image_url} alt=""/> : <i className="ri-team-line"/>}
         </div>
-        <div>
+        <div className={styles.heroInfo}>
           <h1 className={styles.squadName}>{squad.name}</h1>
           <p className={styles.squadMeta}>
             {squad.member_count}/{SQUAD_SIZE} members
             {isFull && <span className={styles.fullChip}>FULL</span>}
           </p>
         </div>
-
-        {isSquadLeader && (
-          <button className={styles.manageBtn} onClick={openEditSquad}>
-            <i className="ri-settings-3-line"/>
+        {canManage && (
+          <button className={styles.editBtn} onClick={openEdit} title="Edit squad">
+            <i className="ri-edit-2-line"/>
           </button>
         )}
       </div>
 
-      {/* Join CTA */}
       {!isInThisSquad && isInClanNoSquad && (
         <button className={styles.joinBtn} disabled={isFull} onClick={handleJoinSquad}>
           {isFull ? <><i className="ri-lock-line"/> Squad Full</> : <><i className="ri-user-add-line"/> Join Squad</>}
         </button>
       )}
 
-      {/* Leave CTA */}
       {isInThisSquad && (
         <button className={styles.leaveBtn} onClick={() => setConfirmOpen('leave')}>
           <i className="ri-logout-box-line"/> Leave Squad
@@ -276,13 +268,9 @@ export default function SquadPage() {
                   <span className={styles.memberName}>
                     {m.profiles?.username}
                     <UserBadges
-                      email={m.profiles?.email}
-                      plan={m.profiles?.plan}
-                      planExpiresAt={m.profiles?.plan_expires_at}
-                      countryFlag={m.profiles?.country_flag}
-                      isSeasonWinner={m.profiles?.is_season_winner}
-                      size={13}
-                    />
+                      email={m.profiles?.email} plan={m.profiles?.plan} planExpiresAt={m.profiles?.plan_expires_at}
+                      countryFlag={m.profiles?.country_flag} isSeasonWinner={m.profiles?.is_season_winner}
+                      size={12} gap={2}/>
                   </span>
                   <span className={styles.memberRole}>
                     {m.user_id === squad.leader_id
@@ -301,44 +289,67 @@ export default function SquadPage() {
         })}
       </div>
 
-      {/* Confirm modal */}
-      <Modal open={!!confirmOpen} onClose={() => { setConfirmOpen(null); setKickTarget(null) }}
-        title={confirmOpen === 'leave' ? 'Leave Squad?' : 'Remove Member?'} size="sm"
+      {/* Danger zone — squad leader or clan leader can delete the squad */}
+      {canManage && (
+        <div className={styles.dangerZone}>
+          <p className={styles.dangerLabel}><i className="ri-error-warning-line"/> Danger Zone</p>
+          <p className={styles.dangerDesc}>
+            Deletes this squad permanently. All {squad.member_count} member{squad.member_count === 1 ? '' : 's'} will remain in the clan, unassigned.
+          </p>
+          <button className={styles.deleteSquadBtn} onClick={() => setConfirmOpen('delete_squad')}>
+            <i className="ri-delete-bin-line"/> Delete Squad
+          </button>
+        </div>
+      )}
+
+      {/* Confirm modal — leave / kick / delete squad */}
+      <Modal open={!!confirmOpen}
+        onClose={() => { setConfirmOpen(null); setKickTarget(null); setActionError('') }}
+        title={
+          confirmOpen === 'leave' ? 'Leave Squad?' :
+          confirmOpen === 'delete_squad' ? 'Delete Squad?' :
+          'Remove Member?'
+        } size="sm"
         footer={
           <button className={styles.confirmBtn} disabled={acting}
-            onClick={confirmOpen === 'leave' ? handleLeaveSquad : handleKick}>
+            style={confirmOpen === 'delete_squad' ? { background: '#ef4444' } : {}}
+            onClick={
+              confirmOpen === 'leave' ? handleLeaveSquad :
+              confirmOpen === 'delete_squad' ? handleDeleteSquad :
+              handleKick
+            }>
             {acting ? 'Working…' : 'Confirm'}
           </button>
         }>
         <p className={styles.confirmText}>
-          {confirmOpen === 'leave'
-            ? <>You'll remain in <strong>{clan.name}</strong> but leave this squad. {isSquadLeader && members.length > 1 && 'A new squad leader will be picked at random.'}</>
-            : <>Remove <strong>{kickTarget?.profiles?.username}</strong> from this squad? They'll stay in the clan, unassigned.</>
+          {confirmOpen === 'leave' &&
+            <>You'll remain in <strong>{clan.name}</strong> but leave this squad. {isSquadLeader && members.length > 1 && 'A new squad leader will be picked at random.'}</>
+          }
+          {confirmOpen === 'kick' &&
+            <>Remove <strong>{kickTarget?.profiles?.username}</strong> from this squad? They'll stay in the clan, unassigned.</>
+          }
+          {confirmOpen === 'delete_squad' &&
+            <>Permanently delete <strong>{squad.name}</strong>? All members will remain in the clan, unassigned. This cannot be undone.</>
           }
         </p>
+        {actionError && <p className={styles.errorMsg}><i className="ri-error-warning-line"/> {actionError}</p>}
       </Modal>
 
-      <MemberPreviewModal
-        member={previewMember}
-        squadName={squad.name}
-        onClose={() => setPreviewMember(null)}
-      />
-
-      {/* ── Edit Squad Modal (squad leader only) ── */}
+      {/* Edit squad modal — name/image */}
       <Modal open={editOpen} onClose={() => { setEditOpen(false); setEditError('') }}
         title="Edit Squad" size="sm"
         footer={
-          <button className={styles.confirmBtn} disabled={editSaving} onClick={handleSaveSquad}>
-            {editSaving ? 'Saving…' : 'Save Changes'}
+          <button className={styles.confirmBtn} disabled={savingEdit} onClick={handleSaveEdit}>
+            {savingEdit ? 'Saving…' : 'Save Changes'}
           </button>
         }>
-        <div className={styles.modalBody}>
+        <div className={styles.editModalBody}>
           <div className={styles.field}>
             <label>Squad Image</label>
-            <div className={styles.squadImgPicker} onClick={() => document.getElementById('sq-edit-img-input').click()}>
+            <div className={styles.squadImgPicker} onClick={() => imgRef.current?.click()}>
               {editImgPreview ? <img src={editImgPreview} alt=""/> : <i className="ri-image-add-line"/>}
             </div>
-            <input id="sq-edit-img-input" type="file" accept="image/*" hidden onChange={handleEditImgPick}/>
+            <input ref={imgRef} type="file" accept="image/*" hidden onChange={handleEditImgPick}/>
           </div>
           <div className={styles.field}>
             <label>Squad Name</label>
@@ -351,42 +362,14 @@ export default function SquadPage() {
             </div>
           </div>
           {editError && <p className={styles.errorMsg}><i className="ri-error-warning-line"/> {editError}</p>}
-
-          <div className={styles.dangerZone}>
-            <p className={styles.dangerLabel}><i className="ri-error-warning-line"/> Danger Zone</p>
-            <p className={styles.dangerDesc}>
-              Permanently deletes this squad and unassigns all {squad.member_count} member{squad.member_count === 1 ? '' : 's'}. This cannot be undone.
-            </p>
-            <button className={styles.deleteBtn} onClick={() => { setEditOpen(false); setDeleteOpen(true) }}>
-              <i className="ri-delete-bin-line"/> Delete Squad
-            </button>
-          </div>
         </div>
       </Modal>
 
-      {/* ── Delete Squad Modal (squad leader only) ── */}
-      <Modal open={deleteOpen} onClose={() => { setDeleteOpen(false); setDeleteConfirmText(''); setDeleteError('') }}
-        title="Delete Squad" size="sm"
-        footer={
-          <button className={styles.deleteConfirmBtn} disabled={deleting} onClick={handleDeleteSquad}>
-            {deleting ? 'Deleting…' : 'Permanently Delete'}
-          </button>
-        }>
-        <div className={styles.deleteModalBody}>
-          <p className={styles.confirmText}>
-            This will permanently delete <strong>{squad.name}</strong> and unassign all <strong>{squad.member_count}</strong> member{squad.member_count === 1 ? '' : 's'}.
-            This action <strong>cannot be undone</strong>.
-          </p>
-          <div className={styles.field}>
-            <label>Type "{squad.name}" to confirm</label>
-            <input className={styles.textInput}
-              value={deleteConfirmText}
-              onChange={e => setDeleteConfirmText(e.target.value)}
-              placeholder={squad.name}/>
-          </div>
-          {deleteError && <p className={styles.errorMsg}><i className="ri-error-warning-line"/> {deleteError}</p>}
-        </div>
-      </Modal>
+      <MemberPreviewModal
+        member={previewMember}
+        squadName={squad.name}
+        onClose={() => setPreviewMember(null)}
+      />
     </div>
   )
 }

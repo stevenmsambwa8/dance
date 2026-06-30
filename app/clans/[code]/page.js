@@ -275,13 +275,9 @@ export default function ClanPage() {
                   <span className={styles.memberName}>
                     {m.profiles?.username}
                     <UserBadges
-                      email={m.profiles?.email}
-                      plan={m.profiles?.plan}
-                      planExpiresAt={m.profiles?.plan_expires_at}
-                      countryFlag={m.profiles?.country_flag}
-                      isSeasonWinner={m.profiles?.is_season_winner}
-                      size={13}
-                    />
+                      email={m.profiles?.email} plan={m.profiles?.plan} planExpiresAt={m.profiles?.plan_expires_at}
+                      countryFlag={m.profiles?.country_flag} isSeasonWinner={m.profiles?.is_season_winner}
+                      size={12} gap={2}/>
                   </span>
                   <span className={styles.memberRole}>
                     {m.role === 'leader' ? <><i className="ri-vip-crown-line"/> Clan Leader</> :

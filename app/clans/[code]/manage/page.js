@@ -112,13 +112,10 @@ export default function ManageClanPage() {
   }
 
   // ── Member actions ──
-  // NOTE: removing a player from a squad, editing squad details, and deleting
-  // a squad are squad-leader-only actions (handled on the squad's own page).
-  // The clan leader can still kick from the clan entirely and transfer
-  // clan/squad leadership, but cannot reach into a squad to remove players.
   function askKick(member)            { setConfirmAction({ type: 'kick', member }) }
   function askTransferClan(member)    { setConfirmAction({ type: 'transfer_clan', member }) }
   function askMakeSquadLeader(member) { setConfirmAction({ type: 'transfer_squad', member }) }
+  function askRemoveFromSquad(member) { setConfirmAction({ type: 'remove_squad', member }) }
 
   async function executeAction() {
     if (!confirmAction || !clan) return
@@ -147,6 +144,14 @@ export default function ManageClanPage() {
           .update({ role: 'member' }).eq('squad_id', member.squad_id).eq('user_id', prevLeader)
       }
 
+    } else if (type === 'remove_squad') {
+      await supabase.from('clan_members')
+        .update({ squad_id: null, role: 'member' })
+        .eq('clan_id', clan.id).eq('user_id', member.user_id)
+      const squad = squads.find(s => s.id === member.squad_id)
+      if (squad && squad.leader_id === member.user_id) {
+        await supabase.rpc('reassign_squad_leader', { p_squad_id: member.squad_id })
+      }
     }
 
     setActing(false)
@@ -271,21 +276,26 @@ export default function ManageClanPage() {
                 <div className={styles.squadMemberChips}>
                   {squadMembers.map(m => (
                     <div key={m.user_id} className={styles.memberChip}>
-                      <span>{m.profiles?.username}</span>
-                      <UserBadges
-                        email={m.profiles?.email}
-                        plan={m.profiles?.plan}
-                        planExpiresAt={m.profiles?.plan_expires_at}
-                        countryFlag={m.profiles?.country_flag}
-                        isSeasonWinner={m.profiles?.is_season_winner}
-                        size={12}
-                      />
+                      <span style={{ display: 'flex', alignItems: 'center' }}>
+                        {m.profiles?.username}
+                        <UserBadges
+                          email={m.profiles?.email} plan={m.profiles?.plan} planExpiresAt={m.profiles?.plan_expires_at}
+                          countryFlag={m.profiles?.country_flag} isSeasonWinner={m.profiles?.is_season_winner}
+                          size={10} gap={2}/>
+                      </span>
                       {m.role === 'leader' && <i className="ri-vip-crown-line" title="Clan Leader"/>}
                       {m.role === 'squad_leader' && <i className="ri-star-fill" title="Squad Leader"/>}
-                      {m.user_id !== user?.id && m.role !== 'squad_leader' && m.role !== 'leader' && (
-                        <button onClick={() => askMakeSquadLeader(m)} title="Make squad leader">
-                          <i className="ri-star-line"/>
-                        </button>
+                      {m.user_id !== user?.id && (
+                        <>
+                          {m.role !== 'squad_leader' && m.role !== 'leader' && (
+                            <button onClick={() => askMakeSquadLeader(m)} title="Make squad leader">
+                              <i className="ri-star-line"/>
+                            </button>
+                          )}
+                          <button onClick={() => askRemoveFromSquad(m)} title="Remove from squad">
+                            <i className="ri-logout-box-line"/>
+                          </button>
+                        </>
                       )}
                     </div>
                   ))}
@@ -309,16 +319,12 @@ export default function ManageClanPage() {
                 }
               </div>
               <div className={styles.memberManageInfo}>
-                <span className={styles.memberManageName}>
+                <span className={styles.memberManageName} style={{ display: 'flex', alignItems: 'center' }}>
                   {m.profiles?.username}
                   <UserBadges
-                    email={m.profiles?.email}
-                    plan={m.profiles?.plan}
-                    planExpiresAt={m.profiles?.plan_expires_at}
-                    countryFlag={m.profiles?.country_flag}
-                    isSeasonWinner={m.profiles?.is_season_winner}
-                    size={13}
-                  />
+                    email={m.profiles?.email} plan={m.profiles?.plan} planExpiresAt={m.profiles?.plan_expires_at}
+                    countryFlag={m.profiles?.country_flag} isSeasonWinner={m.profiles?.is_season_winner}
+                    size={11} gap={2}/>
                 </span>
                 <span className={styles.memberManageRole}>
                   {m.role === 'leader' ? 'Clan Leader' :
@@ -359,6 +365,9 @@ export default function ManageClanPage() {
             }
             {confirmAction.type === 'transfer_squad' &&
               <>Make <strong>{confirmAction.member.profiles?.username}</strong> the squad leader?</>
+            }
+            {confirmAction.type === 'remove_squad' &&
+              <>Remove <strong>{confirmAction.member.profiles?.username}</strong> from their squad? They'll remain in the clan, unassigned.</>
             }
           </p>
         )}
