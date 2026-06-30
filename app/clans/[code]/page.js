@@ -150,13 +150,18 @@ export default function ClanPage() {
 
   const capPct = Math.min(100, Math.round((clan.member_count / CLAN_CAP) * 100))
   const accentColor = identityColor(clan.name)
+  const heroImage = clan.banner_url || clan.logo_url
 
   return (
     <div className={styles.page}>
       {/* ── Hero ── */}
-      <div className={styles.hero} style={{ '--clan-accent': accentColor }}>
-        {clan.banner_url && <img className={styles.bannerImg} src={clan.banner_url} alt=""/>}
-        <div className={styles.heroGrid}/>
+      <div className={styles.hero}
+        style={{
+          '--clan-accent': accentColor,
+          backgroundImage: heroImage ? `url(${heroImage})` : 'none',
+          backgroundColor: heroImage ? undefined : accentColor,
+        }}>
+        <span className={`${styles.heroOverlay} ${heroImage ? styles.heroOverlayGradient : styles.heroOverlayFlat}`}/>
         <div className={styles.heroContent}>
           <div className={styles.logoLarge}>
             {clan.logo_url ? <img src={clan.logo_url} alt=""/> : <span>{clan.tag_prefix}</span>}
