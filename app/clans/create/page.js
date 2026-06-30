@@ -61,14 +61,19 @@ export default function CreateClanPage() {
     let logo_url = null
     if (logoFile) {
       const ext = logoFile.name.split('.').pop()
-      const path = `clan-logos/${user.id}-${Date.now()}.${ext}`
-      const { error: upErr } = await supabase.storage.from('public').upload(path, logoFile)
-      if (!upErr) {
-        const { data: pub } = supabase.storage.from('public').getPublicUrl(path)
-        logo_url = pub.publicUrl
+      const path = `${user.id}-${Date.now()}.${ext}`
+      const { error: upErr } = await supabase.storage.from('clan-logos').upload(path, logoFile)
+      if (upErr) {
+        setError(`Logo upload failed: ${upErr.message}`)
+        setSaving(false)
+        return
       }
+      const { data: pub } = supabase.storage.from('clan-logos').getPublicUrl(path)
+      logo_url = pub.publicUrl
     }
 
+    // Insert clan — member_count/squad_count default to DB-side values (1/0),
+    // do NOT pass them manually, the trigger on clan_members will own member_count from here on.
     const { data: clan, error: insertErr } = await supabase
       .from('clans')
       .insert({
@@ -77,8 +82,6 @@ export default function CreateClanPage() {
         description: description.trim() || null,
         logo_url,
         leader_id: user.id,
-        member_count: 1,
-        squad_count: 0,
       })
       .select()
       .single()
@@ -89,12 +92,20 @@ export default function CreateClanPage() {
       return
     }
 
-    await supabase.from('clan_members').insert({
+    // Insert leader membership — the trg_sync_member_counts trigger on clan_members
+    // bumps clans.member_count automatically. Do NOT also update clans.member_count here.
+    const { error: memberErr } = await supabase.from('clan_members').insert({
       clan_id: clan.id,
       squad_id: null,
       user_id: user.id,
       role: 'leader',
     })
+
+    if (memberErr) {
+      setError(memberErr.message)
+      setSaving(false)
+      return
+    }
 
     setSaving(false)
     router.push(`/clans/${clan.code}`)

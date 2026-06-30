@@ -98,14 +98,19 @@ export default function ClanPage() {
     let image_url = null
     if (squadImgFile) {
       const ext = squadImgFile.name.split('.').pop()
-      const path = `squad-images/${user.id}-${Date.now()}.${ext}`
-      const { error: upErr } = await supabase.storage.from('public').upload(path, squadImgFile)
-      if (!upErr) {
-        const { data: pub } = supabase.storage.from('public').getPublicUrl(path)
-        image_url = pub.publicUrl
+      const path = `${user.id}-${Date.now()}.${ext}`
+      const { error: upErr } = await supabase.storage.from('squad-images').upload(path, squadImgFile)
+      if (upErr) {
+        setCreateError(`Image upload failed: ${upErr.message}`)
+        setCreating(false)
+        return
       }
+      const { data: pub } = supabase.storage.from('squad-images').getPublicUrl(path)
+      image_url = pub.publicUrl
     }
 
+    // Insert squad — member_count defaults to 1 in DB (do not pass it manually).
+    // trg_sync_clan_squad_count bumps clans.squad_count automatically.
     const { data: squad, error: insertErr } = await supabase
       .from('clan_squads')
       .insert({
@@ -113,7 +118,6 @@ export default function ClanPage() {
         name: trimmed,
         image_url,
         leader_id: user.id,
-        member_count: 1,
       })
       .select()
       .single()
@@ -124,6 +128,9 @@ export default function ClanPage() {
       return
     }
 
+    // Move the creator into this squad — trg_sync_member_counts bumps
+    // clan_squads.member_count automatically on this UPDATE. Do not also
+    // manually increment member_count anywhere else.
     await supabase.from('clan_members')
       .update({ squad_id: squad.id, role: myRole === 'leader' ? 'leader' : 'squad_leader' })
       .eq('clan_id', clan.id).eq('user_id', user.id)
@@ -139,6 +146,10 @@ export default function ClanPage() {
   async function handleJoinClan() {
     if (!user) { openAuthGate(); return }
     if (!clan || clan.member_count >= CLAN_CAP) return
+    // Insert only — trg_sync_member_counts on clan_members bumps
+    // clans.member_count automatically. Do NOT also call
+    // supabase.from('clans').update({ member_count: ... }) here,
+    // that was double-counting.
     await supabase.from('clan_members').insert({
       clan_id: clan.id, squad_id: null, user_id: user.id, role: 'member',
     })
