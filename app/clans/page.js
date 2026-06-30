@@ -27,7 +27,7 @@ function MarqueeName({ text }) {
       const overflow = inner.scrollWidth - wrap.clientWidth
       if (overflow > 2) {
         setDistance(overflow)
-        setDuration(Math.max(3.5, overflow / 18))
+        setDuration(Math.max(7, overflow / 7))
       } else {
         setDistance(0)
       }

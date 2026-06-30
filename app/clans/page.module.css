@@ -58,8 +58,8 @@
 
 /* overlay sits between the bg image/color and the content */
 .clanCardOverlay { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
-.overlayGradient { background: linear-gradient(to top, var(--bg) 2%, transparent 62%); opacity: 0.92; }
-.overlayFlat { background: var(--bg); opacity: 0.92; }
+.overlayGradient { background: linear-gradient(to top, var(--bg) 0%, var(--bg) 42%, transparent 82%); opacity: 1; }
+.overlayFlat { background: var(--bg); opacity: 1; }
 
 .gameBadge {
   position: absolute; top: 9px; left: 9px; z-index: 1;
