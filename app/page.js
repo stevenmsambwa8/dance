@@ -537,16 +537,16 @@ export default function Home() {
           </div>
         ) : (
           <div className={styles.tGrid}>
-            {tournaments.map(t => {
-              const game  = GAME_META[t.game_slug]
-              const prize = parsePrize(t.prize)
-              const fee   = parsePrize(t.entrance_fee)
-              const pct   = t.slots ? Math.min(100, Math.round(((t.registered_count || 0) / t.slots) * 100)) : 0
-              const full  = (t.registered_count || 0) >= t.slots
+            {tournaments.map(tour => {
+              const game  = GAME_META[tour.game_slug]
+              const prize = parsePrize(tour.prize)
+              const fee   = parsePrize(tour.entrance_fee)
+              const pct   = tour.slots ? Math.min(100, Math.round(((tour.registered_count || 0) / tour.slots) * 100)) : 0
+              const full  = (tour.registered_count || 0) >= tour.slots
               const statusColors = { active: '#22c55e', ongoing: '#6366f1', upcoming: '#f59e0b' }
-              const sc = statusColors[t.status] || '#6b7280'
+              const sc = statusColors[tour.status] || '#6b7280'
               return (
-                <Link key={t.id} href={`/tournaments/${t.slug || t.id}`} className={styles.tCard}>
+                <Link key={tour.id} href={`/tournaments/${tour.slug || tour.id}`} className={styles.tCard}>
                   <div className={styles.tCardImg}>
                     {game?.image
                       ? <img src={game.image} alt={game.name} className={styles.tCardImgEl} />
@@ -554,24 +554,24 @@ export default function Home() {
                     }
                     <div className={styles.tCardImgBadges}>
                       <span className={styles.tStatusBadge}>
-                        <i className="ri-circle-fill" style={{ fontSize: 6 }} /> {t.status}
+                        <i className="ri-circle-fill" style={{ fontSize: 6 }} /> {tour.status}
                       </span>
                       {full && <span className={styles.tFullBadge}><i className="ri-lock-line" /> {t('home.full')}</span>}
                     </div>
                   </div>
                   <div className={styles.tCardBody}>
-                    <div className={styles.tGameChip}><i className={game?.icon || 'ri-gamepad-line'} /> {game?.name || t.game_slug}</div>
-                    <div className={styles.tCardName}>{t.name}</div>
+                    <div className={styles.tGameChip}><i className={game?.icon || 'ri-gamepad-line'} /> {game?.name || tour.game_slug}</div>
+                    <div className={styles.tCardName}>{tour.name}</div>
                     <div className={styles.tStatRow}>
                       <span><i className="ri-money-dollar-circle-line" /> {fee ? fmtAmt(fee) : t('common.free')}</span>
                       <span style={{ color: prize ? '#22c55e' : 'var(--text-muted)' }}><i className="ri-trophy-line" /> {prize ? fmtAmt(prize) : t('home.noPrize')}</span>
-                      {t.date && <span><i className="ri-calendar-line" /> {t.date}</span>}
+                      {tour.date && <span><i className="ri-calendar-line" /> {tour.date}</span>}
                     </div>
                     <div className={styles.tSlotBar}>
                       <div className={styles.tSlotTrack}>
                         <div className={`${styles.tSlotFill} ${full ? styles.tSlotFull : pct >= 80 ? styles.tSlotWarm : ''}`} style={{ width: `${pct}%` }} />
                       </div>
-                      <span className={styles.tSlotLabel}>{t.registered_count || 0}/{t.slots}</span>
+                      <span className={styles.tSlotLabel}>{tour.registered_count || 0}/{tour.slots}</span>
                     </div>
                   </div>
                 </Link>
