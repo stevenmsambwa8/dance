@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../../components/AuthProvider'
@@ -18,46 +18,50 @@ export default function ClansPage() {
   const { openAuthGate } = useAuthGate()
   const router = useRouter()
 
-  const [game, setGame]       = useState(GAME_SLUGS[0])
+  const [game, setGame]       = useState('all')
   const [clans, setClans]     = useState([])
-  const [myClanCode, setMyClanCode] = useState(null)
+  const [myClans, setMyClans] = useState([])
   const [search, setSearch]   = useState('')
   const [loading, setLoading] = useState(true)
   usePageLoading(loading)
 
-  useEffect(() => { loadClans(game) }, [game, user])
+  useEffect(() => { loadClans() }, [user])
 
-  async function loadClans(g) {
+  async function loadClans() {
     setLoading(true)
     const { data } = await supabase
       .from('clans')
       .select('*')
-      .eq('game', g)
       .order('member_count', { ascending: false })
-      .limit(60)
+      .limit(200)
     setClans(data || [])
 
     if (user) {
-      const { data: membership } = await supabase
+      const { data: memberships } = await supabase
         .from('clan_members')
         .select('clan_id, clans!inner(code, game)')
         .eq('user_id', user.id)
-        .eq('clans.game', g)
-        .maybeSingle()
-      setMyClanCode(membership?.clans?.code || null)
+      setMyClans(memberships || [])
     } else {
-      setMyClanCode(null)
+      setMyClans([])
     }
     setLoading(false)
   }
 
+  const myClanCode = useMemo(() => {
+    if (!myClans.length) return null
+    if (game === 'all') return myClans[0]?.clans?.code || null
+    return myClans.find(m => m.clans?.game === game)?.clans?.code || null
+  }, [myClans, game])
+
   function handleCreate() {
     if (!user) { openAuthGate(); return }
-    router.push(`/clans/create?game=${game}`)
+    router.push(`/clans/create?game=${game === 'all' ? GAME_SLUGS[0] : game}`)
   }
 
   const filtered = clans.filter(c =>
-    !search || c.name.toLowerCase().includes(search.toLowerCase())
+    (game === 'all' || c.game === game) &&
+    (!search || c.name.toLowerCase().includes(search.toLowerCase()))
   )
 
   return (
@@ -79,6 +83,11 @@ export default function ClansPage() {
       </div>
 
       <div className={styles.gameTabs}>
+        <button
+          className={`${styles.gameTab} ${game === 'all' ? styles.gameTabActive : ''}`}
+          onClick={() => setGame('all')}>
+          <i className="ri-apps-2-line"/> All
+        </button>
         {GAME_SLUGS.map(g => (
           <button key={g}
             className={`${styles.gameTab} ${game === g ? styles.gameTabActive : ''}`}
@@ -102,8 +111,8 @@ export default function ClansPage() {
 
       {loading && (
         <div className={styles.grid}>
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className={styles.skeletonCard} style={{ opacity: 1 - i * 0.12 }}/>
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className={styles.skeletonCard} style={{ opacity: 1 - i * 0.08 }}/>
           ))}
         </div>
       )}
@@ -114,29 +123,42 @@ export default function ClansPage() {
             const pct = Math.min(100, Math.round((clan.member_count / CLAN_CAP) * 100))
             const isFull = clan.member_count >= CLAN_CAP
             const accentColor = identityColor(clan.name)
+            const bgImage = clan.banner_url || clan.logo_url
+
             return (
               <Link key={clan.code} href={`/clans/${clan.code}`} className={styles.clanCard}
-                style={{ '--clan-accent': accentColor }}>
-                <span className={styles.clanStripe}/>
-                <div className={styles.clanLogo}>
-                  {clan.logo_url ? <img src={clan.logo_url} alt=""/> : <span>{clan.tag_prefix}</span>}
-                </div>
-                <div className={styles.clanInfo}>
-                  <div className={styles.clanNameRow}>
-                    <span className={styles.clanName}>{clan.name}</span>
-                    <span className={styles.clanTag}>{clan.tag_prefix}</span>
-                  </div>
-                  <div className={styles.clanStats}>
-                    <span><i className="ri-group-line"/> {clan.member_count}/{CLAN_CAP}</span>
-                    <span><i className="ri-team-line"/> {clan.squad_count}/{SQUAD_CAP}</span>
-                    {clan.total_wins > 0 && <span><i className="ri-trophy-line"/> {clan.total_wins}W</span>}
-                  </div>
-                  <div className={styles.capBar}>
-                    <div className={styles.capFill}
-                      style={{ width: `${pct}%`, background: isFull ? '#ef4444' : accentColor }}/>
-                  </div>
-                </div>
+                style={{
+                  '--clan-accent': accentColor,
+                  backgroundImage: bgImage ? `url(${bgImage})` : 'none',
+                  backgroundColor: bgImage ? undefined : accentColor,
+                }}>
+                <span className={`${styles.clanCardOverlay} ${bgImage ? styles.overlayGradient : styles.overlayFlat}`}/>
+
+                <span className={styles.gameBadge}>
+                  <i className={GAME_META[clan.game]?.icon}/> {GAME_META[clan.game]?.name}
+                </span>
                 {isFull && <span className={styles.fullBadge}>FULL</span>}
+
+                <div className={styles.cardContent}>
+                  <div className={styles.clanLogo}>
+                    {clan.logo_url ? <img src={clan.logo_url} alt=""/> : <span>{clan.tag_prefix}</span>}
+                  </div>
+                  <div className={styles.clanInfo}>
+                    <div className={styles.clanNameRow}>
+                      <span className={styles.clanName}>{clan.name}</span>
+                      <span className={styles.clanTag}>{clan.tag_prefix}</span>
+                    </div>
+                    <div className={styles.clanStats}>
+                      <span><i className="ri-group-line"/> {clan.member_count}/{CLAN_CAP}</span>
+                      <span><i className="ri-team-line"/> {clan.squad_count}/{SQUAD_CAP}</span>
+                      {clan.total_wins > 0 && <span><i className="ri-trophy-line"/> {clan.total_wins}W</span>}
+                    </div>
+                    <div className={styles.capBar}>
+                      <div className={styles.capFill}
+                        style={{ width: `${pct}%`, background: isFull ? '#ef4444' : accentColor }}/>
+                    </div>
+                  </div>
+                </div>
               </Link>
             )
           })}
@@ -144,7 +166,7 @@ export default function ClansPage() {
           {filtered.length === 0 && (
             <div className={styles.emptyState}>
               <i className="ri-shield-line"/>
-              <p>No clans yet for {GAME_META[game]?.name}.</p>
+              <p>{game === 'all' ? 'No clans yet.' : `No clans yet for ${GAME_META[game]?.name}.`}</p>
               <button className={styles.createBtn} onClick={handleCreate}>
                 <i className="ri-add-line"/> Be the first to create one
               </button>

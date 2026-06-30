@@ -37,52 +37,85 @@
 
 .infoStrip { display: flex; gap: 9px; align-items: center; margin-bottom: 16px; font-size: 11px; color: var(--text-muted); font-weight: 600; }
 
-.grid { display: flex; flex-direction: column; gap: 9px; }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
 
 .clanCard {
   position: relative;
-  display: flex; align-items: center; gap: 13px;
-  padding: 13px 13px 13px 16px; border-radius: 16px;
-  border: 1px solid var(--border); background: var(--bg);
-  text-decoration: none; color: inherit; overflow: hidden;
+  display: flex; align-items: flex-end;
+  aspect-ratio: 0.92;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  text-decoration: none; color: inherit;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   transition: border-color 0.15s, transform 0.15s;
 }
 .clanCard:hover { border-color: var(--clan-accent); transform: translateY(-1px); }
 .clanCard:active { transform: scale(0.99); }
 
-.clanStripe { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--clan-accent); }
+/* overlay sits between the bg image/color and the content */
+.clanCardOverlay { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.overlayGradient { background: linear-gradient(to top, var(--bg) 2%, transparent 62%); opacity: 0.94; }
+.overlayFlat { background: var(--bg); opacity: 0.42; }
+
+.gameBadge {
+  position: absolute; top: 9px; left: 9px; z-index: 1;
+  display: flex; align-items: center; gap: 4px;
+  font-size: 9px; font-weight: 800; letter-spacing: 0.03em;
+  padding: 4px 8px; border-radius: 7px;
+  background: rgba(0,0,0,0.4); color: #fff;
+  backdrop-filter: blur(4px);
+}
+
+.fullBadge {
+  position: absolute; top: 9px; right: 9px; z-index: 1;
+  font-size: 9px; font-weight: 800; letter-spacing: 0.05em;
+  color: #fff; background: rgba(239,68,68,0.85);
+  padding: 4px 8px; border-radius: 7px;
+}
+
+.cardContent {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; gap: 9px;
+  width: 100%;
+  padding: 11px;
+}
 
 .clanLogo {
-  width: 52px; height: 52px; border-radius: 13px;
+  width: 38px; height: 38px; border-radius: 11px;
   background: var(--bg-2);
+  border: 1px solid rgba(255,255,255,0.12);
   display: flex; align-items: center; justify-content: center;
-  font-size: 14px; font-weight: 900; color: var(--text);
+  font-size: 12px; font-weight: 900; color: var(--text);
   flex-shrink: 0; overflow: hidden; letter-spacing: 0.04em;
 }
 .clanLogo img { width: 100%; height: 100%; object-fit: cover; }
 
 .clanInfo { flex: 1; min-width: 0; }
-.clanNameRow { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
-.clanName { font-size: 14.5px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.clanNameRow { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.clanName { font-size: 13px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .clanTag {
-  font-size: 9px; font-weight: 900; letter-spacing: 0.06em;
-  padding: 2px 7px; border-radius: 6px;
+  font-size: 8.5px; font-weight: 900; letter-spacing: 0.06em;
+  padding: 2px 6px; border-radius: 6px;
   background: var(--clan-accent); color: #000; flex-shrink: 0;
 }
 
-.clanStats { display: flex; gap: 11px; font-size: 11px; color: var(--text-muted); font-weight: 600; margin-bottom: 8px; }
+.clanStats { display: flex; gap: 8px; font-size: 9.5px; color: rgba(255,255,255,0.75); font-weight: 600; margin-bottom: 6px; flex-wrap: wrap; }
 
-.capBar { height: 4px; border-radius: 3px; background: var(--surface); overflow: hidden; }
+.capBar { height: 3px; border-radius: 3px; background: rgba(255,255,255,0.15); overflow: hidden; }
 .capFill { height: 100%; border-radius: 3px; transition: width 0.3s; }
 
-.fullBadge {
-  position: absolute; top: 11px; right: 11px;
-  font-size: 9px; font-weight: 800; letter-spacing: 0.05em;
-  color: #ef4444; background: rgba(239,68,68,0.1);
-  padding: 3px 8px; border-radius: 6px;
+.skeletonCard { aspect-ratio: 0.92; border-radius: 16px; background: var(--surface); border: 1px solid var(--border); }
+
+.emptyState {
+  grid-column: 1 / -1;
+  display: flex; flex-direction: column; align-items: center; gap: 11px;
+  padding: 56px 20px; text-align: center; color: var(--text-muted);
 }
-
-.skeletonCard { height: 82px; border-radius: 16px; background: var(--surface); border: 1px solid var(--border); }
-
-.emptyState { display: flex; flex-direction: column; align-items: center; gap: 11px; padding: 56px 20px; text-align: center; color: var(--text-muted); }
 .emptyState i { font-size: 34px; opacity: 0.35; }
