@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Modal from '../../../components/Modal'
 import MemberPreviewModal from '../../../components/MemberPreviewModal'
+import UserBadges from '../../../components/UserBadges'
 import { useAuth } from '../../../components/AuthProvider'
 import { useAuthGate } from '../../../components/AuthGateModal'
 import { supabase } from '../../../lib/supabase'
@@ -52,7 +53,7 @@ export default function ClanPage() {
     const [{ data: squadData }, { data: memberData }] = await Promise.all([
       supabase.from('clan_squads').select('*').eq('clan_id', clanData.id).order('created_at'),
       supabase.from('clan_members')
-        .select('*, profiles(id, username, avatar_url, tier, level)')
+        .select('*, profiles(id, username, avatar_url, tier, level, email, plan, plan_expires_at, country_flag, is_season_winner)')
         .eq('clan_id', clanData.id),
     ])
 
@@ -271,7 +272,17 @@ export default function ClanPage() {
                   <span className={styles.memberDot} style={{ background: online ? '#22c55e' : 'var(--border-dark)' }}/>
                 </div>
                 <div className={styles.memberInfo}>
-                  <span className={styles.memberName}>{m.profiles?.username}</span>
+                  <span className={styles.memberName}>
+                    {m.profiles?.username}
+                    <UserBadges
+                      email={m.profiles?.email}
+                      plan={m.profiles?.plan}
+                      planExpiresAt={m.profiles?.plan_expires_at}
+                      countryFlag={m.profiles?.country_flag}
+                      isSeasonWinner={m.profiles?.is_season_winner}
+                      size={13}
+                    />
+                  </span>
                   <span className={styles.memberRole}>
                     {m.role === 'leader' ? <><i className="ri-vip-crown-line"/> Clan Leader</> :
                      m.role === 'squad_leader' ? <><i className="ri-star-line"/> Squad Leader</> :
