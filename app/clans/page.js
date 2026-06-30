@@ -6,6 +6,7 @@ import { useAuth } from '../../components/AuthProvider'
 import { useAuthGate } from '../../components/AuthGateModal'
 import { supabase } from '../../lib/supabase'
 import { GAME_SLUGS, GAME_META } from '../../lib/constants'
+import { identityColor } from '../../lib/clanColors'
 import usePageLoading from '../../components/usePageLoading'
 import styles from './page.module.css'
 
@@ -112,13 +113,13 @@ export default function ClansPage() {
           {filtered.map(clan => {
             const pct = Math.min(100, Math.round((clan.member_count / CLAN_CAP) * 100))
             const isFull = clan.member_count >= CLAN_CAP
+            const accentColor = identityColor(clan.name)
             return (
-              <Link key={clan.code} href={`/clans/${clan.code}`} className={styles.clanCard}>
+              <Link key={clan.code} href={`/clans/${clan.code}`} className={styles.clanCard}
+                style={{ '--clan-accent': accentColor }}>
+                <span className={styles.clanStripe}/>
                 <div className={styles.clanLogo}>
-                  {clan.logo_url
-                    ? <img src={clan.logo_url} alt=""/>
-                    : <span>{clan.tag_prefix}</span>
-                  }
+                  {clan.logo_url ? <img src={clan.logo_url} alt=""/> : <span>{clan.tag_prefix}</span>}
                 </div>
                 <div className={styles.clanInfo}>
                   <div className={styles.clanNameRow}>
@@ -132,7 +133,7 @@ export default function ClansPage() {
                   </div>
                   <div className={styles.capBar}>
                     <div className={styles.capFill}
-                      style={{ width: `${pct}%`, background: isFull ? '#ef4444' : 'var(--accent)' }}/>
+                      style={{ width: `${pct}%`, background: isFull ? '#ef4444' : accentColor }}/>
                   </div>
                 </div>
                 {isFull && <span className={styles.fullBadge}>FULL</span>}

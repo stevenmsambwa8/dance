@@ -1,6 +1,5 @@
 .page { max-width: 560px; margin: 0 auto; padding: 16px 16px 100px; }
 
-/* ── Back link ── */
 .backLink {
   display: flex; align-items: center; gap: 6px;
   background: none; border: none; color: var(--text-muted);
@@ -12,31 +11,37 @@
 
 /* ── Hero ── */
 .hero {
+  position: relative;
   display: flex; align-items: center; gap: 14px;
-  padding: 16px;
+  padding: 16px 16px 16px 20px;
   margin-bottom: 18px;
   border-radius: 18px;
   background: var(--surface);
   border: 1px solid var(--border);
+  overflow: hidden;
 }
+.heroStripe { position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--squad-accent); }
+
 .squadImgLarge {
-  width: 60px; height: 60px; border-radius: 16px;
+  width: 58px; height: 58px; border-radius: 15px;
   background: var(--bg-2);
   display: flex; align-items: center; justify-content: center;
-  color: var(--text-muted); font-size: 22px; overflow: hidden; flex-shrink: 0;
+  color: var(--text-muted); font-size: 21px; overflow: hidden; flex-shrink: 0;
 }
 .squadImgLarge img { width: 100%; height: 100%; object-fit: cover; }
 
 .heroInfo { flex: 1; min-width: 0; }
 .squadName { font-size: 19px; font-weight: 900; margin: 0; line-height: 1.15; letter-spacing: -0.01em; }
-.squadMeta {
-  font-size: 11.5px; color: var(--text-muted); font-weight: 600;
-  margin: 5px 0 0; display: flex; align-items: center; gap: 7px;
+.heroDots { display: flex; align-items: center; gap: 5px; margin-top: 8px; }
+.heroDot { width: 7px; height: 7px; border-radius: 50%; }
+.heroCount {
+  font-family: 'SF Mono', 'Roboto Mono', 'Courier New', monospace;
+  font-size: 11px; font-weight: 700; color: var(--text-muted); margin-left: 4px;
 }
 .fullChip {
-  font-size: 9px; font-weight: 800; letter-spacing: 0.04em;
+  font-size: 8.5px; font-weight: 800; letter-spacing: 0.04em;
   color: #ef4444; background: rgba(239,68,68,0.1);
-  padding: 2px 7px; border-radius: 6px;
+  padding: 2px 6px; border-radius: 5px; margin-left: 4px;
 }
 
 .editBtn {
@@ -46,29 +51,28 @@
   color: var(--text-dim); font-size: 15px; cursor: pointer; flex-shrink: 0;
   transition: all 0.15s;
 }
-.editBtn:hover { color: var(--accent); border-color: var(--accent); background: var(--surface); }
+.editBtn:hover { color: var(--squad-accent); border-color: var(--squad-accent); }
 
-/* ── Join / Leave CTA ── */
+/* ── CTAs ── */
 .joinBtn, .leaveBtn {
   width: 100%; display: flex; align-items: center; justify-content: center; gap: 7px;
   padding: 13px 0; border-radius: 13px; margin-bottom: 22px;
   border: none; font-size: 13px; font-weight: 800; cursor: pointer;
-  transition: opacity 0.15s;
+  transition: filter 0.15s, opacity 0.15s;
 }
-.joinBtn { background: var(--text); color: var(--bg); }
-.joinBtn:active { opacity: 0.85; }
-.joinBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+.joinBtn { background: var(--squad-accent); color: #000; }
+.joinBtn:hover { filter: brightness(1.1); }
+.joinBtn:disabled { opacity: 0.4; cursor: not-allowed; filter: none; }
 .leaveBtn { background: rgba(239,68,68,0.06); color: #ef4444; border: 1px solid rgba(239,68,68,0.35); }
 .leaveBtn:active { opacity: 0.8; }
 
-/* ── Members section ── */
+/* ── Roster ── */
 .sectionLabel {
   font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
   color: var(--text-muted); margin: 0 0 10px;
 }
 
 .memberList { display: flex; flex-direction: column; gap: 7px; margin-bottom: 8px; }
-
 .memberRow {
   display: flex; align-items: center; gap: 8px;
   padding: 10px 11px; border: 1px solid var(--border); border-radius: 14px;
@@ -76,8 +80,7 @@
   transition: border-color 0.15s, background 0.15s;
 }
 .memberRow:hover { border-color: var(--border-dark); background: var(--surface); }
-
-.memberLink { display: flex; align-items: center; gap: 11px; flex: 1; min-width: 0; }
+.memberLink { display: flex; align-items: center; gap: 11px; flex: 1; min-width: 0; cursor: pointer; }
 
 .memberAvatar {
   position: relative; width: 40px; height: 40px; border-radius: 11px;
@@ -90,13 +93,9 @@
   width: 11px; height: 11px; border-radius: 50%;
   border: 2.5px solid var(--bg);
 }
-
 .memberInfo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .memberName { font-size: 13px; font-weight: 700; display: flex; align-items: center; }
-.memberRole {
-  font-size: 10.5px; color: var(--text-muted); font-weight: 600;
-  display: flex; align-items: center; gap: 4px;
-}
+.memberRole { font-size: 10.5px; color: var(--text-muted); font-weight: 600; display: flex; align-items: center; gap: 4px; }
 .memberRole i { color: #f59e0b; font-size: 11px; }
 
 .kickBtn {
@@ -110,23 +109,12 @@
 
 /* ── Danger zone ── */
 .dangerZone {
-  margin-top: 26px;
-  padding: 18px;
-  border-radius: 16px;
-  border: 1px solid rgba(239,68,68,0.25);
-  background: rgba(239,68,68,0.035);
+  margin-top: 26px; padding: 18px; border-radius: 16px;
+  border: 1px solid rgba(239,68,68,0.25); background: rgba(239,68,68,0.035);
 }
-.dangerLabel {
-  display: flex; align-items: center; gap: 7px;
-  font-size: 12px; font-weight: 800; color: #ef4444;
-  letter-spacing: 0.02em;
-  margin: 0 0 7px;
-}
+.dangerLabel { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 800; color: #ef4444; margin: 0 0 7px; }
 .dangerLabel i { font-size: 15px; }
-.dangerDesc {
-  font-size: 11.5px; color: var(--text-muted); line-height: 1.55;
-  margin: 0 0 14px;
-}
+.dangerDesc { font-size: 11.5px; color: var(--text-muted); line-height: 1.55; margin: 0 0 14px; }
 .deleteSquadBtn {
   display: flex; align-items: center; justify-content: center; gap: 7px;
   width: 100%; padding: 12px 0; border-radius: 11px;
@@ -135,21 +123,17 @@
   transition: background 0.15s;
 }
 .deleteSquadBtn:hover { background: rgba(239,68,68,0.1); }
-.deleteSquadBtn:active { opacity: 0.8; }
 
 /* ── Edit modal ── */
 .editModalBody { display: flex; flex-direction: column; gap: 18px; }
-.field label {
-  display: block; font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
-  text-transform: uppercase; color: var(--text-muted); margin-bottom: 9px;
-}
+.field label { display: block; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 9px; }
 .squadImgPicker {
   width: 76px; height: 76px; border-radius: 16px;
   border: 1.5px dashed var(--border-dark); background: var(--surface);
   display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden;
   transition: border-color 0.15s;
 }
-.squadImgPicker:hover { border-color: var(--accent); }
+.squadImgPicker:hover { border-color: var(--squad-accent); }
 .squadImgPicker i { font-size: 23px; color: var(--text-muted); }
 .squadImgPicker img { width: 100%; height: 100%; object-fit: cover; }
 
@@ -159,26 +143,20 @@
   background: var(--surface); overflow: hidden;
   transition: border-color 0.15s;
 }
-.prefixedInput:focus-within { border-color: var(--accent); }
+.prefixedInput:focus-within { border-color: var(--squad-accent); }
 .prefixLock {
-  display: flex; align-items: center;
-  padding: 0 11px;
-  background: var(--bg-2);
-  color: var(--accent);
-  font-size: 14px; font-weight: 800;
-  letter-spacing: 0.02em;
+  display: flex; align-items: center; padding: 0 11px;
+  background: var(--bg-2); color: var(--squad-accent);
+  font-size: 14px; font-weight: 800; letter-spacing: 0.02em;
   border-right: 1px solid var(--border-dark);
-  white-space: nowrap;
-  user-select: none;
+  white-space: nowrap; user-select: none;
+  font-family: 'SF Mono', 'Roboto Mono', 'Courier New', monospace;
 }
 .suffixInput {
-  flex: 1; min-width: 0;
-  background: none; border: none; outline: none;
-  padding: 12px 13px; font-family: var(--font);
-  font-size: 14px; color: var(--text);
+  flex: 1; min-width: 0; background: none; border: none; outline: none;
+  padding: 12px 13px; font-family: var(--font); font-size: 14px; color: var(--text);
 }
 
-/* ── Confirm modal ── */
 .confirmText { font-size: 13px; line-height: 1.65; color: var(--text-dim); }
 .confirmText strong { color: var(--text); font-weight: 800; }
 .confirmBtn {
@@ -188,14 +166,8 @@
   transition: opacity 0.15s;
 }
 .confirmBtn:disabled { opacity: 0.5; }
-.confirmBtn:active { opacity: 0.85; }
 
-.errorMsg {
-  display: flex; align-items: center; gap: 7px;
-  font-size: 12px; color: #ef4444; font-weight: 600;
-  margin-top: 10px;
-}
+.errorMsg { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #ef4444; font-weight: 600; margin-top: 10px; }
 
-/* ── Loading / empty states ── */
 .loadingBox { height: 220px; border-radius: 18px; background: var(--surface); }
 .notFound { text-align: center; padding: 70px 0; color: var(--text-muted); font-size: 14px; font-weight: 600; }

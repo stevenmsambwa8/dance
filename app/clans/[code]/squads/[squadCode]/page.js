@@ -7,6 +7,7 @@ import UserBadges from '../../../../../components/UserBadges'
 import { useAuth } from '../../../../../components/AuthProvider'
 import { useAuthGate } from '../../../../../components/AuthGateModal'
 import { supabase } from '../../../../../lib/supabase'
+import { identityColor } from '../../../../../lib/clanColors'
 import { useOnlineUsers } from '../../../../../lib/usePresence'
 import usePageLoading from '../../../../../components/usePageLoading'
 import styles from './page.module.css'
@@ -30,12 +31,11 @@ export default function SquadPage() {
 
   const [previewMember, setPreviewMember] = useState(null)
 
-  const [confirmOpen, setConfirmOpen] = useState(null) // 'leave' | 'kick' | 'delete_squad' | null
+  const [confirmOpen, setConfirmOpen] = useState(null)
   const [kickTarget, setKickTarget]   = useState(null)
   const [acting, setActing]           = useState(false)
   const [actionError, setActionError] = useState('')
 
-  // Squad edit (name/image) — squad leader or clan leader only
   const [editOpen, setEditOpen]       = useState(false)
   const [editSuffix, setEditSuffix]   = useState('')
   const [editImgFile, setEditImgFile] = useState(null)
@@ -62,7 +62,6 @@ export default function SquadPage() {
     setSquad(squadData)
     setMembers(memberData || [])
     setEditImgPreview(squadData.image_url)
-    // strip the clan prefix off for editing convenience
     setEditSuffix(squadData.name.startsWith(clanData.tag_prefix)
       ? squadData.name.slice(clanData.tag_prefix.length)
       : squadData.name)
@@ -79,7 +78,7 @@ export default function SquadPage() {
   const isSquadLeader   = squad?.leader_id === user?.id
   const isClanLeader    = clan?.leader_id === user?.id
   const isInClanNoSquad = myMembership && !myMembership.squad_id
-  const canManage        = isSquadLeader || isClanLeader
+  const canManage       = isSquadLeader || isClanLeader
 
   async function handleJoinSquad() {
     if (!user) { openAuthGate(); return }
@@ -96,7 +95,6 @@ export default function SquadPage() {
     await supabase.from('clan_members')
       .update({ squad_id: null, role: myMembership.role === 'leader' ? 'leader' : 'member' })
       .eq('id', myMembership.id)
-
     if (isSquadLeader && members.length > 1) {
       await supabase.rpc('reassign_squad_leader', { p_squad_id: squad.id })
     }
@@ -114,13 +112,7 @@ export default function SquadPage() {
     const { error } = await supabase.from('clan_members')
       .update({ squad_id: null, role: 'member' })
       .eq('id', kickTarget.id)
-
-    if (error) {
-      setActionError(error.message)
-      setActing(false)
-      return
-    }
-
+    if (error) { setActionError(error.message); setActing(false); return }
     if (squad.leader_id === kickTarget.user_id) {
       await supabase.rpc('reassign_squad_leader', { p_squad_id: squad.id })
     }
@@ -130,7 +122,6 @@ export default function SquadPage() {
     loadAll()
   }
 
-  // ── Edit squad name/image ──
   function openEdit() {
     if (!canManage) return
     setEditError('')
@@ -158,51 +149,30 @@ export default function SquadPage() {
       const ext = editImgFile.name.split('.').pop()
       const path = `${user.id}-${Date.now()}.${ext}`
       const { error: upErr } = await supabase.storage.from('squad-images').upload(path, editImgFile)
-      if (upErr) {
-        setEditError(`Image upload failed: ${upErr.message}`)
-        setSavingEdit(false)
-        return
-      }
+      if (upErr) { setEditError(`Image upload failed: ${upErr.message}`); setSavingEdit(false); return }
       const { data: pub } = supabase.storage.from('squad-images').getPublicUrl(path)
       image_url = pub.publicUrl
     }
 
-    const { error } = await supabase.from('clan_squads')
-      .update({ name: fullName, image_url })
-      .eq('id', squad.id)
-
+    const { error } = await supabase.from('clan_squads').update({ name: fullName, image_url }).eq('id', squad.id)
     if (error) {
       setEditError(error.message.includes('duplicate') ? 'A squad with this name already exists.' : error.message)
       setSavingEdit(false)
       return
     }
-
     setSavingEdit(false)
     setEditOpen(false)
     setEditImgFile(null)
     loadAll()
   }
 
-  // ── Delete squad ──
   async function handleDeleteSquad() {
     if (!squad || !canManage) return
     setActing(true)
     setActionError('')
-
-    // Unassign all members first (squad_id -> null) so they stay in the
-    // clan, then delete the squad row itself.
-    await supabase.from('clan_members')
-      .update({ squad_id: null, role: 'member' })
-      .eq('squad_id', squad.id)
-
+    await supabase.from('clan_members').update({ squad_id: null, role: 'member' }).eq('squad_id', squad.id)
     const { error } = await supabase.from('clan_squads').delete().eq('id', squad.id)
-
-    if (error) {
-      setActionError(error.message)
-      setActing(false)
-      return
-    }
-
+    if (error) { setActionError(error.message); setActing(false); return }
     setActing(false)
     setConfirmOpen(null)
     router.push(`/clans/${code}`)
@@ -213,23 +183,29 @@ export default function SquadPage() {
   if (!squad)  return <div className={styles.page}><p className={styles.notFound}>Squad not found.</p></div>
 
   const isFull = squad.member_count >= SQUAD_SIZE
+  const sColor = identityColor(squad.name)
 
   return (
-    <div className={styles.page}>
+    <div className={styles.page} style={{ '--squad-accent': sColor }}>
       <button className={styles.backLink} onClick={() => router.push(`/clans/${code}`)}>
-        <i className="ri-arrow-left-line"/> Back to {clan.name}
+        <i className="ri-arrow-left-line"/> {clan.name}
       </button>
 
       <div className={styles.hero}>
+        <span className={styles.heroStripe}/>
         <div className={styles.squadImgLarge}>
           {squad.image_url ? <img src={squad.image_url} alt=""/> : <i className="ri-team-line"/>}
         </div>
         <div className={styles.heroInfo}>
           <h1 className={styles.squadName}>{squad.name}</h1>
-          <p className={styles.squadMeta}>
-            {squad.member_count}/{SQUAD_SIZE} members
+          <div className={styles.heroDots}>
+            {Array.from({ length: SQUAD_SIZE }).map((_, i) => (
+              <span key={i} className={styles.heroDot}
+                style={{ background: i < squad.member_count ? sColor : 'var(--border)' }}/>
+            ))}
+            <span className={styles.heroCount}>{squad.member_count}/{SQUAD_SIZE}</span>
             {isFull && <span className={styles.fullChip}>FULL</span>}
-          </p>
+          </div>
         </div>
         {canManage && (
           <button className={styles.editBtn} onClick={openEdit} title="Edit squad">
@@ -250,13 +226,13 @@ export default function SquadPage() {
         </button>
       )}
 
-      <h2 className={styles.sectionLabel}>Members</h2>
+      <h2 className={styles.sectionLabel}>Roster</h2>
       <div className={styles.memberList}>
         {members.map(m => {
           const online = onlineIds.has(m.user_id)
           return (
             <div key={m.user_id} className={styles.memberRow}>
-              <div className={styles.memberLink} onClick={() => setPreviewMember(m)} style={{ cursor: 'pointer' }}>
+              <div className={styles.memberLink} onClick={() => setPreviewMember(m)}>
                 <div className={styles.memberAvatar}>
                   {m.profiles?.avatar_url
                     ? <img src={m.profiles.avatar_url} alt=""/>
@@ -273,9 +249,7 @@ export default function SquadPage() {
                       size={12} gap={2}/>
                   </span>
                   <span className={styles.memberRole}>
-                    {m.user_id === squad.leader_id
-                      ? <><i className="ri-star-fill"/> Squad Leader</>
-                      : 'Member'}
+                    {m.user_id === squad.leader_id ? <><i className="ri-star-fill"/> Squad Leader</> : 'Member'}
                   </span>
                 </div>
               </div>
@@ -289,7 +263,6 @@ export default function SquadPage() {
         })}
       </div>
 
-      {/* Danger zone — squad leader or clan leader can delete the squad */}
       {canManage && (
         <div className={styles.dangerZone}>
           <p className={styles.dangerLabel}><i className="ri-error-warning-line"/> Danger Zone</p>
@@ -302,22 +275,14 @@ export default function SquadPage() {
         </div>
       )}
 
-      {/* Confirm modal — leave / kick / delete squad */}
       <Modal open={!!confirmOpen}
         onClose={() => { setConfirmOpen(null); setKickTarget(null); setActionError('') }}
-        title={
-          confirmOpen === 'leave' ? 'Leave Squad?' :
-          confirmOpen === 'delete_squad' ? 'Delete Squad?' :
-          'Remove Member?'
-        } size="sm"
+        title={confirmOpen === 'leave' ? 'Leave Squad?' : confirmOpen === 'delete_squad' ? 'Delete Squad?' : 'Remove Member?'}
+        size="sm"
         footer={
           <button className={styles.confirmBtn} disabled={acting}
             style={confirmOpen === 'delete_squad' ? { background: '#ef4444' } : {}}
-            onClick={
-              confirmOpen === 'leave' ? handleLeaveSquad :
-              confirmOpen === 'delete_squad' ? handleDeleteSquad :
-              handleKick
-            }>
+            onClick={confirmOpen === 'leave' ? handleLeaveSquad : confirmOpen === 'delete_squad' ? handleDeleteSquad : handleKick}>
             {acting ? 'Working…' : 'Confirm'}
           </button>
         }>
@@ -335,7 +300,6 @@ export default function SquadPage() {
         {actionError && <p className={styles.errorMsg}><i className="ri-error-warning-line"/> {actionError}</p>}
       </Modal>
 
-      {/* Edit squad modal — name/image */}
       <Modal open={editOpen} onClose={() => { setEditOpen(false); setEditError('') }}
         title="Edit Squad" size="sm"
         footer={
@@ -355,21 +319,15 @@ export default function SquadPage() {
             <label>Squad Name</label>
             <div className={styles.prefixedInput}>
               <span className={styles.prefixLock}>{clan.tag_prefix}</span>
-              <input className={styles.suffixInput}
-                value={editSuffix}
-                onChange={e => setEditSuffix(e.target.value.replace(/^\s+/, ''))}
-                maxLength={17}/>
+              <input className={styles.suffixInput} value={editSuffix}
+                onChange={e => setEditSuffix(e.target.value.replace(/^\s+/, ''))} maxLength={17}/>
             </div>
           </div>
           {editError && <p className={styles.errorMsg}><i className="ri-error-warning-line"/> {editError}</p>}
         </div>
       </Modal>
 
-      <MemberPreviewModal
-        member={previewMember}
-        squadName={squad.name}
-        onClose={() => setPreviewMember(null)}
-      />
+      <MemberPreviewModal member={previewMember} squadName={squad.name} onClose={() => setPreviewMember(null)} />
     </div>
   )
 }
