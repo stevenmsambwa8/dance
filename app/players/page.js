@@ -10,6 +10,7 @@ import usePageLoading from '../../components/usePageLoading'
 import { getCurrentSeason } from '../../lib/seasons'
 import UserBadges from '../../components/UserBadges'
 import { useOnlineUsers } from '../../lib/usePresence'
+import { presenceLabel } from '../../lib/lastSeen'
 import { RANK_META, GAME_SLUGS, GAME_META } from '../../lib/constants'
 
 const GAME_MODES = ['Elimination', 'Capture', 'Deathmatch', 'Sniper', 'Team Battle']
@@ -318,7 +319,12 @@ export default function PlayersPage() {
                       Official Support · Tap to contact
                     </span>
                   )}
-                </div>
+                  {!isSupport && (
+                    <span className={styles.presenceText}
+                      style={{ color: isOnline ? '#22c55e' : 'var(--text-muted)' }}>
+                      {presenceLabel(isOnline, p.last_seen).text}
+                    </span>
+                  )}</div>
 
                 {/* Actions */}
                 {user?.id !== p.id && (

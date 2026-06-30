@@ -142,6 +142,7 @@
 }
 .playerMeta { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
 .playerMeta i { font-size: 10px; }
+.presenceText { font-size: 10px; font-weight: 600; line-height: 1.3; }
 
 .rowActions { display: flex; gap: 5px; flex-shrink: 0; }
 .followBtn, .challengeBtn {

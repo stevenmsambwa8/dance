@@ -8,6 +8,8 @@ import { supabase } from '../../../lib/supabase'
 import styles from './page.module.css'
 import { getActivePlan } from '../../../lib/plans'
 import UpgradeModal from '../../../components/UpgradeModal'
+import { useIsOnline } from '../../../lib/usePresence'
+import { presenceLabel } from '../../../lib/lastSeen'
 
 function formatTime(ts) {
   return new Date(ts).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
@@ -28,6 +30,7 @@ export default function DMPage() {
   const { openAuthGate } = useAuthGate()
 
   const [otherProfile, setOtherProfile] = useState(null)
+  const isOtherOnline = useIsOnline(otherProfile?.id)
   const [myProfile, setMyProfile]       = useState(null)
   const [messages, setMessages]         = useState([])
   const [loading, setLoading]           = useState(true)
@@ -92,7 +95,7 @@ export default function DMPage() {
   async function loadAll() {
     setLoading(true)
     const [{ data: other }, { data: me }] = await Promise.all([
-      supabase.from('profiles').select('id, username, avatar_url, tier, level, online_status').eq('id', userId).single(),
+      supabase.from('profiles').select('id, username, avatar_url, tier, level, online_status, last_seen').eq('id', userId).single(),
       supabase.from('profiles').select('id, username, avatar_url, tier, plan, plan_expires_at').eq('id', user.id).single(),
     ])
     setOtherProfile(other || null)
@@ -232,8 +235,8 @@ export default function DMPage() {
     </div>
   )
 
-  const statusColor = otherProfile.online_status === 'online' ? '#22c55e'
-    : otherProfile.online_status === 'away' ? '#f59e0b' : 'var(--border-dark)'
+  const presence = presenceLabel(isOtherOnline, otherProfile.last_seen)
+  const statusColor = presence.dotColor
 
   return (
     <div className={styles.page}>
@@ -254,10 +257,8 @@ export default function DMPage() {
             </div>
             <div className={styles.pText}>
               <span className={styles.pName}>{otherProfile.username}</span>
-              <span className={`${styles.pSub} ${otherProfile.online_status === 'online' ? styles.pSubOnline : ''}`}>
-                {otherProfile.online_status === 'online' ? 'Active Now' :
-                 otherProfile.online_status === 'away' ? 'Offline' :
-                 otherProfile.tier ? otherProfile.tier + (otherProfile.level ? ` · Lv.${otherProfile.level}` : '') : 'Player'}
+              <span className={`${styles.pSub} ${isOtherOnline ? styles.pSubOnline : ''}`}>
+                {presence.text}
               </span>
             </div>
           </Link>

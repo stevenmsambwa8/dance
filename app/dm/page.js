@@ -6,6 +6,7 @@ import { useAuth, isHelpdeskEmail } from '../../components/AuthProvider'
 import { useAuthGate } from '../../components/AuthGateModal'
 import { supabase } from '../../lib/supabase'
 import { useOnlineUsers } from '../../lib/usePresence'
+import { presenceLabel } from '../../lib/lastSeen'
 import styles from './page.module.css'
 
 function timeAgo(ts) {
@@ -64,7 +65,7 @@ export default function DMListPage() {
     const otherIds = [...new Set(threadList.map(t => t.other_id))]
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, username, avatar_url, tier')
+      .select('id, username, avatar_url, tier, last_seen')
       .in('id', otherIds)
 
     const profileMap = {}
@@ -152,6 +153,11 @@ export default function DMListPage() {
                   <p className={styles.threadPreview} style={isHD ? { color: 'var(--accent)', fontWeight: 500 } : {}}>
                     {isHD ? 'Official Help Desk · ' : ''}{t.last_body}
                   </p>
+                  {!isHD && (
+                    <p className={styles.threadPresence} style={{ color: isOnline ? '#22c55e' : 'var(--text-muted)' }}>
+                      {presenceLabel(isOnline, t.profile.last_seen).text}
+                    </p>
+                  )}
                 </div>
               </button>
             )

@@ -224,3 +224,9 @@
     border-radius: 14px;
   }
 }
+
+.threadPresence {
+  font-size: 10.5px;
+  font-weight: 600;
+  margin-top: 2px;
+}
