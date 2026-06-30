@@ -9,6 +9,7 @@ import { getCurrentSeason, getDaysRemaining, TIER_ORDER, TIER_WIN_THRESHOLD, get
 import { GAME_META, GAME_SLUGS, RANK_META } from '../lib/constants'
 import UserBadges from '../components/UserBadges'
 import { useCurrency } from '../lib/useCurrency'
+import useTranslation from '../lib/useTranslation'
 
 function parsePrize(raw) {
   if (!raw) return null
@@ -31,6 +32,7 @@ function timeAgo(iso) {
 
 /* ── Game Master Modal ── */
 function MasterModal({ gameMasters, onClose }) {
+  const { t } = useTranslation()
   const [idx, setIdx] = useState(0)
   const total = gameMasters.length
 
@@ -117,7 +119,7 @@ function MasterModal({ gameMasters, onClose }) {
                   </button>
                 </div>
                 <div className={styles.mmBody}>
-                  <p className={styles.mmLabel}><i className="ri-crown-fill" /> WEEKLY MASTER</p>
+                  <p className={styles.mmLabel}><i className="ri-crown-fill" /> {t('home.weeklyMaster')}</p>
                   <div className={styles.mmAvatarWrap}>
                     {m?.avatar_url
                       ? <img src={m.avatar_url} alt={m.username} className={styles.mmAvatarImg} />
@@ -131,7 +133,7 @@ function MasterModal({ gameMasters, onClose }) {
                     </span>
                     {m?.country_flag && (
                       <span className={styles.mmFrom}>
-                        <span className={styles.mmFromLabel}>from</span>
+                        <span className={styles.mmFromLabel}>{t('home.from')}</span>
                         <img src={`/${m.country_flag}.png`} alt={m.country_flag} className={styles.mmFromFlag} />
                       </span>
                     )}
@@ -140,28 +142,28 @@ function MasterModal({ gameMasters, onClose }) {
                     <div className={styles.mmStat}>
                       <i className="ri-sword-fill" />
                       <span className={styles.mmStatVal}>{m?.total_wins ?? 0}</span>
-                      <span className={styles.mmStatLabel}>WINS</span>
+                      <span className={styles.mmStatLabel}>{t('home.wins')}</span>
                     </div>
                     <div className={styles.mmStatDiv} />
                     <div className={styles.mmStat}>
                       <i className="ri-star-fill" />
                       <span className={styles.mmStatVal}>{m?.total_points ?? 0}</span>
-                      <span className={styles.mmStatLabel}>PTS</span>
+                      <span className={styles.mmStatLabel}>{t('home.pts')}</span>
                     </div>
                     <div className={styles.mmStatDiv} />
                     <div className={styles.mmStat}>
                       <i className="ri-node-tree" />
                       <span className={styles.mmStatVal}>{m?.tournaments_played ?? 0}</span>
-                      <span className={styles.mmStatLabel}>PLAYED</span>
+                      <span className={styles.mmStatLabel}>{t('home.played')}</span>
                     </div>
                   </div>
                   <a href={`/profile/${m?.user_id}`} className={styles.mmViewBtn} onClick={suppress}>
-                    <i className="ri-user-3-line" /> View Profile <i className="ri-arrow-right-line" />
+                    <i className="ri-user-3-line" /> {t('home.viewProfile')} <i className="ri-arrow-right-line" />
                   </a>
                   <button className={styles.mmAwesome} onClick={suppress}>
-                    <i className="ri-fire-fill" /> Awesome!
+                    <i className="ri-fire-fill" /> {t('home.awesome')}
                   </button>
-                  <button className={styles.mmDontShow} onClick={suppress}>Don't show for 7 days</button>
+                  <button className={styles.mmDontShow} onClick={suppress}>{t('home.dontShow7Days')}</button>
                 </div>
               </div>
             )
@@ -201,11 +203,12 @@ function SkeletonCard() {
 
 /* ── Section wrapper ── */
 function Section({ icon, title, href, linkLabel, children, className }) {
+  const { t } = useTranslation()
   return (
     <section className={`${styles.section} ${className || ''}`}>
       <div className={styles.sectionHead}>
         <h2 className={styles.sectionTitle}><i className={icon} /> {title}</h2>
-        {href && <Link href={href} className={styles.sectionLink}>{linkLabel || 'See all'} <i className="ri-arrow-right-s-line" /></Link>}
+        {href && <Link href={href} className={styles.sectionLink}>{linkLabel || t('home.seeAll')} <i className="ri-arrow-right-s-line" /></Link>}
       </div>
       {children}
     </section>
@@ -216,6 +219,7 @@ export default function Home() {
   const { user, profile, isAdmin } = useAuth()
   const { openAuthGate } = useAuthGate()
   const { fmtAmt, currencyMeta } = useCurrency(profile?.country_flag)
+  const { t } = useTranslation()
 
   const [tournaments,  setTournaments]  = useState([])
   const [topPlayers,   setTopPlayers]   = useState([])
@@ -432,7 +436,7 @@ export default function Home() {
         <div className={styles.heroContent}>
           <div className={styles.heroTop}>
             <div className={styles.heroSeason}>
-              <i className="ri-calendar-line" /> Season {season} · {daysLeft}d left
+              <i className="ri-calendar-line" /> {t('season.season')} {season} · {daysLeft}d {t('home.daysLeft')}
             </div>
             {profile && (
               <Link href="/account" className={styles.heroAvatarBtn}>
@@ -461,10 +465,10 @@ export default function Home() {
               </div>
               <div className={styles.heroStats}>
                 {[
-                  { icon: 'ri-trophy-fill',  val: profile.season_wins ?? 0, label: 'S.Wins' },
-                  { icon: 'ri-sword-fill',   val: profile.wins ?? 0,        label: 'Total'  },
-                  { icon: 'ri-percent-line', val: (() => { const w = profile.wins ?? 0; const l = profile.losses ?? 0; return w+l > 0 ? `${Math.round(w/(w+l)*100)}%` : '—' })(), label: 'WR' },
-                  { icon: 'ri-star-fill',    val: (profile.points ?? 0).toLocaleString(), label: 'PTS' },
+                  { icon: 'ri-trophy-fill',  val: profile.season_wins ?? 0, label: t('home.seasonWins') },
+                  { icon: 'ri-sword-fill',   val: profile.wins ?? 0,        label: t('home.total')  },
+                  { icon: 'ri-percent-line', val: (() => { const w = profile.wins ?? 0; const l = profile.losses ?? 0; return w+l > 0 ? `${Math.round(w/(w+l)*100)}%` : '—' })(), label: t('home.winRateShort') },
+                  { icon: 'ri-star-fill',    val: (profile.points ?? 0).toLocaleString(), label: t('home.pts') },
                 ].map(s => (
                   <div key={s.label} className={styles.heroStat}>
                     <span className={styles.heroStatVal}>{s.val}</span>
@@ -476,10 +480,10 @@ export default function Home() {
           ) : !user ? (
             <div className={styles.heroGuest}>
               <div className={styles.heroGuestTitle}>NABOGAMING</div>
-              <div className={styles.heroGuestSub}>Compete. Win. Rise.</div>
+              <div className={styles.heroGuestSub}>{t('home.competeWinRise')}</div>
               <div className={styles.heroGuestBtns}>
-                <button onClick={openAuthGate} className={styles.heroPrimaryBtn}><i className="ri-login-box-line" /> Sign In</button>
-                <button onClick={openAuthGate} className={styles.heroSecondaryBtn}><i className="ri-user-add-line" /> Join Free</button>
+                <button onClick={openAuthGate} className={styles.heroPrimaryBtn}><i className="ri-login-box-line" /> {t('home.signIn')}</button>
+                <button onClick={openAuthGate} className={styles.heroSecondaryBtn}><i className="ri-user-add-line" /> {t('home.joinFree')}</button>
               </div>
             </div>
           ) : null}
@@ -495,23 +499,23 @@ export default function Home() {
                 <i className={tierMeta.icon} /> {tier}
               </span>
               {isMaxTier
-                ? <span className={styles.progressMax}>MAX TIER </span>
+                ? <span className={styles.progressMax}>{t('home.maxTier')} </span>
                 : <span className={styles.progressNext}>{winsToTier}W → {nextTier}</span>
               }
             </div>
             <div className={styles.progressTrack}>
               <div className={styles.progressFill} style={{ width: `${Math.max(tierPct, seasonWins > 0 ? 3 : 0)}%`, background: tierMeta.color }} />
             </div>
-            <div className={styles.progressSub}>{seasonWins}/{threshold} season wins</div>
+            <div className={styles.progressSub}>{seasonWins}/{threshold} {t('home.seasonWinsCount')}</div>
           </div>
           <div className={styles.progressRow}>
             <div className={styles.progressMeta}>
               <span className={styles.progressLabel}>
-                <i className="ri-bar-chart-fill" /> Level {lvl}{lvl < MAX_LEVEL ? ` → ${lvl+1}` : ''}
+                <i className="ri-bar-chart-fill" /> {t('home.level')} {lvl}{lvl < MAX_LEVEL ? ` → ${lvl+1}` : ''}
               </span>
               {lvl >= MAX_LEVEL
-                ? <span className={styles.progressMax}>MAX LEVEL </span>
-                : <span className={styles.progressNext}>{winsToLvl}W to level up</span>
+                ? <span className={styles.progressMax}>{t('home.maxLevel')} </span>
+                : <span className={styles.progressNext}>{winsToLvl}W {t('home.winsToLevelUp')}</span>
               }
             </div>
             <div className={styles.progressTrack}>
@@ -522,14 +526,14 @@ export default function Home() {
       )}
 
       {/* ══════════ TOURNAMENTS ══════════ */}
-      <Section icon="ri-node-tree" title="Tournaments" href="/tournaments" linkLabel="All">
+      <Section icon="ri-node-tree" title={t('tournaments.tournaments')} href="/tournaments" linkLabel={t('common.all')}>
         {loadingTourns ? (
           <div className={styles.tGrid}><SkeletonCard /><SkeletonCard /></div>
         ) : tournaments.length === 0 ? (
           <div className={styles.empty}>
             <i className="ri-node-tree" />
-            <p>No active tournaments</p>
-            <Link href="/tournaments" className={styles.emptyBtn}>Browse All</Link>
+            <p>{t('home.noActiveTournaments')}</p>
+            <Link href="/tournaments" className={styles.emptyBtn}>{t('home.browseAll')}</Link>
           </div>
         ) : (
           <div className={styles.tGrid}>
@@ -552,15 +556,15 @@ export default function Home() {
                       <span className={styles.tStatusBadge}>
                         <i className="ri-circle-fill" style={{ fontSize: 6 }} /> {t.status}
                       </span>
-                      {full && <span className={styles.tFullBadge}><i className="ri-lock-line" /> Full</span>}
+                      {full && <span className={styles.tFullBadge}><i className="ri-lock-line" /> {t('home.full')}</span>}
                     </div>
                   </div>
                   <div className={styles.tCardBody}>
                     <div className={styles.tGameChip}><i className={game?.icon || 'ri-gamepad-line'} /> {game?.name || t.game_slug}</div>
                     <div className={styles.tCardName}>{t.name}</div>
                     <div className={styles.tStatRow}>
-                      <span><i className="ri-money-dollar-circle-line" /> {fee ? fmtAmt(fee) : 'Free'}</span>
-                      <span style={{ color: prize ? '#22c55e' : 'var(--text-muted)' }}><i className="ri-trophy-line" /> {prize ? fmtAmt(prize) : 'No prize'}</span>
+                      <span><i className="ri-money-dollar-circle-line" /> {fee ? fmtAmt(fee) : t('common.free')}</span>
+                      <span style={{ color: prize ? '#22c55e' : 'var(--text-muted)' }}><i className="ri-trophy-line" /> {prize ? fmtAmt(prize) : t('home.noPrize')}</span>
                       {t.date && <span><i className="ri-calendar-line" /> {t.date}</span>}
                     </div>
                     <div className={styles.tSlotBar}>
@@ -579,14 +583,14 @@ export default function Home() {
 
       {/* ══════════ MY MATCHES (logged-in only) ══════════ */}
       {user && (
-        <Section icon="ri-swords-line" title="My Matches" href="/matches" linkLabel="All">
+        <Section icon="ri-swords-line" title={t('matches.myMatches')} href="/matches" linkLabel={t('common.all')}>
           {loadingUser ? (
             [1,2,3].map(i => <SkeletonRow key={i} />)
           ) : upcoming.length === 0 && recent.length === 0 ? (
             <div className={styles.empty}>
               <i className="ri-swords-line" />
-              <p>No matches yet</p>
-              <Link href="/players" className={styles.emptyBtn}><i className="ri-user-search-line" /> Find Players</Link>
+              <p>{t('home.noMatchesYet')}</p>
+              <Link href="/players" className={styles.emptyBtn}><i className="ri-user-search-line" /> {t('home.findPlayers')}</Link>
             </div>
           ) : (
             <div className={styles.matchList}>
@@ -596,7 +600,7 @@ export default function Home() {
                   <Link key={m.id} href={`/matches/${m.slug || m.id}`} className={styles.matchRow}>
                     <div className={`${styles.matchStatusDot} ${styles['dot_' + m.status]}`} />
                     <div className={styles.matchInfo}>
-                      <span className={styles.matchOpp}>vs {opp?.username || '—'}</span>
+                      <span className={styles.matchOpp}>{t('home.vs')} {opp?.username || '—'}</span>
                       <span className={styles.matchSub}>{m.game_mode} · {fmtTime(m.scheduled_at)}</span>
                     </div>
                     <span className={`${styles.matchBadge} ${styles['badge_' + m.status]}`}>{m.status?.toUpperCase()}</span>
@@ -629,7 +633,7 @@ export default function Home() {
       )}
 
       {/* ══════════ LEADERBOARD ══════════ */}
-      <Section icon="ri-bar-chart-line" title="Leaderboard" href="/players" linkLabel="All Players">
+      <Section icon="ri-bar-chart-line" title={t('players.leaderboard')} href="/players" linkLabel={t('home.allPlayers')}>
         {loadingPlayers ? (
           [1,2,3].map(i => <SkeletonRow key={i} />)
         ) : (
@@ -650,14 +654,14 @@ export default function Home() {
                   <div className={styles.leaderInfo}>
                     <span className={styles.leaderName}>
                       {p.username}
-                      {isMe && <span className={styles.youPill}>YOU</span>}
+                      {isMe && <span className={styles.youPill}>{t('home.you')}</span>}
                       <UserBadges email={p.email} plan={p.plan} planExpiresAt={p.plan_expires_at} countryFlag={p.country_flag} isSeasonWinner={p.is_season_winner} size={11} gap={2} />
                     </span>
                     <span className={styles.leaderSub} style={{ color: tm.color }}>
                       <i className={tm.icon} /> {p.tier} · Lv.{p.level ?? 1} · {p.wins || 0}W
                     </span>
                   </div>
-                  <span className={styles.leaderPts}>{(p.points || 0).toLocaleString()}<span className={styles.ptsLabel}> pts</span></span>
+                  <span className={styles.leaderPts}>{(p.points || 0).toLocaleString()}<span className={styles.ptsLabel}> {t('home.pts').toLowerCase()}</span></span>
                 </Link>
               )
             })}
@@ -666,14 +670,14 @@ export default function Home() {
       </Section>
 
       {/* ══════════ SCHEDULED MATCHES ══════════ */}
-      <Section icon="ri-calendar-check-line" title="Scheduled" href="/matches" linkLabel="All Matches">
+      <Section icon="ri-calendar-check-line" title={t('tournaments.statusScheduled')} href="/matches" linkLabel={t('home.allMatches')}>
         {loadingMatches ? (
           [1,2,3].map(i => <SkeletonRow key={i} />)
         ) : liveMatches.length === 0 ? (
           <div className={styles.empty}>
             <i className="ri-calendar-check-line" />
-            <p>No scheduled matches</p>
-            <Link href="/players" className={styles.emptyBtn}><i className="ri-user-search-line" /> Find Players</Link>
+            <p>{t('home.noScheduledMatches')}</p>
+            <Link href="/players" className={styles.emptyBtn}><i className="ri-user-search-line" /> {t('home.findPlayers')}</Link>
           </div>
         ) : (
           <div className={styles.matchList}>
@@ -681,7 +685,7 @@ export default function Home() {
               <Link key={m.id} href={`/matches/${m.slug || m.id}`} className={styles.matchRow}>
                 <div className={`${styles.matchStatusDot} ${styles['dot_' + m.status]}`} />
                 <div className={styles.matchInfo}>
-                  <span className={styles.matchOpp}>{m.challenger?.username || '—'} <span style={{ opacity: 0.5 }}>vs</span> {m.challenged?.username || '—'}</span>
+                  <span className={styles.matchOpp}>{m.challenger?.username || '—'} <span style={{ opacity: 0.5 }}>{t('home.vs')}</span> {m.challenged?.username || '—'}</span>
                   <span className={styles.matchSub}>{m.game_mode} · {fmtTime(m.scheduled_at)}</span>
                 </div>
                 <span className={`${styles.matchBadge} ${styles['badge_' + m.status]}`}>{m.status?.toUpperCase()}</span>
@@ -692,7 +696,7 @@ export default function Home() {
       </Section>
 
       {/* ══════════ GAMES GRID ══════════ */}
-      <Section icon="ri-gamepad-line" title="Games" href="/games" linkLabel="All">
+      <Section icon="ri-gamepad-line" title={t('navigation.games')} href="/games" linkLabel={t('common.all')}>
         <div className={styles.gamesGrid}>
           {GAME_SLUGS.map(slug => {
             const game = GAME_META[slug]
@@ -710,11 +714,11 @@ export default function Home() {
       </Section>
 
       {/* ══════════ SHOP SPOTLIGHT ══════════ */}
-      <Section icon="ri-store-2-line" title="Shop" href="/shop" linkLabel="Browse All">
+      <Section icon="ri-store-2-line" title={t('shop.shop')} href="/shop" linkLabel={t('home.browseAll')}>
         {loadingShop ? (
           <div className={styles.shopGrid}><SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard /></div>
         ) : shopItems.length === 0 ? (
-          <div className={styles.empty}><i className="ri-store-2-line" /><p>No listings yet</p></div>
+          <div className={styles.empty}><i className="ri-store-2-line" /><p>{t('home.noListingsYet')}</p></div>
         ) : (
           <div className={styles.shopGrid}>
             {shopItems.map(item => {
@@ -727,7 +731,7 @@ export default function Home() {
                       ? <img src={imgs[0]} alt={item.title} className={styles.shopImg} />
                       : <div className={styles.shopImgFallback}><i className="ri-image-line" /></div>
                     }
-                    <span className={styles.shopCat}>{item.category || 'Item'}</span>
+                    <span className={styles.shopCat}>{item.category || t('home.item')}</span>
                   </div>
                   <div className={styles.shopBody}>
                     <span className={styles.shopTitle}>{item.title}</span>
@@ -741,11 +745,11 @@ export default function Home() {
       </Section>
 
       {/* ══════════ COMMUNITY FEED ══════════ */}
-      <Section icon="ri-compass-3-line" title="Community" href="/feed" linkLabel="Feed">
+      <Section icon="ri-compass-3-line" title={t('navigation.community')} href="/feed" linkLabel={t('navigation.feed')}>
         {loadingFeed ? (
           [1,2].map(i => <SkeletonRow key={i} />)
         ) : recentPosts.length === 0 ? (
-          <div className={styles.empty}><i className="ri-compass-3-line" /><p>No posts yet</p></div>
+          <div className={styles.empty}><i className="ri-compass-3-line" /><p>{t('home.noPostsYet')}</p></div>
         ) : (
           <div className={styles.feedList}>
             {recentPosts.map(post => (
@@ -777,8 +781,8 @@ export default function Home() {
       {/* ══════════ SEASON BAR ══════════ */}
       <div className={styles.seasonBar}>
         <div className={styles.seasonBarRow}>
-          <span><i className="ri-calendar-line" /> Season {season}</span>
-          <span className={styles.seasonDays}>{daysLeft} days left</span>
+          <span><i className="ri-calendar-line" /> {t('season.season')} {season}</span>
+          <span className={styles.seasonDays}>{daysLeft} {t('home.daysLeft')}</span>
         </div>
         <div className={styles.seasonTrack}>
           <div className={styles.seasonFill} style={{ width: `${Math.max(4, 100 - Math.round((daysLeft / 90) * 100))}%` }} />
