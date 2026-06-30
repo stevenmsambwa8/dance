@@ -8,12 +8,14 @@ import { GAME_SLUGS, GAME_META } from '../../lib/constants'
 import styles from './page.module.css'
 import { getCurrentSeason, getSeasonDateRange, getDaysRemaining } from '../../lib/seasons'
 import usePageLoading from '../../components/usePageLoading'
+import useTranslation from '../../lib/useTranslation'
 
 export { GAME_SLUGS, GAME_META }
 
 export default function Games() {
   const { user } = useAuth()
   const { openAuthGate } = useAuthGate()
+  const { t } = useTranslation()
   const [gameStats, setGameStats] = useState({})
   const [subscribed, setSubscribed] = useState({})
   const [loading, setLoading] = useState(true)
@@ -69,8 +71,8 @@ export default function Games() {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <p className={styles.eyebrow}>Arena · Season {getCurrentSeason()}</p>
-        <h1 className={styles.headline}>GAMES</h1>
+        <p className={styles.eyebrow}>{t('gamesPage.arenaSeasonPrefix')} {getCurrentSeason()}</p>
+        <h1 className={styles.headline}>{t('gamesPage.title')}</h1>
       </div>
 
       <div className={styles.list}>
@@ -95,14 +97,14 @@ export default function Games() {
                       onClick={(e) => toggleSubscribe(e, slug)}
                       disabled={subLoading[slug]}
                     >
-                      {isSub ? 'Subscribed' : 'Subscribe'}
+                      {isSub ? t('gamesPage.subscribed') : t('gamesPage.subscribe')}
                     </button>
                   </div>
                   <span>{meta.genre} · {meta.full}</span>
                 </div>
                 <div className={styles.meta}>
-                  <span className={styles.metaItem}><i className="ri-user-line" />{loading ? '…' : stats.subscribers?.toLocaleString()} players</span>
-                  <span className={styles.metaItem}><i className="ri-trophy-line" />{loading ? '…' : stats.tournaments} tournaments</span>
+                  <span className={styles.metaItem}><i className="ri-user-line" />{loading ? '…' : stats.subscribers?.toLocaleString()} {t('gamesPage.players')}</span>
+                  <span className={styles.metaItem}><i className="ri-trophy-line" />{loading ? '…' : stats.tournaments} {t('gamesPage.tournaments')}</span>
                 </div>
                 <i className={`ri-arrow-right-line ${styles.arrow}`} />
               </Link>

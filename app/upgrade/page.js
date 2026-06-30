@@ -4,14 +4,15 @@ import { useAuth } from '../../components/AuthProvider'
 import { useAuthGate } from '../../components/AuthGateModal'
 import UpgradeModal from '../../components/UpgradeModal'
 import { PLANS, getPlanPrice, getActivePlan, FEATURE_PLAN } from '../../lib/plans'
+import useTranslation from '../../lib/useTranslation'
 import styles from './page.module.css'
-import { DiamondBadge, ProBadge } from '../../components/UserBadges'
 
 const ORDER = ['free', 'pro', 'elite', 'team']
 
 export default function UpgradePage() {
   const { user, profile } = useAuth()
   const { openAuthGate }  = useAuthGate()
+  const { t } = useTranslation()
   const [modal, setModal] = useState(null) // plan key
 
   const currentPlan = getActivePlan(profile)
@@ -25,12 +26,12 @@ export default function UpgradePage() {
 
         {/* Header */}
         <div style={{ textAlign: 'center' }}>
-          <p style={{ fontSize: 26, fontWeight: 900, color: 'var(--text)', margin: '0 0 8px', lineHeight: 1.1 }}>Level Up Your Game</p>
-          <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: 0 }}>Unlock the full Nabogaming experience</p>
+          <p style={{ fontSize: 26, fontWeight: 900, color: 'var(--text)', margin: '0 0 8px', lineHeight: 1.1 }}>{t('upgradePage.levelUpYourGame')}</p>
+          <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: 0 }}>{t('upgradePage.unlockFullExperience')}</p>
           {currentPlan !== 'free' && (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10, padding: '5px 12px', background: 'var(--surface)', border: '1px solid var(--border-dark)', borderRadius: 20, fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>
               <i className={PLANS[currentPlan]?.icon} style={{ color: PLANS[currentPlan]?.color }} />
-              Current plan: {PLANS[currentPlan]?.label}
+              {t('upgradePage.currentPlanPrefix')} {PLANS[currentPlan]?.label}
             </span>
           )}
         </div>
@@ -51,21 +52,21 @@ export default function UpgradePage() {
               opacity: isLower ? 0.5 : 1,
             }}>
               {plan.popular && !isActive && (
-                <span style={{ position: 'absolute', top: -1, right: 16, background: plan.color, color: '#fff', fontSize: 9, fontWeight: 800, padding: '3px 8px', borderRadius: '0 0 7px 7px', letterSpacing: '0.06em' }}>MOST POPULAR</span>
+                <span style={{ position: 'absolute', top: -1, right: 16, background: plan.color, color: '#fff', fontSize: 9, fontWeight: 800, padding: '3px 8px', borderRadius: '0 0 7px 7px', letterSpacing: '0.06em' }}>{t('upgradePage.mostPopular')}</span>
               )}
               {isActive && (
-                <span style={{ position: 'absolute', top: -1, right: 16, background: plan.color, color: '#fff', fontSize: 9, fontWeight: 800, padding: '3px 8px', borderRadius: '0 0 7px 7px', letterSpacing: '0.06em' }}>YOUR PLAN</span>
+                <span style={{ position: 'absolute', top: -1, right: 16, background: plan.color, color: '#fff', fontSize: 9, fontWeight: 800, padding: '3px 8px', borderRadius: '0 0 7px 7px', letterSpacing: '0.06em' }}>{t('upgradePage.yourPlan')}</span>
               )}
 
               {/* Plan header */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ width: 44, height: 44, borderRadius: 12, background: plan.color + '20', border: `1.5px solid ${plan.color}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>
-                    {(plan.key === 'elite' || plan.key === 'team') ? <DiamondBadge size={26} /> : plan.key === 'pro' ? <ProBadge size={26} /> : <span style={{ fontSize: 22 }}>{plan.badge}</span>}
+                    {plan.badge}
                   </div>
                   <div>
                     <p style={{ fontSize: 18, fontWeight: 900, color: 'var(--text)', margin: 0 }}>{plan.label}</p>
-                    <p style={{ fontSize: 13, color: plan.color, fontWeight: 700, margin: '2px 0 0' }}>{price}<span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}> / month</span></p>
+                    <p style={{ fontSize: 13, color: plan.color, fontWeight: 700, margin: '2px 0 0' }}>{price}<span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}> {t('upgradePage.perMonth')}</span></p>
                   </div>
                 </div>
                 <i className={plan.icon} style={{ fontSize: 22, color: plan.color + '80' }} />
@@ -84,11 +85,11 @@ export default function UpgradePage() {
               {/* CTA */}
               {isActive ? (
                 <div style={{ padding: '10px 16px', borderRadius: 8, background: plan.color + '20', textAlign: 'center', fontSize: 13, fontWeight: 700, color: plan.color }}>
-                  <i className="ri-check-circle-line" /> Active Plan
+                  <i className="ri-check-circle-line" /> {t('upgradePage.activePlan')}
                 </div>
               ) : isLower ? (
                 <div style={{ padding: '10px 16px', borderRadius: 8, background: 'var(--border)', textAlign: 'center', fontSize: 13, fontWeight: 600, color: 'var(--text-muted)' }}>
-                  Already unlocked
+                  {t('upgradePage.alreadyUnlocked')}
                 </div>
               ) : (
                 <button
@@ -97,7 +98,7 @@ export default function UpgradePage() {
                   onMouseEnter={e => e.currentTarget.style.opacity = '0.88'}
                   onMouseLeave={e => e.currentTarget.style.opacity = '1'}
                 >
-                  Get {plan.label} <i className="ri-arrow-right-line" />
+                  {t('upgradePage.getPlan')} {plan.label} <i className="ri-arrow-right-line" />
                 </button>
               )}
             </div>
@@ -106,7 +107,7 @@ export default function UpgradePage() {
 
         {/* Footer note */}
         <p style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.7 }}>
-          Payment via M-Pesa or Halopesa. Plans activate within 24 hours after admin verification. Cancel anytime by not renewing.
+          {t('upgradePage.footerNote')}
         </p>
       </div>
 

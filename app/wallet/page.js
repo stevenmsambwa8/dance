@@ -4,22 +4,37 @@ import { useAuth } from '../../components/AuthProvider'
 import { supabase } from '../../lib/supabase'
 import usePageLoading from '../../components/usePageLoading'
 import { useCurrency } from '../../lib/useCurrency'
+import useTranslation from '../../lib/useTranslation'
 import styles from './page.module.css'
 
-const TYPE_META = {
-  match_win:           { label: 'Match Win',        icon: 'ri-sword-line',               color: '#22c55e' },
-  match_loss:          { label: 'Match Loss',        icon: 'ri-sword-line',               color: '#94a3b8' },
-  tournament_win:      { label: 'Round Win',         icon: 'ri-trophy-line',              color: '#60a5fa' },
-  tournament_advance:  { label: 'Round Advance',     icon: 'ri-arrow-right-up-line',      color: '#60a5fa' },
-  tournament_eliminate:{ label: 'Eliminated',        icon: 'ri-close-circle-line',        color: '#94a3b8' },
-  tournament_champion: { label: 'Champion Bonus',    icon: 'ri-vip-crown-fill',           color: '#f59e0b' },
-  tournament_podium:   { label: 'Podium Finish',     icon: 'ri-medal-line',               color: '#a78bfa' },
-  prize:               { label: 'Prize Awarded',     icon: 'ri-money-dollar-circle-line', color: '#f59e0b' },
-  shop_payout:         { label: 'Shop Sale',         icon: 'ri-store-2-line',             color: '#34d399' },
+const TYPE_ICONS = {
+  match_win:           { icon: 'ri-sword-line',               color: '#22c55e' },
+  match_loss:          { icon: 'ri-sword-line',               color: '#94a3b8' },
+  tournament_win:      { icon: 'ri-trophy-line',              color: '#60a5fa' },
+  tournament_advance:  { icon: 'ri-arrow-right-up-line',      color: '#60a5fa' },
+  tournament_eliminate:{ icon: 'ri-close-circle-line',        color: '#94a3b8' },
+  tournament_champion: { icon: 'ri-vip-crown-fill',           color: '#f59e0b' },
+  tournament_podium:   { icon: 'ri-medal-line',               color: '#a78bfa' },
+  prize:               { icon: 'ri-money-dollar-circle-line', color: '#f59e0b' },
+  shop_payout:         { icon: 'ri-store-2-line',             color: '#34d399' },
 }
 
-function typeMeta(type) {
-  return TYPE_META[type] || { label: type || 'Activity', icon: 'ri-history-line', color: 'var(--text-muted)' }
+const TYPE_LABEL_KEYS = {
+  match_win:            'walletPage.matchWin',
+  match_loss:           'walletPage.matchLoss',
+  tournament_win:       'walletPage.roundWin',
+  tournament_advance:   'walletPage.roundAdvance',
+  tournament_eliminate: 'walletPage.eliminated',
+  tournament_champion:  'walletPage.championBonus',
+  tournament_podium:    'walletPage.podiumFinish',
+  prize:                'walletPage.prizeAwarded',
+  shop_payout:           'walletPage.shopSale',
+}
+
+function typeMeta(type, t) {
+  const visuals = TYPE_ICONS[type] || { icon: 'ri-history-line', color: 'var(--text-muted)' }
+  const label = TYPE_LABEL_KEYS[type] ? t(TYPE_LABEL_KEYS[type]) : (type || t('walletPage.activity'))
+  return { ...visuals, label }
 }
 
 function formatDate(iso) {
@@ -34,6 +49,7 @@ function fmtTZS(n) {
 export default function WalletPage() {
   const { user, profile } = useAuth()
   const { fmtAmt } = useCurrency(profile?.country_flag)
+  const { t } = useTranslation()
   const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
@@ -69,7 +85,7 @@ export default function WalletPage() {
 
   if (!user) return (
     <div className={styles.page}>
-      <p className={styles.empty}>Sign in to view your earnings.</p>
+      <p className={styles.empty}>{t('walletPage.signInToViewEarnings')}</p>
     </div>
   )
 
@@ -77,42 +93,42 @@ export default function WalletPage() {
     <div className={styles.page}>
       <div className={styles.header}>
         <div className={styles.headerTop}>
-          <h1 className={styles.title}><i className="ri-wallet-3-line" /> Wallet</h1>
-          <span className={styles.totalBadge}>{profile?.points ?? 0} pts total</span>
+          <h1 className={styles.title}><i className="ri-wallet-3-line" /> {t('wallet.wallet')}</h1>
+          <span className={styles.totalBadge}>{profile?.points ?? 0} {t('walletPage.ptsTotal')}</span>
         </div>
-        <p className={styles.sub}>Your full earnings history</p>
+        <p className={styles.sub}>{t('walletPage.fullEarningsHistory')}</p>
       </div>
 
       {/* Stats */}
       <div className={styles.statsRow}>
         <div className={styles.statCard}>
           <span className={styles.statVal} style={{ color: '#22c55e' }}>{matchPts}</span>
-          <span className={styles.statLabel}>Match pts</span>
+          <span className={styles.statLabel}>{t('walletPage.matchPts')}</span>
         </div>
         <div className={styles.statCard}>
           <span className={styles.statVal} style={{ color: '#60a5fa' }}>{tourneyPts}</span>
-          <span className={styles.statLabel}>Tournament pts</span>
+          <span className={styles.statLabel}>{t('walletPage.tournamentPts')}</span>
         </div>
         <div className={styles.statCard}>
           <span className={styles.statVal} style={{ color: '#f59e0b', fontSize: prizeTZS >= 10000 ? 11 : undefined }}>
             {prizeTZS > 0 ? fmtAmt(prizeTZS) : '—'}
           </span>
-          <span className={styles.statLabel}>Prize money</span>
+          <span className={styles.statLabel}>{t('walletPage.prizeMoney')}</span>
         </div>
         <div className={styles.statCard}>
           <span className={styles.statVal} style={{ color: '#34d399' }}>{shopCount}</span>
-          <span className={styles.statLabel}>Shop sales</span>
+          <span className={styles.statLabel}>{t('walletPage.shopSales')}</span>
         </div>
       </div>
 
       {/* Filter */}
       <div className={styles.filters}>
         {[
-          { key: 'all',        label: 'All' },
-          { key: 'match',      label: 'Matches' },
-          { key: 'tournament', label: 'Tournaments' },
-          { key: 'prize',      label: 'Prizes' },
-          { key: 'shop',       label: 'Shop' },
+          { key: 'all',        label: t('walletPage.filterAll') },
+          { key: 'match',      label: t('walletPage.filterMatches') },
+          { key: 'tournament', label: t('walletPage.filterTournaments') },
+          { key: 'prize',      label: t('walletPage.filterPrizes') },
+          { key: 'shop',       label: t('walletPage.filterShop') },
         ].map(f => (
           <button
             key={f.key}
@@ -132,12 +148,12 @@ export default function WalletPage() {
       ) : filtered.length === 0 ? (
         <div className={styles.empty}>
           <i className="ri-inbox-2-line" />
-          <p>No earnings yet</p>
+          <p>{t('walletPage.noEarningsYet')}</p>
         </div>
       ) : (
         <div className={styles.logList}>
           {filtered.map((log, i) => {
-            const meta = typeMeta(log.type)
+            const meta = typeMeta(log.type, t)
             const pts  = log.points ?? 0
             const isShop  = log.type === 'shop_payout'
             const isPrize = log.type === 'prize'
@@ -153,7 +169,7 @@ export default function WalletPage() {
                 </div>
                 {isShop ? (
                   <span className={styles.logPts} style={{ color: '#34d399', fontSize: 11, textAlign: 'right', maxWidth: 80 }}>
-                    Paid out
+                    {t('walletPage.paidOut')}
                   </span>
                 ) : isPrize ? (
                   <span className={styles.logPts} style={{ color: '#f59e0b', fontSize: pts >= 10000 ? 10 : 12, textAlign: 'right', maxWidth: 90, fontWeight: 800 }}>
@@ -161,7 +177,7 @@ export default function WalletPage() {
                   </span>
                 ) : (
                   <span className={`${styles.logPts} ${pts > 0 ? styles.logPtsPos : styles.logPtsNeg}`}>
-                    {pts > 0 ? `+${pts}` : pts} pts
+                    {pts > 0 ? `+${pts}` : pts} {t('home.pts').toLowerCase()}
                   </span>
                 )}
               </div>
