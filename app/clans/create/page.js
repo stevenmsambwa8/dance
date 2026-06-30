@@ -10,7 +10,7 @@ import styles from './page.module.css'
 export default function CreateClanPage() {
   const router = useRouter()
   const params = useSearchParams()
-  const { user, profile } = useAuth()
+  const { user } = useAuth()
   const { openAuthGate } = useAuthGate()
   const fileRef = useRef()
 
@@ -74,7 +74,6 @@ export default function CreateClanPage() {
       .insert({
         game,
         name: name.trim(),
-        tag_prefix: tagPrefix,
         description: description.trim() || null,
         logo_url,
         leader_id: user.id,
@@ -90,7 +89,6 @@ export default function CreateClanPage() {
       return
     }
 
-    // Add creator as leader member (no squad yet)
     await supabase.from('clan_members').insert({
       clan_id: clan.id,
       squad_id: null,
@@ -99,7 +97,7 @@ export default function CreateClanPage() {
     })
 
     setSaving(false)
-    router.push(`/clans/${clan.id}`)
+    router.push(`/clans/${clan.code}`)
   }
 
   if (checking) {
@@ -130,7 +128,6 @@ export default function CreateClanPage() {
       <h1 className={styles.headline}>Create a Clan</h1>
       <p className={styles.sub}>Free for everyone. Up to 125 members across 25 squads of 5.</p>
 
-      {/* Game */}
       <div className={styles.field}>
         <label>Game</label>
         <div className={styles.gameGrid}>
@@ -144,7 +141,6 @@ export default function CreateClanPage() {
         </div>
       </div>
 
-      {/* Logo */}
       <div className={styles.field}>
         <label>Clan Logo</label>
         <div className={styles.logoPicker} onClick={() => fileRef.current?.click()}>
@@ -156,7 +152,6 @@ export default function CreateClanPage() {
         <input ref={fileRef} type="file" accept="image/*" hidden onChange={handleLogoPick}/>
       </div>
 
-      {/* Name */}
       <div className={styles.field}>
         <label>Clan Name</label>
         <input className={styles.textInput} placeholder="e.g. Abcsmokers"
@@ -168,7 +163,6 @@ export default function CreateClanPage() {
         )}
       </div>
 
-      {/* Description */}
       <div className={styles.field}>
         <label>Description (optional)</label>
         <textarea className={styles.textArea} placeholder="What's this clan about?"

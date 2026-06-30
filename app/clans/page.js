@@ -19,7 +19,7 @@ export default function ClansPage() {
 
   const [game, setGame]       = useState(GAME_SLUGS[0])
   const [clans, setClans]     = useState([])
-  const [myClan, setMyClan]   = useState(null)   // user's clan for the selected game
+  const [myClanCode, setMyClanCode] = useState(null)
   const [search, setSearch]   = useState('')
   const [loading, setLoading] = useState(true)
   usePageLoading(loading)
@@ -39,13 +39,13 @@ export default function ClansPage() {
     if (user) {
       const { data: membership } = await supabase
         .from('clan_members')
-        .select('clan_id, clans!inner(id, game)')
+        .select('clan_id, clans!inner(code, game)')
         .eq('user_id', user.id)
         .eq('clans.game', g)
         .maybeSingle()
-      setMyClan(membership?.clan_id || null)
+      setMyClanCode(membership?.clans?.code || null)
     } else {
-      setMyClan(null)
+      setMyClanCode(null)
     }
     setLoading(false)
   }
@@ -66,8 +66,8 @@ export default function ClansPage() {
           <p className={styles.eyebrow}>Squad up · Compete together</p>
           <h1 className={styles.headline}>CLANS</h1>
         </div>
-        {myClan ? (
-          <button className={styles.myClanBtn} onClick={() => router.push(`/clans/${myClan}`)}>
+        {myClanCode ? (
+          <button className={styles.myClanBtn} onClick={() => router.push(`/clans/${myClanCode}`)}>
             <i className="ri-shield-star-line"/> My Clan
           </button>
         ) : (
@@ -77,7 +77,6 @@ export default function ClansPage() {
         )}
       </div>
 
-      {/* Game tabs */}
       <div className={styles.gameTabs}>
         {GAME_SLUGS.map(g => (
           <button key={g}
@@ -88,21 +87,18 @@ export default function ClansPage() {
         ))}
       </div>
 
-      {/* Search */}
       <div className={styles.searchWrap}>
         <i className="ri-search-line"/>
         <input className={styles.searchInput} placeholder="Search clans…"
           value={search} onChange={e => setSearch(e.target.value)}/>
       </div>
 
-      {/* Info strip */}
       <div className={styles.infoStrip}>
         <span><i className="ri-group-line"/> {CLAN_CAP} max members</span>
         <span>·</span>
         <span><i className="ri-team-line"/> {SQUAD_CAP} squads · 5 per squad</span>
       </div>
 
-      {/* Loading skeleton */}
       {loading && (
         <div className={styles.grid}>
           {[...Array(6)].map((_, i) => (
@@ -111,14 +107,13 @@ export default function ClansPage() {
         </div>
       )}
 
-      {/* Clan grid */}
       {!loading && (
         <div className={styles.grid}>
           {filtered.map(clan => {
             const pct = Math.min(100, Math.round((clan.member_count / CLAN_CAP) * 100))
             const isFull = clan.member_count >= CLAN_CAP
             return (
-              <Link key={clan.id} href={`/clans/${clan.id}`} className={styles.clanCard}>
+              <Link key={clan.code} href={`/clans/${clan.code}`} className={styles.clanCard}>
                 <div className={styles.clanLogo}>
                   {clan.logo_url
                     ? <img src={clan.logo_url} alt=""/>
