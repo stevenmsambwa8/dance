@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../../components/AuthProvider'
@@ -12,6 +12,44 @@ import styles from './page.module.css'
 
 const CLAN_CAP  = 125
 const SQUAD_CAP = 25
+
+function MarqueeName({ text }) {
+  const wrapRef = useRef(null)
+  const textRef = useRef(null)
+  const [distance, setDistance] = useState(0)
+  const [duration, setDuration] = useState(6)
+
+  useEffect(() => {
+    const measure = () => {
+      const wrap = wrapRef.current
+      const inner = textRef.current
+      if (!wrap || !inner) return
+      const overflow = inner.scrollWidth - wrap.clientWidth
+      if (overflow > 2) {
+        setDistance(overflow)
+        setDuration(Math.max(3.5, overflow / 18))
+      } else {
+        setDistance(0)
+      }
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [text])
+
+  return (
+    <span className={styles.clanNameWrap} ref={wrapRef}>
+      <span
+        ref={textRef}
+        className={styles.clanName}
+        style={distance > 0 ? {
+          '--marquee-distance': `-${distance}px`,
+          animationDuration: `${duration}s`,
+        } : undefined}
+      >{text}</span>
+    </span>
+  )
+}
 
 export default function ClansPage() {
   const { user } = useAuth()
@@ -96,12 +134,6 @@ export default function ClansPage() {
         )}
       </div>
 
-      <div className={styles.infoStrip}>
-        <span><i className="ri-group-line"/> {CLAN_CAP} max members</span>
-        <span>·</span>
-        <span><i className="ri-team-line"/> {SQUAD_CAP} squads · 5 per squad</span>
-      </div>
-
       {loading && (
         <div className={styles.grid}>
           {[...Array(8)].map((_, i) => (
@@ -138,7 +170,7 @@ export default function ClansPage() {
                   </div>
                   <div className={styles.clanInfo}>
                     <div className={styles.clanNameRow}>
-                      <span className={styles.clanName}>{clan.name}</span>
+                      <MarqueeName text={clan.name}/>
                       <span className={styles.clanTag}>{clan.tag_prefix}</span>
                     </div>
                     <div className={styles.clanStats}>

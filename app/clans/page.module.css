@@ -34,8 +34,6 @@
 .searchWrap i { color: var(--text-muted); font-size: 14px; flex-shrink: 0; }
 .searchInput { flex: 1; min-width: 0; background: none; border: none; outline: none; font-family: var(--font); font-size: 12.5px; color: var(--text); }
 
-.infoStrip { display: flex; gap: 9px; align-items: center; margin-bottom: 16px; font-size: 11px; color: var(--text-muted); font-weight: 600; }
-
 .grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -60,8 +58,8 @@
 
 /* overlay sits between the bg image/color and the content */
 .clanCardOverlay { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
-.overlayGradient { background: linear-gradient(to top, var(--bg) 2%, transparent 62%); opacity: 0.94; }
-.overlayFlat { background: var(--bg); opacity: 0.42; }
+.overlayGradient { background: linear-gradient(to top, var(--bg) 2%, transparent 62%); opacity: 0.92; }
+.overlayFlat { background: var(--bg); opacity: 0.92; }
 
 .gameBadge {
   position: absolute; top: 9px; left: 9px; z-index: 1;
@@ -98,7 +96,19 @@
 
 .clanInfo { flex: 1; min-width: 0; }
 .clanNameRow { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-.clanName { font-size: 13px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.clanNameWrap { flex: 1; min-width: 0; overflow: hidden; display: block; }
+.clanName {
+  display: inline-block; white-space: nowrap;
+  font-size: 13px; font-weight: 800;
+  animation-name: clanMarquee;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+@keyframes clanMarquee {
+  0%, 15%   { transform: translateX(0); }
+  45%, 55%  { transform: translateX(var(--marquee-distance, 0px)); }
+  85%, 100% { transform: translateX(0); }
+}
 .clanTag {
   font-size: 8.5px; font-weight: 900; letter-spacing: 0.06em;
   padding: 2px 6px; border-radius: 6px;
