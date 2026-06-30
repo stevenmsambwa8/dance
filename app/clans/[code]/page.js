@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Modal from '../../../components/Modal'
+import MemberPreviewModal from '../../../components/MemberPreviewModal'
 import { useAuth } from '../../../components/AuthProvider'
 import { useAuthGate } from '../../../components/AuthGateModal'
 import { supabase } from '../../../lib/supabase'
@@ -32,11 +33,13 @@ export default function ClanPage() {
   usePageLoading(loading)
 
   const [createOpen, setCreateOpen]     = useState(false)
-  const [squadName, setSquadName]       = useState('')
+  const [squadSuffix, setSquadSuffix]   = useState('') // user only types this part
   const [squadImgFile, setSquadImgFile] = useState(null)
   const [squadImgPreview, setSquadImgPreview] = useState(null)
   const [creating, setCreating]         = useState(false)
   const [createError, setCreateError]   = useState('')
+
+  const [previewMember, setPreviewMember] = useState(null)
 
   useEffect(() => { if (code) loadClan() }, [code, user])
 
@@ -82,14 +85,19 @@ export default function ClanPage() {
     setSquadImgPreview(URL.createObjectURL(file))
   }
 
+  // User types only the suffix; prefix is locked and prepended automatically.
+  function handleSuffixChange(e) {
+    // Strip whitespace at the start so "  Raiders" doesn't become "BIK  Raiders"
+    setSquadSuffix(e.target.value.replace(/^\s+/, ''))
+  }
+
   async function handleCreateSquad() {
     if (!user || !clan) return
-    const trimmed = squadName.trim()
-    if (!trimmed) { setCreateError('Squad name is required.'); return }
-    if (!trimmed.toUpperCase().startsWith(clan.tag_prefix)) {
-      setCreateError(`Squad name must start with "${clan.tag_prefix}".`)
-      return
-    }
+    const suffix = squadSuffix.trim()
+    if (!suffix) { setCreateError('Squad name is required.'); return }
+
+    const fullName = `${clan.tag_prefix}${suffix}`
+
     if (squads.length >= SQUAD_CAP) { setCreateError('This clan has reached the 25-squad limit.'); return }
 
     setCreating(true)
@@ -109,13 +117,11 @@ export default function ClanPage() {
       image_url = pub.publicUrl
     }
 
-    // Insert squad — member_count defaults to 1 in DB (do not pass it manually).
-    // trg_sync_clan_squad_count bumps clans.squad_count automatically.
     const { data: squad, error: insertErr } = await supabase
       .from('clan_squads')
       .insert({
         clan_id: clan.id,
-        name: trimmed,
+        name: fullName,
         image_url,
         leader_id: user.id,
       })
@@ -128,16 +134,13 @@ export default function ClanPage() {
       return
     }
 
-    // Move the creator into this squad — trg_sync_member_counts bumps
-    // clan_squads.member_count automatically on this UPDATE. Do not also
-    // manually increment member_count anywhere else.
     await supabase.from('clan_members')
       .update({ squad_id: squad.id, role: myRole === 'leader' ? 'leader' : 'squad_leader' })
       .eq('clan_id', clan.id).eq('user_id', user.id)
 
     setCreating(false)
     setCreateOpen(false)
-    setSquadName('')
+    setSquadSuffix('')
     setSquadImgFile(null)
     setSquadImgPreview(null)
     loadClan()
@@ -146,10 +149,6 @@ export default function ClanPage() {
   async function handleJoinClan() {
     if (!user) { openAuthGate(); return }
     if (!clan || clan.member_count >= CLAN_CAP) return
-    // Insert only — trg_sync_member_counts on clan_members bumps
-    // clans.member_count automatically. Do NOT also call
-    // supabase.from('clans').update({ member_count: ... }) here,
-    // that was double-counting.
     await supabase.from('clan_members').insert({
       clan_id: clan.id, squad_id: null, user_id: user.id, role: 'member',
     })
@@ -260,8 +259,10 @@ export default function ClanPage() {
         <div className={styles.memberList}>
           {members.map(m => {
             const online = onlineIds.has(m.user_id)
+            const squadOfMember = squads.find(s => s.id === m.squad_id)
             return (
-              <Link key={m.user_id} href={`/profile/${m.user_id}`} className={styles.memberRow}>
+              <div key={m.user_id} className={styles.memberRow}
+                onClick={() => setPreviewMember(m)} style={{ cursor: 'pointer' }}>
                 <div className={styles.memberAvatar}>
                   {m.profiles?.avatar_url
                     ? <img src={m.profiles.avatar_url} alt=""/>
@@ -277,12 +278,19 @@ export default function ClanPage() {
                      'Member'}
                   </span>
                 </div>
-              </Link>
+              </div>
             )
           })}
         </div>
       )}
 
+      <MemberPreviewModal
+        member={previewMember}
+        squadName={squads.find(s => s.id === previewMember?.squad_id)?.name}
+        onClose={() => setPreviewMember(null)}
+      />
+
+      {/* ── Create Squad Modal — prefix locked & shown inline ── */}
       <Modal open={createOpen} onClose={() => { setCreateOpen(false); setCreateError('') }}
         title="Create a Squad" size="sm"
         footer={
@@ -300,12 +308,15 @@ export default function ClanPage() {
           </div>
           <div className={styles.field}>
             <label>Squad Name</label>
-            <input className={styles.textInput}
-              placeholder={`${clan.tag_prefix}...`}
-              value={squadName}
-              onChange={e => setSquadName(e.target.value)}
-              maxLength={20}/>
-            <p className={styles.prefixHint}>Must start with <strong>{clan.tag_prefix}</strong></p>
+            <div className={styles.prefixedInput}>
+              <span className={styles.prefixLock}>{clan.tag_prefix}</span>
+              <input className={styles.suffixInput}
+                placeholder="Raiders"
+                value={squadSuffix}
+                onChange={handleSuffixChange}
+                maxLength={17}
+                autoFocus/>
+            </div>
           </div>
           {createError && <p className={styles.errorMsg}><i className="ri-error-warning-line"/> {createError}</p>}
         </div>

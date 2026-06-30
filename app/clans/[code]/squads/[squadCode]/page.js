@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Modal from '../../../../../components/Modal'
+import MemberPreviewModal from '../../../../../components/MemberPreviewModal'
 import { useAuth } from '../../../../../components/AuthProvider'
 import { useAuthGate } from '../../../../../components/AuthGateModal'
 import { supabase } from '../../../../../lib/supabase'
@@ -29,6 +30,8 @@ export default function SquadPage() {
   const [confirmOpen, setConfirmOpen] = useState(null) // 'leave' | 'kick' | null
   const [kickTarget, setKickTarget]   = useState(null)
   const [acting, setActing]           = useState(false)
+
+  const [previewMember, setPreviewMember] = useState(null)
 
   useEffect(() => { if (code && squadCode) loadAll() }, [code, squadCode, user])
 
@@ -153,7 +156,7 @@ export default function SquadPage() {
           const online = onlineIds.has(m.user_id)
           return (
             <div key={m.user_id} className={styles.memberRow}>
-              <Link href={`/profile/${m.user_id}`} className={styles.memberLink}>
+              <div className={styles.memberLink} onClick={() => setPreviewMember(m)} style={{ cursor: 'pointer' }}>
                 <div className={styles.memberAvatar}>
                   {m.profiles?.avatar_url
                     ? <img src={m.profiles.avatar_url} alt=""/>
@@ -169,7 +172,7 @@ export default function SquadPage() {
                       : 'Member'}
                   </span>
                 </div>
-              </Link>
+              </div>
               {canManage && m.user_id !== user?.id && (
                 <button className={styles.kickBtn} onClick={() => askKick(m)} title="Remove from squad">
                   <i className="ri-close-line"/>
@@ -196,6 +199,12 @@ export default function SquadPage() {
           }
         </p>
       </Modal>
+
+      <MemberPreviewModal
+        member={previewMember}
+        squadName={squad.name}
+        onClose={() => setPreviewMember(null)}
+      />
     </div>
   )
 }

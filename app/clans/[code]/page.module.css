@@ -147,3 +147,28 @@
   font-size: 13px; font-weight: 800; cursor: pointer;
 }
 .submitBtn:disabled { opacity: 0.5; }
+
+/* Locked-prefix squad name input */
+.prefixedInput {
+  display: flex; align-items: stretch;
+  border: 1px solid var(--border); border-radius: 10px;
+  background: var(--surface); overflow: hidden;
+}
+.prefixLock {
+  display: flex; align-items: center;
+  padding: 0 10px;
+  background: var(--bg-2);
+  color: var(--accent);
+  font-size: 14px; font-weight: 800;
+  letter-spacing: 0.02em;
+  border-right: 1px solid var(--border-dark);
+  white-space: nowrap;
+  user-select: none;
+}
+.suffixInput {
+  flex: 1; min-width: 0;
+  background: none; border: none; outline: none;
+  padding: 11px 12px; font-family: var(--font);
+  font-size: 14px; color: var(--text);
+}
+.suffixInput::placeholder { color: var(--text-muted); }
