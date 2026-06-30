@@ -61,6 +61,7 @@ export default function ClansPage() {
   const [myClans, setMyClans] = useState([])
   const [search, setSearch]   = useState('')
   const [loading, setLoading] = useState(true)
+  const [copied, setCopied]   = useState(false)
   usePageLoading(loading)
 
   useEffect(() => { loadClans() }, [user])
@@ -97,6 +98,28 @@ export default function ClansPage() {
     router.push(`/clans/create?game=${game === 'all' ? GAME_SLUGS[0] : game}`)
   }
 
+  async function handleShare() {
+    const url = window.location.href
+    if (navigator.share) {
+      try { await navigator.share({ title: 'NaboGaming Clans', url }) } catch {}
+    } else {
+      await handleCopyLink()
+    }
+  }
+
+  async function handleCopyLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {}
+  }
+
+  function goToProfile() {
+    if (!user) { openAuthGate(); return }
+    router.push(`/profile/${user.id}`)
+  }
+
   const filtered = clans.filter(c =>
     (game === 'all' || c.game === game) &&
     (!search || c.name.toLowerCase().includes(search.toLowerCase()))
@@ -105,8 +128,21 @@ export default function ClansPage() {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <p className={styles.eyebrow}>Squad up · Compete together</p>
-        <h1 className={styles.headline}>CLANS</h1>
+        <div>
+          <p className={styles.eyebrow}>Squad up · Compete together</p>
+          <h1 className={styles.headline}>CLANS</h1>
+        </div>
+        <div className={styles.headerActions}>
+          <button className={styles.iconBtn} onClick={handleShare} aria-label="Share">
+            <i className="ri-share-forward-line"/>
+          </button>
+          <button className={styles.iconBtn} onClick={handleCopyLink} aria-label="Copy page link">
+            <i className={copied ? 'ri-check-line' : 'ri-link'}/>
+          </button>
+          <button className={styles.iconBtn} onClick={goToProfile} aria-label="My profile">
+            <i className="ri-user-3-line"/>
+          </button>
+        </div>
       </div>
 
       <div className={styles.toolbar}>
