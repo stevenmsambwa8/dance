@@ -12,6 +12,7 @@ import { GAME_META } from '../../../lib/constants'
 import { identityColor } from '../../../lib/clanColors'
 import { useOnlineUsers } from '../../../lib/usePresence'
 import usePageLoading from '../../../components/usePageLoading'
+import MarqueeText from '../../../components/MarqueeText'
 import styles from './page.module.css'
 
 const CLAN_CAP   = 125
@@ -185,11 +186,11 @@ export default function ClanPage() {
 
       {clan.description && <p className={styles.description}>{clan.description}</p>}
 
-      {/* ── Deployment Status Bar — segmented by squad ── */}
+      {/* ── Member capacity, segmented by squad ── */}
       <div className={styles.deployWrap}>
         <div className={styles.deployHeader}>
           <span className={styles.deployLabel}>
-            <i className="ri-radar-line"/> ROSTER CAPACITY
+            <i className="ri-group-line"/> Capacity
           </span>
           <span className={styles.deployReadout}>{clan.member_count}<span className={styles.deploySlash}>/{CLAN_CAP}</span></span>
         </div>
@@ -222,7 +223,7 @@ export default function ClanPage() {
         </div>
         <div className={styles.statBox}>
           <span className={styles.statNum}>{capPct}<span className={styles.statMax}>%</span></span>
-          <span className={styles.statLabel}>Deployed</span>
+          <span className={styles.statLabel}>Filled</span>
         </div>
       </div>
 
@@ -273,29 +274,32 @@ export default function ClanPage() {
         </button>
       </div>
 
-      {/* ── Squads — ID card tiles ── */}
+      {/* ── Squads — image tiles, same style as the clan listing ── */}
       {activeTab === 'squads' && (
         <div className={styles.squadGrid}>
           {squads.map(squad => {
             const sColor = identityColor(squad.name)
             const isFull = squad.member_count >= SQUAD_SIZE
+            const sqImage = squad.image_url
             return (
               <Link key={squad.code} href={`/clans/${clan.code}/squads/${squad.code}`}
-                className={styles.squadCard} style={{ '--squad-accent': sColor }}>
-                <span className={styles.squadStripe}/>
-                <div className={styles.squadImg}>
-                  {squad.image_url ? <img src={squad.image_url} alt=""/> : <i className="ri-team-line"/>}
-                </div>
-                <div className={styles.squadInfo}>
-                  <span className={styles.squadName}>{squad.name}</span>
+                className={styles.squadCard}
+                style={{
+                  '--squad-accent': sColor,
+                  backgroundImage: sqImage ? `url(${sqImage})` : 'none',
+                  backgroundColor: sqImage ? undefined : sColor,
+                }}>
+                <span className={`${styles.tileOverlay} ${sqImage ? styles.tileOverlayGradient : styles.tileOverlayFlat}`}/>
+                {isFull && <span className={styles.fullTag}>FULL</span>}
+                <div className={styles.squadCardContent}>
+                  <MarqueeText text={squad.name} wrapClassName={styles.squadNameWrap} textClassName={styles.squadName}/>
                   <div className={styles.squadDots}>
                     {Array.from({ length: SQUAD_SIZE }).map((_, i) => (
                       <span key={i} className={styles.squadDot}
-                        style={{ background: i < squad.member_count ? sColor : 'var(--border)' }}/>
+                        style={{ background: i < squad.member_count ? sColor : 'rgba(128,128,128,0.35)' }}/>
                     ))}
                   </div>
                 </div>
-                {isFull && <span className={styles.fullTag}>FULL</span>}
               </Link>
             )
           })}
@@ -308,40 +312,50 @@ export default function ClanPage() {
           )}
 
           {squads.length === 0 && !inClan && (
-            <p className={styles.emptyTabText}>No squads deployed yet.</p>
+            <p className={styles.emptyTabText}>No squads yet.</p>
           )}
         </div>
       )}
 
-      {/* ── Members ── */}
+      {/* ── Members — avatar-bg tiles, same style as squads/clans ── */}
       {activeTab === 'members' && (
-        <div className={styles.memberList}>
+        <div className={styles.memberGrid}>
           {members.map(m => {
             const online = onlineIds.has(m.user_id)
             const squadOfMember = squads.find(s => s.id === m.squad_id)
+            const avatar = m.profiles?.avatar_url
+            const memberColor = identityColor(m.profiles?.username || m.user_id)
             return (
-              <div key={m.user_id} className={styles.memberRow}
-                onClick={() => setPreviewMember(m)}>
-                <div className={styles.memberAvatar}
-                  style={squadOfMember ? { boxShadow: `0 0 0 2px ${identityColor(squadOfMember.name)}` } : {}}>
-                  {m.profiles?.avatar_url
-                    ? <img src={m.profiles.avatar_url} alt=""/>
-                    : <span>{(m.profiles?.username || '?').slice(0,2).toUpperCase()}</span>
-                  }
-                  <span className={styles.memberDot} style={{ background: online ? '#22c55e' : 'var(--border-dark)' }}/>
-                </div>
-                <div className={styles.memberInfo}>
-                  <span className={styles.memberName}>
-                    {m.profiles?.username}
+              <div key={m.user_id} className={styles.memberCard}
+                onClick={() => setPreviewMember(m)}
+                style={{
+                  backgroundImage: avatar ? `url(${avatar})` : 'none',
+                  backgroundColor: avatar ? undefined : memberColor,
+                }}>
+                <span className={`${styles.tileOverlay} ${avatar ? styles.tileOverlayGradient : styles.tileOverlayFlat}`}/>
+
+                {squadOfMember && (
+                  <span className={styles.memberSquadBadge} style={{ background: identityColor(squadOfMember.name) }}>
+                    {squadOfMember.name}
+                  </span>
+                )}
+                {m.role === 'leader' && (
+                  <span className={styles.memberCrown}><i className="ri-vip-crown-line"/></span>
+                )}
+                <span className={styles.memberOnlineDot} style={{ background: online ? '#22c55e' : 'rgba(128,128,128,0.5)' }}/>
+
+                <div className={styles.memberCardContent}>
+                  <div className={styles.memberNameRow}>
+                    <MarqueeText text={m.profiles?.username || 'Player'} wrapClassName={styles.memberNameWrap} textClassName={styles.memberName}/>
                     <UserBadges
                       email={m.profiles?.email} plan={m.profiles?.plan} planExpiresAt={m.profiles?.plan_expires_at}
                       countryFlag={m.profiles?.country_flag} isSeasonWinner={m.profiles?.is_season_winner}
-                      size={12} gap={2}/>
-                  </span>
-                  <span className={styles.memberRole}>
-                    {m.role === 'leader' ? <><i className="ri-vip-crown-line"/> Clan Leader</> :
-                     m.role === 'squad_leader' ? <><i className="ri-star-line"/> Squad Leader · {squadOfMember?.name}</> :
-                     squadOfMember ? `${squadOfMember.name}` : 'Unassigned'}
+                      size={11} gap={2}/>
+                  </div>
+                  <span className={styles.memberRoleText}>
+                    {m.role === 'leader' ? 'Clan Leader' :
+                     m.role === 'squad_leader' ? `Squad Leader · ${squadOfMember?.name || ''}` :
+                     squadOfMember ? squadOfMember.name : 'Unassigned'}
                   </span>
                 </div>
               </div>
@@ -355,7 +369,7 @@ export default function ClanPage() {
         title="Form a Squad" size="sm"
         footer={
           <button className={styles.submitBtn} disabled={creating} onClick={handleCreateSquad}>
-            {creating ? 'Deploying…' : 'Create Squad'}
+            {creating ? 'Creating…' : 'Create Squad'}
           </button>
         }>
         <div className={styles.modalBody}>

@@ -89,9 +89,8 @@
 }
 .deployLabel i { font-size: 11px; }
 .deployReadout {
-  font-family: 'SF Mono', 'Roboto Mono', 'Courier New', monospace;
-  font-size: 15px; font-weight: 700; color: var(--text);
-  letter-spacing: -0.02em;
+  font-size: 15px; font-weight: 800; color: var(--text);
+  letter-spacing: -0.01em;
 }
 .deploySlash { color: var(--text-muted); font-weight: 500; }
 
@@ -125,8 +124,7 @@
   display: flex; flex-direction: column; align-items: center; gap: 3px;
 }
 .statNum {
-  font-family: 'SF Mono', 'Roboto Mono', 'Courier New', monospace;
-  font-size: 16px; font-weight: 700; letter-spacing: -0.02em;
+  font-size: 16px; font-weight: 800; letter-spacing: -0.01em;
 }
 .statMax { color: var(--text-muted); font-weight: 500; font-size: 12px; }
 .statLabel { font-size: 9px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
@@ -203,56 +201,72 @@
 .tab:hover { color: var(--text-dim); }
 .tabActive { color: var(--text); border-color: var(--text); }
 .tabCount {
-  font-family: 'SF Mono', 'Roboto Mono', 'Courier New', monospace;
   font-size: 10px; padding: 1px 6px; border-radius: 8px;
   background: var(--surface); color: var(--text-muted); font-weight: 700;
 }
 .tabActive .tabCount { background: var(--text); color: var(--bg); }
 
 /* ══════════════════════════════════════════════════
-   SQUAD ID CARDS — stripe + pip readout
+   IMAGE TILE OVERLAY — shared by squad & member cards,
+   same recipe as the clan listing grid
+   ══════════════════════════════════════════════════ */
+.tileOverlay { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.tileOverlayGradient {
+  background: linear-gradient(to top,
+    var(--bg) 0%,
+    var(--bg) 34%,
+    color-mix(in srgb, var(--bg) 85%, transparent) 48%,
+    color-mix(in srgb, var(--bg) 55%, transparent) 60%,
+    color-mix(in srgb, var(--bg) 28%, transparent) 72%,
+    color-mix(in srgb, var(--bg) 10%, transparent) 85%,
+    transparent 100%
+  );
+}
+.tileOverlayFlat { background: var(--bg); opacity: 1; }
+
+@keyframes tileMarquee {
+  0%, 15%   { transform: translateX(0); }
+  45%, 55%  { transform: translateX(var(--marquee-distance, 0px)); }
+  85%, 100% { transform: translateX(0); }
+}
+
+/* ══════════════════════════════════════════════════
+   SQUAD TILES
    ══════════════════════════════════════════════════ */
 .squadGrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
 
 .squadCard {
   position: relative;
-  display: flex; align-items: center; gap: 10px;
-  padding: 12px 12px 12px 14px;
+  display: flex; align-items: flex-end;
+  aspect-ratio: 1.05;
   border-radius: 14px;
-  border: 1px solid var(--border); background: var(--bg);
+  border: 1px solid var(--border);
   text-decoration: none; color: inherit; overflow: hidden;
+  background-size: cover; background-position: center; background-repeat: no-repeat;
   transition: border-color 0.15s, transform 0.15s;
 }
 .squadCard:hover { border-color: var(--squad-accent); transform: translateY(-1px); }
 .squadCard:active { transform: scale(0.98); }
 
-.squadStripe {
-  position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
-  background: var(--squad-accent);
+.squadCardContent { position: relative; z-index: 1; width: 100%; padding: 10px; display: flex; flex-direction: column; gap: 7px; }
+.squadNameWrap { overflow: hidden; display: block; min-width: 0; }
+.squadName {
+  display: inline-block; white-space: nowrap;
+  font-size: 12px; font-weight: 800;
+  animation-name: tileMarquee; animation-timing-function: ease-in-out; animation-iteration-count: infinite;
 }
-
-.squadImg {
-  width: 38px; height: 38px; border-radius: 10px;
-  background: var(--bg-2); flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  color: var(--text-muted); font-size: 16px; overflow: hidden;
-}
-.squadImg img { width: 100%; height: 100%; object-fit: cover; }
-
-.squadInfo { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 5px; }
-.squadName { font-size: 12px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .squadDots { display: flex; gap: 3px; }
 .squadDot { width: 6px; height: 6px; border-radius: 50%; }
 
 .fullTag {
-  position: absolute; top: 8px; right: 8px;
-  font-size: 8px; font-weight: 800; color: #ef4444;
-  background: rgba(239,68,68,0.1); padding: 2px 5px; border-radius: 5px;
+  position: absolute; top: 8px; right: 8px; z-index: 1;
+  font-size: 8px; font-weight: 800; color: #fff;
+  background: rgba(239,68,68,0.85); padding: 3px 6px; border-radius: 5px;
 }
 
 .createSquadCard {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px;
-  padding: 18px; border-radius: 14px;
+  aspect-ratio: 1.05; border-radius: 14px;
   border: 1.5px dashed var(--border-dark); background: transparent;
   color: var(--text-muted); font-size: 11px; font-weight: 700; cursor: pointer;
   transition: all 0.15s;
@@ -263,32 +277,49 @@
 .emptyTabText { grid-column: 1 / -1; text-align: center; color: var(--text-muted); font-size: 12px; padding: 36px 0; }
 
 /* ══════════════════════════════════════════════════
-   MEMBERS — squad-tinted avatar ring
+   MEMBER TILES — avatar as bg, same recipe as squads/clans
    ══════════════════════════════════════════════════ */
-.memberList { display: flex; flex-direction: column; gap: 7px; }
-.memberRow {
-  display: flex; align-items: center; gap: 11px;
-  padding: 10px 11px; border-radius: 14px;
-  border: 1px solid var(--border); cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-}
-.memberRow:hover { border-color: var(--border-dark); background: var(--surface); }
+.memberGrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
 
-.memberAvatar {
-  position: relative; width: 40px; height: 40px; border-radius: 11px;
-  background: var(--bg-2); display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 800; color: var(--text); overflow: hidden; flex-shrink: 0;
+.memberCard {
+  position: relative;
+  display: flex; align-items: flex-end;
+  aspect-ratio: 1.05;
+  border-radius: 14px;
+  border: 1px solid var(--border); overflow: hidden; cursor: pointer;
+  background-size: cover; background-position: center; background-repeat: no-repeat;
+  transition: border-color 0.15s, transform 0.15s;
 }
-.memberAvatar img { width: 100%; height: 100%; object-fit: cover; }
-.memberDot {
-  position: absolute; bottom: -2px; right: -2px;
-  width: 11px; height: 11px; border-radius: 50%;
-  border: 2.5px solid var(--bg);
+.memberCard:hover { border-color: var(--border-dark); transform: translateY(-1px); }
+.memberCard:active { transform: scale(0.98); }
+
+.memberSquadBadge {
+  position: absolute; top: 8px; left: 8px; z-index: 1;
+  font-size: 8.5px; font-weight: 800; color: #000;
+  padding: 3px 7px; border-radius: 6px; max-width: calc(100% - 40px);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.memberInfo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.memberName { font-size: 12.5px; font-weight: 700; display: flex; align-items: center; }
-.memberRole { font-size: 10.5px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; font-weight: 600; }
-.memberRole i { color: #f59e0b; font-size: 11px; }
+.memberCrown {
+  position: absolute; top: 8px; right: 8px; z-index: 1;
+  width: 22px; height: 22px; border-radius: 7px;
+  background: rgba(245,158,11,0.9); color: #000;
+  display: flex; align-items: center; justify-content: center; font-size: 12px;
+}
+.memberOnlineDot {
+  position: absolute; bottom: 8px; right: 8px; z-index: 1;
+  width: 10px; height: 10px; border-radius: 50%;
+  border: 2px solid var(--bg);
+}
+
+.memberCardContent { position: relative; z-index: 1; width: 100%; padding: 10px; display: flex; flex-direction: column; gap: 4px; }
+.memberNameRow { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.memberNameWrap { overflow: hidden; display: block; min-width: 0; flex-shrink: 1; }
+.memberName {
+  display: inline-block; white-space: nowrap;
+  font-size: 12.5px; font-weight: 800;
+  animation-name: tileMarquee; animation-timing-function: ease-in-out; animation-iteration-count: infinite;
+}
+.memberRoleText { font-size: 10px; color: var(--text); opacity: 0.8; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .loadingHero { height: 230px; border-radius: 20px; background: var(--surface); }
 .notFound { text-align: center; padding: 70px 0; color: var(--text-muted); font-size: 14px; font-weight: 600; }
@@ -321,7 +352,6 @@
   font-size: 14px; font-weight: 800; letter-spacing: 0.02em;
   border-right: 1px solid var(--border-dark);
   white-space: nowrap; user-select: none;
-  font-family: 'SF Mono', 'Roboto Mono', 'Courier New', monospace;
 }
 .suffixInput {
   flex: 1; min-width: 0; background: none; border: none; outline: none;
@@ -342,4 +372,5 @@
 @media (prefers-reduced-motion: reduce) {
   .warStatus_active, .warStatus_ongoing { animation: none; }
   .squadCard, .manageBtn, .deploySegFill { transition: none; }
+  .clanName, .squadName, .memberName { animation: none; }
 }

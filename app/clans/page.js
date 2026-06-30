@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../../components/AuthProvider'
@@ -8,48 +8,11 @@ import { supabase } from '../../lib/supabase'
 import { GAME_SLUGS, GAME_META } from '../../lib/constants'
 import { identityColor } from '../../lib/clanColors'
 import usePageLoading from '../../components/usePageLoading'
+import MarqueeText from '../../components/MarqueeText'
 import styles from './page.module.css'
 
 const CLAN_CAP  = 125
 const SQUAD_CAP = 25
-
-function MarqueeName({ text }) {
-  const wrapRef = useRef(null)
-  const textRef = useRef(null)
-  const [distance, setDistance] = useState(0)
-  const [duration, setDuration] = useState(6)
-
-  useEffect(() => {
-    const measure = () => {
-      const wrap = wrapRef.current
-      const inner = textRef.current
-      if (!wrap || !inner) return
-      const overflow = inner.scrollWidth - wrap.clientWidth
-      if (overflow > 2) {
-        setDistance(overflow)
-        setDuration(Math.max(7, overflow / 7))
-      } else {
-        setDistance(0)
-      }
-    }
-    measure()
-    window.addEventListener('resize', measure)
-    return () => window.removeEventListener('resize', measure)
-  }, [text])
-
-  return (
-    <span className={styles.clanNameWrap} ref={wrapRef}>
-      <span
-        ref={textRef}
-        className={styles.clanName}
-        style={distance > 0 ? {
-          '--marquee-distance': `-${distance}px`,
-          animationDuration: `${duration}s`,
-        } : undefined}
-      >{text}</span>
-    </span>
-  )
-}
 
 export default function ClansPage() {
   const { user } = useAuth()
@@ -206,7 +169,7 @@ export default function ClansPage() {
                   </div>
                   <div className={styles.clanInfo}>
                     <div className={styles.clanNameRow}>
-                      <MarqueeName text={clan.name}/>
+                      <MarqueeText text={clan.name} wrapClassName={styles.clanNameWrap} textClassName={styles.clanName}/>
                       <span className={styles.clanTag}>{clan.tag_prefix}</span>
                     </div>
                     <div className={styles.clanStats}>
