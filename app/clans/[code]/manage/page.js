@@ -29,8 +29,14 @@ export default function ManageClanPage() {
   const [saveError, setSaveError]     = useState('')
 
   // Kick / transfer confirm modal
-  const [confirmAction, setConfirmAction] = useState(null) // { type, member }
+  const [confirmAction, setConfirmAction] = useState(null)
   const [acting, setActing] = useState(false)
+
+  // Delete clan flow
+  const [deleteOpen, setDeleteOpen]     = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deleting, setDeleting]         = useState(false)
+  const [deleteError, setDeleteError]   = useState('')
 
   useEffect(() => { if (code) loadAll() }, [code])
 
@@ -78,12 +84,15 @@ export default function ManageClanPage() {
     let logo_url = clan.logo_url
     if (logoFile) {
       const ext = logoFile.name.split('.').pop()
-      const path = `clan-logos/${user.id}-${Date.now()}.${ext}`
-      const { error: upErr } = await supabase.storage.from('public').upload(path, logoFile)
-      if (!upErr) {
-        const { data: pub } = supabase.storage.from('public').getPublicUrl(path)
-        logo_url = pub.publicUrl
+      const path = `${user.id}-${Date.now()}.${ext}`
+      const { error: upErr } = await supabase.storage.from('clan-logos').upload(path, logoFile)
+      if (upErr) {
+        setSaveError(`Logo upload failed: ${upErr.message}`)
+        setSaving(false)
+        return
       }
+      const { data: pub } = supabase.storage.from('clan-logos').getPublicUrl(path)
+      logo_url = pub.publicUrl
     }
 
     const { error } = await supabase
@@ -128,7 +137,6 @@ export default function ManageClanPage() {
       await supabase.from('clan_squads').update({ leader_id: member.user_id }).eq('id', member.squad_id)
       await supabase.from('clan_members')
         .update({ role: 'squad_leader' }).eq('squad_id', member.squad_id).eq('user_id', member.user_id)
-      // demote previous squad leader (if different)
       const prevLeader = squads.find(s => s.id === member.squad_id)?.leader_id
       if (prevLeader && prevLeader !== member.user_id) {
         await supabase.from('clan_members')
@@ -139,7 +147,6 @@ export default function ManageClanPage() {
       await supabase.from('clan_members')
         .update({ squad_id: null, role: 'member' })
         .eq('clan_id', clan.id).eq('user_id', member.user_id)
-      // if they were the squad leader, randomly reassign
       const squad = squads.find(s => s.id === member.squad_id)
       if (squad && squad.leader_id === member.user_id) {
         await supabase.rpc('reassign_squad_leader', { p_squad_id: member.squad_id })
@@ -149,6 +156,31 @@ export default function ManageClanPage() {
     setActing(false)
     setConfirmAction(null)
     loadAll()
+  }
+
+  // ── Delete clan entirely ──
+  // Relies on ON DELETE CASCADE from clans -> clan_squads -> clan_members,
+  // already set up in the schema. One delete call wipes everything.
+  async function handleDeleteClan() {
+    if (!clan) return
+    if (deleteConfirmText.trim() !== clan.name) {
+      setDeleteError(`Type "${clan.name}" exactly to confirm.`)
+      return
+    }
+    setDeleting(true)
+    setDeleteError('')
+
+    const { error } = await supabase.from('clans').delete().eq('id', clan.id)
+
+    if (error) {
+      setDeleteError(error.message)
+      setDeleting(false)
+      return
+    }
+
+    setDeleting(false)
+    setDeleteOpen(false)
+    router.push('/clans')
   }
 
   if (loading) return <div className={styles.page}><div className={styles.loadingBox}/></div>
@@ -208,6 +240,19 @@ export default function ManageClanPage() {
           <button className={styles.submitBtn} disabled={saving} onClick={handleSaveInfo}>
             {saving ? 'Saving…' : 'Save Changes'}
           </button>
+
+          {/* ── Danger zone ── */}
+          <div className={styles.dangerZone}>
+            <p className={styles.dangerLabel}>
+              <i className="ri-error-warning-line"/> Danger Zone
+            </p>
+            <p className={styles.dangerDesc}>
+              Permanently deletes this clan, all {clan.squad_count} squad{clan.squad_count === 1 ? '' : 's'}, and removes all {clan.member_count} member{clan.member_count === 1 ? '' : 's'}. This cannot be undone.
+            </p>
+            <button className={styles.deleteBtn} onClick={() => setDeleteOpen(true)}>
+              <i className="ri-delete-bin-line"/> Delete Clan
+            </button>
+          </div>
         </div>
       )}
 
@@ -289,7 +334,7 @@ export default function ManageClanPage() {
         </div>
       )}
 
-      {/* ── Confirm modal ── */}
+      {/* ── Confirm modal (member actions) ── */}
       <Modal open={!!confirmAction} onClose={() => setConfirmAction(null)} title="Confirm Action" size="sm"
         footer={
           <button className={styles.submitBtn} disabled={acting} onClick={executeAction}
@@ -313,6 +358,30 @@ export default function ManageClanPage() {
             }
           </p>
         )}
+      </Modal>
+
+      {/* ── Delete clan modal ── */}
+      <Modal open={deleteOpen} onClose={() => { setDeleteOpen(false); setDeleteConfirmText(''); setDeleteError('') }}
+        title="Delete Clan" size="sm"
+        footer={
+          <button className={styles.deleteConfirmBtn} disabled={deleting} onClick={handleDeleteClan}>
+            {deleting ? 'Deleting…' : 'Permanently Delete'}
+          </button>
+        }>
+        <div className={styles.deleteModalBody}>
+          <p className={styles.confirmText}>
+            This will permanently delete <strong>{clan.name}</strong>, all <strong>{clan.squad_count}</strong> squads,
+            and remove all <strong>{clan.member_count}</strong> members. This action <strong>cannot be undone</strong>.
+          </p>
+          <div className={styles.field}>
+            <label>Type "{clan.name}" to confirm</label>
+            <input className={styles.textInput}
+              value={deleteConfirmText}
+              onChange={e => setDeleteConfirmText(e.target.value)}
+              placeholder={clan.name}/>
+          </div>
+          {deleteError && <p className={styles.errorMsg}><i className="ri-error-warning-line"/> {deleteError}</p>}
+        </div>
       </Modal>
     </div>
   )
