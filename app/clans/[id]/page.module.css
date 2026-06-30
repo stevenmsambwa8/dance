@@ -1,0 +1,149 @@
+.page { max-width: 700px; margin: 0 auto; padding: 16px 12px 100px; }
+
+.hero { position: relative; display: flex; flex-direction: column; margin-bottom: 12px; }
+.bannerImg { width: 100%; height: 110px; object-fit: cover; border-radius: 16px; margin-bottom: -36px; }
+.heroContent { display: flex; align-items: flex-end; gap: 12px; padding: 0 4px; }
+
+.logoLarge {
+  width: 72px; height: 72px; border-radius: 18px;
+  background: var(--surface); border: 3px solid var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 900; color: var(--text);
+  overflow: hidden; flex-shrink: 0;
+}
+.logoLarge img { width: 100%; height: 100%; object-fit: cover; }
+
+.clanName { font-size: 22px; font-weight: 900; margin: 0; line-height: 1.1; }
+.clanGame { font-size: 12px; color: var(--text-muted); font-weight: 600; margin: 4px 0 0; display: flex; align-items: center; gap: 5px; }
+.tagChip {
+  font-size: 9px; font-weight: 800; letter-spacing: 0.06em;
+  padding: 2px 6px; border-radius: 5px;
+  background: var(--surface); border: 1px solid var(--border-dark); color: var(--text-dim);
+}
+
+.manageBtn {
+  position: absolute; top: 8px; right: 0;
+  width: 36px; height: 36px; border-radius: 10px;
+  background: var(--surface); border: 1px solid var(--border-dark);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text); font-size: 16px; cursor: pointer;
+}
+
+.description { font-size: 13px; color: var(--text-dim); line-height: 1.5; margin: 4px 4px 16px; }
+
+.statsRow { display: flex; gap: 8px; margin-bottom: 8px; }
+.statBox {
+  flex: 1; padding: 12px; border-radius: 12px;
+  background: var(--surface); border: 1px solid var(--border);
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+}
+.statNum { font-size: 16px; font-weight: 900; }
+.statLabel { font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+
+.capBarOuter { height: 5px; border-radius: 3px; background: var(--surface); overflow: hidden; margin-bottom: 16px; }
+.capBarFill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.3s; }
+
+.joinBtn {
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 13px 0; border-radius: 12px; margin-bottom: 16px;
+  background: var(--text); color: var(--bg); border: none;
+  font-size: 13px; font-weight: 800; cursor: pointer;
+}
+.joinBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.tabs { display: flex; gap: 6px; margin-bottom: 14px; border-bottom: 1px solid var(--border); }
+.tab {
+  padding: 10px 4px; background: none; border: none;
+  color: var(--text-muted); font-size: 13px; font-weight: 700; cursor: pointer;
+  border-bottom: 2px solid transparent; margin-right: 16px;
+}
+.tabActive { color: var(--text); border-color: var(--text); }
+
+.squadGrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+
+.squadCard {
+  position: relative;
+  display: flex; align-items: center; gap: 9px;
+  padding: 10px; border-radius: 12px;
+  border: 1px solid var(--border); background: var(--bg);
+  text-decoration: none; color: inherit;
+}
+.squadCard:active { opacity: 0.85; }
+
+.squadImg {
+  width: 38px; height: 38px; border-radius: 9px;
+  background: var(--bg-2); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted); font-size: 16px; overflow: hidden;
+}
+.squadImg img { width: 100%; height: 100%; object-fit: cover; }
+
+.squadInfo { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.squadName { font-size: 12px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.squadMeta { font-size: 10px; color: var(--text-muted); font-weight: 600; }
+
+.fullTag {
+  position: absolute; top: 6px; right: 6px;
+  font-size: 8px; font-weight: 800; color: #ef4444;
+  background: rgba(239,68,68,0.1); padding: 2px 5px; border-radius: 4px;
+}
+
+.createSquadCard {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  padding: 16px; border-radius: 12px;
+  border: 1.5px dashed var(--border-dark); background: transparent;
+  color: var(--text-muted); font-size: 11px; font-weight: 700; cursor: pointer;
+}
+.createSquadCard i { font-size: 20px; }
+
+.emptyTabText { grid-column: 1 / -1; text-align: center; color: var(--text-muted); font-size: 12px; padding: 30px 0; }
+
+.memberList { display: flex; flex-direction: column; gap: 6px; }
+.memberRow {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px; border-radius: 12px;
+  border: 1px solid var(--border); text-decoration: none; color: inherit;
+}
+.memberAvatar {
+  position: relative; width: 38px; height: 38px; border-radius: 10px;
+  background: var(--bg-2); display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800; color: var(--text); overflow: hidden; flex-shrink: 0;
+}
+.memberAvatar img { width: 100%; height: 100%; object-fit: cover; }
+.memberDot {
+  position: absolute; bottom: -2px; right: -2px;
+  width: 10px; height: 10px; border-radius: 50%;
+  border: 2px solid var(--bg);
+}
+.memberInfo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.memberName { font-size: 12.5px; font-weight: 700; }
+.memberRole { font-size: 10.5px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
+
+.loadingHero { height: 200px; border-radius: 16px; background: var(--surface); }
+.notFound { text-align: center; padding: 60px 0; color: var(--text-muted); font-size: 14px; }
+
+/* Modal */
+.modalBody { display: flex; flex-direction: column; gap: 16px; }
+.field label { display: block; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
+.squadImgPicker {
+  width: 72px; height: 72px; border-radius: 14px;
+  border: 1.5px dashed var(--border-dark); background: var(--surface);
+  display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden;
+}
+.squadImgPicker i { font-size: 22px; color: var(--text-muted); }
+.squadImgPicker img { width: 100%; height: 100%; object-fit: cover; }
+
+.textInput {
+  width: 100%; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 11px 14px; font-family: var(--font);
+  font-size: 14px; color: var(--text); outline: none; box-sizing: border-box;
+}
+.prefixHint { font-size: 11px; color: var(--accent); margin: 8px 0 0; }
+.prefixHint strong { font-weight: 800; }
+.errorMsg { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #ef4444; }
+.submitBtn {
+  width: 100%; padding: 11px 0; border-radius: 10px;
+  background: var(--text); color: var(--bg); border: none;
+  font-size: 13px; font-weight: 800; cursor: pointer;
+}
+.submitBtn:disabled { opacity: 0.5; }
