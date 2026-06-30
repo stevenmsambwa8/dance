@@ -11,6 +11,7 @@ import { useCurrency } from '../../lib/useCurrency'
 import { GAME_SLUGS, GAME_META } from '../../lib/constants'
 import { getCurrentSeason } from '../../lib/seasons'
 import { getActivePlan } from '../../lib/plans'
+import useTranslation from '../../lib/useTranslation'
 
 function parsePrize(raw) {
   if (!raw) return null
@@ -46,6 +47,7 @@ function SkeletonCard() {
 }
 
 function PaymentModal({ tournament, user, onClose, onSubmitted }) {
+  const { t } = useTranslation()
   const [payRef,   setPayRef]   = useState('')
   const [payPhone, setPayPhone] = useState('')
   const [loading,  setLoading]  = useState(false)
@@ -63,13 +65,13 @@ function PaymentModal({ tournament, user, onClose, onSubmitted }) {
   }
 
   async function submit() {
-    if (!payRef.trim() && !payPhone.trim()) { setErr('Enter your transaction ID or phone number'); return }
+    if (!payRef.trim() && !payPhone.trim()) { setErr(t('tournamentsPage.enterTxnOrPhone')); return }
     setLoading(true); setErr('')
     const { data: existing } = await supabase
       .from('tournament_payments').select('id, status')
       .eq('tournament_id', tournament.id).eq('user_id', user.id).maybeSingle()
-    if (existing?.status === 'approved')          { setErr('Already approved — refresh.'); setLoading(false); return }
-    if (existing?.status === 'payment_submitted') { setErr('Already submitted — awaiting admin.'); setLoading(false); return }
+    if (existing?.status === 'approved')          { setErr(t('tournamentsPage.alreadyApprovedRefresh')); setLoading(false); return }
+    if (existing?.status === 'payment_submitted') { setErr(t('tournamentsPage.alreadySubmittedAwaiting')); setLoading(false); return }
     const { error } = await supabase.from('tournament_payments').upsert({
       tournament_id: tournament.id, user_id: user.id,
       payment_ref:   payRef.trim() || null,
@@ -105,49 +107,49 @@ function PaymentModal({ tournament, user, onClose, onSubmitted }) {
         <div className={styles.payHeader}>
           <i className="ri-secure-payment-line" />
           <div>
-            <h3 className={styles.payTitle}>Send Entry Fee</h3>
-            <p className={styles.paySub}>Choose one account, send <strong>TZS {fmtFee(tournament.entrance_fee)}</strong>, then submit proof.</p>
+            <h3 className={styles.payTitle}>{t('tournamentsPage.sendEntryFee')}</h3>
+            <p className={styles.paySub}>{t('tournamentsPage.chooseAccountSendInstructions')} <strong>TZS {fmtFee(tournament.entrance_fee)}</strong>, {t('tournamentsPage.thenSubmitProof')}</p>
           </div>
         </div>
         <div className={styles.payAmountPill}>
-          <span>Amount to send</span>
+          <span>{t('tournamentsPage.amountToSend')}</span>
           <strong>TZS {fmtFee(tournament.entrance_fee)}</strong>
         </div>
-        <p className={styles.payChooseLabel}><span>Choose one account</span></p>
+        <p className={styles.payChooseLabel}><span>{t('tournamentsPage.chooseOneAccount')}</span></p>
         <div className={styles.payGrid}>
           <div className={styles.payCard}>
             <div className={styles.payCardHead}><i className="ri-sim-card-line" style={{ color: '#e11d48' }} /><span>Halopesa</span></div>
             <div className={styles.payCardNum}>
               <span>25165945</span>
               <button className={`${styles.copyBtn} ${copied === 'halo' ? styles.copyBtnDone : ''}`} onClick={() => copyNumber('halo', '25165945')}>
-                {copied === 'halo' ? <><i className="ri-check-line" /> Copied</> : <><i className="ri-file-copy-line" /> Copy</>}
+                {copied === 'halo' ? <><i className="ri-check-line" /> {t('tournamentsPage.copied')}</> : <><i className="ri-file-copy-line" /> {t('tournamentsPage.copy')}</>}
               </button>
             </div>
-            <div className={styles.payCardMeta}><span>Lipa Number</span><span className={styles.payCardAcct}>NABOGAMING</span></div>
+            <div className={styles.payCardMeta}><span>{t('tournamentsPage.lipaNumber')}</span><span className={styles.payCardAcct}>NABOGAMING</span></div>
           </div>
           <div className={styles.payCard}>
             <div className={styles.payCardHead}><i className="ri-sim-card-2-line" style={{ color: '#16a34a' }} /><span>M-Pesa</span></div>
             <div className={styles.payCardNum}>
               <span>36835506</span>
               <button className={`${styles.copyBtn} ${copied === 'mpesa' ? styles.copyBtnDone : ''}`} onClick={() => copyNumber('mpesa', '36835506')}>
-                {copied === 'mpesa' ? <><i className="ri-check-line" /> Copied</> : <><i className="ri-file-copy-line" /> Copy</>}
+                {copied === 'mpesa' ? <><i className="ri-check-line" /> {t('tournamentsPage.copied')}</> : <><i className="ri-file-copy-line" /> {t('tournamentsPage.copy')}</>}
               </button>
             </div>
-            <div className={styles.payCardMeta}><span>Lipa Number</span><span className={styles.payCardAcct}>STEVEN DAVID</span></div>
+            <div className={styles.payCardMeta}><span>{t('tournamentsPage.lipaNumber')}</span><span className={styles.payCardAcct}>STEVEN DAVID</span></div>
           </div>
         </div>
-        <p className={styles.payProofLabel}>After paying, paste your proof below:</p>
+        <p className={styles.payProofLabel}>{t('tournamentsPage.afterPayingPaste')}</p>
         <div className={styles.modalField}>
-          <label><i className="ri-fingerprint-line" /> Transaction ID / Reference <span className={styles.req}>*</span></label>
+          <label><i className="ri-fingerprint-line" /> {t('tournamentsPage.transactionIdRef')} <span className={styles.req}>*</span></label>
           <input type="text" placeholder="e.g. ABC12345XY" value={payRef} onChange={e => setPayRef(e.target.value)} />
         </div>
         <div className={styles.modalField}>
-          <label><i className="ri-phone-line" /> Phone Number Used</label>
+          <label><i className="ri-phone-line" /> {t('tournamentsPage.phoneNumberUsed')}</label>
           <input type="tel" placeholder="e.g. 0712 345 678" value={payPhone} onChange={e => setPayPhone(e.target.value)} />
         </div>
         {err && <p className={styles.modalErr}><i className="ri-error-warning-line" /> {err}</p>}
         <button className={styles.modalSubmit} onClick={submit} disabled={loading || (!payRef.trim() && !payPhone.trim())}>
-          {loading ? <><i className="ri-loader-4-line" /> Submitting…</> : <><i className="ri-check-double-line" /> I&apos;ve Paid — Notify Admin</>}
+          {loading ? <><i className="ri-loader-4-line" /> {t('tournamentsPage.submitting')}</> : <><i className="ri-check-double-line" /> {t('tournamentsPage.ivePaidNotifyAdmin')}</>}
         </button>
       </div>
     </div>
@@ -155,6 +157,7 @@ function PaymentModal({ tournament, user, onClose, onSubmitted }) {
 }
 
 function PaymentStatusModal({ status, onClose }) {
+  const { t } = useTranslation()
   const isPending = status === 'payment_submitted'
   return (
     <div className={styles.modalBackdrop} onClick={onClose}>
@@ -162,34 +165,34 @@ function PaymentStatusModal({ status, onClose }) {
         <button className={styles.modalClose} onClick={onClose}><i className="ri-close-line" /></button>
         <i className={`${isPending ? 'ri-time-line' : 'ri-close-circle-line'} ${styles.modalIcon}`}
            style={{ color: isPending ? '#f59e0b' : '#ef4444' }} />
-        <h3 className={styles.modalTitle}>{isPending ? 'Payment Under Review' : 'Payment Rejected'}</h3>
+        <h3 className={styles.modalTitle}>{isPending ? t('tournamentsPage.paymentUnderReview') : t('tournamentsPage.paymentRejectedTitle')}</h3>
         <p className={styles.modalSub}>
           {isPending
-            ? 'Your payment proof has been submitted. Admin will verify and approve your registration shortly.'
-            : 'Your payment was rejected. Please double-check your reference number and resubmit, or contact support.'}
+            ? t('tournamentsPage.paymentUnderReviewMsg')
+            : t('tournamentsPage.paymentRejectedMsg')}
         </p>
-        <button className={styles.modalSubmit} onClick={onClose}>Got it</button>
+        <button className={styles.modalSubmit} onClick={onClose}>{t('tournamentsPage.gotIt')}</button>
       </div>
     </div>
   )
 }
 
 function FreeLimitModal({ onClose, onUpgrade }) {
+  const { t } = useTranslation()
   return (
     <div className={styles.popupBackdrop} onClick={onClose}>
       <div className={styles.popupCard} onClick={e => e.stopPropagation()}>
         <button className={styles.modalClose} onClick={onClose}><i className="ri-close-line" /></button>
         <div className={styles.popupIcon}><i className="ri-shield-star-line" /></div>
-        <h3 className={styles.popupTitle}>Tournament Limit Reached</h3>
+        <h3 className={styles.popupTitle}>{t('tournamentsPage.limitReachedTitle')}</h3>
         <p className={styles.popupSub}>
-          Free accounts can create up to <strong>{FREE_LIMIT_FREE_TOURNEYS} free</strong> and{' '}
-          <strong>{FREE_LIMIT_PAID_TOURNEYS} paid</strong> tournament. Upgrade to Elite for unlimited
-          tournaments, bracket tools, and more.
+          {t('tournamentsPage.limitReachedMsg1')} <strong>{FREE_LIMIT_FREE_TOURNEYS} {t('tournamentsPage.limitReachedMsg2')}</strong>{' '}
+          <strong>{FREE_LIMIT_PAID_TOURNEYS}</strong> {t('tournamentsPage.limitReachedMsg3')}
         </p>
         <button className={styles.popupUpgradeBtn} onClick={onUpgrade}>
-          <i className="ri-vip-diamond-line" /> Upgrade to Elite
+          <i className="ri-vip-diamond-line" /> {t('tournamentsPage.upgradeToElite')}
         </button>
-        <button className={styles.popupCancelBtn} onClick={onClose}>Maybe later</button>
+        <button className={styles.popupCancelBtn} onClick={onClose}>{t('tournamentsPage.maybeLater')}</button>
       </div>
     </div>
   )
@@ -200,6 +203,7 @@ export default function Tournaments() {
   const { openAuthGate } = useAuthGate()
   const router = useRouter()
   const { fmtAmt } = useCurrency(profile?.country_flag ?? null)
+  const { t } = useTranslation()
 
   const [tournaments, setTournaments] = useState([])
   const [loading,     setLoading]     = useState(true)
@@ -235,7 +239,7 @@ export default function Tournaments() {
 
   useEffect(() => {
     if (!user || tournaments.length === 0) return
-    const paidIds = tournaments.filter(t => (t.entrance_fee || 0) > 0).map(t => t.id)
+    const paidIds = tournaments.filter(tour => (tour.entrance_fee || 0) > 0).map(tour => tour.id)
     if (!paidIds.length) return
     supabase.from('tournament_payments').select('tournament_id, status')
       .eq('user_id', user.id).in('tournament_id', paidIds)
@@ -259,10 +263,10 @@ export default function Tournaments() {
     if (filter !== 'all') q = q.eq('game_slug', filter)
     const { data } = await q
     const all = data || []
-    const visible = all.filter(t => {
-      if (!t.is_test) return true
+    const visible = all.filter(tour => {
+      if (!tour.is_test) return true
       if (!user) return false
-      return isAdmin || t.created_by === user.id
+      return isAdmin || tour.created_by === user.id
     })
     setTournaments(visible)
     setLoading(false)
@@ -275,27 +279,27 @@ export default function Tournaments() {
   function handleCreateClick() {
     if (!user) { openAuthGate(); return }
     if (canCreateUnlimited) { router.push('/tournaments/create'); return }
-    const myFree = myCreated.filter(t => !parsePrize(t.entrance_fee)).length
-    const myPaid = myCreated.filter(t =>  parsePrize(t.entrance_fee)).length
+    const myFree = myCreated.filter(tour => !parsePrize(tour.entrance_fee)).length
+    const myPaid = myCreated.filter(tour =>  parsePrize(tour.entrance_fee)).length
     if (myFree >= FREE_LIMIT_FREE_TOURNEYS && myPaid >= FREE_LIMIT_PAID_TOURNEYS) {
       setLimitModal(true); return
     }
     router.push('/tournaments/create')
   }
 
-  function fillPct(t) {
-    return Math.min(100, Math.round(((t.registered_count || 0) / (t.slots || 1)) * 100))
+  function fillPct(tour) {
+    return Math.min(100, Math.round(((tour.registered_count || 0) / (tour.slots || 1)) * 100))
   }
 
-  function handleRegisterClick(e, t) {
+  function handleRegisterClick(e, tour) {
     e.stopPropagation()
     if (!user) { openAuthGate(); return }
-    const hasFee = (t.entrance_fee || 0) > 0
-    if (!hasFee) { router.push(`/tournaments/${t.slug || t.id}`); return }
-    const pmtStatus = paymentMap[t.id]
+    const hasFee = (tour.entrance_fee || 0) > 0
+    if (!hasFee) { router.push(`/tournaments/${tour.slug || tour.id}`); return }
+    const pmtStatus = paymentMap[tour.id]
     if (pmtStatus === 'payment_submitted') { setStatusModal({ status: 'payment_submitted' }); return }
     if (pmtStatus === 'rejected')          { setStatusModal({ status: 'rejected' }); return }
-    setPayModal(t)
+    setPayModal(tour)
   }
 
   function onPaymentSubmitted(tournamentId) {
@@ -303,21 +307,21 @@ export default function Tournaments() {
     setPaymentMap(m => ({ ...m, [tournamentId]: 'payment_submitted' }))
   }
 
-  const myFreeCount = myCreated.filter(t => !parsePrize(t.entrance_fee)).length
-  const myPaidCount = myCreated.filter(t =>  parsePrize(t.entrance_fee)).length
+  const myFreeCount = myCreated.filter(tour => !parsePrize(tour.entrance_fee)).length
+  const myPaidCount = myCreated.filter(tour =>  parsePrize(tour.entrance_fee)).length
   const showQuota = user && !canCreateUnlimited
 
   return (
     <div className={styles.page}>
       <div className={styles.header}>
         <div>
-          <p className={styles.eyebrow}>Season {getCurrentSeason()}</p>
-          <h1 className={styles.headline}>TOURNAMENTS</h1>
+          <p className={styles.eyebrow}>{t('season.season')} {getCurrentSeason()}</p>
+          <h1 className={styles.headline}>{t('tournamentsPage.title')}</h1>
         </div>
         {user && (
           <button className={styles.createBtn} onClick={handleCreateClick} aria-label="Create Tournament">
             <i className="ri-add-line" />
-            <span>Create</span>
+            <span>{t('tournamentsPage.createBtn')}</span>
           </button>
         )}
       </div>
@@ -326,9 +330,9 @@ export default function Tournaments() {
         <div className={styles.quotaBar}>
           <i className="ri-information-line" />
           <span>
-            Free plan &mdash; <strong>{myFreeCount}/{FREE_LIMIT_FREE_TOURNEYS}</strong> free &amp; <strong>{myPaidCount}/{FREE_LIMIT_PAID_TOURNEYS}</strong> paid created
+            {t('tournamentsPage.freePlanPrefix')} <strong>{myFreeCount}/{FREE_LIMIT_FREE_TOURNEYS}</strong> {t('tournamentsPage.freeUsed')} &amp; <strong>{myPaidCount}/{FREE_LIMIT_PAID_TOURNEYS}</strong> {t('tournamentsPage.paidUsed')} {t('tournamentsPage.created')}
           </span>
-          <button className={styles.quotaUpgradeBtn} onClick={() => router.push('/upgrade')}>Upgrade</button>
+          <button className={styles.quotaUpgradeBtn} onClick={() => router.push('/upgrade')}>{t('tournamentsPage.upgrade')}</button>
         </div>
       )}
 
@@ -337,7 +341,7 @@ export default function Tournaments() {
           <button key={f}
             className={`${styles.filterBtn} ${filter === f ? styles.filterActive : ''}`}
             onClick={() => setFilter(f)}
-          >{f === 'all' ? 'All Games' : GAME_NAMES[f] || f}</button>
+          >{f === 'all' ? t('tournamentsPage.allGamesFilter') : GAME_NAMES[f] || f}</button>
         ))}
       </div>
 
@@ -350,36 +354,36 @@ export default function Tournaments() {
       {!loading && tournaments.length === 0 && (
         <div className={styles.empty}>
           <i className="ri-tournament-line" />
-          <p>No tournaments found</p>
-          <span>Check back later or try a different filter</span>
+          <p>{t('tournamentsPage.noTournamentsFound')}</p>
+          <span>{t('tournamentsPage.checkBackLater')}</span>
         </div>
       )}
 
       {!loading && tournaments.length > 0 && (
         <div className={styles.list}>
-          {tournaments.map(t => {
-            const pct       = fillPct(t)
-            const isFull    = (t.registered_count || 0) >= t.slots
-            const isReg     = registered[t.id]
-            const hasFee    = !!parsePrize(t.entrance_fee)
-            const pmtStatus = paymentMap[t.id]
+          {tournaments.map(tour => {
+            const pct       = fillPct(tour)
+            const isFull    = (tour.registered_count || 0) >= tour.slots
+            const isReg     = registered[tour.id]
+            const hasFee    = !!parsePrize(tour.entrance_fee)
+            const pmtStatus = paymentMap[tour.id]
             const isPending = pmtStatus === 'payment_submitted'
-            const isActive  = t.status === 'active'
-            const isOngoing = t.status === 'ongoing'
+            const isActive  = tour.status === 'active'
+            const isOngoing = tour.status === 'ongoing'
 
             return (
-              <div key={t.id} className={styles.card}
-                onClick={() => router.push(`/tournaments/${t.slug || t.id}`)}>
+              <div key={tour.id} className={styles.card}
+                onClick={() => router.push(`/tournaments/${tour.slug || tour.id}`)}>
 
                 <div className={styles.cardBanner}>
-                  {GAME_META[t.game_slug]?.image
-                    ? <img src={GAME_META[t.game_slug].image} alt={GAME_NAMES[t.game_slug]} className={styles.cardBannerImg} />
+                  {GAME_META[tour.game_slug]?.image
+                    ? <img src={GAME_META[tour.game_slug].image} alt={GAME_NAMES[tour.game_slug]} className={styles.cardBannerImg} />
                     : <div className={styles.cardBannerFallback}><i className="ri-gamepad-line" /></div>
                   }
                   <div className={styles.cardBannerOverlay}>
-                    <span className={`${styles.statusBadge} ${styles[t.status]}`}>{t.status}</span>
-                    {t.is_test && <span className={styles.testBadge}><i className="ri-flask-line" /> Test</span>}
-                    {hasFee   && <span className={styles.feeBadge}><i className="ri-money-dollar-circle-line" /> Paid</span>}
+                    <span className={`${styles.statusBadge} ${styles[tour.status]}`}>{tour.status}</span>
+                    {tour.is_test && <span className={styles.testBadge}><i className="ri-flask-line" /> {t('tournamentsPage.test')}</span>}
+                    {hasFee   && <span className={styles.feeBadge}><i className="ri-money-dollar-circle-line" /> {t('tournamentsPage.paid')}</span>}
                   </div>
                   <div className={styles.cardBannerRight}>
                     {isReg              && <span className={styles.regPip}><i className="ri-checkbox-circle-fill" /></span>}
@@ -390,29 +394,29 @@ export default function Tournaments() {
 
                 <div className={styles.cardBody}>
                   <div className={styles.cardTop}>
-                    <Link href={`/games/${t.game_slug}`} className={styles.gameTag} onClick={e => e.stopPropagation()}>
-                      {GAME_NAMES[t.game_slug] || t.game_slug}
+                    <Link href={`/games/${tour.game_slug}`} className={styles.gameTag} onClick={e => e.stopPropagation()}>
+                      {GAME_NAMES[tour.game_slug] || tour.game_slug}
                     </Link>
-                    {t.date && <span className={styles.datePill}><i className="ri-calendar-line" />{t.date}</span>}
+                    {tour.date && <span className={styles.datePill}><i className="ri-calendar-line" />{tour.date}</span>}
                   </div>
 
-                  <h3 className={styles.cardName}>{t.name}</h3>
-                  {t.description && <p className={styles.cardDesc}>{t.description}</p>}
+                  <h3 className={styles.cardName}>{tour.name}</h3>
+                  {tour.description && <p className={styles.cardDesc}>{tour.description}</p>}
 
                   <div className={styles.statsRow}>
                     <div className={styles.statChip}>
-                      <i className="ri-gamepad-line" /><span>{t.format || 'Open'}</span>
+                      <i className="ri-gamepad-line" /><span>{tour.format || t('tournamentsPage.open')}</span>
                     </div>
                     <div className={styles.statChip} style={{ color: hasFee ? '#f59e0b' : 'var(--text-muted)' }}>
-                      <i className="ri-money-dollar-circle-line" /><span>{hasFee ? fmtAmt(parsePrize(t.entrance_fee)) : 'Free entry'}</span>
+                      <i className="ri-money-dollar-circle-line" /><span>{hasFee ? fmtAmt(parsePrize(tour.entrance_fee)) : t('tournamentsPage.freeEntry')}</span>
                     </div>
-                    <div className={styles.statChip} style={{ color: parsePrize(t.prize) ? '#22c55e' : 'var(--text-muted)' }}>
-                      <i className="ri-trophy-line" /><span>{parsePrize(t.prize) ? fmtAmt(parsePrize(t.prize)) : 'No prize'}</span>
+                    <div className={styles.statChip} style={{ color: parsePrize(tour.prize) ? '#22c55e' : 'var(--text-muted)' }}>
+                      <i className="ri-trophy-line" /><span>{parsePrize(tour.prize) ? fmtAmt(parsePrize(tour.prize)) : t('tournamentsPage.noPrize')}</span>
                     </div>
                   </div>
 
                   <div className={styles.slotRow}>
-                    <span className={styles.slotLabel}><i className="ri-group-line" /> {t.registered_count || 0}/{t.slots}</span>
+                    <span className={styles.slotLabel}><i className="ri-group-line" /> {tour.registered_count || 0}/{tour.slots}</span>
                     <div className={styles.slotTrack}>
                       <div className={`${styles.slotFill} ${isFull ? styles.slotFull : pct >= 80 ? styles.slotWarm : ''}`} style={{ width: `${pct}%` }} />
                     </div>
@@ -424,18 +428,18 @@ export default function Tournaments() {
                   <div className={styles.cardFooter}>
                     <div className={styles.footerLeft}>
                       {isReg ? (
-                        <span className={styles.regBadge}><i className="ri-checkbox-circle-fill" /> Registered</span>
+                        <span className={styles.regBadge}><i className="ri-checkbox-circle-fill" /> {t('tournamentsPage.registered')}</span>
                       ) : isPending ? (
-                        <span className={styles.pendingBadge}><i className="ri-time-line" /> Payment pending</span>
+                        <span className={styles.pendingBadge}><i className="ri-time-line" /> {t('tournamentsPage.paymentPending')}</span>
                       ) : isFull ? (
-                        <span className={styles.fullBadge}><i className="ri-lock-line" /> Full</span>
+                        <span className={styles.fullBadge}><i className="ri-lock-line" /> {t('tournamentsPage.full')}</span>
                       ) : !isActive && !isOngoing ? (
-                        <span className={styles.viewLink}>View details <i className="ri-arrow-right-line" /></span>
+                        <span className={styles.viewLink}>{t('tournamentsPage.viewDetails')} <i className="ri-arrow-right-line" /></span>
                       ) : (
-                        <button className={styles.registerBtn} onClick={e => handleRegisterClick(e, t)}>
+                        <button className={styles.registerBtn} onClick={e => handleRegisterClick(e, tour)}>
                           {hasFee
-                            ? <><i className="ri-money-dollar-circle-line" /> Join · {fmtAmt(parsePrize(t.entrance_fee))}</>
-                            : <><i className="ri-add-circle-line" /> Join Free</>}
+                            ? <><i className="ri-money-dollar-circle-line" /> {t('tournamentsPage.joinFee')} {fmtAmt(parsePrize(tour.entrance_fee))}</>
+                            : <><i className="ri-add-circle-line" /> {t('tournamentsPage.joinFreeBtn')}</>}
                         </button>
                       )}
                     </div>
