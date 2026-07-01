@@ -10,6 +10,7 @@ import { supabase } from '../../../../../lib/supabase'
 import { identityColor } from '../../../../../lib/clanColors'
 import { useOnlineUsers } from '../../../../../lib/usePresence'
 import usePageLoading from '../../../../../components/usePageLoading'
+import MarqueeText from '../../../../../components/MarqueeText'
 import styles from './page.module.css'
 
 const SQUAD_SIZE = 5
@@ -191,27 +192,30 @@ export default function SquadPage() {
         <i className="ri-arrow-left-line"/> {clan.name}
       </button>
 
-      <div className={styles.hero}>
-        <span className={styles.heroStripe}/>
-        <div className={styles.squadImgLarge}>
-          {squad.image_url ? <img src={squad.image_url} alt=""/> : <i className="ri-team-line"/>}
-        </div>
-        <div className={styles.heroInfo}>
-          <h1 className={styles.squadName}>{squad.name}</h1>
-          <div className={styles.heroDots}>
-            {Array.from({ length: SQUAD_SIZE }).map((_, i) => (
-              <span key={i} className={styles.heroDot}
-                style={{ background: i < squad.member_count ? sColor : 'var(--border)' }}/>
-            ))}
-            <span className={styles.heroCount}>{squad.member_count}/{SQUAD_SIZE}</span>
-            {isFull && <span className={styles.fullChip}>FULL</span>}
+      <div className={styles.hero}
+        style={{
+          backgroundImage: squad.image_url ? `url(${squad.image_url})` : 'none',
+          backgroundColor: squad.image_url ? undefined : sColor,
+        }}>
+        <span className={`${styles.heroOverlay} ${squad.image_url ? styles.heroOverlayGradient : styles.heroOverlayFlat}`}/>
+        <div className={styles.heroContent}>
+          <div className={styles.heroInfo}>
+            <MarqueeText text={squad.name} wrapClassName={styles.squadNameWrap} textClassName={styles.squadName}/>
+            <div className={styles.heroDots}>
+              {Array.from({ length: SQUAD_SIZE }).map((_, i) => (
+                <span key={i} className={styles.heroDot}
+                  style={{ background: i < squad.member_count ? sColor : 'rgba(128,128,128,0.35)' }}/>
+              ))}
+              <span className={styles.heroCount}>{squad.member_count}/{SQUAD_SIZE}</span>
+              {isFull && <span className={styles.fullChip}>FULL</span>}
+            </div>
           </div>
+          {canManage && (
+            <button className={styles.editBtn} onClick={openEdit} title="Edit squad">
+              <i className="ri-edit-2-line"/>
+            </button>
+          )}
         </div>
-        {canManage && (
-          <button className={styles.editBtn} onClick={openEdit} title="Edit squad">
-            <i className="ri-edit-2-line"/>
-          </button>
-        )}
       </div>
 
       {!isInThisSquad && isInClanNoSquad && (
@@ -227,37 +231,44 @@ export default function SquadPage() {
       )}
 
       <h2 className={styles.sectionLabel}>Roster</h2>
-      <div className={styles.memberList}>
+      <div className={styles.memberGrid}>
         {members.map(m => {
           const online = onlineIds.has(m.user_id)
+          const avatar = m.profiles?.avatar_url
+          const memberColor = identityColor(m.profiles?.username || m.user_id)
           return (
-            <div key={m.user_id} className={styles.memberRow}>
-              <div className={styles.memberLink} onClick={() => setPreviewMember(m)}>
-                <div className={styles.memberAvatar}>
-                  {m.profiles?.avatar_url
-                    ? <img src={m.profiles.avatar_url} alt=""/>
-                    : <span>{(m.profiles?.username || '?').slice(0,2).toUpperCase()}</span>
-                  }
-                  <span className={styles.memberDot} style={{ background: online ? '#22c55e' : 'var(--border-dark)' }}/>
-                </div>
-                <div className={styles.memberInfo}>
-                  <span className={styles.memberName}>
-                    {m.profiles?.username}
-                    <UserBadges
-                      email={m.profiles?.email} plan={m.profiles?.plan} planExpiresAt={m.profiles?.plan_expires_at}
-                      countryFlag={m.profiles?.country_flag} isSeasonWinner={m.profiles?.is_season_winner}
-                      size={12} gap={2}/>
-                  </span>
-                  <span className={styles.memberRole}>
-                    {m.user_id === squad.leader_id ? <><i className="ri-star-fill"/> Squad Leader</> : 'Member'}
-                  </span>
-                </div>
-              </div>
+            <div key={m.user_id} className={styles.memberCard}
+              style={{
+                backgroundImage: avatar ? `url(${avatar})` : 'none',
+                backgroundColor: avatar ? undefined : memberColor,
+              }}>
+              <span className={`${styles.tileOverlay} ${avatar ? styles.tileOverlayGradient : styles.tileOverlayFlat}`}/>
+
+              <div className={styles.memberTapZone} onClick={() => setPreviewMember(m)}/>
+
+              {m.user_id === squad.leader_id && (
+                <span className={styles.memberCrown}><i className="ri-star-fill"/></span>
+              )}
+              <span className={styles.memberOnlineDot} style={{ background: online ? '#22c55e' : 'rgba(128,128,128,0.5)' }}/>
+
               {canManage && m.user_id !== user?.id && (
                 <button className={styles.kickBtn} onClick={() => askKick(m)} title="Remove from squad">
                   <i className="ri-close-line"/>
                 </button>
               )}
+
+              <div className={styles.memberCardContent} onClick={() => setPreviewMember(m)}>
+                <div className={styles.memberNameRow}>
+                  <MarqueeText text={m.profiles?.username || 'Player'} wrapClassName={styles.memberNameWrap} textClassName={styles.memberName}/>
+                  <UserBadges
+                    email={m.profiles?.email} plan={m.profiles?.plan} planExpiresAt={m.profiles?.plan_expires_at}
+                    countryFlag={m.profiles?.country_flag} isSeasonWinner={m.profiles?.is_season_winner}
+                    size={11} gap={2}/>
+                </div>
+                <span className={styles.memberRoleText}>
+                  {m.user_id === squad.leader_id ? 'Squad Leader' : 'Member'}
+                </span>
+              </div>
             </div>
           )
         })}
