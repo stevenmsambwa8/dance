@@ -14,6 +14,7 @@ import { useCurrency } from '../../../lib/useCurrency'
 import { canDo, underLimit, getActivePlan } from '../../../lib/plans'
 import UpgradeModal from '../../../components/UpgradeModal'
 import BracketShareModal from '../../../components/BracketShareModal'
+import { computeStandings } from '../../../lib/groupStage'
 
 const ADMIN_EMAIL = 'stevenmsambwa8@gmail.com'
 
@@ -2623,6 +2624,9 @@ export default function TournamentDetail() {
       {/* Tabs */}
       <div className={styles.tabs}>
         {[
+          ...(tournament.stage_format === 'groups_knockout'
+            ? [{ key: 'groups', icon: 'ri-layout-grid-line', title: 'Groups' }]
+            : []),
           { key: 'bracket',     icon: 'ri-node-tree',     title: 'Bracket' },
           { key: 'matches',     icon: 'ri-sword-line',    title: 'Matches' },
           { key: 'leaderboard', icon: 'ri-bar-chart-line',title: 'Leaderboard' },
@@ -2640,6 +2644,64 @@ export default function TournamentDetail() {
           </button>
         ))}
       </div>
+
+      {/* ── GROUPS TAB (read-only, group stage) ── */}
+      {activeTab === 'groups' && (
+        <section className={styles.section}>
+          {!bracketData?.groups ? (
+            <div className={styles.emptyTab}>
+              <i className="ri-layout-grid-line" style={{ fontSize: 28 }} />
+              <span>Groups haven't been drawn yet.</span>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {bracketData.stage === 'knockout' && (
+                <div className={styles.feeBanner} style={{ background: 'rgba(34,197,94,0.08)', borderColor: 'rgba(34,197,94,0.25)', color: 'var(--accent)' }}>
+                  <i className="ri-checkbox-circle-fill" />
+                  <span>Group stage complete — check the Bracket tab for the knockout draw.</span>
+                </div>
+              )}
+              {bracketData.groups.map(group => {
+                const standings = computeStandings(group)
+                return (
+                  <div key={group.id} style={{ border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', background: 'var(--surface)' }}>
+                    <div style={{ padding: '10px 14px', background: 'var(--bg-2)', fontSize: 13, fontWeight: 800 }}>{group.name}</div>
+                    <div style={{ padding: '4px 14px 8px' }}>
+                      <div style={{ display: 'flex', gap: 8, padding: '6px 0', fontSize: 9, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                        <span style={{ width: 16 }}>#</span><span style={{ flex: 1 }}>Player</span><span style={{ width: 26, textAlign: 'center' }}>P</span><span style={{ width: 34, textAlign: 'center' }}>Pts</span>
+                      </div>
+                      {standings.map(row => (
+                        <div key={row.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', fontSize: 12.5, borderTop: '1px solid var(--border)' }}>
+                          <span style={{ width: 16, color: 'var(--text-muted)', fontWeight: 700 }}>{row.position}</span>
+                          <span style={{ flex: 1, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.name}</span>
+                          <span style={{ width: 26, textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace' }}>{row.played}</span>
+                          <span style={{ width: 34, textAlign: 'center', fontWeight: 800, fontFamily: 'ui-monospace, monospace', color: 'var(--accent)' }}>{row.points}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ borderTop: '1px solid var(--border)' }}>
+                      {group.fixtures.map(fx => {
+                        const home = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.homeId)
+                        const away = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.awayId)
+                        const played = fx.status === 'played'
+                        return (
+                          <div key={fx.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', fontSize: 12, borderBottom: '1px solid var(--border)' }}>
+                            <span style={{ flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: played ? 400 : 700, color: played ? 'var(--text)' : 'var(--text-muted)' }}>{home?.name || '?'}</span>
+                            <span style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 800, minWidth: 42, textAlign: 'center' }}>
+                              {played ? `${fx.scoreHome} – ${fx.scoreAway}` : 'vs'}
+                            </span>
+                            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: played ? 400 : 700, color: played ? 'var(--text)' : 'var(--text-muted)' }}>{away?.name || '?'}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* ── BRACKET TAB ── */}
       {activeTab === 'bracket' && (

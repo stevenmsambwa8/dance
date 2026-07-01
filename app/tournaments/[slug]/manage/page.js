@@ -5,6 +5,7 @@ import { useAuth } from '../../../../components/AuthProvider'
 import { supabase } from '../../../../lib/supabase'
 import styles from './page.module.css'
 import BracketBuilder from '../../../../components/BracketBuilder'
+import { buildGroups, computeStandings, isGroupStageComplete, getQualifiers } from '../../../../lib/groupStage'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function getPlayerBracketStatus(userId, bracketData) {
@@ -676,6 +677,8 @@ export default function TournamentManage() {
   const [saving,       setSaving]       = useState(false)
   const [activeTab,    setActiveTab]    = useState('overview')
   const [confirm,      setConfirm]      = useState(null)
+  const [groupScoreDraft, setGroupScoreDraft] = useState({}) // { [fixtureId]: { home, away } }
+  const [groupSavingId,   setGroupSavingId]   = useState(null)
   const [showTutorial, setShowTutorial] = useState(false)
   // ── Edit form state ───────────────────────────────────────────────────────
   const [editForm,     setEditForm]     = useState(null)
@@ -833,6 +836,90 @@ export default function TournamentManage() {
         load()
       },
     })
+  }
+
+  // ── Group stage actions ─────────────────────────────────────────────────────
+  async function initGroups() {
+    if (!await verifyCanManage()) return
+    if (realCount < 2) { showToast('Need at least 2 players.', 'error'); return }
+    const teamSize = tournament?.team_size || 1
+    const groupCount = tournament?.group_count || 4
+    const groups = buildGroups(participants, groupCount, teamSize)
+    const bd = { stage: 'groups', groups, advancePerGroup: tournament?.advance_per_group || 2 }
+    const { error } = await supabase.from('tournaments').update({ bracket_data: bd }).eq('id', id.current)
+    if (error) { showToast('Failed to generate groups.', 'error'); return }
+    setBracketData(bd)
+    showToast('Groups generated!', 'success')
+    const notifs = participants.filter(p => p.user_id).map(p => ({
+      user_id: p.user_id, title: `Groups drawn — ${tournament.name}`,
+      body: 'The group stage is set. Check your group and fixtures!',
+      type: 'tournament', meta: { tournament_id: id.current }, read: false,
+    }))
+    if (notifs.length) await supabase.from('notifications').insert(notifs)
+    load()
+  }
+
+  async function resetGroups() {
+    if (!await verifyCanManage()) return
+    setConfirm({
+      message: 'Reset the group draw? All group fixtures and scores will be cleared.',
+      onConfirm: async () => {
+        setConfirm(null)
+        await supabase.from('tournament_leaderboard').delete().eq('tournament_id', id.current)
+        await supabase.from('tournaments').update({ bracket_data: null }).eq('id', id.current)
+        setBracketData(null)
+        showToast('Groups reset.', 'success')
+        load()
+      },
+    })
+  }
+
+  async function advanceToKnockout() {
+    if (!await verifyCanManage()) return
+    const { data: freshT } = await supabase.from('tournaments').select('bracket_data').eq('id', id.current).single()
+    const freshBd = parseBracketData(freshT?.bracket_data) ?? bracketData
+    if (!freshBd?.groups) { showToast('No group data found.', 'error'); return }
+    if (!isGroupStageComplete(freshBd.groups)) { showToast('All group fixtures must be played first.', 'error'); return }
+
+    const teamSize = tournament?.team_size || 1
+    const advancePerGroup = freshBd.advancePerGroup || tournament?.advance_per_group || 2
+    const qualifiers = getQualifiers(freshBd.groups, advancePerGroup)
+    if (qualifiers.length < 2) { showToast('Not enough qualifiers to build a bracket.', 'error'); return }
+
+    const knockout = buildBracket(qualifiers, teamSize)
+    const merged = { ...freshBd, stage: 'knockout', ...knockout }
+    const { error } = await supabase.from('tournaments').update({ bracket_data: merged }).eq('id', id.current)
+    if (error) { showToast('Failed to build knockout bracket.', 'error'); return }
+    setBracketData(merged)
+    showToast('Knockout bracket generated!', 'success')
+    const notifs = participants.filter(p => p.user_id).map(p => ({
+      user_id: p.user_id, title: `Knockout stage begins — ${tournament.name}`,
+      body: 'Groups are done — check the bracket to see if you advanced!',
+      type: 'tournament', meta: { tournament_id: id.current }, read: false,
+    }))
+    if (notifs.length) await supabase.from('notifications').insert(notifs)
+    load()
+  }
+
+  async function saveFixtureScore(groupId, fixtureId) {
+    const draft = groupScoreDraft[fixtureId]
+    if (!draft || draft.home === '' || draft.away === '') return
+    setGroupSavingId(fixtureId)
+    const { data: freshT } = await supabase.from('tournaments').select('bracket_data').eq('id', id.current).single()
+    const freshBd = parseBracketData(freshT?.bracket_data) ?? bracketData
+    const newGroups = freshBd.groups.map(g => {
+      if (g.id !== groupId) return g
+      return {
+        ...g,
+        fixtures: g.fixtures.map(fx => fx.id !== fixtureId ? fx : {
+          ...fx, scoreHome: Number(draft.home), scoreAway: Number(draft.away), status: 'played',
+        }),
+      }
+    })
+    const newBd = { ...freshBd, groups: newGroups }
+    await supabase.from('tournaments').update({ bracket_data: newBd }).eq('id', id.current)
+    setBracketData(newBd)
+    setGroupSavingId(null)
   }
 
   // ── Player actions ────────────────────────────────────────────────────────
@@ -1169,6 +1256,104 @@ export default function TournamentManage() {
 
         {/* ════ OVERVIEW ════ */}
         {activeTab === 'overview' && <>
+
+          {/* Group Stage card — only for groups_knockout tournaments, before knockout kicks in */}
+          {tournament?.stage_format === 'groups_knockout' && bracketData?.stage !== 'knockout' && (
+            <div className={styles.card}>
+              <div className={styles.cardHead}>
+                <i className="ri-layout-grid-line" style={{ color: '#f59e0b', fontSize: 16 }} />
+                <span className={styles.cardTitle}>Group Stage</span>
+                {saving && <span className={styles.cardSaving}><i className="ri-loader-4-line" /> Saving…</span>}
+              </div>
+              {bracketData?.groups ? (
+                <>
+                  <div className={styles.statRow}>
+                    {[
+                      { val: bracketData.groups.length, label: 'Groups', color: '#f59e0b' },
+                      { val: bracketData.groups.reduce((n, g) => n + g.fixtures.filter(f => f.status === 'played').length, 0) + '/' + bracketData.groups.reduce((n, g) => n + g.fixtures.length, 0), label: 'Played', color: '#6366f1' },
+                      { val: bracketData.advancePerGroup ?? tournament?.advance_per_group ?? 2, label: 'Advance ea.', color: '#22c55e' },
+                    ].map(s => (
+                      <div key={s.label} className={styles.statBox}>
+                        <span className={styles.statBoxVal} style={{ color: s.color }}>{s.val}</span>
+                        <span className={styles.statBoxLabel}>{s.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className={styles.btnRow}>
+                    <button
+                      className={styles.btnPrimary}
+                      onClick={advanceToKnockout}
+                      disabled={!isGroupStageComplete(bracketData.groups)}
+                      title={!isGroupStageComplete(bracketData.groups) ? 'All fixtures must be played first' : ''}
+                    >
+                      <i className="ri-play-fill" /> Advance to Knockout
+                    </button>
+                    <button className={styles.btnDanger} onClick={resetGroups}>
+                      <i className="ri-restart-line" /> Reset Groups
+                    </button>
+                  </div>
+
+                  {/* Per-group standings + fixture score entry */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 14 }}>
+                    {bracketData.groups.map(group => {
+                      const standings = computeStandings(group)
+                      return (
+                        <div key={group.id} style={{ border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+                          <div style={{ padding: '9px 12px', background: 'var(--bg-2)', fontSize: 12, fontWeight: 800 }}>{group.name}</div>
+
+                          {/* Standings */}
+                          <div style={{ padding: '8px 12px' }}>
+                            {standings.map(row => (
+                              <div key={row.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 11.5 }}>
+                                <span style={{ width: 16, color: 'var(--text-muted)', fontWeight: 700 }}>{row.position}</span>
+                                <span style={{ flex: 1, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.name}</span>
+                                <span style={{ color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace' }}>{row.played}p</span>
+                                <span style={{ fontWeight: 800, fontFamily: 'ui-monospace, monospace', color: 'var(--accent)' }}>{row.points}pts</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Fixtures */}
+                          <div style={{ borderTop: '1px solid var(--border)' }}>
+                            {group.fixtures.map(fx => {
+                              const home = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.homeId)
+                              const away = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.awayId)
+                              const draft = groupScoreDraft[fx.id] ?? { home: fx.scoreHome ?? '', away: fx.scoreAway ?? '' }
+                              return (
+                                <div key={fx.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderBottom: '1px solid var(--border)', fontSize: 11.5 }}>
+                                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: fx.status === 'played' ? 400 : 700 }}>{home?.name || '?'}</span>
+                                  <input type="number" value={draft.home} placeholder="-" style={{ width: 34, textAlign: 'center', padding: '4px 2px', borderRadius: 6, border: '1px solid var(--border-dark)', background: 'var(--bg)', color: 'var(--text)', fontSize: 12 }}
+                                    onChange={e => setGroupScoreDraft(d => ({ ...d, [fx.id]: { ...draft, home: e.target.value } }))} />
+                                  <span style={{ color: 'var(--text-muted)' }}>–</span>
+                                  <input type="number" value={draft.away} placeholder="-" style={{ width: 34, textAlign: 'center', padding: '4px 2px', borderRadius: 6, border: '1px solid var(--border-dark)', background: 'var(--bg)', color: 'var(--text)', fontSize: 12 }}
+                                    onChange={e => setGroupScoreDraft(d => ({ ...d, [fx.id]: { ...draft, away: e.target.value } }))} />
+                                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: fx.status === 'played' ? 400 : 700 }}>{away?.name || '?'}</span>
+                                  <button
+                                    onClick={() => saveFixtureScore(group.id, fx.id)}
+                                    disabled={groupSavingId === fx.id}
+                                    style={{ width: 26, height: 26, borderRadius: 7, border: 'none', background: fx.status === 'played' ? 'var(--bg-2)' : 'var(--accent)', color: fx.status === 'played' ? 'var(--text-muted)' : '#fff', flexShrink: 0, cursor: 'pointer' }}
+                                  >
+                                    <i className={groupSavingId === fx.id ? 'ri-loader-4-line' : 'ri-check-line'} />
+                                  </button>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </>
+              ) : (
+                <div className={styles.btnRow}>
+                  <button className={styles.btnPrimary} onClick={initGroups} disabled={realCount < 2}>
+                    <i className="ri-play-fill" /> Generate Groups
+                    {realCount < 2 && <span style={{ fontSize: 10, opacity: 0.6 }}> (2+ needed)</span>}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Quick-action bracket card */}
           <div className={styles.card}>
@@ -1547,38 +1732,4 @@ export default function TournamentManage() {
                           <div style={{ display: 'flex', gap: 8 }}>
                             <button onClick={transferPlayers} disabled={!transferTarget || transferLoading}
                               style={{ flex: 1, padding: '10px', borderRadius: 9, background: transferTarget ? '#6366f1' : 'var(--border)', color: transferTarget ? '#fff' : 'var(--text-muted)', border: 'none', fontSize: 13, fontWeight: 800, cursor: transferTarget ? 'pointer' : 'default' }}>
-                              {transferLoading ? <><i className="ri-loader-4-line" /> Transferring…</> : <><i className="ri-swap-line" /> Transfer {participants.length} Players</>}
-                            </button>
-                            <button onClick={() => { setShowTransfer(false); setTransferTarget(null); setTransferDone(false) }}
-                              style={{ padding: '10px 14px', borderRadius: 9, background: 'var(--surface)', border: '1.5px solid var(--border)', fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', cursor: 'pointer' }}>
-                              Cancel
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Delete Tournament */}
-                <div className={styles.dangerCard}>
-                  <div className={styles.dangerHead}>
-                    <i className="ri-error-warning-fill" style={{ fontSize: 18 }} /> Danger Zone
-                  </div>
-                  <p className={styles.dangerSub}>
-                    Deleting this tournament permanently removes all bracket data, participants, payments, and leaderboard entries. This cannot be undone.
-                  </p>
-                  <button className={styles.btnDangerFull} onClick={deleteTournament}>
-                    <i className="ri-delete-bin-fill" style={{ fontSize: 18 }} /> Delete Tournament
-                  </button>
-                </div>
-              </div>
-            )}
-
-          </div>
-        )}
-
-      </div>
-    </div>
-  )
-}
+                              {transferLoading ? <><i className="ri-loader-4-line" /> Transferring…</> : <><i className="ri-swap-line" /

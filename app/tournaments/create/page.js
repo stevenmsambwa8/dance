@@ -60,6 +60,9 @@ function CreateForm({ user, profile, isAdmin, router }) {
     date: '', description: '',
     entrance_fee: '',
     team_size: 1,
+    stage_format: 'knockout',
+    group_count: 4,
+    advance_per_group: 2,
     is_test: false,
     pro_only: false,
     clan_id: null,
@@ -153,13 +156,25 @@ function CreateForm({ user, profile, isAdmin, router }) {
 
   function next() {
     if (!validateStep(step)) return
+    // Groups + Knockout tournaments don't pre-build a bracket — it's generated
+    // later, once the group stage finishes — so skip the Bracket step entirely.
+    if (step === 1 && form.stage_format === 'groups_knockout') {
+      setStep(STEPS.length - 1)
+      return
+    }
     // When advancing from Format (step 1) → Bracket (step 2), auto-generate initial bracket
     if (step === 1 && !bracketDraft) {
       rebuildBracket(form.slots, form.team_size)
     }
     setStep(s => Math.min(s + 1, STEPS.length - 1))
   }
-  function back() { setStep(s => Math.max(s - 1, 0)) }
+  function back() {
+    if (step === STEPS.length - 1 && form.stage_format === 'groups_knockout') {
+      setStep(1)
+      return
+    }
+    setStep(s => Math.max(s - 1, 0))
+  }
 
   async function submit() {
     if (!user || submitting) return
@@ -183,13 +198,16 @@ function CreateForm({ user, profile, isAdmin, router }) {
       prize:            form.prize,
       // Use actual slot count from bracket editor — not the form.slots picker
       // bracket_data.slot_count = real open slots counted from round 0
-      slots:            bracketDraft?.slot_count ?? Number(form.slots),
+      slots:            form.stage_format === 'groups_knockout' ? Number(form.slots) : (bracketDraft?.slot_count ?? Number(form.slots)),
       date:             form.date,
       description:      form.description,
       entrance_fee:     fee,
       team_size:        form.team_size || 1,
-      bracket_data:     bracketDraft || null,
-      round_names:      bracketDraft?.round_names ?? null,
+      stage_format:     form.stage_format || 'knockout',
+      group_count:      form.stage_format === 'groups_knockout' ? Number(form.group_count) : null,
+      advance_per_group: form.stage_format === 'groups_knockout' ? Number(form.advance_per_group) : null,
+      bracket_data:     form.stage_format === 'groups_knockout' ? null : (bracketDraft || null),
+      round_names:      form.stage_format === 'groups_knockout' ? null : (bracketDraft?.round_names ?? null),
       is_test:          form.is_test,
       pro_only:         form.pro_only,
       clan_id:          form.clan_id || null,
@@ -391,6 +409,47 @@ function CreateForm({ user, profile, isAdmin, router }) {
                 <span className={styles.feeHint} style={{ marginTop: 6 }}>
                   <i className="ri-team-line" /> Team Battle — players grouped into teams of {form.team_size}.
                 </span>
+              )}
+            </div>
+
+            <div className={styles.field}>
+              <label>Stage Format</label>
+              <div className={styles.chipRow}>
+                <button type="button" className={`${styles.chip} ${form.stage_format === 'knockout' ? styles.chipActive : ''}`}
+                  onClick={() => set('stage_format', 'knockout')}>
+                  Knockout
+                </button>
+                <button type="button" className={`${styles.chip} ${form.stage_format === 'groups_knockout' ? styles.chipActive : ''}`}
+                  onClick={() => set('stage_format', 'groups_knockout')}>
+                  Groups + Knockout
+                </button>
+              </div>
+              {form.stage_format === 'groups_knockout' && (
+                <>
+                  <span className={styles.feeHint} style={{ marginTop: 6 }}>
+                    <i className="ri-node-tree" /> Players are split into groups for round-robin play. Top finishers move into a knockout bracket.
+                  </span>
+                  <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: 11, color: 'var(--text-muted)' }}>Number of groups</label>
+                      <div className={styles.chipRow}>
+                        {[2, 4, 8].map(n => (
+                          <button key={n} type="button" className={`${styles.chip} ${form.group_count === n ? styles.chipActive : ''}`}
+                            onClick={() => set('group_count', n)}>{n}</button>
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: 11, color: 'var(--text-muted)' }}>Advance per group</label>
+                      <div className={styles.chipRow}>
+                        {[1, 2, 4].map(n => (
+                          <button key={n} type="button" className={`${styles.chip} ${form.advance_per_group === n ? styles.chipActive : ''}`}
+                            onClick={() => set('advance_per_group', n)}>{n}</button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </>
               )}
             </div>
 
