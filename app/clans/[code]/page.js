@@ -171,7 +171,10 @@ export default function ClanPage() {
           <div className={styles.heroText}>
             <h1 className={styles.clanName}>{clan.name}</h1>
             <p className={styles.clanGame}>
-              <i className={GAME_META[clan.game]?.icon}/> {GAME_META[clan.game]?.name}
+              {GAME_META[clan.game]?.image
+                ? <img src={GAME_META[clan.game].image} alt="" className={styles.clanGameImg}/>
+                : <i className={GAME_META[clan.game]?.icon}/>}
+              {GAME_META[clan.game]?.name}
               {' '}<span className={styles.tagChip}>{clan.tag_prefix}</span>
             </p>
           </div>
@@ -237,24 +240,47 @@ export default function ClanPage() {
         </button>
       )}
 
-      {/* ── Clan Wars — real tournament data for this game ── */}
+      {/* ── Clan Wars — real tournament data, styled like the tournament listing cards ── */}
       {tournaments.length > 0 && (
         <div className={styles.warsSection}>
           <p className={styles.sectionLabel}><i className="ri-sword-line"/> CLAN WARS · {GAME_META[clan.game]?.name}</p>
           <div className={styles.warsScroll}>
             {tournaments.map(t => {
               const pct = t.slots ? Math.round(((t.registered_count || 0) / t.slots) * 100) : 0
+              const isFull = (t.registered_count || 0) >= t.slots
+              const isLive = t.status === 'active' || t.status === 'ongoing'
+              const hasFee = !!Number(String(t.entrance_fee || '').replace(/[^0-9.]/g, ''))
               return (
                 <Link key={t.id} href={`/tournaments/${t.slug || t.id}`} className={styles.warCard}>
-                  <span className={`${styles.warStatus} ${styles['warStatus_' + t.status]}`}>
-                    {t.status === 'active' ? 'LIVE' : t.status === 'ongoing' ? 'LIVE' : 'SOON'}
-                  </span>
-                  <span className={styles.warName}>{t.name}</span>
-                  <div className={styles.warMeta}>
-                    {t.prize && <span className={styles.warPrize}><i className="ri-trophy-line"/> {t.prize}</span>}
-                    <span className={styles.warSlots}><i className="ri-group-line"/> {t.registered_count || 0}/{t.slots}</span>
+                  <div className={styles.warBanner}>
+                    {GAME_META[t.game_slug]?.image
+                      ? <img src={GAME_META[t.game_slug].image} alt="" className={styles.warBannerImg}/>
+                      : <div className={styles.warBannerFallback}><i className="ri-gamepad-line"/></div>}
+                    <div className={styles.warBannerOverlay}>
+                      <span className={`${styles.warStatusBadge} ${isLive ? styles.warStatusLive : styles.warStatusSoon}`}>
+                        {isLive ? 'LIVE' : 'SOON'}
+                      </span>
+                      {hasFee && <span className={styles.warFeeBadge}><i className="ri-money-dollar-circle-line"/> Paid</span>}
+                    </div>
+                    {isFull && <span className={styles.warFullPip}><i className="ri-lock-line"/></span>}
                   </div>
-                  <div className={styles.warBar}><div className={styles.warBarFill} style={{ width: `${pct}%` }}/></div>
+                  <div className={styles.warBody}>
+                    <p className={styles.warName}>{t.name}</p>
+                    <div className={styles.warStatsRow}>
+                      {t.prize && (
+                        <span className={styles.warStatChip} style={{ color: '#22c55e' }}>
+                          <i className="ri-trophy-line"/> {t.prize}
+                        </span>
+                      )}
+                      <span className={styles.warStatChip}>
+                        <i className="ri-group-line"/> {t.registered_count || 0}/{t.slots}
+                      </span>
+                    </div>
+                    <div className={styles.warSlotTrack}>
+                      <div className={styles.warSlotFill}
+                        style={{ width: `${pct}%`, background: isFull ? '#dc2626' : pct >= 80 ? '#f97316' : 'var(--text-dim)' }}/>
+                    </div>
+                  </div>
                 </Link>
               )
             })}

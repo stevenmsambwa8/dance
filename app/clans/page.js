@@ -159,7 +159,10 @@ export default function ClansPage() {
                 <span className={`${styles.clanCardOverlay} ${bgImage ? styles.overlayGradient : styles.overlayFlat}`}/>
 
                 <span className={styles.gameBadge}>
-                  <i className={GAME_META[clan.game]?.icon}/> {GAME_META[clan.game]?.name}
+                  {GAME_META[clan.game]?.image
+                    ? <img src={GAME_META[clan.game].image} alt="" className={styles.gameBadgeImg}/>
+                    : <i className={GAME_META[clan.game]?.icon}/>}
+                  {GAME_META[clan.game]?.name}
                 </span>
                 {isFull && <span className={styles.fullBadge}>FULL</span>}
 

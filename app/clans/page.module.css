@@ -85,10 +85,11 @@
   position: absolute; top: 9px; left: 9px; z-index: 1;
   display: flex; align-items: center; gap: 4px;
   font-size: 9px; font-weight: 800; letter-spacing: 0.03em;
-  padding: 4px 8px; border-radius: 7px;
+  padding: 4px 8px 4px 4px; border-radius: 7px;
   background: rgba(0,0,0,0.4); color: #fff;
   backdrop-filter: blur(4px);
 }
+.gameBadgeImg { width: 15px; height: 15px; border-radius: 4px; object-fit: cover; flex-shrink: 0; }
 
 .fullBadge {
   position: absolute; top: 9px; right: 9px; z-index: 1;
