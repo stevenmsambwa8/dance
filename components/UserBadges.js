@@ -219,10 +219,10 @@ export function ProBadge({ size = 16 }) {
 
 /* ── Main export ─────────────────────────────────────────── */
 export default function UserBadges({
-  email, plan, planExpiresAt, countryFlag, isSeasonWinner, size = 16, gap = 3
+  email, plan, planExpiresAt, countryFlag, isSeasonWinner, size = 16, gap = 3, hideAdmin = false
 }) {
   useEffect(injectStyles, [])
-  const isAdmin  = ADMIN_EMAILS.includes(email)
+  const isAdmin  = !hideAdmin && ADMIN_EMAILS.includes(email)
   const ap       = getActivePlan({ plan, plan_expires_at: planExpiresAt })
   const isElite  = ap === 'elite' || ap === 'team'
   const isPro    = ap === 'pro'

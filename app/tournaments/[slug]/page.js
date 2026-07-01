@@ -2307,9 +2307,12 @@ export default function TournamentDetail() {
         </div>
       )}
 
-      {/* Top bar — Manage button only, top-right. No back button. */}
-      {canManage && tournament && (
-        <div className={styles.topBar}>
+      {/* Top bar — circular back button + Manage, both top-right */}
+      <div className={styles.topBar}>
+        <button className={styles.backCircle} onClick={() => router.back()} aria-label="Back">
+          <i className="ri-arrow-left-line" />
+        </button>
+        {canManage && tournament && (
           <button
             className={styles.manageBtnTop}
             onClick={() => router.push(`/tournaments/${tournament.slug || tournament.id}/manage`)}
@@ -2317,8 +2320,8 @@ export default function TournamentDetail() {
             <i className="ri-shield-star-fill" />
             Manage
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Hero — "match ticket" card */}
       <div className={styles.hero}>
@@ -2449,11 +2452,11 @@ export default function TournamentDetail() {
                       : <span>{(creatorProfile.username || '?').slice(0, 2).toUpperCase()}</span>}
                   </div>
                   <div className={styles.heroCreatorInfo}>
-                    <span className={styles.heroCreatorBy}>Created by</span>
+                    <span className={styles.heroCreatorBy}>Hosted by</span>
                     <span className={styles.heroCreatorName}>
                       {creatorProfile.username}
                       <UserBadges email={creatorProfile.email} plan={creatorProfile.plan} planExpiresAt={creatorProfile.plan_expires_at} countryFlag={creatorProfile.country_flag}
-                        isSeasonWinner={creatorProfile.is_season_winner} size={10} gap={3} />
+                        isSeasonWinner={creatorProfile.is_season_winner} size={10} gap={3} hideAdmin />
                     </span>
                   </div>
                 </a>
