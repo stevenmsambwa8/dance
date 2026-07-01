@@ -13,7 +13,7 @@
 .hero {
   position: relative;
   display: flex; flex-direction: column; justify-content: flex-end;
-  min-height: 148px;
+  min-height: 210px;
   padding: 16px;
   margin-bottom: 18px;
   border-radius: 18px;
@@ -109,13 +109,12 @@
   display: flex; align-items: flex-end;
   aspect-ratio: 1.05;
   border-radius: 14px;
-  border: 1px solid var(--border); overflow: hidden;
+  border: 1px solid var(--border); overflow: hidden; cursor: pointer;
   background-size: cover; background-position: center; background-repeat: no-repeat;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, transform 0.15s;
 }
 .memberCard:hover { border-color: var(--border-dark); }
-
-.memberTapZone { position: absolute; inset: 0; z-index: 1; cursor: pointer; }
+.memberCard:active { transform: scale(0.98); }
 
 .memberCrown {
   position: absolute; top: 8px; left: 8px; z-index: 2;
@@ -129,8 +128,7 @@
   border: 2px solid var(--bg);
 }
 
-.memberCardContent { position: relative; z-index: 2; width: 100%; padding: 10px; display: flex; flex-direction: column; gap: 4px; pointer-events: none; }
-.memberCardContent > * { pointer-events: auto; }
+.memberCardContent { position: relative; z-index: 1; width: 100%; padding: 10px; display: flex; flex-direction: column; gap: 4px; }
 .memberNameRow { display: flex; align-items: center; gap: 4px; min-width: 0; }
 .memberNameWrap { overflow: hidden; display: block; min-width: 0; flex-shrink: 1; }
 .memberName {
@@ -140,15 +138,25 @@
 }
 .memberRoleText { font-size: 10px; color: var(--text); opacity: 0.8; font-weight: 600; }
 
-.kickBtn {
-  position: absolute; top: 8px; right: 8px; z-index: 2;
-  width: 26px; height: 26px; border-radius: 8px;
-  background: var(--bg); border: 1px solid var(--border-dark);
-  display: flex; align-items: center; justify-content: center;
-  color: var(--text-dim); font-size: 14px; cursor: pointer;
+.removeBtn {
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+  margin-top: 4px; padding: 6px 0; border-radius: 8px;
+  background: rgba(239,68,68,0.85); border: none; color: #fff;
+  font-size: 10px; font-weight: 700; cursor: pointer;
+  transition: opacity 0.15s;
+}
+.removeBtn:active { opacity: 0.8; }
+
+.openSlot {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  aspect-ratio: 1.05; border-radius: 14px;
+  border: 1.5px dashed var(--border-dark); background: transparent;
+  color: var(--text-muted); font-size: 11px; font-weight: 700; cursor: pointer;
   transition: all 0.15s;
 }
-.kickBtn:hover { color: #ef4444; border-color: #ef4444; background: rgba(239,68,68,0.06); }
+.openSlot:not(:disabled):hover { border-color: var(--squad-accent); color: var(--squad-accent); }
+.openSlot:disabled { cursor: default; opacity: 0.5; }
+.openSlot i { font-size: 20px; }
 
 /* ── Danger zone ── */
 .dangerZone {

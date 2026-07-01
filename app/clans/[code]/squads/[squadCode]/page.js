@@ -230,34 +230,41 @@ export default function SquadPage() {
         </button>
       )}
 
-      <h2 className={styles.sectionLabel}>Roster</h2>
+      <h2 className={styles.sectionLabel}>Roster · {squad.member_count}/{SQUAD_SIZE}</h2>
       <div className={styles.memberGrid}>
-        {members.map(m => {
+        {Array.from({ length: SQUAD_SIZE }).map((_, i) => {
+          const m = members[i]
+
+          if (!m) {
+            const canTapJoin = !isInThisSquad && isInClanNoSquad
+            return (
+              <button key={`open-${i}`} className={styles.openSlot}
+                onClick={canTapJoin ? handleJoinSquad : (!user ? openAuthGate : undefined)}
+                disabled={!canTapJoin && !!user}>
+                <i className="ri-add-line"/>
+                <span>Open Slot</span>
+              </button>
+            )
+          }
+
           const online = onlineIds.has(m.user_id)
           const avatar = m.profiles?.avatar_url
           const memberColor = identityColor(m.profiles?.username || m.user_id)
           return (
             <div key={m.user_id} className={styles.memberCard}
+              onClick={() => setPreviewMember(m)}
               style={{
                 backgroundImage: avatar ? `url(${avatar})` : 'none',
                 backgroundColor: avatar ? undefined : memberColor,
               }}>
               <span className={`${styles.tileOverlay} ${avatar ? styles.tileOverlayGradient : styles.tileOverlayFlat}`}/>
 
-              <div className={styles.memberTapZone} onClick={() => setPreviewMember(m)}/>
-
               {m.user_id === squad.leader_id && (
                 <span className={styles.memberCrown}><i className="ri-star-fill"/></span>
               )}
               <span className={styles.memberOnlineDot} style={{ background: online ? '#22c55e' : 'rgba(128,128,128,0.5)' }}/>
 
-              {canManage && m.user_id !== user?.id && (
-                <button className={styles.kickBtn} onClick={() => askKick(m)} title="Remove from squad">
-                  <i className="ri-close-line"/>
-                </button>
-              )}
-
-              <div className={styles.memberCardContent} onClick={() => setPreviewMember(m)}>
+              <div className={styles.memberCardContent}>
                 <div className={styles.memberNameRow}>
                   <MarqueeText text={m.profiles?.username || 'Player'} wrapClassName={styles.memberNameWrap} textClassName={styles.memberName}/>
                   <UserBadges
@@ -268,6 +275,11 @@ export default function SquadPage() {
                 <span className={styles.memberRoleText}>
                   {m.user_id === squad.leader_id ? 'Squad Leader' : 'Member'}
                 </span>
+                {canManage && m.user_id !== user?.id && (
+                  <button className={styles.removeBtn} onClick={(e) => { e.stopPropagation(); askKick(m) }}>
+                    <i className="ri-user-unfollow-line"/> Remove
+                  </button>
+                )}
               </div>
             </div>
           )
