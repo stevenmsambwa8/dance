@@ -439,6 +439,10 @@ export default function Home() {
     return m.challenger_id === user?.id ? m.challenged : m.challenger
   }
 
+  const allSquads = availableClans.flatMap(clan =>
+    (clanSquads[clan.id] || []).map(squad => ({ squad, clan }))
+  )
+
   /* ── Derived profile values ── */
   const season     = getCurrentSeason()
   const daysLeft   = getDaysRemaining()
@@ -763,7 +767,6 @@ export default function Home() {
               const accentColor = identityColor(clan.name)
               const bgImage = clan.banner_url || clan.logo_url
               const pct = Math.min(100, Math.round((clan.member_count / CLAN_CAP) * 100))
-              const squads = clanSquads[clan.id] || []
               return (
                 <Link key={clan.code} href={`/clans/${clan.code}`} className={styles.clanCard}
                   style={{
@@ -794,22 +797,6 @@ export default function Home() {
                     <div className={styles.clanCapBar}>
                       <div className={styles.clanCapFill} style={{ width: `${pct}%`, background: accentColor }} />
                     </div>
-                    {squads.length > 0 && (
-                      <div className={styles.squadRow}>
-                        {squads.map(sq => (
-                          <span key={sq.id} className={styles.squadChip}>
-                            {sq.image_url
-                              ? <img src={sq.image_url} alt="" className={styles.squadChipImg} />
-                              : <span className={styles.squadChipFallback} style={{ background: identityColor(sq.name) }}>{sq.name?.[0]?.toUpperCase()}</span>
-                            }
-                            <span className={styles.squadChipName}>{sq.name}</span>
-                          </span>
-                        ))}
-                        {clan.squad_count > squads.length && (
-                          <span className={styles.squadChipMore}>+{clan.squad_count - squads.length}</span>
-                        )}
-                      </div>
-                    )}
                   </div>
                 </Link>
               )
@@ -817,6 +804,29 @@ export default function Home() {
           </div>
         )}
       </Section>
+
+      {/* ══════════ SQUADS ══════════ */}
+      {allSquads.length > 0 && (
+        <Section icon="ri-team-line" title={t('home.squads')} href="/clans" linkLabel={t('home.allClans')}>
+          <div className={styles.squadScroll}>
+            {allSquads.map(({ squad, clan }) => (
+              <Link key={squad.id} href={`/clans/${clan.code}/squads/${squad.code}`} className={styles.squadCard}>
+                <div className={styles.squadCardImg}>
+                  {squad.image_url
+                    ? <img src={squad.image_url} alt="" />
+                    : <span style={{ background: identityColor(squad.name) }}>{squad.name?.[0]?.toUpperCase()}</span>
+                  }
+                </div>
+                <div className={styles.squadCardBody}>
+                  <span className={styles.squadCardName}>{squad.name}</span>
+                  <span className={styles.squadCardFrom}><i className="ri-shield-star-line" /> {t('home.from')} {clan.name}</span>
+                  <span className={styles.squadCardMembers}><i className="ri-group-line" /> {squad.member_count}/5</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </Section>
+      )}
 
       {/* ══════════ SHOP SPOTLIGHT ══════════ */}
       <Section icon="ri-store-2-line" title={t('shop.shop')} href="/shop" linkLabel={t('home.browseAll')}>

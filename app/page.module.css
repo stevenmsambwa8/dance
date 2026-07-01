@@ -345,6 +345,8 @@
   flex: 1;
 }
 
+.tGrid .skelCard { flex: 0 0 200px; height: 175px; }
+
 .skelRow {
   display: flex;
   align-items: center;
@@ -436,12 +438,16 @@
 /* ══════════ TOURNAMENTS ══════════ */
 .tGrid {
   display: flex;
-  flex-direction: column;
   gap: 10px;
+  overflow-x: auto;
   padding-bottom: 12px;
+  scrollbar-width: none;
 }
+.tGrid::-webkit-scrollbar { display: none; }
 
 .tCard {
+  flex: 0 0 auto;
+  width: 200px;
   border: 1px solid var(--border);
   border-radius: 14px;
   overflow: hidden;
@@ -455,7 +461,7 @@
 
 .tCardImg {
   position: relative;
-  height: 210px;
+  height: 110px;
   overflow: hidden;
   background: var(--bg-2);
 }
@@ -505,10 +511,10 @@
   backdrop-filter: blur(4px);
 }
 
-.tCardBody { padding: 10px 12px 12px; }
+.tCardBody { padding: 8px 10px 10px; }
 
 .tGameChip {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -520,20 +526,23 @@
 }
 
 .tCardName {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 800;
   color: var(--text);
   line-height: 1.25;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tStatRow {
   display: flex;
-  gap: 12px;
-  font-size: 11px;
+  gap: 8px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--text-muted);
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   flex-wrap: wrap;
 }
 .tStatRow span { display: flex; align-items: center; gap: 4px; }
@@ -781,47 +790,77 @@
 }
 .clanCapFill { height: 100%; border-radius: 2px; }
 
-.squadRow {
+/* ══════════ SQUADS ══════════ */
+.squadScroll {
   display: flex;
-  align-items: center;
-  gap: 5px;
-  flex-wrap: wrap;
-  margin-top: 2px;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 12px;
+  scrollbar-width: none;
 }
-.squadChip {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  background: rgba(0,0,0,0.5);
-  border-radius: 20px;
-  padding: 2px 7px 2px 2px;
-  max-width: 90px;
-}
-.squadChipImg, .squadChipFallback {
-  width: 14px; height: 14px;
-  border-radius: 50%;
-  object-fit: cover;
+.squadScroll::-webkit-scrollbar { display: none; }
+
+.squadCard {
   flex: 0 0 auto;
+  width: 130px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  background: var(--bg);
+  transition: border-color 0.15s;
+  display: flex;
+  flex-direction: column;
 }
-.squadChipFallback {
+.squadCard:hover { border-color: var(--border-dark); }
+
+.squadCardImg {
+  width: 100%;
+  aspect-ratio: 1;
+  background: var(--bg-2);
+  overflow: hidden;
+}
+.squadCardImg img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.squadCardImg span {
+  width: 100%; height: 100%;
   display: flex; align-items: center; justify-content: center;
-  font-size: 8px; font-weight: 900; color: #fff;
+  font-size: 22px; font-weight: 900; color: #fff;
 }
-.squadChipName {
-  font-size: 9px;
-  font-weight: 700;
-  color: #fff;
+
+.squadCardBody {
+  padding: 7px 8px 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.squadCardName {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.squadChipMore {
-  font-size: 9px;
-  font-weight: 800;
-  color: rgba(255,255,255,0.75);
-  background: rgba(0,0,0,0.5);
-  border-radius: 20px;
-  padding: 2px 7px;
+.squadCardFrom {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.squadCardFrom i { font-size: 10px; }
+.squadCardMembers {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 3px;
 }
 
 /* ══════════ SHOP ══════════ */
@@ -1007,11 +1046,9 @@
   .heroStat     { padding: 6px 2px; }
   .gamesGrid    { grid-template-columns: repeat(3, 1fr); }
   .shopGrid     { grid-template-columns: repeat(2, 1fr); }
-  .tCardImg     { height: 215px; }
 }
 
 @media (min-width: 480px) {
-  .tGrid        { display: grid; grid-template-columns: repeat(2, 1fr); }
   .gamesGrid    { grid-template-columns: repeat(4, 1fr); }
 }
 
