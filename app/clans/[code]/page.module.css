@@ -7,7 +7,7 @@
   position: relative;
   display: flex; flex-direction: column; justify-content: flex-end;
   margin-bottom: 16px;
-  min-height: 248px;
+  min-height: 320px;
   padding: 18px 16px 20px;
   border-radius: 20px;
   border: 1px solid var(--border);
