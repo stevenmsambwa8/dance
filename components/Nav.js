@@ -221,7 +221,7 @@ export default function Nav() {
         {/* ── Search trigger — wide pill, sized to match the notification bell's height ── */}
         <button className={styles.searchTrigger} onClick={() => setSearchOpen(true)} title="Search Nabogaming">
           <i className="ri-search-line" />
-          <span className={styles.searchTriggerText}>Search tournaments, games, users & more</span>
+          <span className={styles.searchTriggerText}>Search tournaments, games, clans, users & more</span>
         </button>
 
         <div className={styles.right}>

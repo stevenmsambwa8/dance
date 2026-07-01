@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
 import { GAME_SLUGS, GAME_META } from '../lib/constants'
 import { getRecentStories } from '../lib/news'
@@ -19,16 +20,27 @@ import styles from './SearchSidebar.module.css'
  *  - games:       static GAME_META list (matched client-side, it's small)
  *  - tournaments: supabase.tournaments (name, game_slug, status)
  *  - players:     supabase.profiles (username, tier, rank)
+ *  - clans:       supabase.clans (name AND code — see below)
  *  - shop items:  supabase.shop_items (title, category, price) — active only
+ *
+ * Clan codes as direct tokens: clans are matched on name OR code
+ * substring during normal typing, same as everything else. On top of
+ * that, pressing Enter runs a fast exact-match lookup against `code`
+ * — if what's typed is (or resolves to) a real clan code, it jumps
+ * straight to that clan's page rather than making the person tap a
+ * result row. This is the "paste a code, hit enter, land on the exact
+ * clan" flow.
  *
  * "Recommended" (shown before the person types anything) surfaces a small
  * live snapshot: the most recent active tournaments + top-ranked players,
  * so it's never fake placeholder content either.
  */
 export default function SearchSidebar({ open, onClose }) {
+  const router = useRouter()
   const [query, setQuery]       = useState('')
   const [loading, setLoading]   = useState(false)
-  const [results, setResults]   = useState({ games: [], tournaments: [], players: [], shop: [] })
+  const [jumping, setJumping]   = useState(false)
+  const [results, setResults]   = useState({ games: [], tournaments: [], players: [], clans: [], shop: [] })
   const [recommended, setRecommended] = useState({ tournaments: [], players: [] })
   const [stories, setStories]         = useState([])
   const [storiesLoading, setStoriesLoading] = useState(false)
@@ -90,14 +102,14 @@ export default function SearchSidebar({ open, onClose }) {
 
   async function runSearch(q) {
     if (!q.trim()) {
-      setResults({ games: [], tournaments: [], players: [], shop: [] })
+      setResults({ games: [], tournaments: [], players: [], clans: [], shop: [] })
       return
     }
     setLoading(true)
 
     const games = searchGames(q)
 
-    const [{ data: tournaments }, { data: players }, { data: shop }] = await Promise.all([
+    const [{ data: tournaments }, { data: players }, { data: clans }, { data: shop }] = await Promise.all([
       supabase.from('tournaments')
         .select('id, name, game_slug, status, entrance_fee')
         .ilike('name', `%${q}%`)
@@ -106,6 +118,10 @@ export default function SearchSidebar({ open, onClose }) {
       supabase.from('profiles')
         .select('id, username, tier, rank, level, avatar_url')
         .ilike('username', `%${q}%`)
+        .limit(6),
+      supabase.from('clans')
+        .select('id, code, name, tag_prefix, game, logo_url, member_count')
+        .or(`name.ilike.%${q}%,code.ilike.%${q}%`)
         .limit(6),
       supabase.from('shop_items')
         .select('id, title, price, category, active')
@@ -118,6 +134,7 @@ export default function SearchSidebar({ open, onClose }) {
       games,
       tournaments: tournaments || [],
       players: players || [],
+      clans: clans || [],
       shop: shop || [],
     })
     setLoading(false)
@@ -130,14 +147,44 @@ export default function SearchSidebar({ open, onClose }) {
     debounce.current = setTimeout(() => runSearch(val), 250)
   }
 
+  // Enter = try to jump straight to an exact clan code match, so pasting
+  // a code + hitting enter lands on that clan without needing to tap a
+  // result row. Falls through silently if nothing matches exactly.
+  async function handleKeyDown(e) {
+    if (e.key !== 'Enter') return
+    const q = query.trim()
+    if (!q) return
+
+    // Fast path: already have an exact match in the current results.
+    const already = results.clans.find(c => c.code?.toLowerCase() === q.toLowerCase())
+    if (already) {
+      router.push(`/clans/${already.code}`)
+      handleClose()
+      return
+    }
+
+    setJumping(true)
+    const { data: exact } = await supabase
+      .from('clans')
+      .select('code')
+      .ilike('code', q)
+      .maybeSingle()
+    setJumping(false)
+
+    if (exact) {
+      router.push(`/clans/${exact.code}`)
+      handleClose()
+    }
+  }
+
   function handleClose() {
     setQuery('')
-    setResults({ games: [], tournaments: [], players: [], shop: [] })
+    setResults({ games: [], tournaments: [], players: [], clans: [], shop: [] })
     onClose()
   }
 
   const hasQuery   = query.trim().length > 0
-  const hasResults = results.games.length || results.tournaments.length || results.players.length || results.shop.length
+  const hasResults = results.games.length || results.tournaments.length || results.players.length || results.clans.length || results.shop.length
 
   if (!open) return null
 
@@ -151,9 +198,11 @@ export default function SearchSidebar({ open, onClose }) {
             ref={inputRef}
             value={query}
             onChange={handleChange}
-            placeholder="Search tournaments, games, users & more"
+            onKeyDown={handleKeyDown}
+            placeholder="Search tournaments, games, clans, users & more"
             className={styles.input}
           />
+          {jumping && <span className={styles.jumpingHint}>Jumping…</span>}
           {query && (
             <button className={styles.clearBtn} onClick={() => { setQuery(''); setResults({ games: [], tournaments: [], players: [], shop: [] }) }}>
               <i className="ri-close-circle-fill" />
@@ -239,6 +288,15 @@ export default function SearchSidebar({ open, onClose }) {
                   <SectionLabel text="Players" />
                   {results.players.map(p => (
                     <PlayerRow key={p.id} p={p} onClick={handleClose} />
+                  ))}
+                </>
+              )}
+
+              {results.clans.length > 0 && (
+                <>
+                  <SectionLabel text="Clans" />
+                  {results.clans.map(c => (
+                    <ClanRow key={c.id} c={c} onClick={handleClose} />
                   ))}
                 </>
               )}
@@ -400,6 +458,27 @@ function TournamentRow({ t, onClick }) {
       <div className={styles.resultMeta}>
         <span className={styles.resultTitle}>{t.name}</span>
         <span className={styles.resultSub}>{gameName} · {t.status}</span>
+      </div>
+      <i className={`ri-arrow-right-s-line ${styles.resultArrow}`} />
+    </Link>
+  )
+}
+
+function ClanRow({ c, onClick }) {
+  const gameName = GAME_META[c.game]?.name || c.game
+  return (
+    <Link href={`/clans/${c.code}`} className={styles.resultRow} onClick={onClick}>
+      <div className={styles.resultIcon}>
+        {c.logo_url
+          ? <img src={c.logo_url} alt="" className={styles.resultAvatar} />
+          : <i className="ri-shield-star-line" />
+        }
+      </div>
+      <div className={styles.resultMeta}>
+        <span className={styles.resultTitle}>
+          {c.name} <span className={styles.clanTagChip}>{c.tag_prefix}</span>
+        </span>
+        <span className={styles.resultSub}>{gameName} · {c.member_count} members · code {c.code}</span>
       </div>
       <i className={`ri-arrow-right-s-line ${styles.resultArrow}`} />
     </Link>
