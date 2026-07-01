@@ -2307,191 +2307,202 @@ export default function TournamentDetail() {
         </div>
       )}
 
-      {/* Top bar */}
-      <div className={styles.topBar}>
-        <button className={styles.back} onClick={() => router.back()}>
-          <i className="ri-arrow-left-line" /> Back
-        </button>
-      </div>
-
-      {/* ── Single admin entry point — replaces the old separate Edit/Delete
-          buttons + "Open Command Centre" button, which all did overlapping
-          things. Everything (edit, delete, payments, transfer, bracket
-          tools, prize distribution) now lives in one place: /manage. ── */}
+      {/* Top bar — Manage button only, top-right. No back button. */}
       {canManage && tournament && (
-        <div style={{ padding: '0 16px 12px' }}>
+        <div className={styles.topBar}>
           <button
+            className={styles.manageBtnTop}
             onClick={() => router.push(`/tournaments/${tournament.slug || tournament.id}/manage`)}
-            style={{
-              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              gap: 8, padding: '11px 16px', borderRadius: 12,
-              background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)',
-              border: '1px solid rgba(99,102,241,0.4)', color: '#a5b4fc',
-              fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit',
-              letterSpacing: '0.02em',
-            }}
           >
-            <i className="ri-shield-star-fill" style={{ fontSize: 16, color: '#818cf8' }} />
-            Manage Tournament
-            <i className="ri-arrow-right-line" style={{ marginLeft: 'auto', opacity: 0.5 }} />
+            <i className="ri-shield-star-fill" />
+            Manage
           </button>
         </div>
       )}
 
-      {/* Hero */}
+      {/* Hero — "match ticket" card */}
       <div className={styles.hero}>
-        <div className={styles.heroMeta}>
-          <span className={styles.gameTag}>{gameLabel}</span>
-          {(tournament.team_size || 1) > 1 && (
-            <span className={styles.gameTag} style={{ background: 'rgba(99,102,241,0.15)', color: '#6366f1', borderColor: 'rgba(99,102,241,0.3)' }}>
-              <i className="ri-team-line" style={{ marginRight: 4 }} />
-              {tournament.team_size}v{tournament.team_size}
-            </span>
-          )}
-          {tournament.clan_id && (
-            <Link href={clanInfo?.code ? `/clans/${clanInfo.code}` : '#'} className={styles.gameTag} style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e', borderColor: 'rgba(34,197,94,0.3)', textDecoration: 'none' }}>
-              {clanInfo?.logo_url
-                ? <img src={clanInfo.logo_url} alt="" style={{ width: 13, height: 13, borderRadius: 3, objectFit: 'cover', marginRight: 4, verticalAlign: 'middle' }} />
-                : <i className="ri-shield-star-fill" style={{ marginRight: 4 }} />}
-              {clanInfo?.name || 'Clan Tournament'}
-            </Link>
-          )}
-          <span className={styles.statusBadge} style={{ color: statusColor(tournament.status), borderColor: statusColor(tournament.status) }}>
-            <i className={`ri-${statusIcon(tournament.status)}`} />
-            {tournament.status}
-          </span>
-          {registered && tournament.status === 'active' && (
-            <div className={styles.heroRegChip}>
-              <button className={styles.heroLeaveBtn} onClick={leave} disabled={leaving}>
-                <i className="ri-logout-box-line" />{leaving ? '…' : 'Leave'}
-              </button>
-            </div>
-          )}
-          {registered && tournament.status !== 'active' && (
-            <span className={styles.heroParticipatedChip}><i className="ri-checkbox-circle-fill" /></span>
-          )}
-          {!registered && tournament.status === 'active' && !isFull && !isOwnTournament && !isCompleted && (() => {
-            const hasFee = (tournament.entrance_fee || 0) > 0
-            if (!hasFee) {
-              return (
-                <button className={styles.heroRegisterBtn} onClick={register} disabled={registering}>
-                  <i className="ri-add-circle-line" />{registering ? '…' : 'Register'}
-                </button>
-              )
-            }
-            if (paymentStatus === 'payment_submitted') {
-              return (
-                <span className={styles.heroPayPendingChip}>
-                  <i className="ri-time-line" /> Awaiting Approval
-                </span>
-              )
-            }
-            if (paymentStatus === 'rejected') {
-              return (
-                <button className={styles.heroRegisterBtn} style={{ background: '#ef4444', borderColor: '#ef4444' }} onClick={() => setShowPayModal(true)}>
-                  <i className="ri-error-warning-line" /> Resubmit Payment
-                </button>
-              )
-            }
-            return (
-              <button className={styles.heroRegisterBtn} onClick={() => setShowPayModal(true)}>
-                <i className="ri-money-dollar-circle-line" /> Register · TZS {Number(tournament.entrance_fee).toLocaleString()}
-              </button>
-            )
-          })()}
-          {isOwnTournament && tournament.status === 'active' && (
-            <span className={styles.heroFullChip} style={{ borderColor: 'var(--text-muted)', color: 'var(--text-muted)' }}>
-              <i className="ri-shield-line" /> Your tournament
-            </span>
-          )}
-          {/* Test mode badge */}
-          {isTestTournament && (
-            <span className={styles.heroTestChip}>
-              <i className="ri-flask-line" /> Test Run
-              {testTimeLeft !== null && (
-                <span className={styles.heroTestTimer}>
-                  {(() => {
-                    const h = Math.floor(testTimeLeft / 3600000)
-                    const m = Math.floor((testTimeLeft % 3600000) / 60000)
-                    const s = Math.floor((testTimeLeft % 60000) / 1000)
-                    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
-                  })()}
+        <div className={styles.ticket}>
+          <div className={styles.ticketHead}>
+            <div className={styles.heroMeta}>
+              <span className={styles.gameTag}>{gameLabel}</span>
+              {(tournament.team_size || 1) > 1 && (
+                <span className={styles.gameTag} style={{ background: 'rgba(99,102,241,0.15)', color: '#6366f1', borderColor: 'rgba(99,102,241,0.3)' }}>
+                  <i className="ri-team-line" style={{ marginRight: 4 }} />
+                  {tournament.team_size}v{tournament.team_size}
                 </span>
               )}
-            </span>
-          )}
-          {/* Start Tournament button — creator or admin, only when active */}
-          {(isAdmin || isOwnTournament) && tournament.status === 'active' && (
-            <button
-              className={styles.heroStartBtn}
-              onClick={async () => {
-                await supabase.from('tournaments').update({ status: 'ongoing' }).eq('id', id)
-                setTournament(t => ({ ...t, status: 'ongoing' }))
-                // Notify participants only if not a test tournament
-                if (!isTestTournament) {
-                  const { data: parts } = await supabase.from('tournament_participants').select('user_id').eq('tournament_id', id)
-                  if (parts?.length) {
-                    await supabase.from('notifications').insert(
-                      parts.map(p => ({
-                        user_id: p.user_id,
-                        title: `🏆 Tournament Started — ${tournament.name}`,
-                        body: `The tournament "${tournament.name}" is now underway! Check the bracket for your next match.`,
-                        type: 'tournament',
-                        meta: { tournament_id: id },
-                        read: false,
-                      }))
-                    )
-                  }
+              {tournament.clan_id && (
+                <Link href={clanInfo?.code ? `/clans/${clanInfo.code}` : '#'} className={styles.gameTag} style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e', borderColor: 'rgba(34,197,94,0.3)', textDecoration: 'none' }}>
+                  {clanInfo?.logo_url
+                    ? <img src={clanInfo.logo_url} alt="" style={{ width: 13, height: 13, borderRadius: 3, objectFit: 'cover', marginRight: 4, verticalAlign: 'middle' }} />
+                    : <i className="ri-shield-star-fill" style={{ marginRight: 4 }} />}
+                  {clanInfo?.name || 'Clan Tournament'}
+                </Link>
+              )}
+              <span className={styles.statusBadge} style={{ color: statusColor(tournament.status), borderColor: statusColor(tournament.status) }}>
+                <i className={`ri-${statusIcon(tournament.status)}`} />
+                {tournament.status}
+              </span>
+              {registered && tournament.status === 'active' && (
+                <div className={styles.heroRegChip}>
+                  <button className={styles.heroLeaveBtn} onClick={leave} disabled={leaving}>
+                    <i className="ri-logout-box-line" />{leaving ? '…' : 'Leave'}
+                  </button>
+                </div>
+              )}
+              {registered && tournament.status !== 'active' && (
+                <span className={styles.heroParticipatedChip}><i className="ri-checkbox-circle-fill" /></span>
+              )}
+              {!registered && tournament.status === 'active' && !isFull && !isOwnTournament && !isCompleted && (() => {
+                const hasFee = (tournament.entrance_fee || 0) > 0
+                if (!hasFee) {
+                  return (
+                    <button className={styles.heroRegisterBtn} onClick={register} disabled={registering}>
+                      <i className="ri-add-circle-line" />{registering ? '…' : 'Register'}
+                    </button>
+                  )
                 }
-                showToast('Tournament is now ongoing!', 'success')
-              }}
-            >
-              <i className="ri-play-circle-line" /> Start Tournament
-            </button>
-          )}
-          {isFull && !registered && (
-            <span className={styles.heroFullChip}><i className="ri-lock-line" /> Full</span>
-          )}
-        </div>
-        <h1 className={styles.heroTitle}>{tournament.name}</h1>
-
-        <div className={styles.heroCreatorRow}>
-          {creatorProfile && (
-            <a href={`/profile/${creatorProfile.id}`} className={styles.heroCreatorChip}>
-              <div className={styles.heroCreatorAvatar}>
-                {creatorProfile.avatar_url
-                  ? <img src={creatorProfile.avatar_url} alt="" />
-                  : <span>{(creatorProfile.username || '?').slice(0, 2).toUpperCase()}</span>}
-              </div>
-              <div className={styles.heroCreatorInfo}>
-                <span className={styles.heroCreatorBy}>Created by</span>
-                <span className={styles.heroCreatorName}>
-                  {creatorProfile.username}
-                  <UserBadges email={creatorProfile.email} plan={creatorProfile.plan} planExpiresAt={creatorProfile.plan_expires_at} countryFlag={creatorProfile.country_flag}
-                    isSeasonWinner={creatorProfile.is_season_winner} size={10} gap={3} />
+                if (paymentStatus === 'payment_submitted') {
+                  return (
+                    <span className={styles.heroPayPendingChip}>
+                      <i className="ri-time-line" /> Awaiting Approval
+                    </span>
+                  )
+                }
+                if (paymentStatus === 'rejected') {
+                  return (
+                    <button className={styles.heroRegisterBtn} style={{ background: '#ef4444', borderColor: '#ef4444' }} onClick={() => setShowPayModal(true)}>
+                      <i className="ri-error-warning-line" /> Resubmit Payment
+                    </button>
+                  )
+                }
+                return (
+                  <button className={styles.heroRegisterBtn} onClick={() => setShowPayModal(true)}>
+                    <i className="ri-money-dollar-circle-line" /> Register · TZS {Number(tournament.entrance_fee).toLocaleString()}
+                  </button>
+                )
+              })()}
+              {isOwnTournament && tournament.status === 'active' && (
+                <span className={styles.heroFullChip} style={{ borderColor: 'var(--text-muted)', color: 'var(--text-muted)' }}>
+                  <i className="ri-shield-line" /> Your tournament
                 </span>
-              </div>
-            </a>
-          )}
-          <button className={styles.heroShareBtn} onClick={shareLink} title="Share tournament">
-            <i className="ri-share-line" /> Share
-          </button>
-        </div>
+              )}
+              {/* Test mode badge */}
+              {isTestTournament && (
+                <span className={styles.heroTestChip}>
+                  <i className="ri-flask-line" /> Test Run
+                  {testTimeLeft !== null && (
+                    <span className={styles.heroTestTimer}>
+                      {(() => {
+                        const h = Math.floor(testTimeLeft / 3600000)
+                        const m = Math.floor((testTimeLeft % 3600000) / 60000)
+                        const s = Math.floor((testTimeLeft % 60000) / 1000)
+                        return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+                      })()}
+                    </span>
+                  )}
+                </span>
+              )}
+              {/* Start Tournament button — creator or admin, only when active */}
+              {(isAdmin || isOwnTournament) && tournament.status === 'active' && (
+                <button
+                  className={styles.heroStartBtn}
+                  onClick={async () => {
+                    await supabase.from('tournaments').update({ status: 'ongoing' }).eq('id', id)
+                    setTournament(t => ({ ...t, status: 'ongoing' }))
+                    // Notify participants only if not a test tournament
+                    if (!isTestTournament) {
+                      const { data: parts } = await supabase.from('tournament_participants').select('user_id').eq('tournament_id', id)
+                      if (parts?.length) {
+                        await supabase.from('notifications').insert(
+                          parts.map(p => ({
+                            user_id: p.user_id,
+                            title: `🏆 Tournament Started — ${tournament.name}`,
+                            body: `The tournament "${tournament.name}" is now underway! Check the bracket for your next match.`,
+                            type: 'tournament',
+                            meta: { tournament_id: id },
+                            read: false,
+                          }))
+                        )
+                      }
+                    }
+                    showToast('Tournament is now ongoing!', 'success')
+                  }}
+                >
+                  <i className="ri-play-circle-line" /> Start Tournament
+                </button>
+              )}
+              {isFull && !registered && (
+                <span className={styles.heroFullChip}><i className="ri-lock-line" /> Full</span>
+              )}
+            </div>
 
-        {tournament.description && <p className={styles.heroDesc}>{tournament.description}</p>}
-        <div className={styles.heroStats}>
-          <div className={styles.heroStat}><i className="ri-trophy-line" /><div><span className={styles.heroStatLabel}>Prize</span><span className={styles.heroStatVal}>{prizeTotal ? fmtTZS(prizeTotal) : 'None'}</span></div></div>
-          <div className={styles.heroStat}><i className="ri-group-line" /><div><span className={styles.heroStatLabel}>Players</span><span className={styles.heroStatVal}>{loadingParticipants ? '…' : `${realCount}/${tournament.slots}`}</span></div></div>
-          <div className={styles.heroStat}><i className="ri-gamepad-line" /><div><span className={styles.heroStatLabel}>Format</span><span className={styles.heroStatVal}>{tournament.format || '—'}</span></div></div>
-          {tournament.date && <div className={styles.heroStat}><i className="ri-calendar-event-line" /><div><span className={styles.heroStatLabel}>Date</span><span className={styles.heroStatVal}>{tournament.date}</span></div></div>}
-        </div>
-        <div className={styles.heroSlotBar}>
-          <div className={styles.slotTrack}>
-            <div className={styles.slotFill} style={{ width: `${Math.min(100, (realCount / (tournament.slots || 1)) * 100)}%` }} />
+            <h1 className={styles.heroTitle}>{tournament.name}</h1>
+
+            <div className={styles.heroCreatorRow}>
+              {creatorProfile && (
+                <a href={`/profile/${creatorProfile.id}`} className={styles.heroCreatorChip}>
+                  <div className={styles.heroCreatorAvatar}>
+                    {creatorProfile.avatar_url
+                      ? <img src={creatorProfile.avatar_url} alt="" />
+                      : <span>{(creatorProfile.username || '?').slice(0, 2).toUpperCase()}</span>}
+                  </div>
+                  <div className={styles.heroCreatorInfo}>
+                    <span className={styles.heroCreatorBy}>Created by</span>
+                    <span className={styles.heroCreatorName}>
+                      {creatorProfile.username}
+                      <UserBadges email={creatorProfile.email} plan={creatorProfile.plan} planExpiresAt={creatorProfile.plan_expires_at} countryFlag={creatorProfile.country_flag}
+                        isSeasonWinner={creatorProfile.is_season_winner} size={10} gap={3} />
+                    </span>
+                  </div>
+                </a>
+              )}
+              <button className={styles.heroShareBtn} onClick={shareLink} title="Share tournament">
+                <i className="ri-share-line" /> Share
+              </button>
+            </div>
+
+            {tournament.description && <p className={styles.heroDesc}>{tournament.description}</p>}
           </div>
-          <span className={styles.slotLabel}>
-            {!tournament.slots ? '' : Math.max(0, tournament.slots - realCount) === 0 ? 'Full' : `${Math.max(0, tournament.slots - realCount)} spots left`}
-          </span>
+
+          {/* Perforated tear line */}
+          <div className={styles.tear}>
+            <span className={styles.notchLeft} />
+            <span className={styles.notchRight} />
+          </div>
+
+          <div className={styles.ticketStub}>
+            <div className={styles.stubGrid}>
+              <div className={styles.stubStat}>
+                <span className={styles.stubLabel}>Prize</span>
+                <span className={`${styles.stubVal} ${styles.stubValAccent}`}>{prizeTotal ? fmtTZS(prizeTotal) : 'None'}</span>
+              </div>
+              <div className={styles.stubStat}>
+                <span className={styles.stubLabel}>Players</span>
+                <span className={styles.stubVal}>{loadingParticipants ? '…' : `${realCount}/${tournament.slots}`}</span>
+              </div>
+              <div className={styles.stubStat}>
+                <span className={styles.stubLabel}>Format</span>
+                <span className={styles.stubVal}>{tournament.format || '—'}</span>
+              </div>
+              {tournament.date && (
+                <div className={styles.stubStat}>
+                  <span className={styles.stubLabel}>Date</span>
+                  <span className={styles.stubVal}>{tournament.date}</span>
+                </div>
+              )}
+            </div>
+
+            <div className={styles.heroSlotBar}>
+              <div className={styles.slotTrack}>
+                <div className={styles.slotFill} style={{ width: `${Math.min(100, (realCount / (tournament.slots || 1)) * 100)}%` }} />
+              </div>
+              <span className={styles.slotLabel}>
+                {!tournament.slots ? '' : Math.max(0, tournament.slots - realCount) === 0 ? 'Full' : `${Math.max(0, tournament.slots - realCount)} spots left`}
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Entry fee banner */}
