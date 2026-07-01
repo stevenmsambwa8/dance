@@ -10,6 +10,9 @@ import { GAME_META, GAME_SLUGS, RANK_META } from '../lib/constants'
 import UserBadges from '../components/UserBadges'
 import { useCurrency } from '../lib/useCurrency'
 import useTranslation from '../lib/useTranslation'
+import { identityColor } from '../lib/clanColors'
+
+const CLAN_CAP = 125
 
 function parsePrize(raw) {
   if (!raw) return null
@@ -241,6 +244,10 @@ export default function Home() {
   const [gameMasters,     setGameMasters]     = useState([])
   const [showMasterModal, setShowMasterModal] = useState(false)
 
+  const [availableClans, setAvailableClans] = useState([])
+  const [clanSquads,     setClanSquads]     = useState({})
+  const [loadingClans,   setLoadingClans]   = useState(true)
+
   useEffect(() => {
     async function loadGameMasters() {
       let masters = null
@@ -350,6 +357,33 @@ export default function Home() {
       .order('created_at', { ascending: false })
       .limit(3)
       .then(({ data }) => { setRecentPosts(data || []); setLoadingFeed(false) })
+
+    supabase
+      .from('clans')
+      .select('id,code,name,game,logo_url,banner_url,tag_prefix,member_count,squad_count')
+      .lt('member_count', CLAN_CAP)
+      .order('member_count', { ascending: false })
+      .limit(6)
+      .then(({ data: clanData }) => {
+        setAvailableClans(clanData || [])
+        setLoadingClans(false)
+        const withSquads = (clanData || []).filter(c => c.squad_count > 0).map(c => c.id)
+        if (withSquads.length) {
+          supabase
+            .from('clan_squads')
+            .select('id,code,clan_id,name,image_url,member_count')
+            .in('clan_id', withSquads)
+            .order('member_count', { ascending: false })
+            .then(({ data: squadRows }) => {
+              const grouped = {}
+              ;(squadRows || []).forEach(sq => {
+                if (!grouped[sq.clan_id]) grouped[sq.clan_id] = []
+                if (grouped[sq.clan_id].length < 3) grouped[sq.clan_id].push(sq)
+              })
+              setClanSquads(grouped)
+            })
+        }
+      })
   }, [])
 
   useEffect(() => {
@@ -711,6 +745,77 @@ export default function Home() {
             )
           })}
         </div>
+      </Section>
+
+      {/* ══════════ CLANS ══════════ */}
+      <Section icon="ri-shield-star-line" title={t('home.clans')} href="/clans" linkLabel={t('home.allClans')}>
+        {loadingClans ? (
+          <div className={styles.clanGrid}><SkeletonCard /><SkeletonCard /><SkeletonCard /></div>
+        ) : availableClans.length === 0 ? (
+          <div className={styles.empty}>
+            <i className="ri-shield-star-line" />
+            <p>{t('home.noClansYet')}</p>
+            <Link href="/clans/create" className={styles.emptyBtn}><i className="ri-add-line" /> {t('home.createClan')}</Link>
+          </div>
+        ) : (
+          <div className={styles.clanScroll}>
+            {availableClans.map(clan => {
+              const accentColor = identityColor(clan.name)
+              const bgImage = clan.banner_url || clan.logo_url
+              const pct = Math.min(100, Math.round((clan.member_count / CLAN_CAP) * 100))
+              const squads = clanSquads[clan.id] || []
+              return (
+                <Link key={clan.code} href={`/clans/${clan.code}`} className={styles.clanCard}
+                  style={{
+                    '--clan-accent': accentColor,
+                    backgroundImage: bgImage ? `url(${bgImage})` : 'none',
+                    backgroundColor: bgImage ? undefined : accentColor,
+                  }}>
+                  <span className={`${styles.clanCardOverlay} ${bgImage ? styles.overlayGradient : styles.overlayFlat}`} />
+                  <span className={styles.clanGameBadge}>
+                    {GAME_META[clan.game]?.image
+                      ? <img src={GAME_META[clan.game].image} alt="" className={styles.clanGameBadgeImg} />
+                      : <i className={GAME_META[clan.game]?.icon} />}
+                  </span>
+                  <div className={styles.clanCardBody}>
+                    <div className={styles.clanCardTop}>
+                      <div className={styles.clanCardLogo}>
+                        {clan.logo_url ? <img src={clan.logo_url} alt="" /> : <span>{clan.tag_prefix}</span>}
+                      </div>
+                      <div className={styles.clanCardNameWrap}>
+                        <span className={styles.clanCardName}>{clan.name}</span>
+                        <span className={styles.clanCardTag}>{clan.tag_prefix}</span>
+                      </div>
+                    </div>
+                    <div className={styles.clanCardStats}>
+                      <span><i className="ri-group-line" /> {clan.member_count}/{CLAN_CAP}</span>
+                      <span><i className="ri-team-line" /> {clan.squad_count}</span>
+                    </div>
+                    <div className={styles.clanCapBar}>
+                      <div className={styles.clanCapFill} style={{ width: `${pct}%`, background: accentColor }} />
+                    </div>
+                    {squads.length > 0 && (
+                      <div className={styles.squadRow}>
+                        {squads.map(sq => (
+                          <span key={sq.id} className={styles.squadChip}>
+                            {sq.image_url
+                              ? <img src={sq.image_url} alt="" className={styles.squadChipImg} />
+                              : <span className={styles.squadChipFallback} style={{ background: identityColor(sq.name) }}>{sq.name?.[0]?.toUpperCase()}</span>
+                            }
+                            <span className={styles.squadChipName}>{sq.name}</span>
+                          </span>
+                        ))}
+                        {clan.squad_count > squads.length && (
+                          <span className={styles.squadChipMore}>+{clan.squad_count - squads.length}</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        )}
       </Section>
 
       {/* ══════════ SHOP SPOTLIGHT ══════════ */}
