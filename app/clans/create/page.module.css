@@ -56,6 +56,9 @@
   font-size: 11px; color: var(--accent); margin: 9px 0 0; line-height: 1.45; font-weight: 600;
 }
 .prefixHint strong { font-weight: 800; }
+.prefixChecking { color: var(--text-muted); font-weight: 600; }
+.prefixAvailable { color: #22c55e; font-weight: 700; }
+.prefixTaken { color: #ef4444; font-weight: 700; }
 
 .errorMsg {
   display: flex; align-items: center; gap: 7px;
