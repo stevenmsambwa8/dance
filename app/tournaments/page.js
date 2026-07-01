@@ -384,6 +384,7 @@ export default function Tournaments() {
                     <span className={`${styles.statusBadge} ${styles[tour.status]}`}>{tour.status}</span>
                     {tour.is_test && <span className={styles.testBadge}><i className="ri-flask-line" /> {t('tournamentsPage.test')}</span>}
                     {hasFee   && <span className={styles.feeBadge}><i className="ri-money-dollar-circle-line" /> {t('tournamentsPage.paid')}</span>}
+                    {tour.clan_id && <span className={styles.feeBadge} style={{ background: 'rgba(34,197,94,0.85)' }}><i className="ri-shield-star-fill" /> Clan</span>}
                   </div>
                   <div className={styles.cardBannerRight}>
                     {isReg              && <span className={styles.regPip}><i className="ri-checkbox-circle-fill" /></span>}

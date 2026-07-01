@@ -62,7 +62,12 @@ function CreateForm({ user, profile, isAdmin, router }) {
     team_size: 1,
     is_test: false,
     pro_only: false,
+    clan_id: null,
   })
+
+  const [clans, setClans] = useState([])
+  const [clansLoading, setClansLoading] = useState(false)
+  const [clanSearch, setClanSearch] = useState('')
 
   // Bracket — built in step 2, saved to DB on launch
   const [bracketDraft, setBracketDraft] = useState(null)
@@ -79,6 +84,24 @@ function CreateForm({ user, profile, isAdmin, router }) {
     supabase.from('tournaments').select('id, entrance_fee').eq('created_by', user.id)
       .then(({ data }) => setMyCreated(data || []))
   }, [user.id])
+
+  useEffect(() => {
+    setClansLoading(true)
+    supabase
+      .from('clans')
+      .select('id,code,name,logo_url,tag_prefix,member_count')
+      .eq('game', form.game_slug)
+      .order('member_count', { ascending: false })
+      .limit(100)
+      .then(({ data }) => {
+        setClans(data || [])
+        setClansLoading(false)
+        // Selected clan no longer matches this game — clear it
+        if (form.clan_id && !(data || []).some(c => c.id === form.clan_id)) {
+          set('clan_id', null)
+        }
+      })
+  }, [form.game_slug])
 
   const activePlan   = getActivePlan(profile)
   const isPaidPlan   = isAdmin || activePlan === 'pro' || activePlan === 'elite' || activePlan === 'team'
@@ -116,6 +139,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
     }
     if (idx === 1) {
       if (!form.slots || form.slots < 2) e.slots = 'Need at least 2 slots'
+      if (form.clan_id !== null && !form.clan_id) e._clan = 'Pick a clan or turn off the clan restriction'
       if (!isPaidPlan && myCreated !== null) {
         const thisFee = parseFee(form.entrance_fee)
         const isPaidT = !!thisFee
@@ -168,6 +192,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
       round_names:      bracketDraft?.round_names ?? null,
       is_test:          form.is_test,
       pro_only:         form.pro_only,
+      clan_id:          form.clan_id || null,
       status:           'active',
       registered_count: 0,
       created_by:       user.id,
@@ -181,15 +206,20 @@ function CreateForm({ user, profile, isAdmin, router }) {
       setProgressLabel('Test run ready — no notifications sent.')
     } else {
       setProgressLabel('Notifying players…')
-      const { data: allProfiles } = await supabase.from('profiles').select('id').neq('id', user.id)
+      // Clan tournaments only notify that clan's members — everyone else can't join anyway
+      const { data: allProfiles } = form.clan_id
+        ? await supabase.from('clan_members').select('user_id').eq('clan_id', form.clan_id).neq('user_id', user.id)
+            .then(({ data }) => ({ data: (data || []).map(m => ({ id: m.user_id })) }))
+        : await supabase.from('profiles').select('id').neq('id', user.id)
       if (allProfiles?.length) {
         const gameName = newT.game_slug ? ` ${newT.game_slug.toUpperCase()}` : ''
         const feeNote  = fee > 0 ? ` · Entry fee: TZS ${fee.toLocaleString()}` : ''
         const proNote  = form.pro_only ? ' · Pro & Elite only 👑' : ''
+        const clanNote = form.clan_id ? ` · ${clans.find(c => c.id === form.clan_id)?.name || 'Clan'} members only 🛡️` : ''
         const notifications = allProfiles.map(p => ({
           user_id: p.id,
           title:   `New Tournament — ${newT.name}`,
-          body:    `A new${gameName} tournament is open${newT.date ? ` on ${newT.date}` : ''}. ${newT.slots} slots${newT.prize ? ` · Prize: TZS ${newT.prize}` : ''}${feeNote}${proNote}. Register now!`,
+          body:    `A new${gameName} tournament is open${newT.date ? ` on ${newT.date}` : ''}. ${newT.slots} slots${newT.prize ? ` · Prize: TZS ${newT.prize}` : ''}${feeNote}${proNote}${clanNote}. Register now!`,
           type:    'tournament',
           meta:    { tournament_id: newT.id },
           read:    false,
@@ -364,6 +394,49 @@ function CreateForm({ user, profile, isAdmin, router }) {
               )}
             </div>
 
+            <div className={styles.field}>
+              <label><i className="ri-shield-star-line" style={{ marginRight: 4 }} />Clan Tournament <span className={styles.opt}>(optional)</span></label>
+              <button type="button" className={`${styles.testToggle} ${form.clan_id !== null ? styles.testToggleOn : ''}`}
+                onClick={() => set('clan_id', form.clan_id !== null ? null : '')}
+                style={{ borderColor: form.clan_id !== null ? '#22c55e' : undefined, background: form.clan_id !== null ? '#22c55e20' : undefined }}>
+                <div className={styles.testToggleLeft}>
+                  <i className={form.clan_id !== null ? 'ri-shield-star-fill' : 'ri-shield-star-line'} style={{ color: form.clan_id !== null ? '#22c55e' : undefined }} />
+                  <div>
+                    <span className={styles.testToggleLabel} style={{ color: form.clan_id !== null ? '#22c55e' : undefined }}>Restrict to a Clan</span>
+                    <span className={styles.testToggleHint}>{form.clan_id !== null ? 'Only members of the selected clan can join.' : 'Open to a single clan\u2019s squads instead of everyone.'}</span>
+                  </div>
+                </div>
+                <div className={`${styles.testToggleSwitch} ${form.clan_id !== null ? styles.testToggleSwitchOn : ''}`} style={{ background: form.clan_id !== null ? '#22c55e' : undefined }}>
+                  <div className={styles.testToggleKnob} />
+                </div>
+              </button>
+
+              {form.clan_id !== null && (
+                <div style={{ marginTop: 10 }}>
+                  <input type="text" value={clanSearch} placeholder="Search clans…" onChange={e => setClanSearch(e.target.value)} />
+                  <div className={styles.chipRow} style={{ marginTop: 8 }}>
+                    {clansLoading ? (
+                      <span className={styles.testToggleHint}>Loading clans…</span>
+                    ) : clans.filter(c => !clanSearch || c.name.toLowerCase().includes(clanSearch.toLowerCase())).length === 0 ? (
+                      <span className={styles.testToggleHint}>No clans found for {GAME_NAMES[form.game_slug] || form.game_slug}.</span>
+                    ) : (
+                      clans.filter(c => !clanSearch || c.name.toLowerCase().includes(clanSearch.toLowerCase())).map(c => (
+                        <button key={c.id} type="button" className={`${styles.chip} ${form.clan_id === c.id ? styles.chipActive : ''}`} onClick={() => set('clan_id', c.id)}>
+                          {c.logo_url && <img src={c.logo_url} alt="" style={{ width: 16, height: 16, borderRadius: 4, objectFit: 'cover', marginRight: 5, verticalAlign: 'middle' }} />}
+                          {c.name} <span style={{ opacity: 0.6 }}>· {c.member_count}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                  {form.team_size > 1 && (
+                    <span className={styles.feeHint} style={{ marginTop: 6 }}>
+                      <i className="ri-team-line" /> Squads from this clan claim team slots — squadmates fill the open spots first-come, first-served.
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className={styles.fieldRow}>
               <div className={styles.field}>
                 <label>Prize Pool (TZS)</label>
@@ -410,6 +483,12 @@ function CreateForm({ user, profile, isAdmin, router }) {
                 <div className={styles.testToggleKnob} />
               </div>
             </button>
+
+            {errors._clan && (
+              <div className={styles.quotaErr}>
+                <i className="ri-shield-star-line" /><span>{errors._clan}</span>
+              </div>
+            )}
 
             {errors._quota && (
               <div className={styles.quotaErr}>
@@ -462,6 +541,12 @@ function CreateForm({ user, profile, isAdmin, router }) {
                   <span className={styles.reviewVal}>{val}</span>
                 </div>
               ))}
+              <div className={styles.reviewRow}>
+                <span className={styles.reviewLabel}><i className="ri-shield-star-line" /> Clan</span>
+                <span className={styles.reviewVal} style={{ color: form.clan_id ? '#22c55e' : 'var(--text-muted)' }}>
+                  {form.clan_id ? (clans.find(c => c.id === form.clan_id)?.name || 'Selected clan') : 'Open to everyone'}
+                </span>
+              </div>
               <div className={styles.reviewRow}>
                 <span className={styles.reviewLabel}><i className="ri-vip-crown-line" /> Access</span>
                 <span className={styles.reviewVal} style={{ color: form.pro_only ? '#a855f7' : 'var(--text-muted)' }}>
