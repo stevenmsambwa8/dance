@@ -514,12 +514,15 @@ export default function TournamentDetail() {
 
     setId(t.id)
     setTournament(t)
+    if (t.stage_format === 'groups_knockout') {
+      setActiveTab(cur => cur === 'bracket' ? 'groups' : cur)
+    }
     const _loadParsed   = parseBracketData(t.bracket_data)
     const _loadTeamSize = t.team_size || 1
     const _loadSquads   = t.squads_needed || null
     let _loadFinal
     if (!_loadParsed) {
-      _loadFinal = (t.slots >= 2) ? buildLobbyBracket(t.slots, _loadTeamSize, _loadSquads) : null
+      _loadFinal = (t.slots >= 2 && t.stage_format !== 'groups_knockout') ? buildLobbyBracket(t.slots, _loadTeamSize, _loadSquads) : null
     } else {
       const _loadMode     = _loadParsed.isTeamBattle ? (_loadParsed.teamSize || 2) : 1
       const _loadMismatch = _loadMode !== _loadTeamSize
@@ -660,7 +663,7 @@ export default function TournamentDetail() {
           const _mismatch2   = _parsedBd2 && (_bMode2 !== _dbTeamSize2)
           let _finalBd2
           if (!_parsedBd2) {
-            _finalBd2 = (t.slots >= 2) ? buildLobbyBracket(t.slots, _dbTeamSize2, _dbSquads2) : null
+            _finalBd2 = (t.slots >= 2 && t.stage_format !== 'groups_knockout') ? buildLobbyBracket(t.slots, _dbTeamSize2, _dbSquads2) : null
           } else if (_mismatch2 && _parsedBd2.isEmpty) {
             _finalBd2 = buildLobbyBracket(t.slots, _dbTeamSize2, _dbSquads2)
           } else if (_mismatch2 && !_parsedBd2.isEmpty) {
@@ -1026,7 +1029,7 @@ export default function TournamentDetail() {
       setRegistered(true)
       setTournament(t => ({ ...t, registered_count: count }))
 
-      if (bracketData) {
+      if (bracketData?.rounds) {
         const { data: profile } = await supabase.from('profiles').select('username, avatar_url').eq('id', user.id).maybeSingle()
         const memberSlot = { userId: user.id, name: profile?.username || 'Player', avatar: profile?.avatar_url || null, status: 'active' }
 
@@ -1327,7 +1330,7 @@ export default function TournamentDetail() {
         await supabase.from('tournament_payments').delete().eq('tournament_id', id).eq('user_id', user.id)
 
         // 3. Scrub user from bracket_data — works for both solo and team mode
-        if (bracketData) {
+        if (bracketData?.rounds) {
           let scrubbed
 
           if (bracketData.isTeamBattle) {
@@ -2087,7 +2090,7 @@ export default function TournamentDetail() {
           const { data: prof } = await supabase.from('profiles').select('points').eq('id', entry.user_id).maybeSingle()
           if (prof) await supabase.from('profiles').update({ points: Math.max(0, (prof.points || 0) - pts) }).eq('id', entry.user_id)
         }
-        if (bracketData) {
+        if (bracketData?.rounds) {
           const newRounds = bracketData.rounds.map(pairs =>
             pairs.map(pair =>
               bracketData.isTeamBattle
@@ -2291,7 +2294,7 @@ export default function TournamentDetail() {
     ).length
   })()
 
-  const getPassPoints = (rIdx) => bracketData ? getRoundPts(rIdx, bracketData.rounds.length).winnerPts : 0
+  const getPassPoints = (rIdx) => bracketData?.rounds ? getRoundPts(rIdx, bracketData.rounds.length).winnerPts : 0
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
@@ -2719,7 +2722,7 @@ export default function TournamentDetail() {
                 </div>
               ))}
             </div>
-          ) : !bracketData ? (
+          ) : !bracketData?.rounds ? (
             <div className={styles.emptyTab}>
               <i className="ri-node-tree" /><p>Bracket not set up yet</p>
               {canManage
@@ -2926,7 +2929,7 @@ export default function TournamentDetail() {
                 </div>
               ))}
             </div>
-          ) : !bracketData || bracketData.isEmpty ? (
+          ) : !bracketData?.rounds || bracketData.isEmpty ? (
             <div className={styles.emptyTab}>
               <i className="ri-sword-line" /><p>No matches yet</p>
               <span>{canManage ? 'Generate the bracket to create matches.' : 'The organiser will set up the bracket soon!'}</span>

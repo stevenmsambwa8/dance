@@ -752,7 +752,7 @@ export default function TournamentManage() {
     const parsed = parseBracketData(t.bracket_data)
     const dbTeamSize = t.team_size || 1
     if (!parsed) {
-      setBracketData(t.slots >= 2 ? buildLobbyBracket(t.slots, dbTeamSize) : null)
+      setBracketData((t.slots >= 2 && t.stage_format !== 'groups_knockout') ? buildLobbyBracket(t.slots, dbTeamSize) : null)
     } else {
       const mode = parsed.isTeamBattle ? (parsed.teamSize || 2) : 1
       if (mode !== dbTeamSize && parsed.isEmpty) setBracketData(buildLobbyBracket(t.slots, dbTeamSize))
@@ -934,7 +934,7 @@ export default function TournamentManage() {
           supabase.from('tournament_leaderboard').delete().eq('tournament_id', id.current).eq('user_id', userId),
           supabase.from('tournament_payments').delete().eq('tournament_id', id.current).eq('user_id', userId),
         ])
-        if (bracketData) {
+        if (bracketData?.rounds) {
           const openSlot   = { userId: null, name: 'Open', avatar: null, status: 'open' }
           const openMember = { userId: null, name: 'Open', avatar: null, status: 'open' }
           const newRounds = bracketData.rounds.map(r => r.map(pair =>
@@ -1099,11 +1099,11 @@ export default function TournamentManage() {
   const realCount       = participants.length
   const openSlots       = Math.max(0, (tournament.slots || 0) - realCount)
   const bracketRounds   = bracketData?.rounds?.length ?? 0
-  const hasBracket      = bracketData && !bracketData.isEmpty
+  const hasBracket      = !!(bracketData && !bracketData.isEmpty && bracketData.rounds)
   const pendingPayments = participants.filter(p => p.payment_status === 'payment_submitted')
 
   const inBracketSet = new Set()
-  bracketData?.rounds[0]?.forEach(pair => pair.forEach(s => {
+  bracketData?.rounds?.[0]?.forEach(pair => pair.forEach(s => {
     if (bracketData.isTeamBattle) (s?.members || []).forEach(m => { if (m?.userId) inBracketSet.add(m.userId) })
     else if (s?.userId) inBracketSet.add(s.userId)
   }))
