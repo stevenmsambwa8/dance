@@ -901,24 +901,62 @@ export default function TournamentManage() {
     load()
   }
 
+  function resolveMemberUserIds(member) {
+    if (!member) return []
+    if (member.players?.length) return member.players.map(p => p.userId).filter(Boolean) // team unit
+    return member.id ? [member.id] : [] // solo unit — id IS the userId
+  }
+
+  async function awardGroupPoints(userId, delta) {
+    if (!userId || !delta) return
+    const { data: ex } = await supabase.from('tournament_leaderboard').select('id, points').eq('tournament_id', id.current).eq('user_id', userId).maybeSingle()
+    if (ex) {
+      await supabase.from('tournament_leaderboard').update({ points: Math.max(0, (ex.points || 0) + delta) }).eq('id', ex.id)
+    } else {
+      await supabase.from('tournament_leaderboard').insert({ tournament_id: id.current, user_id: userId, points: Math.max(0, delta), position: 99 })
+    }
+    const { error: rpcErr } = await supabase.rpc('increment_points', { uid: userId, amount: delta })
+    if (rpcErr) {
+      const { data: p } = await supabase.from('profiles').select('points').eq('id', userId).maybeSingle()
+      if (p) await supabase.from('profiles').update({ points: Math.max(0, (p.points || 0) + delta) }).eq('id', userId)
+    }
+  }
+
   async function saveFixtureScore(groupId, fixtureId) {
     const draft = groupScoreDraft[fixtureId]
     if (!draft || draft.home === '' || draft.away === '') return
     setGroupSavingId(fixtureId)
     const { data: freshT } = await supabase.from('tournaments').select('bracket_data').eq('id', id.current).single()
     const freshBd = parseBracketData(freshT?.bracket_data) ?? bracketData
+    const group = freshBd.groups.find(g => g.id === groupId)
+    const oldFixture = group?.fixtures.find(fx => fx.id === fixtureId)
+    const alreadyPlayed = oldFixture?.status === 'played' // don't re-award on score corrections
+    const scoreHome = Number(draft.home), scoreAway = Number(draft.away)
+
     const newGroups = freshBd.groups.map(g => {
       if (g.id !== groupId) return g
       return {
         ...g,
         fixtures: g.fixtures.map(fx => fx.id !== fixtureId ? fx : {
-          ...fx, scoreHome: Number(draft.home), scoreAway: Number(draft.away), status: 'played',
+          ...fx, scoreHome, scoreAway, status: 'played',
         }),
       }
     })
     const newBd = { ...freshBd, groups: newGroups }
     await supabase.from('tournaments').update({ bracket_data: newBd }).eq('id', id.current)
     setBracketData(newBd)
+
+    // ── Award group-stage points: 3 for a win, 1 each for a draw, 0 for a loss ──
+    if (!alreadyPlayed && group) {
+      const homeMember = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === oldFixture?.homeId)
+      const awayMember = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === oldFixture?.awayId)
+      const homePts = scoreHome > scoreAway ? 3 : scoreHome === scoreAway ? 1 : 0
+      const awayPts = scoreAway > scoreHome ? 3 : scoreAway === scoreHome ? 1 : 0
+      await Promise.all([
+        ...resolveMemberUserIds(homeMember).map(uid => awardGroupPoints(uid, homePts)),
+        ...resolveMemberUserIds(awayMember).map(uid => awardGroupPoints(uid, awayPts)),
+      ])
+    }
     setGroupSavingId(null)
   }
 

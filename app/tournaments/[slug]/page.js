@@ -975,7 +975,7 @@ export default function TournamentDetail() {
 
   async function register() {
     if (!user) { openAuthGate(); return }
-    if (!isAdmin && tournament?.created_by === user.id) {
+    if (!isAdmin && tournament?.created_by === user.id && tournament?.stage_format !== 'groups_knockout') {
       showToast("You can't join your own tournament.", 'error'); return
     }
 
@@ -1131,7 +1131,7 @@ export default function TournamentDetail() {
    */
   async function joinViaSlot(targetPIdx, targetSIdx, targetMIdx) {
     if (!user) { openAuthGate(); return }
-    if (!isAdmin && tournament?.created_by === user.id) {
+    if (!isAdmin && tournament?.created_by === user.id && tournament?.stage_format !== 'groups_knockout') {
       showToast("You can't join your own tournament.", 'error'); return
     }
     if (registered) { showToast('You are already registered.', 'info'); return }
@@ -2361,7 +2361,7 @@ export default function TournamentDetail() {
               {registered && tournament.status !== 'active' && (
                 <span className={styles.heroParticipatedChip}><i className="ri-checkbox-circle-fill" /></span>
               )}
-              {!registered && tournament.status === 'active' && !isFull && !isOwnTournament && !isCompleted && (() => {
+              {!registered && tournament.status === 'active' && !isFull && (!isOwnTournament || tournament.stage_format === 'groups_knockout') && !isCompleted && (() => {
                 const hasFee = (tournament.entrance_fee || 0) > 0
                 if (!hasFee) {
                   return (
@@ -2390,7 +2390,7 @@ export default function TournamentDetail() {
                   </button>
                 )
               })()}
-              {isOwnTournament && tournament.status === 'active' && (
+              {isOwnTournament && tournament.status === 'active' && tournament.stage_format !== 'groups_knockout' && (
                 <span className={styles.heroFullChip} style={{ borderColor: 'var(--text-muted)', color: 'var(--text-muted)' }}>
                   <i className="ri-shield-line" /> Your tournament
                 </span>
@@ -2652,10 +2652,37 @@ export default function TournamentDetail() {
       {activeTab === 'groups' && (
         <section className={styles.section}>
           {!bracketData?.groups ? (
-            <div className={styles.emptyTab}>
-              <i className="ri-layout-grid-line" style={{ fontSize: 28 }} />
-              <span>Groups haven't been drawn yet.</span>
-            </div>
+            participants.length === 0 ? (
+              <div className={styles.emptyTab}>
+                <i className="ri-layout-grid-line" style={{ fontSize: 28 }} />
+                <span>No one's registered yet — be the first!</span>
+              </div>
+            ) : (
+              <div style={{ border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', background: 'var(--surface)' }}>
+                <div style={{ padding: '10px 14px', background: 'var(--bg-2)', fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>Registered players</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>Groups not drawn yet</span>
+                </div>
+                <div style={{ padding: '4px 14px 8px' }}>
+                  <div style={{ display: 'flex', gap: 8, padding: '6px 0', fontSize: 9, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    <span style={{ width: 16 }}>#</span><span style={{ flex: 1 }}>Player</span><span style={{ width: 34, textAlign: 'center' }}>Pts</span>
+                  </div>
+                  {participants.map((p, i) => (
+                    <div key={p.user_id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0', fontSize: 12.5, borderTop: '1px solid var(--border)' }}>
+                      <span style={{ width: 16, color: 'var(--text-muted)', fontWeight: 700 }}>{i + 1}</span>
+                      <div style={{ width: 22, height: 22, borderRadius: '50%', overflow: 'hidden', background: 'var(--bg-2)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 800 }}>
+                        {p.profiles?.avatar_url ? <img src={p.profiles.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (p.profiles?.username || '?').slice(0, 2).toUpperCase()}
+                      </div>
+                      <span style={{ flex: 1, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {p.profiles?.username || 'Player'}
+                        {p.user_id === user?.id && <span className={styles.youBadge}>You</span>}
+                      </span>
+                      <span style={{ width: 34, textAlign: 'center', fontWeight: 800, fontFamily: 'ui-monospace, monospace', color: 'var(--text-muted)' }}>0</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {bracketData.stage === 'knockout' && (
