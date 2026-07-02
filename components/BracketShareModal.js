@@ -14,6 +14,15 @@ const GAME_META = {
   ufl:          { name: 'UFL',             color: '#06b6d4', img: '/games/ufl.png'         },
 }
 
+// ── White poster theme (was near-black) ─────────────────────────────────────
+const BG        = '#ffffff'
+const INK       = '#0a0a0f'          // primary text
+const INK_75    = 'rgba(10,10,15,0.75)'
+const INK_55    = 'rgba(10,10,15,0.55)'
+const INK_15    = 'rgba(10,10,15,0.15)'
+const INK_08    = 'rgba(10,10,15,0.08)'
+const INK_04    = 'rgba(10,10,15,0.04)'
+
 function rr(ctx, x, y, w, h, r) {
   ctx.beginPath()
   ctx.moveTo(x + r, y)
@@ -48,6 +57,94 @@ function loadImg(src) {
   })
 }
 
+// ── Shared header block (logo, kicker, title, game name, stat pills) ────────
+// Returns the new y cursor position after drawing.
+async function drawHeader(ctx, { y, PAD, accent, kicker, tournament, gameMeta, pills, logo }) {
+  if (logo?.naturalWidth > 0) {
+    const logoR = 22
+    ctx.save()
+    ctx.beginPath()
+    ctx.arc(PAD + logoR, y + logoR, logoR, 0, Math.PI * 2)
+    ctx.clip()
+    ctx.drawImage(logo, PAD, y, logoR * 2, logoR * 2)
+    ctx.restore()
+
+    ctx.font = '800 16px system-ui, sans-serif'
+    ctx.fillStyle = INK
+    ctx.textAlign = 'left'
+    ctx.fillText('WWW.NABOGAMING.LIVE', PAD + logoR * 2 + 16, y + logoR + 6)
+    y += logoR * 2 + 50
+  } else {
+    y += 40
+  }
+
+  ctx.font = '900 15px system-ui, sans-serif'
+  ctx.fillStyle = accent
+  ctx.letterSpacing = '0.3em'
+  ctx.fillText(kicker, PAD, y)
+  y += 32
+
+  ctx.font = '900 76px system-ui, sans-serif'
+  ctx.fillStyle = INK
+  ctx.letterSpacing = '0px'
+  const titleText = (tournament?.name || 'CHAMPIONSHIP').toUpperCase()
+  ctx.fillText(titleText, PAD, y + 60)
+  y += 90
+
+  ctx.font = '800 26px system-ui, sans-serif'
+  ctx.fillStyle = INK_75
+  ctx.fillText((gameMeta?.name || '').toUpperCase(), PAD, y)
+  y += 45
+
+  let pillX = PAD
+  pills.forEach(s => {
+    ctx.font = '900 14px system-ui, sans-serif'
+    const textW = ctx.measureText(s.label).width
+    const pillW = textW + 40
+    const pillH = 46
+
+    rr(ctx, pillX, y, pillW, pillH, 6)
+    ctx.fillStyle = s.bg
+    ctx.fill()
+    if (s.bg.includes('rgba')) {
+      ctx.strokeStyle = INK_15
+      ctx.stroke()
+    }
+
+    ctx.fillStyle = s.text
+    ctx.textAlign = 'center'
+    ctx.fillText(s.label, pillX + pillW / 2, y + pillH / 2 + 5)
+    pillX += pillW + 16
+  })
+  y += 46 + 40
+
+  ctx.strokeStyle = INK_15
+  ctx.lineWidth = 2
+  ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W - PAD, y); ctx.stroke()
+  y += 40
+
+  return y
+}
+
+function drawFooter(ctx, H, PAD, accent) {
+  const footerY = H - 60
+  ctx.strokeStyle = INK_15
+  ctx.lineWidth = 2
+  ctx.beginPath(); ctx.moveTo(PAD, footerY - 20); ctx.lineTo(W - PAD, footerY - 20); ctx.stroke()
+
+  ctx.font = '800 15px system-ui, sans-serif'
+  ctx.fillStyle = INK_55
+  ctx.textAlign = 'left'
+  ctx.letterSpacing = '0px'
+  ctx.fillText('WWW.NABOGAMING.LIVE', PAD, footerY + 20)
+
+  ctx.textAlign = 'right'
+  ctx.fillText(new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).toUpperCase(), W - PAD, footerY + 20)
+
+  ctx.fillStyle = accent
+  ctx.fillRect(0, H - 10, W, 10)
+}
+
 function drawSlot(ctx, x, y, w, h, slot, opponentWon, accentColor) {
   const name   = slot?.name  || (slot?.status === 'open' ? 'Open' : '?')
   const isBye  = slot?.status === 'bye'
@@ -63,22 +160,22 @@ function drawSlot(ctx, x, y, w, h, slot, opponentWon, accentColor) {
   ctx.globalAlpha = isElim ? 0.35 : 1
 
   const PAD  = 16
-  const avR  = 15 
+  const avR  = 15
   const avCX = x + PAD + avR + (isWin ? 6 : 0)
   const avCY = y + h / 2
 
   // Avatar Base
   ctx.beginPath()
   ctx.arc(avCX, avCY, avR, 0, Math.PI * 2)
-  ctx.fillStyle = isWin ? '#ffffff' : 'rgba(0,0,0,0.4)'
+  ctx.fillStyle = isWin ? accentColor : INK_08
   ctx.fill()
-  ctx.strokeStyle = isWin ? '#ffffff' : 'rgba(255,255,255,0.1)'
+  ctx.strokeStyle = isWin ? accentColor : INK_15
   ctx.lineWidth = 1.5
   ctx.stroke()
 
   // Avatar Initials
   ctx.font = '800 12px system-ui, sans-serif'
-  ctx.fillStyle = isWin ? '#000000' : '#94a3b8'
+  ctx.fillStyle = isWin ? '#ffffff' : '#64748b'
   ctx.textAlign = 'center'
   ctx.fillText(isBye ? '—' : isPend ? '?' : name.slice(0, 2).toUpperCase(), avCX, avCY + 4)
 
@@ -88,7 +185,7 @@ function drawSlot(ctx, x, y, w, h, slot, opponentWon, accentColor) {
   // Max width avoids the right edge (and the "WIN" badge if applicable)
   const maxTextW = w - (textStartX - x) - (isWin ? 45 : 16)
   const displayText = isBye ? 'BYE' : isPend ? 'TBD' : name.toUpperCase()
-  
+
   // Step 1: Split by spaces
   const words = displayText.split(' ')
   let lines = []
@@ -131,9 +228,9 @@ function drawSlot(ctx, x, y, w, h, slot, opponentWon, accentColor) {
   const lineHeight = 17
   const totalTextH = renderLines.length * lineHeight
   // Optically adjust baseline (+5)
-  const startY = avCY - (totalTextH / 2) + (lineHeight / 2) + 5 
+  const startY = avCY - (totalTextH / 2) + (lineHeight / 2) + 5
 
-  ctx.fillStyle = isBye ? '#475569' : isWin ? '#ffffff' : '#e2e8f0'
+  ctx.fillStyle = isBye ? '#94a3b8' : INK
   ctx.textAlign = 'left'
   renderLines.forEach((l, i) => {
     ctx.fillText(l, textStartX, startY + i * lineHeight)
@@ -152,7 +249,7 @@ function drawSlot(ctx, x, y, w, h, slot, opponentWon, accentColor) {
 
 async function drawCard(canvas, { tournament, bracketData, participants, gameMeta }) {
   const ctx = canvas.getContext('2d')
-  
+
   const rounds      = bracketData?.rounds?.slice(0, -1) ?? []
   const totalRounds = bracketData?.rounds?.length ?? 1
   const accent      = gameMeta?.color || '#00ff66'
@@ -171,7 +268,7 @@ async function drawCard(canvas, { tournament, bracketData, participants, gameMet
   // ── PRECISE DYNAMIC HEIGHT CALCULATION ──
   const PAD = 56
   const MATCH_H = 100 // Increased height slightly to accommodate wrapped text
-  const MATCH_GAP = 32 
+  const MATCH_GAP = 32
   const visRounds = rounds.slice(0, 4)
   const cols = visRounds.length || 1
   const colGap = 32
@@ -186,7 +283,7 @@ async function drawCard(canvas, { tournament, bracketData, participants, gameMet
   // Calculate Header Box Size
   let headerH = y
   headerH += (logo?.naturalWidth > 0 ? 44 + 50 : 40) // Logo space
-  headerH += 32 // Subtitle 
+  headerH += 32 // Subtitle
   headerH += 90 // Main Title
   headerH += 45 // Game Name
   headerH += 86 // Stat Pills
@@ -200,12 +297,12 @@ async function drawCard(canvas, { tournament, bracketData, participants, gameMet
   // Final Canvas Height (Tight wrap around content + Footer)
   const footerH = 100
   const H = headerH + bracketTotalHeight + footerH
-  
+
   canvas.width  = W
   canvas.height = H
 
-  // ── RENDER FULL-BLEED BACKGROUND & OVERLAY ──
-  ctx.fillStyle = '#06070d'
+  // ── RENDER FULL-BLEED WHITE BACKGROUND ──
+  ctx.fillStyle = BG
   ctx.fillRect(0, 0, W, H)
 
   if (gameImg) {
@@ -216,96 +313,35 @@ async function drawCard(canvas, { tournament, bracketData, participants, gameMet
     const dh = gameImg.naturalHeight * scale
     const dx = (W - dw) / 2
     const dy = (H - dh) / 2
-    
+
+    ctx.globalAlpha = 0.16
     ctx.drawImage(gameImg, dx, dy, dw, dh)
+    ctx.globalAlpha = 1
     ctx.restore()
 
-    // Cinematic Overlay Gradient to ensure text readability
+    // Fade the image out toward white so text stays readable
     const overlayGrad = ctx.createLinearGradient(0, 0, 0, H)
-    overlayGrad.addColorStop(0, 'rgba(6, 7, 13, 0.70)')   
-    overlayGrad.addColorStop(0.5, 'rgba(6, 7, 13, 0.85)') 
-    overlayGrad.addColorStop(1, 'rgba(6, 7, 13, 0.95)')   
+    overlayGrad.addColorStop(0, 'rgba(255,255,255,0.55)')
+    overlayGrad.addColorStop(0.5, 'rgba(255,255,255,0.8)')
+    overlayGrad.addColorStop(1, 'rgba(255,255,255,0.95)')
     ctx.fillStyle = overlayGrad
     ctx.fillRect(0, 0, W, H)
   }
 
-  // ── HEADER TYPOGRAPHY ──
-  // Logo & URL
-  if (logo?.naturalWidth > 0) {
-    const logoR = 22
-    ctx.save()
-    ctx.beginPath()
-    ctx.arc(PAD + logoR, y + logoR, logoR, 0, Math.PI * 2)
-    ctx.clip()
-    ctx.drawImage(logo, PAD, y, logoR * 2, logoR * 2)
-    ctx.restore()
-
-    ctx.font = '800 16px system-ui, sans-serif'
-    ctx.fillStyle = '#ffffff'
-    ctx.textAlign = 'left'
-    ctx.fillText('WWW.NABOGAMING.LIVE', PAD + logoR * 2 + 16, y + logoR + 6)
-    y += logoR * 2 + 50
-  } else {
-    y += 40
-  }
-
-  ctx.font = '900 15px system-ui, sans-serif'
-  ctx.fillStyle = accent
-  ctx.letterSpacing = '0.3em'
-  ctx.fillText('TOURNAMENT BRACKET', PAD, y)
-  y += 32
-
-  ctx.font = '900 76px system-ui, sans-serif'
-  ctx.fillStyle = '#ffffff'
-  ctx.letterSpacing = '0px'
-  const titleText = (tournament?.name || 'CHAMPIONSHIP').toUpperCase()
-  ctx.fillText(titleText, PAD, y + 60)
-  y += 90
-
-  ctx.font = '800 26px system-ui, sans-serif'
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
-  ctx.fillText((gameMeta?.name || '').toUpperCase(), PAD, y)
-  y += 45
-
   const stats = [
-    { label: `${participants?.length || 0} CONTENDERS`, bg: 'rgba(255,255,255,0.1)', text: '#ffffff' },
+    { label: `${participants?.length || 0} CONTENDERS`, bg: INK_04, text: INK },
     ...(hasPrize ? [{ label: `PRIZE POOL: TZS ${prizeNum.toLocaleString()}`, bg: accent, text: '#000000' }] : []),
   ]
-  
-  let pillX = PAD
-  stats.forEach(s => {
-    ctx.font = '900 14px system-ui, sans-serif'
-    const textW = ctx.measureText(s.label).width
-    const pillW = textW + 40
-    const pillH = 46
-    
-    rr(ctx, pillX, y, pillW, pillH, 6)
-    ctx.fillStyle = s.bg
-    ctx.fill()
-    if (s.bg.includes('rgba')) {
-        ctx.strokeStyle = 'rgba(255,255,255,0.2)'
-        ctx.stroke()
-    }
 
-    ctx.fillStyle = s.text
-    ctx.textAlign = 'center'
-    ctx.fillText(s.label, pillX + pillW / 2, y + pillH / 2 + 5)
-    pillX += pillW + 16
-  })
-  y += 46 + 40
-
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)'
-  ctx.lineWidth = 2
-  ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W - PAD, y); ctx.stroke()
-  y += 40
+  y = await drawHeader(ctx, { y, PAD, accent, kicker: 'TOURNAMENT BRACKET', tournament, gameMeta, pills: stats, logo })
 
   // ── CHAMPION BLOCK ──
   if (champion) {
     const cH = 120
     rr(ctx, PAD, y, W - PAD * 2, cH, 8)
-    ctx.fillStyle = 'rgba(0,0,0,0.6)'
+    ctx.fillStyle = INK_04
     ctx.fill()
-    ctx.strokeStyle = 'rgba(255,255,255,0.15)'
+    ctx.strokeStyle = INK_15
     ctx.lineWidth = 2
     ctx.stroke()
 
@@ -314,27 +350,27 @@ async function drawCard(canvas, { tournament, bracketData, participants, gameMet
 
     const tx = PAD + 36
     const centerY = y + cH / 2
-    
+
     ctx.font = '900 12px system-ui, sans-serif'
     ctx.fillStyle = accent
     ctx.letterSpacing = '0.2em'
     ctx.fillText('WINNER CHAMPION', tx, centerY - 16)
-    
+
     ctx.font = '900 36px system-ui, sans-serif'
-    ctx.fillStyle = '#ffffff'
+    ctx.fillStyle = INK
     ctx.letterSpacing = '0px'
     ctx.fillText(champion.name.toUpperCase(), tx, centerY + 20)
 
     ctx.font = '38px serif'
     ctx.textAlign = 'right'
     ctx.fillText('👑', W - PAD - 36, centerY + 14)
-    
+
     y += cH + 50
   }
 
   // ── BRACKET TREE ──
   const matchPositions = []
-  
+
   matchPositions[0] = visRounds[0]?.map((_, mIdx) => ({
     x: PAD,
     y: y + mIdx * (MATCH_H + MATCH_GAP)
@@ -373,11 +409,11 @@ async function drawCard(canvas, { tournament, bracketData, participants, gameMet
       ctx.lineTo(midX, startY)
       ctx.lineTo(midX, endY)
       ctx.lineTo(endX, endY)
-      
+
       const nextMatchPair = visRounds[rIdx + 1][nextRoundMIdx]
       const targetSlot = (mIdx % 2 === 0) ? nextMatchPair?.[0] : nextMatchPair?.[1]
-      
-      ctx.strokeStyle = targetSlot?.name && targetSlot?.status !== 'open' ? accent : 'rgba(255,255,255,0.2)'
+
+      ctx.strokeStyle = targetSlot?.name && targetSlot?.status !== 'open' ? accent : INK_15
       ctx.lineWidth = 2.5
       ctx.stroke()
     })
@@ -393,20 +429,20 @@ async function drawCard(canvas, { tournament, bracketData, participants, gameMet
       const my = matchPositions[rIdx][mIdx].y
 
       ctx.font = '900 12px system-ui, sans-serif'
-      ctx.fillStyle = isLast ? accent : 'rgba(255,255,255,0.6)'
+      ctx.fillStyle = isLast ? accent : INK_55
       ctx.textAlign = 'left'
       ctx.letterSpacing = '0.15em'
       ctx.fillText(getRoundLabel(rIdx, totalRounds), colX, my - 10)
 
-      // Translucent Cards to let background subtly peek through
+      // Subtle card so the white background peeks through
       rr(ctx, colX, my, colW, MATCH_H, 6)
-      ctx.fillStyle = 'rgba(0,0,0,0.6)' 
+      ctx.fillStyle = INK_04
       ctx.fill()
-      ctx.strokeStyle = isLast ? accent : 'rgba(255,255,255,0.15)'
+      ctx.strokeStyle = isLast ? accent : INK_15
       ctx.lineWidth = 1.5
       ctx.stroke()
 
-      ctx.strokeStyle = 'rgba(255,255,255,0.06)'
+      ctx.strokeStyle = INK_08
       ctx.lineWidth = 1.5
       ctx.beginPath()
       ctx.moveTo(colX + 1, my + MATCH_H / 2)
@@ -418,31 +454,125 @@ async function drawCard(canvas, { tournament, bracketData, participants, gameMet
     })
   })
 
-  // ── FOOTER ──
-  const footerY = H - 60
-  ctx.strokeStyle = 'rgba(255,255,255,0.15)'
-  ctx.lineWidth = 2
-  ctx.beginPath(); ctx.moveTo(PAD, footerY - 20); ctx.lineTo(W - PAD, footerY - 20); ctx.stroke()
-
-  ctx.font = '800 15px system-ui, sans-serif'
-  ctx.fillStyle = 'rgba(255,255,255,0.6)'
-  ctx.textAlign = 'left'
-  ctx.letterSpacing = '0px'
-  ctx.fillText('WWW.NABOGAMING.LIVE', PAD, footerY + 20)
-  
-  ctx.textAlign = 'right'
-  ctx.fillText(new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).toUpperCase(), W - PAD, footerY + 20)
-
-  ctx.fillStyle = accent
-  ctx.fillRect(0, H - 10, W, 10)
+  drawFooter(ctx, H, PAD, accent)
 }
 
-export default function BracketShareModal({ open, onClose, tournament, bracketData, participants }) {
+// ── Standings / group-table poster (white background, same header style) ───
+async function drawStandingsCard(canvas, { tournament, groups, participants, gameMeta, computeStandings }) {
+  const ctx = canvas.getContext('2d')
+  const accent = gameMeta?.color || '#00ff66'
+  const PAD = 56
+
+  const allStandings = (groups || []).map(g => ({ group: g, rows: computeStandings(g) }))
+
+  let y = 64
+  const [logo] = await Promise.all([loadImg('/logo.png')])
+
+  let headerH = y
+  headerH += (logo?.naturalWidth > 0 ? 44 + 50 : 40)
+  headerH += 32
+  headerH += 90
+  headerH += 45
+  headerH += 86
+  headerH += 40
+
+  const ROW_H = 34
+  const TABLE_HEAD_H = 30
+  const GROUP_LABEL_H = 40
+  const GROUP_GAP = 28
+
+  const tablesH = allStandings.reduce((sum, { rows }) => {
+    return sum + GROUP_LABEL_H + TABLE_HEAD_H + rows.length * ROW_H + GROUP_GAP
+  }, 0)
+
+  const footerH = 100
+  const H = headerH + tablesH + footerH
+
+  canvas.width  = W
+  canvas.height = Math.max(H, 400)
+
+  ctx.fillStyle = BG
+  ctx.fillRect(0, 0, W, canvas.height)
+
+  const stats = [
+    { label: `${participants?.length || 0} PLAYERS`, bg: INK_04, text: INK },
+    { label: `${allStandings.length} GROUP${allStandings.length === 1 ? '' : 'S'}`, bg: accent, text: '#000000' },
+  ]
+
+  y = await drawHeader(ctx, { y, PAD, accent, kicker: 'GROUP STANDINGS', tournament, gameMeta, pills: stats, logo })
+
+  const colW = W - PAD * 2
+  const cols = [
+    { key: 'pos',  label: '#',   w: 34,  align: 'left'   },
+    { key: 'name', label: 'PLAYER', w: null, align: 'left' },
+    { key: 'played', label: 'P', w: 42, align: 'center' },
+    { key: 'won',  label: 'W',  w: 42, align: 'center' },
+    { key: 'drawn',label: 'D',  w: 42, align: 'center' },
+    { key: 'lost', label: 'L',  w: 42, align: 'center' },
+    { key: 'goalDiff', label: 'GD', w: 52, align: 'center' },
+    { key: 'points', label: 'PTS', w: 60, align: 'center' },
+  ]
+  const fixedW = cols.reduce((s, c) => s + (c.w || 0), 0)
+  const nameW = colW - fixedW
+
+  allStandings.forEach(({ group, rows }) => {
+    ctx.font = '900 16px system-ui, sans-serif'
+    ctx.fillStyle = INK
+    ctx.textAlign = 'left'
+    ctx.fillText(group.name.toUpperCase(), PAD, y + 22)
+    y += GROUP_LABEL_H
+
+    // Header row
+    let cx = PAD
+    ctx.font = '800 11px system-ui, sans-serif'
+    ctx.fillStyle = INK_55
+    cols.forEach(c => {
+      const w = c.key === 'name' ? nameW : c.w
+      ctx.textAlign = c.align
+      const tx = c.align === 'left' ? cx : cx + w / 2
+      ctx.fillText(c.label, tx, y + TABLE_HEAD_H - 10)
+      cx += w
+    })
+    y += TABLE_HEAD_H
+
+    rows.forEach((row, i) => {
+      rr(ctx, PAD, y, colW, ROW_H - 4, 4)
+      ctx.fillStyle = i % 2 === 0 ? INK_04 : 'rgba(10,10,15,0.015)'
+      ctx.fill()
+
+      cx = PAD
+      ctx.font = '800 13px system-ui, sans-serif'
+      cols.forEach(c => {
+        const w = c.key === 'name' ? nameW : c.w
+        ctx.textAlign = c.align
+        const tx = c.align === 'left' ? cx + 8 : cx + w / 2
+        ctx.fillStyle = c.key === 'points' ? accent : INK
+        let val = row[c.key]
+        if (c.key === 'name') val = row.name.toUpperCase()
+        if (c.key === 'goalDiff') val = val > 0 ? `+${val}` : String(val)
+        if (c.key === 'name' && ctx.measureText(val).width > nameW - 16) {
+          while (ctx.measureText(val + '…').width > nameW - 16 && val.length > 1) val = val.slice(0, -1)
+          val += '…'
+        }
+        ctx.fillText(String(val), tx, y + (ROW_H - 4) / 2 + 5)
+        cx += w
+      })
+      y += ROW_H
+    })
+
+    y += GROUP_GAP
+  })
+
+  drawFooter(ctx, canvas.height, PAD, accent)
+}
+
+export default function BracketShareModal({ open, onClose, mode = 'bracket', tournament, bracketData, groups, participants }) {
   const canvasRef               = useRef(null)
   const [ready, setReady]       = useState(false)
   const [downloaded, setDownloaded] = useState(false)
 
   const gameMeta = GAME_META[tournament?.game_slug] || null
+  const resolvedGroups = groups || bracketData?.groups || []
 
   useEffect(() => {
     if (!open || !tournament) return
@@ -450,12 +580,19 @@ export default function BracketShareModal({ open, onClose, tournament, bracketDa
     const t = setTimeout(async () => {
       if (!canvasRef.current) return
       try {
-        await drawCard(canvasRef.current, { tournament, bracketData, participants: participants || [], gameMeta })
+        if (mode === 'standings') {
+          const { computeStandings } = await import('../lib/groupStage')
+          await drawStandingsCard(canvasRef.current, {
+            tournament, groups: resolvedGroups, participants: participants || [], gameMeta, computeStandings,
+          })
+        } else {
+          await drawCard(canvasRef.current, { tournament, bracketData, participants: participants || [], gameMeta })
+        }
         setReady(true)
       } catch (e) { console.error('[BracketShareModal]', e) }
     }, 80)
     return () => clearTimeout(t)
-  }, [open, tournament, bracketData, participants])
+  }, [open, mode, tournament, bracketData, resolvedGroups, participants])
 
   if (!open) return null
 
@@ -467,7 +604,7 @@ export default function BracketShareModal({ open, onClose, tournament, bracketDa
       const url = URL.createObjectURL(blob)
       Object.assign(document.createElement('a'), {
         href: url,
-        download: `${(tournament?.name || 'bracket').replace(/\s+/g, '-')}-card.png`,
+        download: `${(tournament?.name || 'tournament').replace(/\s+/g, '-')}-${mode}-card.png`,
       }).click()
       URL.revokeObjectURL(url)
       setDownloaded(true)
@@ -478,7 +615,7 @@ export default function BracketShareModal({ open, onClose, tournament, bracketDa
   function handleShare() {
     getBlob(async blob => {
       if (!blob) return
-      const file = new File([blob], 'bracket.png', { type: 'image/png' })
+      const file = new File([blob], `${mode}.png`, { type: 'image/png' })
       if (navigator.canShare?.({ files: [file] })) {
         try {
           await navigator.share({ files: [file], title: tournament?.name, text: `${tournament?.name} — nabogaming.live` })
@@ -501,19 +638,21 @@ export default function BracketShareModal({ open, onClose, tournament, bracketDa
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
             <i className="ri-image-line" style={{ fontSize:16, color: gameMeta?.color || '#00ff66' }} />
-            <span style={{ fontWeight:900, fontSize:14, color:'#ffffff', letterSpacing:'0.05em' }}>SHARE BRACKET POSTER</span>
+            <span style={{ fontWeight:900, fontSize:14, color:'#ffffff', letterSpacing:'0.05em' }}>
+              {mode === 'standings' ? 'SHARE STANDINGS TABLE' : 'SHARE BRACKET POSTER'}
+            </span>
           </div>
           <button onClick={onClose} style={{ background:'none', border:'none', color:'#64748b', cursor:'pointer', fontSize:20, padding:4, lineHeight:1 }}>
             <i className="ri-close-line" />
           </button>
         </div>
 
-        <div style={{ width:'100%', flex: 1, background:'#000000', border:'1px solid #1a1d2d', borderRadius:8, overflow:'hidden', position:'relative', minHeight:0 }}>
+        <div style={{ width:'100%', flex: 1, background:'#e2e8f0', border:'1px solid #1a1d2d', borderRadius:8, overflow:'hidden', position:'relative', minHeight:0 }}>
           <canvas ref={canvasRef} style={{ width:'100%', height:'100%', objectFit:'contain', display:'block', opacity: ready ? 1 : 0, transition:'opacity 0.2s' }} />
           {!ready && (
             <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:8 }}>
-              <i className="ri-loader-4-line" style={{ fontSize:26, color:'#444' }} />
-              <span style={{ fontSize:12, color:'#64748b', fontWeight:700 }}>RENDERING POSTER…</span>
+              <i className="ri-loader-4-line" style={{ fontSize:26, color:'#94a3b8' }} />
+              <span style={{ fontSize:12, color:'#475569', fontWeight:700 }}>RENDERING POSTER…</span>
             </div>
           )}
         </div>

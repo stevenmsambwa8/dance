@@ -368,13 +368,19 @@ function buildBracketShareText(tournament, bracketData, participants) {
 // ─── Points model ─────────────────────────────────────────────────────────────
 
 function getRoundPts(rIdx, totalRounds) {
-  // fromEnd: 0=Final, 1=Semi, 2=QF, 3=R16, 4+=earlier
-  const fromEnd = (totalRounds - 2) - rIdx
+  // Minimized knockout scale — same everywhere, mirrors group-stage football
+  // scoring so bracket points stay comparable to group points:
+  //   win = 3, draw = 1 (n/a in single-elim, kept for symmetry), loss = 0.
+  // "Eliminated" is a small consolation point for reaching the bracket at all.
   return {
-    winnerPts: fromEnd === 0 ? 55 : fromEnd === 1 ? 35 : fromEnd === 2 ? 18 : fromEnd === 3 ? 10 : 8,
-    loserPts:  fromEnd === 0 ? 35 : fromEnd === 1 ? 18 : fromEnd === 2 ? 10 : fromEnd === 3 ? 6  : 4,
+    winnerPts: 3,
+    loserPts: 1,   // awarded to whoever is eliminated in this match
   }
 }
+
+// Points penalty applied when a player/team is disqualified mid-bracket.
+// Disqualification actively removes points from their total (not just 0).
+const DQ_PENALTY = -5
 
 // ─── FIX #1: PlayerSide extracted to module scope (was defined inside .map()) ─
 // isBye is now passed as an explicit prop instead of captured from outer scope.
@@ -456,6 +462,7 @@ export default function TournamentDetail() {
   const [shareCopied, setShareCopied] = useState(false)
   const [bracketShareCopied, setBracketShareCopied] = useState(false)
   const [bracketShareModal, setBracketShareModal] = useState(false)
+  const [shareCardMode, setShareCardMode] = useState('bracket') // 'bracket' | 'standings'
 
   const [lbActionMenu, setLbActionMenu] = useState(null)
   const [lbEntry, setLbEntry] = useState({ userId: '', points: '', position: '' })
@@ -750,7 +757,7 @@ export default function TournamentDetail() {
   }
 
   async function awardBracketPoints(userId, points) {
-    if (!userId || points <= 0) return
+    if (!userId || !points) return
     // Upsert tournament leaderboard
     const { data: ex } = await supabase.from('tournament_leaderboard').select('id, points').eq('tournament_id', id).eq('user_id', userId).maybeSingle()
     if (ex) {
@@ -873,7 +880,11 @@ export default function TournamentDetail() {
       return {
         user_id: uid,
         id: lbMap[uid]?.id || null,
-        points: gs ? gs.groupPoints : (lbMap[uid]?.points || 0),
+        // Total = group-stage points (win 3 / draw 1 / loss 0) PLUS whatever
+        // has accumulated in the bracket/knockout stage (win, eliminated,
+        // and DQ penalties), so points keep counting through the whole run
+        // instead of the bracket overwriting the group-stage total.
+        points: (gs ? gs.groupPoints : 0) + (lbMap[uid]?.points || 0),
         goalDiff: gs?.goalDiff ?? null,
         goalsFor: gs?.goalsFor ?? null,
         groupName: gs?.groupName ?? null,
@@ -1747,7 +1758,7 @@ export default function TournamentDetail() {
           notifRows.push({
             user_id: m.userId,
             title: `Team eliminated — ${tName}`,
-            body: `Your team was eliminated in ${roundName}.`,
+            body: `Your team was eliminated in ${roundName}. +${loserPts} pt for reaching this stage.`,
             type: 'tournament_eliminate', meta: { tournament_id: id }, read: false,
           })
         })
@@ -1765,7 +1776,7 @@ export default function TournamentDetail() {
           notifRows.push({
             user_id: m.userId,
             title: `Team disqualified — ${tName}`,
-            body: `Your team has been disqualified in ${roundName}.`,
+            body: `Your team has been disqualified in ${roundName}. ${DQ_PENALTY} pts removed.`,
             type: 'tournament', meta: { tournament_id: id }, read: false,
           })
         })
@@ -1777,6 +1788,8 @@ export default function TournamentDetail() {
             type: 'tournament_advance', meta: { tournament_id: id }, read: false,
           })
         })
+        // DQ penalty actually removes points from the team's total
+        await Promise.all(realMembers(actedTeam).map(m => awardBracketPoints(m.userId, DQ_PENALTY)))
       }
       if (notifRows.length) await supabase.from('notifications').insert(notifRows)
       await Promise.all([refreshParticipants(), refreshLeaderboard()])
@@ -1850,10 +1863,11 @@ export default function TournamentDetail() {
         type: 'tournament_eliminate', meta: { tournament_id: id }, read: false,
       })
     } else if (status === 'eliminated' && actedSlot.userId) {
+      const { loserPts } = getRoundPts(rIdx, totalRounds)
       notifRows.push({
         user_id: actedSlot.userId,
         title: `Eliminated — ${tName}`,
-        body: `You have been eliminated from ${roundName}. Check your wallet for your earned pts.`,
+        body: `You have been eliminated from ${roundName}. +${loserPts} pt for reaching this stage.`,
         type: 'tournament_eliminate', meta: { tournament_id: id }, read: false,
       })
       if (hasOpp) notifRows.push({
@@ -1866,7 +1880,7 @@ export default function TournamentDetail() {
       notifRows.push({
         user_id: actedSlot.userId,
         title: `Disqualified — ${tName}`,
-        body: `You have been disqualified from ${roundName}. Go to your wallet to review your earnings.`,
+        body: `You have been disqualified from ${roundName}. ${DQ_PENALTY} pts removed from your total.`,
         type: 'tournament', meta: { tournament_id: id }, read: false,
       })
       if (hasOpp) notifRows.push({
@@ -1903,6 +1917,30 @@ export default function TournamentDetail() {
             })]
           : []),
       ])
+      await recalcPositions()
+    } else if (status === 'eliminated' && actedSlot.userId) {
+      // Direct elimination (not via a recorded winner) still earns the
+      // small consolation point for reaching this stage of the bracket.
+      const { loserPts } = getRoundPts(rIdx, totalRounds)
+      await awardBracketPoints(actedSlot.userId, loserPts)
+      await supabase.rpc('log_earning', {
+        p_user_id: actedSlot.userId,
+        p_type: 'tournament_eliminate',
+        p_points: loserPts,
+        p_description: `Eliminated in ${roundName} — ${tName}`,
+        p_ref_id: id,
+      })
+      await recalcPositions()
+    } else if (status === 'disqualified' && actedSlot.userId) {
+      // Disqualification actively removes points from the player's total.
+      await awardBracketPoints(actedSlot.userId, DQ_PENALTY)
+      await supabase.rpc('log_earning', {
+        p_user_id: actedSlot.userId,
+        p_type: 'tournament_disqualify',
+        p_points: DQ_PENALTY,
+        p_description: `Disqualified in ${roundName} — ${tName}`,
+        p_ref_id: id,
+      })
       await recalcPositions()
     }
 
@@ -2784,6 +2822,15 @@ export default function TournamentDetail() {
                   <span>Group stage complete — check the Bracket tab for the knockout draw.</span>
                 </div>
               )}
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  className={`${styles.shareBtn} ${bracketShareCopied ? styles.shareBtnCopied : ''}`}
+                  onClick={() => { setShareCardMode('standings'); setBracketShareModal(true) }}
+                  style={{ fontSize: 11, padding: '5px 10px' }}
+                >
+                  <i className="ri-image-line" /> Share Card
+                </button>
+              </div>
               {bracketData.groups.map(group => {
                 const standings = computeStandings(group)
                 return (
@@ -2939,7 +2986,7 @@ export default function TournamentDetail() {
                 {canManage && <div className={styles.bracketAdminBadge}><img src="/tick.png" className={styles.tickIconXs} alt="admin" /></div>}
                 <button
                   className={`${styles.shareBtn} ${bracketShareCopied ? styles.shareBtnCopied : ''}`}
-                  onClick={() => setBracketShareModal(true)}
+                  onClick={() => { setShareCardMode('bracket'); setBracketShareModal(true) }}
                   style={{ fontSize: 11, padding: '5px 10px' }}
                 >
                   <><i className="ri-image-line" /> Share Card</>
@@ -3601,12 +3648,14 @@ export default function TournamentDetail() {
         </div>
       )}
 
-      {/* ── Bracket Share Card modal ── */}
+      {/* ── Bracket / Standings Share Card modal ── */}
       <BracketShareModal
         open={bracketShareModal}
         onClose={() => setBracketShareModal(false)}
+        mode={shareCardMode}
         tournament={tournament}
         bracketData={bracketData}
+        groups={bracketData?.groups}
         participants={participants}
       />
     </div>
