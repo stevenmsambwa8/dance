@@ -37,6 +37,26 @@ function rr(ctx, x, y, w, h, r) {
   ctx.closePath()
 }
 
+function drawGameIcon(ctx, gameImg, PAD, accent) {
+  if (!gameImg) return
+  const size = 56
+  const x = W - PAD - size
+  const y = 40
+  ctx.save()
+  rr(ctx, x, y, size, size, 12)
+  ctx.clip()
+  // Cover-fit the icon inside the square
+  const scale = Math.max(size / gameImg.naturalWidth, size / gameImg.naturalHeight)
+  const dw = gameImg.naturalWidth * scale
+  const dh = gameImg.naturalHeight * scale
+  ctx.drawImage(gameImg, x + (size - dw) / 2, y + (size - dh) / 2, dw, dh)
+  ctx.restore()
+  rr(ctx, x, y, size, size, 12)
+  ctx.strokeStyle = accent
+  ctx.lineWidth = 2
+  ctx.stroke()
+}
+
 function getRoundLabel(rIdx, totalRounds) {
   const fromEnd = (totalRounds - 2) - rIdx
   if (fromEnd === 0) return 'FINAL'
@@ -301,32 +321,10 @@ async function drawCard(canvas, { tournament, bracketData, participants, gameMet
   canvas.width  = W
   canvas.height = H
 
-  // ── RENDER FULL-BLEED WHITE BACKGROUND ──
+  // ── RENDER PLAIN WHITE BACKGROUND ──
   ctx.fillStyle = BG
   ctx.fillRect(0, 0, W, H)
-
-  if (gameImg) {
-    ctx.save()
-    // Scale image to cover entire canvas
-    const scale = Math.max(W / gameImg.naturalWidth, H / gameImg.naturalHeight)
-    const dw = gameImg.naturalWidth * scale
-    const dh = gameImg.naturalHeight * scale
-    const dx = (W - dw) / 2
-    const dy = (H - dh) / 2
-
-    ctx.globalAlpha = 0.34
-    ctx.drawImage(gameImg, dx, dy, dw, dh)
-    ctx.globalAlpha = 1
-    ctx.restore()
-
-    // Fade the image out toward white so text stays readable
-    const overlayGrad = ctx.createLinearGradient(0, 0, 0, H)
-    overlayGrad.addColorStop(0, 'rgba(255,255,255,0.30)')
-    overlayGrad.addColorStop(0.5, 'rgba(255,255,255,0.65)')
-    overlayGrad.addColorStop(1, 'rgba(255,255,255,0.92)')
-    ctx.fillStyle = overlayGrad
-    ctx.fillRect(0, 0, W, H)
-  }
+  drawGameIcon(ctx, gameImg, PAD, accent)
 
   const stats = [
     { label: `${participants?.length || 0} CONTENDERS`, bg: INK_04, text: INK },
@@ -497,27 +495,7 @@ async function drawStandingsCard(canvas, { tournament, groups, participants, gam
 
   ctx.fillStyle = BG
   ctx.fillRect(0, 0, W, fullH)
-
-  if (gameImg) {
-    ctx.save()
-    const scale = Math.max(W / gameImg.naturalWidth, fullH / gameImg.naturalHeight)
-    const dw = gameImg.naturalWidth * scale
-    const dh = gameImg.naturalHeight * scale
-    const dx = (W - dw) / 2
-    const dy = (fullH - dh) / 2
-
-    ctx.globalAlpha = 0.34
-    ctx.drawImage(gameImg, dx, dy, dw, dh)
-    ctx.globalAlpha = 1
-    ctx.restore()
-
-    const overlayGrad = ctx.createLinearGradient(0, 0, 0, fullH)
-    overlayGrad.addColorStop(0, 'rgba(255,255,255,0.30)')
-    overlayGrad.addColorStop(0.5, 'rgba(255,255,255,0.65)')
-    overlayGrad.addColorStop(1, 'rgba(255,255,255,0.92)')
-    ctx.fillStyle = overlayGrad
-    ctx.fillRect(0, 0, W, fullH)
-  }
+  drawGameIcon(ctx, gameImg, PAD, accent)
 
   const stats = [
     { label: `${participants?.length || 0} PLAYERS`, bg: INK_04, text: INK },

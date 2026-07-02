@@ -464,6 +464,7 @@ export default function TournamentDetail() {
   const [bracketShareCopied, setBracketShareCopied] = useState(false)
   const [bracketShareModal, setBracketShareModal] = useState(false)
   const [shareCardMode, setShareCardMode] = useState('bracket') // 'bracket' | 'standings'
+  const [shareGroupId, setShareGroupId] = useState(null) // null = all groups, else scope card to one group
   const [expandedFixtures, setExpandedFixtures] = useState({}) // { [groupId]: boolean }
 
   const [lbActionMenu, setLbActionMenu] = useState(null)
@@ -2827,7 +2828,7 @@ export default function TournamentDetail() {
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <button
                   className={`${styles.shareBtn} ${bracketShareCopied ? styles.shareBtnCopied : ''}`}
-                  onClick={() => { setShareCardMode('standings'); setBracketShareModal(true) }}
+                  onClick={() => { setShareCardMode('standings'); setShareGroupId(null); setBracketShareModal(true) }}
                   style={{ fontSize: 11, padding: '5px 10px' }}
                 >
                   <i className="ri-image-line" /> Share Card
@@ -2838,7 +2839,15 @@ export default function TournamentDetail() {
                 const fixturesOpen = !!expandedFixtures[group.id]
                 return (
                   <div key={group.id} style={{ border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', background: 'var(--surface)' }}>
-                    <div style={{ padding: '10px 14px', background: 'var(--bg-2)', fontSize: 13, fontWeight: 800 }}>{group.name}</div>
+                    <div style={{ padding: '10px 14px', background: 'var(--bg-2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 800 }}>{group.name}</span>
+                      <button
+                        onClick={() => { setShareCardMode('standings'); setShareGroupId(group.id); setBracketShareModal(true) }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 9px', fontSize: 10.5, fontWeight: 800, color: 'var(--text-dim)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer' }}
+                      >
+                        <i className="ri-image-line" style={{ fontSize: 12 }} /> Share
+                      </button>
+                    </div>
                     <div style={{ padding: '4px 14px 8px', overflowX: 'auto' }}>
                       <div style={{ display: 'flex', gap: 6, padding: '6px 0', fontSize: 9, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', minWidth: 320 }}>
                         <span style={{ width: 16 }}>#</span>
@@ -3006,7 +3015,7 @@ export default function TournamentDetail() {
                 {canManage && <div className={styles.bracketAdminBadge}><img src="/tick.png" className={styles.tickIconXs} alt="admin" /></div>}
                 <button
                   className={`${styles.shareBtn} ${bracketShareCopied ? styles.shareBtnCopied : ''}`}
-                  onClick={() => { setShareCardMode('bracket'); setBracketShareModal(true) }}
+                  onClick={() => { setShareCardMode('bracket'); setShareGroupId(null); setBracketShareModal(true) }}
                   style={{ fontSize: 11, padding: '5px 10px' }}
                 >
                   <><i className="ri-image-line" /> Share Card</>
@@ -3675,8 +3684,8 @@ export default function TournamentDetail() {
         mode={shareCardMode}
         tournament={tournament}
         bracketData={bracketData}
-        groups={bracketData?.groups}
-        participants={participants}
+        groups={shareGroupId ? bracketData?.groups?.filter(g => g.id === shareGroupId) : bracketData?.groups}
+        participants={shareGroupId ? (bracketData?.groups?.find(g => g.id === shareGroupId)?.members || []) : participants}
       />
     </div>
   )
