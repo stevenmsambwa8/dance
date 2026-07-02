@@ -1732,4 +1732,38 @@ export default function TournamentManage() {
                           <div style={{ display: 'flex', gap: 8 }}>
                             <button onClick={transferPlayers} disabled={!transferTarget || transferLoading}
                               style={{ flex: 1, padding: '10px', borderRadius: 9, background: transferTarget ? '#6366f1' : 'var(--border)', color: transferTarget ? '#fff' : 'var(--text-muted)', border: 'none', fontSize: 13, fontWeight: 800, cursor: transferTarget ? 'pointer' : 'default' }}>
-                              {transferLoading ? <><i className="ri-loader-4-line" /> Transferring…</> : <><i className="ri-swap-line" /
+                              {transferLoading ? <><i className="ri-loader-4-line" /> Transferring…</> : <><i className="ri-swap-line" /> Transfer {participants.length} Players</>}
+                            </button>
+                            <button onClick={() => { setShowTransfer(false); setTransferTarget(null); setTransferDone(false) }}
+                              style={{ padding: '10px 14px', borderRadius: 9, background: 'var(--surface)', border: '1.5px solid var(--border)', fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', cursor: 'pointer' }}>
+                              Cancel
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Delete Tournament */}
+                <div className={styles.dangerCard}>
+                  <div className={styles.dangerHead}>
+                    <i className="ri-error-warning-fill" style={{ fontSize: 18 }} /> Danger Zone
+                  </div>
+                  <p className={styles.dangerSub}>
+                    Deleting this tournament permanently removes all bracket data, participants, payments, and leaderboard entries. This cannot be undone.
+                  </p>
+                  <button className={styles.btnDangerFull} onClick={deleteTournament}>
+                    <i className="ri-delete-bin-fill" style={{ fontSize: 18 }} /> Delete Tournament
+                  </button>
+                </div>
+              </div>
+            )}
+
+          </div>
+        )}
+
+      </div>
+    </div>
+  )
+}
