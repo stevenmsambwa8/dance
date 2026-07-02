@@ -393,7 +393,7 @@ export default function BracketBuilder({
   // ══════════════════════════════════════════════════════════════════════════
   // PHASE: editor
   // ══════════════════════════════════════════════════════════════════════════
-  const totalSlots = bd?.rounds[0]?.reduce((a, pair) => a + pair.filter(s => s && s.status !== 'bye').length, 0) ?? 0
+  const totalSlots = bd?.rounds?.[0]?.reduce((a, pair) => a + pair.filter(s => s && s.status !== 'bye').length, 0) ?? 0
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>

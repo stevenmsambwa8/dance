@@ -14,7 +14,7 @@ import { useCurrency } from '../../../lib/useCurrency'
 import { canDo, underLimit, getActivePlan } from '../../../lib/plans'
 import UpgradeModal from '../../../components/UpgradeModal'
 import BracketShareModal from '../../../components/BracketShareModal'
-import { computeStandings } from '../../../lib/groupStage'
+import { computeStandings, buildGroups, addMemberToGroup } from '../../../lib/groupStage'
 
 const ADMIN_EMAIL = 'stevenmsambwa8@gmail.com'
 
@@ -851,13 +851,36 @@ export default function TournamentDetail() {
       ...leaderboard.map(e => e.user_id),
     ])
 
-    const full = Array.from(allUserIds).map(uid => ({
-      user_id: uid,
-      id: lbMap[uid]?.id || null,
-      points: lbMap[uid]?.points || 0,
-      profiles: profileMap[uid] || lbMap[uid]?.profiles || null,
-      lbEntry: lbMap[uid] || null,
-    }))
+    // ── Group-stage standings, computed live from bracket_data.groups so the
+    // leaderboard always matches the real table (points + goal difference)
+    // instead of the separately-incremented tournament_leaderboard counter,
+    // which can only ever reflect points and drifts if a score is corrected. ──
+    const groupStatsByUser = {}
+    if (bracketData?.groups) {
+      bracketData.groups.forEach(group => {
+        computeStandings(group).forEach(row => {
+          groupStatsByUser[row.id] = {
+            groupPoints: row.points, played: row.played, won: row.won, drawn: row.drawn, lost: row.lost,
+            goalsFor: row.goalsFor, goalsAgainst: row.goalsAgainst, goalDiff: row.goalDiff,
+            groupName: group.name,
+          }
+        })
+      })
+    }
+
+    const full = Array.from(allUserIds).map(uid => {
+      const gs = groupStatsByUser[uid]
+      return {
+        user_id: uid,
+        id: lbMap[uid]?.id || null,
+        points: gs ? gs.groupPoints : (lbMap[uid]?.points || 0),
+        goalDiff: gs?.goalDiff ?? null,
+        goalsFor: gs?.goalsFor ?? null,
+        groupName: gs?.groupName ?? null,
+        profiles: profileMap[uid] || lbMap[uid]?.profiles || null,
+        lbEntry: lbMap[uid] || null,
+      }
+    })
 
     // Tier = how far a player progressed.
     // Lower tier = better. Derived purely from bracket slot statuses:
@@ -913,16 +936,21 @@ export default function TournamentDetail() {
 
     full.forEach(e => { e._tier = getBracketTier(e.user_id) })
 
-    // Sort: tier ASC (lower = better), then points DESC for ties
-    full.sort((a, b) => a._tier !== b._tier ? a._tier - b._tier : b.points - a.points)
+    // Sort: tier ASC (lower = better) → points DESC → goal difference DESC → goals scored DESC
+    full.sort((a, b) => {
+      if (a._tier !== b._tier) return a._tier - b._tier
+      if (b.points !== a.points) return b.points - a.points
+      if (a.goalDiff != null && b.goalDiff != null && b.goalDiff !== a.goalDiff) return b.goalDiff - a.goalDiff
+      if (a.goalsFor != null && b.goalsFor != null && b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor
+      return 0
+    })
 
-    // Assign positions — players with same tier AND same points share a position
+    // Assign positions — players only share a position if tier, points AND goal difference all match
     let pos = 1
     full.forEach((e, i) => {
       if (i > 0) {
         const prev = full[i - 1]
-        // Different tier or different points = new position
-        if (e._tier !== prev._tier || e.points !== prev.points) pos = i + 1
+        if (e._tier !== prev._tier || e.points !== prev.points || e.goalDiff !== prev.goalDiff) pos = i + 1
       }
       e.position = pos
     })
@@ -971,6 +999,67 @@ export default function TournamentDetail() {
     setShowPayModal(false); setPayRef(''); setPayPhone('')
     showToast('Payment submitted! Admin will verify shortly.', 'success')
     setPayLoading(false)
+  }
+
+  // ── Group-stage auto draw ────────────────────────────────────────────────
+  // For groups_knockout tournaments, no admin click is needed to seed the
+  // table: the draw opens itself the moment 2 players have joined, and every
+  // player after that is randomly slotted into the smallest group so the
+  // groups stay balanced as registration continues. (Solo mode only — team
+  // tournaments are still drawn by the admin once squads are locked in.)
+  async function autoUpdateGroupsOnJoin() {
+    if (tournament?.stage_format !== 'groups_knockout') return
+    if ((tournament?.team_size || 1) > 1) return
+    try {
+      const [{ data: freshT }, { data: freshParts }] = await Promise.all([
+        supabase.from('tournaments').select('bracket_data, group_count, advance_per_group').eq('id', id).single(),
+        supabase.from('tournament_participants').select('user_id, profiles(username, avatar_url)').eq('tournament_id', id),
+      ])
+      const freshBd = parseBracketData(freshT?.bracket_data)
+      const targetGroupCount = freshT?.group_count || tournament?.group_count || 4
+      const advancePerGroup = freshT?.advance_per_group || tournament?.advance_per_group || 2
+      const count = freshParts?.length || 0
+
+      if (!freshBd?.groups) {
+        if (count < 2) return // draw opens once at least 2 players are in
+        const groupsToOpen = Math.max(1, Math.min(targetGroupCount, Math.floor(count / 2)))
+        const groups = buildGroups(freshParts, groupsToOpen, 1)
+        const newBd = { stage: 'groups', groups, advancePerGroup }
+        await supabase.from('tournaments').update({ bracket_data: newBd }).eq('id', id)
+        setBracketData(newBd)
+        return
+      }
+
+      if (freshBd.stage === 'knockout') return // group stage already finished
+
+      const placedIds = new Set(freshBd.groups.flatMap(g => g.members.map(m => m.id ?? m.userId ?? m.teamId)))
+      const unplaced = (freshParts || []).filter(p => !placedIds.has(p.user_id))
+      if (unplaced.length === 0) return
+
+      let groups = freshBd.groups
+      for (const p of unplaced) {
+        const newMember = { id: p.user_id, name: p.profiles?.username || '?', avatar: p.profiles?.avatar_url || null }
+        const canOpenNewGroup = groups.length < targetGroupCount && groups.every(g => g.members.length >= 2)
+        if (canOpenNewGroup) {
+          groups = [...groups, {
+            id: `group_${groups.length}`,
+            name: `Group ${String.fromCharCode(65 + groups.length)}`,
+            members: [newMember],
+            fixtures: [],
+          }]
+        } else {
+          const minSize = Math.min(...groups.map(g => g.members.length))
+          const candidates = groups.map((g, i) => ({ g, i })).filter(x => x.g.members.length === minSize)
+          const pick = candidates[Math.floor(Math.random() * candidates.length)]
+          groups = groups.map((g, i) => i === pick.i ? addMemberToGroup(g, newMember) : g)
+        }
+      }
+      const newBd = { ...freshBd, groups }
+      await supabase.from('tournaments').update({ bracket_data: newBd }).eq('id', id)
+      setBracketData(newBd)
+    } catch (e) {
+      console.error('autoUpdateGroupsOnJoin failed', e)
+    }
   }
 
   async function register() {
@@ -1028,6 +1117,10 @@ export default function TournamentDetail() {
       const count = await syncCount()
       setRegistered(true)
       setTournament(t => ({ ...t, registered_count: count }))
+
+      if (tournament?.stage_format === 'groups_knockout') {
+        await autoUpdateGroupsOnJoin()
+      }
 
       if (bracketData?.rounds) {
         const { data: profile } = await supabase.from('profiles').select('username, avatar_url').eq('id', user.id).maybeSingle()
@@ -3368,6 +3461,11 @@ export default function TournamentDetail() {
                         </div>
                         <span className={`${styles.lbCol_pts} ${e.points === 0 ? styles.lbPtsDim : bStatus === 'out' ? styles.lbPtsElim : ''}`}>
                           {e.points > 0 ? `${e.points} pts` : (e.lbEntry || bStatus === 'out') ? <span style={{opacity:0.45}}>0 pts</span> : '—'}
+                          {e.goalDiff != null && (
+                            <span style={{ display: 'block', fontSize: 9, fontWeight: 700, opacity: 0.55, marginTop: 1 }}>
+                              GD {e.goalDiff > 0 ? `+${e.goalDiff}` : e.goalDiff}
+                            </span>
+                          )}
                         </span>
                         <div className={styles.lbCol_action}>
                           {canManage && e.lbEntry && e.points > 0 ? (

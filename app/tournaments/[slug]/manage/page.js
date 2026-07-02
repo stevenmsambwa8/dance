@@ -931,7 +931,8 @@ export default function TournamentManage() {
     const freshBd = parseBracketData(freshT?.bracket_data) ?? bracketData
     const group = freshBd.groups.find(g => g.id === groupId)
     const oldFixture = group?.fixtures.find(fx => fx.id === fixtureId)
-    const alreadyPlayed = oldFixture?.status === 'played' // don't re-award on score corrections
+    const wasPlayed = oldFixture?.status === 'played'
+    const oldHome = oldFixture?.scoreHome, oldAway = oldFixture?.scoreAway
     const scoreHome = Number(draft.home), scoreAway = Number(draft.away)
 
     const newGroups = freshBd.groups.map(g => {
@@ -947,16 +948,26 @@ export default function TournamentManage() {
     await supabase.from('tournaments').update({ bracket_data: newBd }).eq('id', id.current)
     setBracketData(newBd)
 
-    // ── Award group-stage points: 3 for a win, 1 each for a draw, 0 for a loss ──
-    if (!alreadyPlayed && group) {
+    // ── Award group-stage points: 3 for a win, 1 each for a draw, 0 for a loss.
+    // If this fixture was already scored, apply the DELTA between the old and
+    // new result — correcting a mistyped score now keeps the leaderboard
+    // accurate instead of leaving stale points from the first entry. ──
+    if (group) {
       const homeMember = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === oldFixture?.homeId)
       const awayMember = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === oldFixture?.awayId)
-      const homePts = scoreHome > scoreAway ? 3 : scoreHome === scoreAway ? 1 : 0
-      const awayPts = scoreAway > scoreHome ? 3 : scoreAway === scoreHome ? 1 : 0
-      await Promise.all([
-        ...resolveMemberUserIds(homeMember).map(uid => awardGroupPoints(uid, homePts)),
-        ...resolveMemberUserIds(awayMember).map(uid => awardGroupPoints(uid, awayPts)),
-      ])
+      const newHomePts = scoreHome > scoreAway ? 3 : scoreHome === scoreAway ? 1 : 0
+      const newAwayPts = scoreAway > scoreHome ? 3 : scoreAway === scoreHome ? 1 : 0
+      let oldHomePts = 0, oldAwayPts = 0
+      if (wasPlayed && oldHome != null && oldAway != null) {
+        oldHomePts = oldHome > oldAway ? 3 : oldHome === oldAway ? 1 : 0
+        oldAwayPts = oldAway > oldHome ? 3 : oldAway === oldHome ? 1 : 0
+      }
+      const homeDelta = newHomePts - oldHomePts
+      const awayDelta = newAwayPts - oldAwayPts
+      const jobs = []
+      if (homeDelta !== 0) resolveMemberUserIds(homeMember).forEach(uid => jobs.push(awardGroupPoints(uid, homeDelta)))
+      if (awayDelta !== 0) resolveMemberUserIds(awayMember).forEach(uid => jobs.push(awardGroupPoints(uid, awayDelta)))
+      if (jobs.length) await Promise.all(jobs)
     }
 
     // ── Auto-advance: the instant every fixture across every group has been
@@ -1557,60 +1568,81 @@ export default function TournamentManage() {
         {/* ════ BRACKET ════ */}
         {activeTab === 'bracket' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {bracketData?.teamSizeMismatch && (
-              <div className={styles.mismatchBanner}>
-                <i className="ri-error-warning-line" style={{ color: '#f59e0b', fontSize: 18, flexShrink: 0 }} />
-                <div>
-                  <div className={styles.mismatchTitle}>Match type changed to {bracketData.currentTeamSize}v{bracketData.currentTeamSize}</div>
-                  <div className={styles.mismatchSub}>Reset bracket to apply the new format.</div>
-                </div>
-              </div>
-            )}
-            <div className={styles.btnRow}>
-              {!hasBracket
-                ? <button className={styles.btnPrimary} onClick={initBracket} disabled={realCount < 2}>
-                    <i className="ri-play-fill" /> Generate from Players
-                    {realCount < 2 && <span style={{ fontSize: 10, opacity: 0.6 }}> (2+ needed)</span>}
-                  </button>
-                : <button className={styles.btnDanger} onClick={resetBracket}>
-                    <i className="ri-restart-line" /> Reset Bracket
-                  </button>
-              }
-              <button className={styles.btnGhost} onClick={() => router.push(`/tournaments/${tournament.slug || tournament.id}`)}>
-                <i className="ri-eye-line" /> View
-              </button>
-            </div>
-            <div className={styles.card} style={{ padding: '14px 16px' }}>
-              <div className={styles.cardHead}>
-                <i className="ri-node-tree" style={{ color: '#6366f1', fontSize: 16 }} />
-                <span className={styles.cardTitle}>Bracket Editor</span>
-                <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>
-                  Drag to swap · Tap to rename
+            {tournament?.stage_format === 'groups_knockout' && bracketData?.stage !== 'knockout' ? (
+              <div className={styles.card} style={{ padding: '18px 16px', textAlign: 'center' }}>
+                <i className="ri-node-tree" style={{ fontSize: 22, color: 'var(--text-muted)' }} />
+                <p style={{ margin: '8px 0 4px', fontWeight: 700 }}>No bracket yet</p>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                  This tournament runs a group stage first. The knockout bracket builds itself automatically
+                  once every group fixture is played — head to the Overview tab to manage groups.
                 </span>
               </div>
-              <BracketBuilder
-                bracketData={bracketData}
-                onChange={(bd) => setBracketData(bd)}
-                onSave={saveBracket}
-                participants={participants}
-                teamSize={tournament?.team_size || 1}
-                saving={saving}
-                manageMode={true}
-              />
-            </div>
-            {unplaced.length > 0 && (
-              <div className={styles.unplacedCard}>
-                <div className={styles.unplacedHead}>{unplaced.length} unplaced player{unplaced.length !== 1 ? 's' : ''}</div>
-                {unplaced.map(p => (
-                  <div key={p.user_id} className={styles.unplacedRow}>
-                    <div className={styles.unplacedAvatar}>
-                      <Avatar src={p.profiles?.avatar_url} name={p.profiles?.username} size={28} radius={7} />
+            ) : (
+              <>
+                {bracketData?.teamSizeMismatch && (
+                  <div className={styles.mismatchBanner}>
+                    <i className="ri-error-warning-line" style={{ color: '#f59e0b', fontSize: 18, flexShrink: 0 }} />
+                    <div>
+                      <div className={styles.mismatchTitle}>Match type changed to {bracketData.currentTeamSize}v{bracketData.currentTeamSize}</div>
+                      <div className={styles.mismatchSub}>Reset bracket to apply the new format.</div>
                     </div>
-                    <span className={styles.unplacedName}>{p.profiles?.username || 'Player'}</span>
-                    <button className={styles.btnAdd} onClick={() => addToBracket(p)}>+ Add to bracket</button>
                   </div>
-                ))}
-              </div>
+                )}
+                <div className={styles.btnRow}>
+                  {!hasBracket
+                    ? <button className={styles.btnPrimary} onClick={initBracket} disabled={realCount < 2}>
+                        <i className="ri-play-fill" /> Generate from Players
+                        {realCount < 2 && <span style={{ fontSize: 10, opacity: 0.6 }}> (2+ needed)</span>}
+                      </button>
+                    : <button className={styles.btnDanger} onClick={resetBracket}>
+                        <i className="ri-restart-line" /> Reset Bracket
+                      </button>
+                  }
+                  <button className={styles.btnGhost} onClick={() => router.push(`/tournaments/${tournament.slug || tournament.id}`)}>
+                    <i className="ri-eye-line" /> View
+                  </button>
+                </div>
+                {bracketData?.rounds ? (
+                  <div className={styles.card} style={{ padding: '14px 16px' }}>
+                    <div className={styles.cardHead}>
+                      <i className="ri-node-tree" style={{ color: '#6366f1', fontSize: 16 }} />
+                      <span className={styles.cardTitle}>Bracket Editor</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>
+                        Drag to swap · Tap to rename
+                      </span>
+                    </div>
+                    <BracketBuilder
+                      bracketData={bracketData}
+                      onChange={(bd) => setBracketData(bd)}
+                      onSave={saveBracket}
+                      participants={participants}
+                      teamSize={tournament?.team_size || 1}
+                      saving={saving}
+                      manageMode={true}
+                    />
+                  </div>
+                ) : (
+                  <div className={styles.card} style={{ padding: '18px 16px', textAlign: 'center' }}>
+                    <i className="ri-node-tree" style={{ fontSize: 22, color: 'var(--text-muted)' }} />
+                    <p style={{ margin: '8px 0 4px', fontWeight: 700 }}>No bracket yet</p>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Generate one from the button above.</span>
+                  </div>
+                )}
+                {unplaced.length > 0 && (
+                  <div className={styles.unplacedCard}>
+                    <div className={styles.unplacedHead}>{unplaced.length} unplaced player{unplaced.length !== 1 ? 's' : ''}</div>
+                    {unplaced.map(p => (
+                      <div key={p.user_id} className={styles.unplacedRow}>
+                        <div className={styles.unplacedAvatar}>
+                          <Avatar src={p.profiles?.avatar_url} name={p.profiles?.username} size={28} radius={7} />
+                        </div>
+                        <span className={styles.unplacedName}>{p.profiles?.username || 'Player'}</span>
+                        <button className={styles.btnAdd} onClick={() => addToBracket(p)}>+ Add to bracket</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
