@@ -243,7 +243,17 @@ export default function ClanPage() {
       {/* ── Clan Wars — real tournament data, styled like the tournament listing cards ── */}
       {tournaments.length > 0 && (
         <div className={styles.warsSection}>
-          <p className={styles.sectionLabel}><i className="ri-sword-line"/> CLAN WARS · {GAME_META[clan.game]?.name}</p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <p className={styles.sectionLabel}><i className="ri-sword-line"/> CLAN WARS · {GAME_META[clan.game]?.name}</p>
+            {isLeader && squads.length > 0 && (
+              <Link
+                href={`/tournaments/create?clan=${clan.id}&game=${clan.game}&team_size=4`}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', fontSize: 11, fontWeight: 800, color: '#22c55e', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 8, textDecoration: 'none', flexShrink: 0 }}
+              >
+                <i className="ri-add-circle-line" /> Squad Tournament
+              </Link>
+            )}
+          </div>
           <div className={styles.warsScroll}>
             {tournaments.map(t => {
               const pct = t.slots ? Math.round(((t.registered_count || 0) / t.slots) * 100) : 0
@@ -286,6 +296,17 @@ export default function ClanPage() {
             })}
           </div>
         </div>
+      )}
+
+      {tournaments.length === 0 && isLeader && squads.length > 0 && (
+        <Link
+          href={`/tournaments/create?clan=${clan.id}&game=${clan.game}&team_size=4`}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', margin: '0 16px 16px', fontSize: 12.5, fontWeight: 800, color: '#22c55e', background: 'rgba(34,197,94,0.08)', border: '1px dashed rgba(34,197,94,0.35)', borderRadius: 12, textDecoration: 'none' }}
+        >
+          <i className="ri-sword-line" style={{ fontSize: 16 }} />
+          Start a squad tournament for {clan.name}
+          <i className="ri-arrow-right-s-line" style={{ marginLeft: 'auto' }} />
+        </Link>
       )}
 
       {/* ── Tabs ── */}

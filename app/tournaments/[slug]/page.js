@@ -496,6 +496,9 @@ export default function TournamentDetail() {
   const [clanInfo, setClanInfo]                 = useState(null)   // { id, code, name, logo_url, tag_prefix }
   const [myClanMembership, setMyClanMembership] = useState(null)   // { role, squad_id }
   const [mySquad, setMySquad]                   = useState(null)   // { id, name, image_url }
+  const [mySquads, setMySquads]                 = useState([])     // squads I'm in, across ALL clans — for open (non clan-restricted) team tournaments
+  const [selectedSquadId, setSelectedSquadId]   = useState(undefined) // undefined = not asked yet, null = chose solo, else a squad id
+  const [squadPicker, setSquadPicker]           = useState(null)   // { pendingAction: 'register' | { pi, si, mi } } while the picker sheet is open
 
   const toastTimer   = useRef(null)
   const testExpireTimer = useRef(null)
@@ -611,6 +614,23 @@ export default function TournamentDetail() {
         }
       })
   }, [tournament?.clan_id, user])
+
+  // ── Open team tournaments: load MY squads across ALL clans (any clan can field a squad) ──
+  useEffect(() => {
+    if (tournament?.clan_id) { setMySquads([]); return }        // clan-restricted tournaments use mySquad instead
+    if ((tournament?.team_size || 1) <= 1) { setMySquads([]); return }
+    if (!user) { setMySquads([]); return }
+    supabase.from('clan_members')
+      .select('squad_id, clan_squads(id, name, image_url, member_count), clans(id, name, code, logo_url)')
+      .eq('user_id', user.id)
+      .not('squad_id', 'is', null)
+      .then(({ data, error }) => {
+        if (error) { console.error('load mySquads:', error); setMySquads([]); return }
+        setMySquads((data || [])
+          .filter(row => row.clan_squads)
+          .map(row => ({ id: row.clan_squads.id, name: row.clan_squads.name, image_url: row.clan_squads.image_url, member_count: row.clan_squads.member_count, clan: row.clans })))
+      })
+  }, [tournament?.clan_id, tournament?.team_size, user])
 
   // ── Live countdown display for test tournament ───────────────────────────
   useEffect(() => {
@@ -1076,7 +1096,24 @@ export default function TournamentDetail() {
     }
   }
 
-  async function register() {
+  /**
+   * Resolves which squad (if any) should be used to claim a team slot for
+   * the current join action. Clan-restricted tournaments always use the
+   * member's squad within that clan. Open tournaments use whichever squad
+   * the player picked in the squad-picker sheet (mySquads, from any clan).
+   */
+  function getEffectiveSquad(squadIdOverride) {
+    if (tournament?.clan_id) {
+      return myClanMembership?.squad_id
+        ? { id: myClanMembership.squad_id, name: mySquad?.name, image_url: mySquad?.image_url }
+        : null
+    }
+    const sqId = squadIdOverride !== undefined ? squadIdOverride : selectedSquadId
+    if (!sqId) return null
+    return mySquads.find(s => s.id === sqId) || null
+  }
+
+  async function register(squadIdOverride) {
     if (!user) { openAuthGate(); return }
     if (!isAdmin && tournament?.created_by === user.id && tournament?.stage_format !== 'groups_knockout') {
       showToast("You can't join your own tournament.", 'error'); return
@@ -1141,11 +1178,12 @@ export default function TournamentDetail() {
         const memberSlot = { userId: user.id, name: profile?.username || 'Player', avatar: profile?.avatar_url || null, status: 'active' }
 
         let updatedBd = null
+        const effSquad = getEffectiveSquad(squadIdOverride)
 
         if (bracketData.isTeamBattle) {
-          if (tournament?.clan_id && myClanMembership?.squad_id) {
-            // ── Clan team mode: place into squad's claimed slot (or claim a new one) ──
-            const placement = findClanSquadPlacement(bracketData, myClanMembership.squad_id)
+          if (effSquad) {
+            // ── Squad team mode: place into squad's claimed slot (or claim a new one) ──
+            const placement = findClanSquadPlacement(bracketData, effSquad.id)
             if (placement && !placement.full) {
               const { pi, si, mIdx, claim } = placement
               const newRounds = bracketData.rounds.map((r, ri) => ri !== 0 ? r : r.map((pair, pIdx) => {
@@ -1156,7 +1194,7 @@ export default function TournamentDetail() {
                   const allFilled = newMembers.every(m => m?.userId)
                   return {
                     ...team, members: newMembers, status: allFilled ? 'active' : 'open',
-                    ...(claim ? { clanSquadId: mySquad?.id, clanSquadName: mySquad?.name, clanSquadImage: mySquad?.image_url, teamName: mySquad?.name } : {}),
+                    ...(claim ? { clanSquadId: effSquad.id, clanSquadName: effSquad.name, clanSquadImage: effSquad.image_url, teamName: effSquad.name } : {}),
                   }
                 })
               }))
@@ -1236,7 +1274,7 @@ export default function TournamentDetail() {
    *  targetMIdx = member index inside that team (passed by TeamMatchCard onJoin).
    *  In solo mode: targetMIdx is undefined — behaves exactly as before.
    */
-  async function joinViaSlot(targetPIdx, targetSIdx, targetMIdx) {
+  async function joinViaSlot(targetPIdx, targetSIdx, targetMIdx, squadIdOverride) {
     if (!user) { openAuthGate(); return }
     if (!isAdmin && tournament?.created_by === user.id && tournament?.stage_format !== 'groups_knockout') {
       showToast("You can't join your own tournament.", 'error'); return
@@ -1257,9 +1295,11 @@ export default function TournamentDetail() {
 
     setRegistering(true)
 
-    if (bracketData.isTeamBattle && tournament?.clan_id && myClanMembership?.squad_id) {
-      // ── Clan squad team mode ────────────────────────────────────────────
-      const mySquadId = myClanMembership.squad_id
+    const effSquad = getEffectiveSquad(squadIdOverride)
+
+    if (bracketData.isTeamBattle && effSquad) {
+      // ── Squad team mode ────────────────────────────────────────────────
+      const mySquadId = effSquad.id
       const preCheck = findClanSquadPlacement(bracketData, mySquadId, targetPIdx, targetSIdx)
       if (!preCheck) { showToast('No open team slots left.', 'error'); setRegistering(false); return }
       if (preCheck.full) { showToast("Your squad's slot is already full.", 'error'); setRegistering(false); return }
@@ -1291,7 +1331,7 @@ export default function TournamentDetail() {
           const allFilled = newMembers.every(m => m?.userId)
           return {
             ...team, members: newMembers, status: allFilled ? 'active' : 'open',
-            ...(claim ? { clanSquadId: mySquad?.id, clanSquadName: mySquad?.name, clanSquadImage: mySquad?.image_url, teamName: mySquad?.name } : {}),
+            ...(claim ? { clanSquadId: effSquad.id, clanSquadName: effSquad.name, clanSquadImage: effSquad.image_url, teamName: effSquad.name } : {}),
           }
         })
       }))
@@ -1420,6 +1460,34 @@ export default function TournamentDetail() {
     await sendNotification(user.id, `Joined — ${tournament?.name}`, `You've joined and claimed a bracket slot!`, 'tournament', { tournament_id: id })
     setRegistering(false)
     await refreshParticipants()
+  }
+
+  /**
+   * Whether we need to ask which squad to join with before proceeding.
+   * Only applies to OPEN team tournaments (no clan_id) where the player
+   * belongs to at least one squad and hasn't already answered this session.
+   */
+  function needsSquadPicker() {
+    return !tournament?.clan_id && (tournament?.team_size || 1) > 1 && mySquads.length > 0 && selectedSquadId === undefined
+  }
+
+  function attemptRegister() {
+    if (needsSquadPicker()) { setSquadPicker({ pendingAction: { type: 'register' } }); return }
+    register()
+  }
+
+  function attemptJoinViaSlot(pi, si, mi) {
+    if (needsSquadPicker()) { setSquadPicker({ pendingAction: { type: 'slot', pi, si, mi } }); return }
+    joinViaSlot(pi, si, mi)
+  }
+
+  function chooseSquadForJoin(squadId) {
+    setSelectedSquadId(squadId)
+    const pending = squadPicker?.pendingAction
+    setSquadPicker(null)
+    if (!pending) return
+    if (pending.type === 'register') register(squadId)
+    else joinViaSlot(pending.pi, pending.si, pending.mi, squadId)
   }
 
   async function leave() {
@@ -2499,7 +2567,7 @@ export default function TournamentDetail() {
                 const hasFee = (tournament.entrance_fee || 0) > 0
                 if (!hasFee) {
                   return (
-                    <button className={styles.heroRegisterBtn} onClick={register} disabled={registering}>
+                    <button className={styles.heroRegisterBtn} onClick={attemptRegister} disabled={registering}>
                       <i className="ri-add-circle-line" />{registering ? '…' : 'Register'}
                     </button>
                   )
@@ -3062,8 +3130,8 @@ export default function TournamentDetail() {
                                         rIdx === 0 && !registered && !isFull && !isOwnTournament && tournament?.status === 'active'
                                           ? (() => {
                                               const hasFee = (tournament.entrance_fee || 0) > 0
-                                              if (!hasFee) return (teamSlotIdx, memberIdx) => joinViaSlot(pIdx, teamSlotIdx, memberIdx)
-                                              if (paymentStatus === 'approved') return (teamSlotIdx, memberIdx) => joinViaSlot(pIdx, teamSlotIdx, memberIdx)
+                                              if (!hasFee) return (teamSlotIdx, memberIdx) => attemptJoinViaSlot(pIdx, teamSlotIdx, memberIdx)
+                                              if (paymentStatus === 'approved') return (teamSlotIdx, memberIdx) => attemptJoinViaSlot(pIdx, teamSlotIdx, memberIdx)
                                               return () => {
                                                 if (paymentStatus === 'payment_submitted') {
                                                   showToast('Payment awaiting approval — you cannot join yet.', 'info')
@@ -3092,8 +3160,8 @@ export default function TournamentDetail() {
                                       rIdx === 0 && !registered && !isFull && !isOwnTournament && tournament?.status === 'active'
                                         ? (() => {
                                             const hasFee = (tournament.entrance_fee || 0) > 0
-                                            if (!hasFee) return (sIdx) => joinViaSlot(pIdx, sIdx)
-                                            if (paymentStatus === 'approved') return (sIdx) => joinViaSlot(pIdx, sIdx)
+                                            if (!hasFee) return (sIdx) => attemptJoinViaSlot(pIdx, sIdx)
+                                            if (paymentStatus === 'approved') return (sIdx) => attemptJoinViaSlot(pIdx, sIdx)
                                             return () => {
                                               if (paymentStatus === 'payment_submitted') {
                                                 showToast('Payment awaiting approval — you cannot join yet.', 'info')
@@ -3673,6 +3741,48 @@ export default function TournamentDetail() {
               <button className={styles.confirmCancel} onClick={() => setConfirmModal(null)}>Cancel</button>
               <button className={styles.confirmOk} onClick={() => { const fn = confirmModal.onConfirm; setConfirmModal(null); fn() }}>Confirm</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Squad picker sheet (open team tournaments) ── */}
+      {squadPicker && (
+        <div className={styles.sheetOverlay} onClick={() => setSquadPicker(null)}>
+          <div className={styles.sheetBox} onClick={e => e.stopPropagation()}>
+            <div className={styles.sheetHandle} />
+            <div style={{ padding: '4px 4px 14px' }}>
+              <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 2 }}>Join with a squad?</div>
+              <div style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
+                This is a {tournament?.team_size}v{tournament?.team_size} team tournament. Bring one of your clan squads in as a single team, or join solo and get placed with others.
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '46vh', overflowY: 'auto' }}>
+              {mySquads.map(sq => (
+                <button
+                  key={sq.id}
+                  onClick={() => chooseSquadForJoin(sq.id)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, cursor: 'pointer', textAlign: 'left' }}
+                >
+                  {sq.image_url
+                    ? <img src={sq.image_url} alt="" style={{ width: 38, height: 38, borderRadius: 9, objectFit: 'cover', flexShrink: 0 }} />
+                    : <div style={{ width: 38, height: 38, borderRadius: 9, background: 'var(--bg-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><i className="ri-team-line" /></div>
+                  }
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sq.name}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{sq.clan?.name || 'Clan'} · {sq.member_count || 0} members</div>
+                  </div>
+                  <i className="ri-arrow-right-s-line" style={{ color: 'var(--text-muted)' }} />
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => chooseSquadForJoin(null)}
+              style={{ width: '100%', marginTop: 10, padding: '12px 0', fontSize: 13, fontWeight: 800, color: 'var(--text-dim)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, cursor: 'pointer' }}
+            >
+              Join Solo Instead
+            </button>
           </div>
         </div>
       )}

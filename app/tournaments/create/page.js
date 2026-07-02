@@ -1,6 +1,6 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '../../../components/AuthProvider'
 import { useAuthGate } from '../../../components/AuthGateModal'
 import { supabase } from '../../../lib/supabase'
@@ -48,24 +48,33 @@ export default function CreateTournament() {
     )
   }
 
-  return <CreateForm user={user} profile={profile} isAdmin={isAdmin} router={router} />
+  return (
+    <Suspense fallback={null}>
+      <CreateForm user={user} profile={profile} isAdmin={isAdmin} router={router} />
+    </Suspense>
+  )
 }
 
 function CreateForm({ user, profile, isAdmin, router }) {
+  const searchParams = useSearchParams()
+  const prefillClanId   = searchParams.get('clan') || null
+  const prefillGameSlug = searchParams.get('game')
+  const prefillTeamSize = Number(searchParams.get('team_size'))
+
   const [step, setStep] = useState(0)
 
   const [form, setForm] = useState({
-    name: '', game_slug: GAME_SLUGS[0] || 'pubg',
+    name: '', game_slug: (prefillGameSlug && GAME_SLUGS.includes(prefillGameSlug)) ? prefillGameSlug : (GAME_SLUGS[0] || 'pubg'),
     format: '', prize: '', slots: 32,
     date: '', description: '',
     entrance_fee: '',
-    team_size: 1,
+    team_size: TEAM_SIZE_OPTIONS.some(o => o.value === prefillTeamSize) ? prefillTeamSize : 1,
     stage_format: 'knockout',
     group_count: 4,
     advance_per_group: 2,
     is_test: false,
     pro_only: false,
-    clan_id: null,
+    clan_id: prefillClanId,
   })
 
   const [clans, setClans] = useState([])
