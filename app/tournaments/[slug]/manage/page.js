@@ -874,31 +874,32 @@ export default function TournamentManage() {
     })
   }
 
-  async function advanceToKnockout() {
-    if (!await verifyCanManage()) return
-    const { data: freshT } = await supabase.from('tournaments').select('bracket_data').eq('id', id.current).single()
-    const freshBd = parseBracketData(freshT?.bracket_data) ?? bracketData
-    if (!freshBd?.groups) { showToast('No group data found.', 'error'); return }
-    if (!isGroupStageComplete(freshBd.groups)) { showToast('All group fixtures must be played first.', 'error'); return }
+  // Builds the knockout bracket from completed groups and persists it.
+  // Called automatically the moment the final group fixture is scored — no
+  // admin click needed. Returns the merged bracket_data on success, or null.
+  async function autoBuildKnockout(freshBd) {
+    if (!freshBd?.groups) return null
+    if (!isGroupStageComplete(freshBd.groups)) return null
+    if (freshBd.stage === 'knockout') return null // already advanced
 
     const teamSize = tournament?.team_size || 1
     const advancePerGroup = freshBd.advancePerGroup || tournament?.advance_per_group || 2
     const qualifiers = getQualifiers(freshBd.groups, advancePerGroup)
-    if (qualifiers.length < 2) { showToast('Not enough qualifiers to build a bracket.', 'error'); return }
+    if (qualifiers.length < 2) return null
 
     const knockout = buildBracket(qualifiers, teamSize)
     const merged = { ...freshBd, stage: 'knockout', ...knockout }
     const { error } = await supabase.from('tournaments').update({ bracket_data: merged }).eq('id', id.current)
-    if (error) { showToast('Failed to build knockout bracket.', 'error'); return }
+    if (error) return null
     setBracketData(merged)
-    showToast('Knockout bracket generated!', 'success')
+    showToast('Group stage complete — knockout bracket generated automatically!', 'success')
     const notifs = participants.filter(p => p.user_id).map(p => ({
       user_id: p.user_id, title: `Knockout stage begins — ${tournament.name}`,
       body: 'Groups are done — check the bracket to see if you advanced!',
       type: 'tournament', meta: { tournament_id: id.current }, read: false,
     }))
     if (notifs.length) await supabase.from('notifications').insert(notifs)
-    load()
+    return merged
   }
 
   function resolveMemberUserIds(member) {
@@ -942,7 +943,7 @@ export default function TournamentManage() {
         }),
       }
     })
-    const newBd = { ...freshBd, groups: newGroups }
+    let newBd = { ...freshBd, groups: newGroups }
     await supabase.from('tournaments').update({ bracket_data: newBd }).eq('id', id.current)
     setBracketData(newBd)
 
@@ -956,6 +957,13 @@ export default function TournamentManage() {
         ...resolveMemberUserIds(homeMember).map(uid => awardGroupPoints(uid, homePts)),
         ...resolveMemberUserIds(awayMember).map(uid => awardGroupPoints(uid, awayPts)),
       ])
+    }
+
+    // ── Auto-advance: the instant every fixture across every group has been
+    // played, build the knockout bracket automatically — no button needed. ──
+    if (isGroupStageComplete(newGroups)) {
+      const merged = await autoBuildKnockout(newBd)
+      if (merged) newBd = merged
     }
     setGroupSavingId(null)
   }
@@ -1317,15 +1325,18 @@ export default function TournamentManage() {
                       </div>
                     ))}
                   </div>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px',
+                    borderRadius: 10, marginBottom: 4, fontSize: 11.5, fontWeight: 700,
+                    background: isGroupStageComplete(bracketData.groups) ? 'rgba(34,197,94,0.08)' : 'rgba(99,102,241,0.08)',
+                    color: isGroupStageComplete(bracketData.groups) ? 'var(--accent)' : '#6366f1',
+                  }}>
+                    <i className={isGroupStageComplete(bracketData.groups) ? 'ri-checkbox-circle-fill' : 'ri-information-line'} />
+                    {isGroupStageComplete(bracketData.groups)
+                      ? 'All fixtures played — knockout bracket generated automatically.'
+                      : 'Knockout bracket builds automatically once every group fixture is played.'}
+                  </div>
                   <div className={styles.btnRow}>
-                    <button
-                      className={styles.btnPrimary}
-                      onClick={advanceToKnockout}
-                      disabled={!isGroupStageComplete(bracketData.groups)}
-                      title={!isGroupStageComplete(bracketData.groups) ? 'All fixtures must be played first' : ''}
-                    >
-                      <i className="ri-play-fill" /> Advance to Knockout
-                    </button>
                     <button className={styles.btnDanger} onClick={resetGroups}>
                       <i className="ri-restart-line" /> Reset Groups
                     </button>
@@ -1339,16 +1350,38 @@ export default function TournamentManage() {
                         <div key={group.id} style={{ border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
                           <div style={{ padding: '9px 12px', background: 'var(--bg-2)', fontSize: 12, fontWeight: 800 }}>{group.name}</div>
 
-                          {/* Standings */}
-                          <div style={{ padding: '8px 12px' }}>
-                            {standings.map(row => (
-                              <div key={row.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 11.5 }}>
-                                <span style={{ width: 16, color: 'var(--text-muted)', fontWeight: 700 }}>{row.position}</span>
-                                <span style={{ flex: 1, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.name}</span>
-                                <span style={{ color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace' }}>{row.played}p</span>
-                                <span style={{ fontWeight: 800, fontFamily: 'ui-monospace, monospace', color: 'var(--accent)' }}>{row.points}pts</span>
-                              </div>
-                            ))}
+                          {/* Standings — real football-style table: P W D L GF GA GD Pts */}
+                          <div style={{ padding: '8px 12px', overflowX: 'auto' }}>
+                            <div style={{ display: 'flex', gap: 6, padding: '4px 0 6px', fontSize: 9, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', minWidth: 320 }}>
+                              <span style={{ width: 14 }}>#</span>
+                              <span style={{ flex: 1 }}>Team</span>
+                              {['P', 'W', 'D', 'L', 'GF', 'GA', 'GD'].map(h => (
+                                <span key={h} style={{ width: 22, textAlign: 'center' }}>{h}</span>
+                              ))}
+                              <span style={{ width: 30, textAlign: 'center' }}>Pts</span>
+                            </div>
+                            {standings.map(row => {
+                              const advances = row.position <= (bracketData.advancePerGroup ?? tournament?.advance_per_group ?? 2)
+                              return (
+                                <div key={row.id} style={{
+                                  display: 'flex', alignItems: 'center', gap: 6, padding: '5px 0', fontSize: 11.5, minWidth: 320,
+                                  borderLeft: advances ? '2px solid var(--accent)' : '2px solid transparent', paddingLeft: 4,
+                                }}>
+                                  <span style={{ width: 14, color: 'var(--text-muted)', fontWeight: 700 }}>{row.position}</span>
+                                  <span style={{ flex: 1, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.name}</span>
+                                  <span style={{ width: 22, textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace' }}>{row.played}</span>
+                                  <span style={{ width: 22, textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace' }}>{row.won}</span>
+                                  <span style={{ width: 22, textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace' }}>{row.drawn}</span>
+                                  <span style={{ width: 22, textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace' }}>{row.lost}</span>
+                                  <span style={{ width: 22, textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace' }}>{row.goalsFor}</span>
+                                  <span style={{ width: 22, textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace' }}>{row.goalsAgainst}</span>
+                                  <span style={{ width: 22, textAlign: 'center', fontFamily: 'ui-monospace, monospace', fontWeight: 700, color: row.goalDiff > 0 ? 'var(--accent)' : row.goalDiff < 0 ? '#ef4444' : 'var(--text-muted)' }}>
+                                    {row.goalDiff > 0 ? `+${row.goalDiff}` : row.goalDiff}
+                                  </span>
+                                  <span style={{ width: 30, textAlign: 'center', fontWeight: 800, fontFamily: 'ui-monospace, monospace', color: 'var(--accent)' }}>{row.points}</span>
+                                </div>
+                              )
+                            })}
                           </div>
 
                           {/* Fixtures */}
@@ -1393,7 +1426,9 @@ export default function TournamentManage() {
             </div>
           )}
 
-          {/* Quick-action bracket card */}
+          {/* Quick-action bracket card — hidden for group→knockout tournaments while
+              groups are still running, since the bracket there is built automatically. */}
+          {(tournament?.stage_format !== 'groups_knockout' || bracketData?.stage === 'knockout') && (
           <div className={styles.card}>
             <div className={styles.cardHead}>
               <i className="ri-node-tree" style={{ color: '#6366f1', fontSize: 16 }} />
@@ -1439,6 +1474,7 @@ export default function TournamentManage() {
               </button>
             </div>
           </div>
+          )}
 
           {/* Sync count */}
           <button className={styles.btnFull} onClick={syncCount}>

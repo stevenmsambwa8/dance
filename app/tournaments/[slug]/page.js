@@ -2696,18 +2696,37 @@ export default function TournamentDetail() {
                 return (
                   <div key={group.id} style={{ border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', background: 'var(--surface)' }}>
                     <div style={{ padding: '10px 14px', background: 'var(--bg-2)', fontSize: 13, fontWeight: 800 }}>{group.name}</div>
-                    <div style={{ padding: '4px 14px 8px' }}>
-                      <div style={{ display: 'flex', gap: 8, padding: '6px 0', fontSize: 9, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                        <span style={{ width: 16 }}>#</span><span style={{ flex: 1 }}>Player</span><span style={{ width: 26, textAlign: 'center' }}>P</span><span style={{ width: 34, textAlign: 'center' }}>Pts</span>
+                    <div style={{ padding: '4px 14px 8px', overflowX: 'auto' }}>
+                      <div style={{ display: 'flex', gap: 6, padding: '6px 0', fontSize: 9, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', minWidth: 320 }}>
+                        <span style={{ width: 16 }}>#</span>
+                        <span style={{ flex: 1 }}>Player</span>
+                        {['P', 'W', 'D', 'L', 'GF', 'GA', 'GD'].map(h => (
+                          <span key={h} style={{ width: 22, textAlign: 'center' }}>{h}</span>
+                        ))}
+                        <span style={{ width: 30, textAlign: 'center' }}>Pts</span>
                       </div>
-                      {standings.map(row => (
-                        <div key={row.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', fontSize: 12.5, borderTop: '1px solid var(--border)' }}>
-                          <span style={{ width: 16, color: 'var(--text-muted)', fontWeight: 700 }}>{row.position}</span>
-                          <span style={{ flex: 1, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.name}</span>
-                          <span style={{ width: 26, textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace' }}>{row.played}</span>
-                          <span style={{ width: 34, textAlign: 'center', fontWeight: 800, fontFamily: 'ui-monospace, monospace', color: 'var(--accent)' }}>{row.points}</span>
-                        </div>
-                      ))}
+                      {standings.map(row => {
+                        const advances = row.position <= (bracketData.advancePerGroup ?? tournament?.advance_per_group ?? 2)
+                        return (
+                          <div key={row.id} style={{
+                            display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0', fontSize: 12, borderTop: '1px solid var(--border)', minWidth: 320,
+                            borderLeft: advances ? '2px solid var(--accent)' : '2px solid transparent', paddingLeft: 4,
+                          }}>
+                            <span style={{ width: 16, color: 'var(--text-muted)', fontWeight: 700 }}>{row.position}</span>
+                            <span style={{ flex: 1, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.name}</span>
+                            <span style={{ width: 22, textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace' }}>{row.played}</span>
+                            <span style={{ width: 22, textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace' }}>{row.won}</span>
+                            <span style={{ width: 22, textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace' }}>{row.drawn}</span>
+                            <span style={{ width: 22, textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace' }}>{row.lost}</span>
+                            <span style={{ width: 22, textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace' }}>{row.goalsFor}</span>
+                            <span style={{ width: 22, textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace' }}>{row.goalsAgainst}</span>
+                            <span style={{ width: 22, textAlign: 'center', fontFamily: 'ui-monospace, monospace', fontWeight: 700, color: row.goalDiff > 0 ? 'var(--accent)' : row.goalDiff < 0 ? '#ef4444' : 'var(--text-muted)' }}>
+                              {row.goalDiff > 0 ? `+${row.goalDiff}` : row.goalDiff}
+                            </span>
+                            <span style={{ width: 30, textAlign: 'center', fontWeight: 800, fontFamily: 'ui-monospace, monospace', color: 'var(--accent)' }}>{row.points}</span>
+                          </div>
+                        )
+                      })}
                     </div>
                     <div style={{ borderTop: '1px solid var(--border)' }}>
                       {group.fixtures.map(fx => {
@@ -2751,13 +2770,23 @@ export default function TournamentDetail() {
             </div>
           ) : !bracketData?.rounds ? (
             <div className={styles.emptyTab}>
-              <i className="ri-node-tree" /><p>Bracket not set up yet</p>
-              {canManage
-                ? <button className={styles.adminActionBtn} style={{ marginTop: 10 }} onClick={initBracket}>
-                    <i className="ri-play-circle-line" /> Generate Bracket
-                  </button>
-                : <span>The organiser will set up the bracket soon!</span>
-              }
+              <i className="ri-node-tree" />
+              {tournament.stage_format === 'groups_knockout' ? (
+                <>
+                  <p>Bracket not set up yet</p>
+                  <span>It'll be generated automatically once the group stage finishes — check the Groups tab.</span>
+                </>
+              ) : (
+                <>
+                  <p>Bracket not set up yet</p>
+                  {canManage
+                    ? <button className={styles.adminActionBtn} style={{ marginTop: 10 }} onClick={initBracket}>
+                        <i className="ri-play-circle-line" /> Generate Bracket
+                      </button>
+                    : <span>The organiser will set up the bracket soon!</span>
+                  }
+                </>
+              )}
             </div>
           ) : (
             <>
@@ -2955,6 +2984,64 @@ export default function TournamentDetail() {
                   <div className={styles.skeletonLine} style={{ width: 50 }} />
                 </div>
               ))}
+            </div>
+          ) : bracketData?.groups && bracketData?.stage !== 'knockout' ? (
+            // ── Group stage: fixtures are generated automatically per group
+            // (round-robin) the moment groups are drawn — no manual matchup setup. ──
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+              {bracketData.groups.map(group => (
+                <div key={group.id}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent)', background: 'rgba(var(--accent-rgb,99,102,241),0.10)', padding: '3px 9px', borderRadius: 6 }}>
+                      {group.name}
+                    </span>
+                    <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {group.fixtures.map(fx => {
+                      const home = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.homeId)
+                      const away = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.awayId)
+                      const played = fx.status === 'played'
+                      return (
+                        <div key={fx.id} style={{
+                          background: 'var(--surface)',
+                          border: `1px solid ${played ? 'rgba(245,158,11,0.2)' : 'var(--border)'}`,
+                          borderRadius: 14, padding: '12px 16px',
+                          display: 'flex', alignItems: 'center', gap: 10,
+                        }}>
+                          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, justifyContent: 'flex-end', textAlign: 'right' }}>
+                            <span style={{ fontWeight: played ? 500 : 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{home?.name || '?'}</span>
+                            <div style={{ width: 26, height: 26, borderRadius: '50%', overflow: 'hidden', background: 'var(--bg-2)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800 }}>
+                              {home?.avatar ? <img src={home.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (home?.name || '?').slice(0, 2).toUpperCase()}
+                            </div>
+                          </div>
+                          <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                            {played ? (
+                              <span style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 900, fontSize: 15 }}>{fx.scoreHome} – {fx.scoreAway}</span>
+                            ) : (
+                              <span style={{ fontSize: 10, fontWeight: 900, color: 'var(--text-dim)', letterSpacing: '0.05em' }}>VS</span>
+                            )}
+                            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.05em', color: played ? '#22c55e' : 'var(--text-muted)', textTransform: 'uppercase' }}>
+                              {played ? 'Done' : 'Pending'}
+                            </span>
+                          </div>
+                          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                            <div style={{ width: 26, height: 26, borderRadius: '50%', overflow: 'hidden', background: 'var(--bg-2)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800 }}>
+                              {away?.avatar ? <img src={away.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (away?.name || '?').slice(0, 2).toUpperCase()}
+                            </div>
+                            <span style={{ fontWeight: played ? 500 : 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{away?.name || '?'}</span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+              {canManage && (
+                <div style={{ fontSize: 11.5, color: 'var(--text-muted)', textAlign: 'center', padding: '4px 0' }}>
+                  <i className="ri-information-line" /> Enter results from the manage dashboard's Group Stage card.
+                </div>
+              )}
             </div>
           ) : !bracketData?.rounds || bracketData.isEmpty ? (
             <div className={styles.emptyTab}>
