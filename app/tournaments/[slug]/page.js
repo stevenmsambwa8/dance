@@ -14,6 +14,7 @@ import { useCurrency } from '../../../lib/useCurrency'
 import { canDo, underLimit, getActivePlan } from '../../../lib/plans'
 import UpgradeModal from '../../../components/UpgradeModal'
 import BracketShareModal from '../../../components/BracketShareModal'
+import MarqueeText from '../../../components/MarqueeText'
 import { computeStandings, buildGroups, addMemberToGroup } from '../../../lib/groupStage'
 
 const ADMIN_EMAIL = 'stevenmsambwa8@gmail.com'
@@ -463,6 +464,7 @@ export default function TournamentDetail() {
   const [bracketShareCopied, setBracketShareCopied] = useState(false)
   const [bracketShareModal, setBracketShareModal] = useState(false)
   const [shareCardMode, setShareCardMode] = useState('bracket') // 'bracket' | 'standings'
+  const [expandedFixtures, setExpandedFixtures] = useState({}) // { [groupId]: boolean }
 
   const [lbActionMenu, setLbActionMenu] = useState(null)
   const [lbEntry, setLbEntry] = useState({ userId: '', points: '', position: '' })
@@ -2833,6 +2835,7 @@ export default function TournamentDetail() {
               </div>
               {bracketData.groups.map(group => {
                 const standings = computeStandings(group)
+                const fixturesOpen = !!expandedFixtures[group.id]
                 return (
                   <div key={group.id} style={{ border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', background: 'var(--surface)' }}>
                     <div style={{ padding: '10px 14px', background: 'var(--bg-2)', fontSize: 13, fontWeight: 800 }}>{group.name}</div>
@@ -2853,7 +2856,7 @@ export default function TournamentDetail() {
                             borderLeft: advances ? '2px solid var(--accent)' : '2px solid transparent', paddingLeft: 4,
                           }}>
                             <span style={{ width: 16, color: 'var(--text-muted)', fontWeight: 700 }}>{row.position}</span>
-                            <span style={{ flex: 1, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.name}</span>
+                            <MarqueeText text={row.name} wrapClassName={styles.groupNameWrap} textClassName={styles.groupNameText} />
                             <span style={{ width: 22, textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace' }}>{row.played}</span>
                             <span style={{ width: 22, textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace' }}>{row.won}</span>
                             <span style={{ width: 22, textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace' }}>{row.drawn}</span>
@@ -2868,22 +2871,39 @@ export default function TournamentDetail() {
                         )
                       })}
                     </div>
-                    <div style={{ borderTop: '1px solid var(--border)' }}>
-                      {group.fixtures.map(fx => {
-                        const home = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.homeId)
-                        const away = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.awayId)
-                        const played = fx.status === 'played'
-                        return (
-                          <div key={fx.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', fontSize: 12, borderBottom: '1px solid var(--border)' }}>
-                            <span style={{ flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: played ? 400 : 700, color: played ? 'var(--text)' : 'var(--text-muted)' }}>{home?.name || '?'}</span>
-                            <span style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 800, minWidth: 42, textAlign: 'center' }}>
-                              {played ? `${fx.scoreHome} – ${fx.scoreAway}` : 'vs'}
-                            </span>
-                            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: played ? 400 : 700, color: played ? 'var(--text)' : 'var(--text-muted)' }}>{away?.name || '?'}</span>
-                          </div>
-                        )
-                      })}
-                    </div>
+                    <button
+                      onClick={() => setExpandedFixtures(prev => ({ ...prev, [group.id]: !prev[group.id] }))}
+                      style={{
+                        width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                        padding: '9px 14px', fontSize: 11.5, fontWeight: 800, color: 'var(--text-dim)',
+                        background: 'var(--bg-2)', border: 'none', borderTop: '1px solid var(--border)', cursor: 'pointer',
+                      }}
+                    >
+                      <i className={fixturesOpen ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'} />
+                      {fixturesOpen ? 'Hide Matches' : `View Matches (${group.fixtures.length})`}
+                    </button>
+                    {fixturesOpen && (
+                      <div style={{ borderTop: '1px solid var(--border)' }}>
+                        {group.fixtures.map(fx => {
+                          const home = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.homeId)
+                          const away = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.awayId)
+                          const played = fx.status === 'played'
+                          return (
+                            <div key={fx.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', fontSize: 12, borderBottom: '1px solid var(--border)' }}>
+                              <span style={{ flex: 1, minWidth: 0, textAlign: 'right', fontWeight: played ? 400 : 700, color: played ? 'var(--text)' : 'var(--text-muted)' }}>
+                                <MarqueeText text={home?.name || '?'} wrapClassName={styles.fixtureNameWrapRight} textClassName={styles.fixtureNameText} />
+                              </span>
+                              <span style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 800, minWidth: 42, textAlign: 'center', flexShrink: 0 }}>
+                                {played ? `${fx.scoreHome} – ${fx.scoreAway}` : 'vs'}
+                              </span>
+                              <span style={{ flex: 1, minWidth: 0, fontWeight: played ? 400 : 700, color: played ? 'var(--text)' : 'var(--text-muted)' }}>
+                                <MarqueeText text={away?.name || '?'} wrapClassName={styles.fixtureNameWrapLeft} textClassName={styles.fixtureNameText} />
+                              </span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
                 )
               })}

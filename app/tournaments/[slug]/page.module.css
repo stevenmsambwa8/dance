@@ -15,6 +15,28 @@
 @keyframes fadeInBackdrop { from { opacity:0; } to { opacity:1; } }
 @keyframes slideUpSheet { from { transform:translateY(60px); opacity:0.4; } to { transform:translateY(0); opacity:1; } }
 
+/* ══════════════════════════════════
+   GROUPS TAB — marquee text for long names
+══════════════════════════════════ */
+@keyframes groupsMarquee {
+  0%, 15%   { transform: translateX(0); }
+  45%, 55%  { transform: translateX(var(--marquee-distance, 0px)); }
+  85%, 100% { transform: translateX(0); }
+}
+.groupNameWrap { flex: 1; min-width: 0; overflow: hidden; display: block; }
+.groupNameText {
+  display: inline-block; white-space: nowrap;
+  font-size: 12px; font-weight: 700;
+  animation-name: groupsMarquee; animation-timing-function: ease-in-out; animation-iteration-count: infinite;
+}
+.fixtureNameWrapRight { flex: 1; min-width: 0; overflow: hidden; display: block; text-align: right; }
+.fixtureNameWrapLeft  { flex: 1; min-width: 0; overflow: hidden; display: block; text-align: left; }
+.fixtureNameText {
+  display: inline-block; white-space: nowrap;
+  font-size: 12px;
+  animation-name: groupsMarquee; animation-timing-function: ease-in-out; animation-iteration-count: infinite;
+}
+
 /* ── Page shell ── */
 .page { max-width: 680px; margin: 0 auto; padding: 0 0 96px; }
 

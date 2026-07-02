@@ -314,16 +314,16 @@ async function drawCard(canvas, { tournament, bracketData, participants, gameMet
     const dx = (W - dw) / 2
     const dy = (H - dh) / 2
 
-    ctx.globalAlpha = 0.16
+    ctx.globalAlpha = 0.34
     ctx.drawImage(gameImg, dx, dy, dw, dh)
     ctx.globalAlpha = 1
     ctx.restore()
 
     // Fade the image out toward white so text stays readable
     const overlayGrad = ctx.createLinearGradient(0, 0, 0, H)
-    overlayGrad.addColorStop(0, 'rgba(255,255,255,0.55)')
-    overlayGrad.addColorStop(0.5, 'rgba(255,255,255,0.8)')
-    overlayGrad.addColorStop(1, 'rgba(255,255,255,0.95)')
+    overlayGrad.addColorStop(0, 'rgba(255,255,255,0.30)')
+    overlayGrad.addColorStop(0.5, 'rgba(255,255,255,0.65)')
+    overlayGrad.addColorStop(1, 'rgba(255,255,255,0.92)')
     ctx.fillStyle = overlayGrad
     ctx.fillRect(0, 0, W, H)
   }
@@ -466,7 +466,10 @@ async function drawStandingsCard(canvas, { tournament, groups, participants, gam
   const allStandings = (groups || []).map(g => ({ group: g, rows: computeStandings(g) }))
 
   let y = 64
-  const [logo] = await Promise.all([loadImg('/logo.png')])
+  const [logo, gameImg] = await Promise.all([
+    loadImg('/logo.png'),
+    gameMeta?.img ? loadImg(gameMeta.img) : Promise.resolve(null),
+  ])
 
   let headerH = y
   headerH += (logo?.naturalWidth > 0 ? 44 + 50 : 40)
@@ -490,9 +493,31 @@ async function drawStandingsCard(canvas, { tournament, groups, participants, gam
 
   canvas.width  = W
   canvas.height = Math.max(H, 400)
+  const fullH = canvas.height
 
   ctx.fillStyle = BG
-  ctx.fillRect(0, 0, W, canvas.height)
+  ctx.fillRect(0, 0, W, fullH)
+
+  if (gameImg) {
+    ctx.save()
+    const scale = Math.max(W / gameImg.naturalWidth, fullH / gameImg.naturalHeight)
+    const dw = gameImg.naturalWidth * scale
+    const dh = gameImg.naturalHeight * scale
+    const dx = (W - dw) / 2
+    const dy = (fullH - dh) / 2
+
+    ctx.globalAlpha = 0.34
+    ctx.drawImage(gameImg, dx, dy, dw, dh)
+    ctx.globalAlpha = 1
+    ctx.restore()
+
+    const overlayGrad = ctx.createLinearGradient(0, 0, 0, fullH)
+    overlayGrad.addColorStop(0, 'rgba(255,255,255,0.30)')
+    overlayGrad.addColorStop(0.5, 'rgba(255,255,255,0.65)')
+    overlayGrad.addColorStop(1, 'rgba(255,255,255,0.92)')
+    ctx.fillStyle = overlayGrad
+    ctx.fillRect(0, 0, W, fullH)
+  }
 
   const stats = [
     { label: `${participants?.length || 0} PLAYERS`, bg: INK_04, text: INK },
@@ -503,14 +528,16 @@ async function drawStandingsCard(canvas, { tournament, groups, participants, gam
 
   const colW = W - PAD * 2
   const cols = [
-    { key: 'pos',  label: '#',   w: 34,  align: 'left'   },
+    { key: 'position', label: '#',   w: 34,  align: 'left'   },
     { key: 'name', label: 'PLAYER', w: null, align: 'left' },
-    { key: 'played', label: 'P', w: 42, align: 'center' },
-    { key: 'won',  label: 'W',  w: 42, align: 'center' },
-    { key: 'drawn',label: 'D',  w: 42, align: 'center' },
-    { key: 'lost', label: 'L',  w: 42, align: 'center' },
-    { key: 'goalDiff', label: 'GD', w: 52, align: 'center' },
-    { key: 'points', label: 'PTS', w: 60, align: 'center' },
+    { key: 'played', label: 'P', w: 36, align: 'center' },
+    { key: 'won',  label: 'W',  w: 36, align: 'center' },
+    { key: 'drawn',label: 'D',  w: 36, align: 'center' },
+    { key: 'lost', label: 'L',  w: 36, align: 'center' },
+    { key: 'goalsFor', label: 'GF', w: 40, align: 'center' },
+    { key: 'goalsAgainst', label: 'GA', w: 40, align: 'center' },
+    { key: 'goalDiff', label: 'GD', w: 46, align: 'center' },
+    { key: 'points', label: 'PTS', w: 56, align: 'center' },
   ]
   const fixedW = cols.reduce((s, c) => s + (c.w || 0), 0)
   const nameW = colW - fixedW
@@ -548,13 +575,13 @@ async function drawStandingsCard(canvas, { tournament, groups, participants, gam
         const tx = c.align === 'left' ? cx + 8 : cx + w / 2
         ctx.fillStyle = c.key === 'points' ? accent : INK
         let val = row[c.key]
-        if (c.key === 'name') val = row.name.toUpperCase()
+        if (c.key === 'name') val = (row.name || '?').toUpperCase()
         if (c.key === 'goalDiff') val = val > 0 ? `+${val}` : String(val)
         if (c.key === 'name' && ctx.measureText(val).width > nameW - 16) {
           while (ctx.measureText(val + '…').width > nameW - 16 && val.length > 1) val = val.slice(0, -1)
           val += '…'
         }
-        ctx.fillText(String(val), tx, y + (ROW_H - 4) / 2 + 5)
+        ctx.fillText(String(val ?? 0), tx, y + (ROW_H - 4) / 2 + 5)
         cx += w
       })
       y += ROW_H
@@ -563,7 +590,7 @@ async function drawStandingsCard(canvas, { tournament, groups, participants, gam
     y += GROUP_GAP
   })
 
-  drawFooter(ctx, canvas.height, PAD, accent)
+  drawFooter(ctx, fullH, PAD, accent)
 }
 
 export default function BracketShareModal({ open, onClose, mode = 'bracket', tournament, bracketData, groups, participants }) {
