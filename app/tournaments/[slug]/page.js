@@ -1015,6 +1015,50 @@ export default function TournamentDetail() {
     return full
   })()
 
+  const isSquadTournament = (tournament?.team_size || 1) > 1
+
+  // ── Squad-level leaderboard for team tournaments ──────────────────────────
+  // Points are still earned per-member (group stage + bracket wins/DQ), but a
+  // squad tournament should be READ as squads competing, not individual
+  // players — so roll each team's members up into one row: squad name/image,
+  // combined points, and who's on the roster.
+  const rankedTeamLeaderboard = (() => {
+    if (!isSquadTournament || !bracketData?.rounds?.[0]) return []
+    const lbMap = {}
+    leaderboard.forEach(e => { lbMap[e.user_id] = e })
+    const groupPtsByUser = {}
+    if (bracketData?.groups) {
+      bracketData.groups.forEach(group => {
+        computeStandings(group).forEach(row => { groupPtsByUser[row.id] = row.points })
+      })
+    }
+
+    const teams = []
+    bracketData.rounds[0].forEach(pair => {
+      pair.forEach(team => {
+        if (!team || team.status === 'bye' || team.status === 'inactive' || !team.clanSquadId) return
+        const members = (team.members || []).filter(m => m?.userId)
+        const points = members.reduce((sum, m) =>
+          sum + (groupPtsByUser[m.userId] || 0) + (lbMap[m.userId]?.points || 0), 0)
+        teams.push({
+          squadId: team.clanSquadId,
+          name: team.clanSquadName || team.teamName || 'Squad',
+          image: team.clanSquadImage || null,
+          points,
+          members,
+        })
+      })
+    })
+
+    teams.sort((a, b) => b.points - a.points)
+    let pos = 1
+    teams.forEach((t, i) => {
+      if (i > 0 && t.points !== teams[i - 1].points) pos = i + 1
+      t.position = pos
+    })
+    return teams
+  })()
+
   // ── Registration ──────────────────────────────────────────────────────────
 
   // ── Submit entrance-fee payment proof ────────────────────────────────────
@@ -1333,15 +1377,97 @@ export default function TournamentDetail() {
     register()
   }
 
-  // Individual member-by-member joining is disabled for team tournaments —
-  // a squad is registered whole, in one action, by its leader (or the clan
-  // leader). This just re-routes any lingering slot-click UI to that flow.
+  // Team slots come in two flavors once squads are involved:
+  //  - Unclaimed team → only a squad/clan leader can claim it (registerSquadTeam).
+  //  - A squad already claimed it but has empty seats left → anyone can fill
+  //    a seat directly, as long as they're told it also enrolls them in that
+  //    clan and squad as a real member (not just a tournament stand-in).
   function attemptJoinViaSlot(pi, si, mi) {
     if ((tournament?.team_size || 1) > 1) {
+      const team = bracketData?.rounds?.[0]?.[pi]?.[si]
+      const isOpenMember = m => !m?.userId || m.status === 'open' || m.status === 'empty' || m.status === 'pending'
+      if (team?.clanSquadId && (team.members || []).some(isOpenMember)) {
+        setConfirmModal({
+          message: `Join "${team.clanSquadName || 'this squad'}" for this tournament? You'll also become a member of that squad (and its clan) going forward — not just for this bracket.`,
+          onConfirm: () => joinOpenSquadSlot(pi, si, mi),
+        })
+        return
+      }
       attemptRegister()
       return
     }
     joinViaSlot(pi, si, mi)
+  }
+
+  /**
+   * Fills one still-open seat on a squad that already claimed a team slot.
+   * Unlike registerSquadTeam (which enters a whole roster at once), this is
+   * for a random player choosing to fill a gap — so joining the bracket slot
+   * ALSO makes them a real clan_members row (role: 'member') in that squad's
+   * clan, exactly like joining the squad from the clan page would.
+   */
+  async function joinOpenSquadSlot(pi, si, mi) {
+    if (!user) { openAuthGate(); return }
+    setRegistering(true)
+
+    const team = bracketData?.rounds?.[0]?.[pi]?.[si]
+    if (!team?.clanSquadId) { setRegistering(false); return }
+
+    const { data: squadRow, error: squadErr } = await supabase.from('clan_squads')
+      .select('id, clan_id, name').eq('id', team.clanSquadId).maybeSingle()
+    if (squadErr || !squadRow) { showToast('Could not find that squad.', 'error'); setRegistering(false); return }
+
+    // Enroll them in the clan/squad — attach an existing clan membership if
+    // they already have one, otherwise create a fresh 'member' row.
+    const { data: existingMembership } = await supabase.from('clan_members')
+      .select('id, squad_id').eq('clan_id', squadRow.clan_id).eq('user_id', user.id).maybeSingle()
+    if (existingMembership) {
+      if (!existingMembership.squad_id) {
+        await supabase.from('clan_members').update({ squad_id: squadRow.id }).eq('id', existingMembership.id)
+      }
+    } else {
+      const { error: joinErr } = await supabase.from('clan_members')
+        .insert({ clan_id: squadRow.clan_id, squad_id: squadRow.id, user_id: user.id, role: 'member' })
+      if (joinErr) { showToast('Failed to join squad.', 'error'); setRegistering(false); return }
+    }
+
+    const { error: partErr } = await supabase.from('tournament_participants').insert({ tournament_id: id, user_id: user.id })
+    if (partErr && partErr.code !== '23505') { showToast('Failed to register. Try again.', 'error'); setRegistering(false); return }
+
+    const [profileRes, freshTRes] = await Promise.all([
+      supabase.from('profiles').select('username, avatar_url').eq('id', user.id).maybeSingle(),
+      supabase.from('tournaments').select('bracket_data').eq('id', id).single(),
+    ])
+    const profile = profileRes.data
+    const memberSlot = { userId: user.id, name: profile?.username || 'Player', avatar: profile?.avatar_url || null, status: 'active' }
+
+    const freshBd = parseBracketData(freshTRes.data?.bracket_data) ?? bracketData
+    const freshTeam = freshBd.rounds[0]?.[pi]?.[si]
+    const freshMembers = freshTeam?.members || []
+    const isOpenMember = m => !m?.userId || m.status === 'open' || m.status === 'empty' || m.status === 'pending'
+    const openIdx = mi !== undefined && isOpenMember(freshMembers[mi]) ? mi : freshMembers.findIndex(isOpenMember)
+    if (openIdx === -1) { showToast('That squad is already full.', 'error'); setRegistering(false); return }
+
+    const newRounds = freshBd.rounds.map((r, ri) => ri !== 0 ? r : r.map((pair, pIdx) => {
+      if (pIdx !== pi) return pair
+      return pair.map((t, sIdx) => {
+        if (sIdx !== si) return t
+        const newMembers = t.members.map((m, mIdx2) => mIdx2 === openIdx ? memberSlot : m)
+        const allFilled = newMembers.every(m => m?.userId)
+        return { ...t, members: newMembers, status: allFilled ? 'active' : 'open' }
+      })
+    }))
+    const updatedBd = { ...freshBd, rounds: newRounds, isEmpty: false }
+    await supabase.from('tournaments').update({ bracket_data: updatedBd }).eq('id', id)
+    setBracketData(updatedBd)
+
+    const count = await syncCount()
+    setRegistered(true)
+    setTournament(t => ({ ...t, registered_count: count }))
+    await sendNotification(user.id, `Joined ${squadRow.name} — ${tournament?.name}`,
+      `You've joined ${squadRow.name} for this tournament, and are now a squad member.`, 'tournament', { tournament_id: id })
+    setRegistering(false)
+    await refreshParticipants()
   }
 
   function chooseSquadForJoin(squadId) {
@@ -3436,6 +3562,42 @@ export default function TournamentDetail() {
                 </div>
               ))}
             </div>
+          ) : isSquadTournament ? (
+            rankedTeamLeaderboard.length === 0 ? (
+              <div className={styles.emptyTab}><i className="ri-bar-chart-line" /><p>No squads registered yet</p></div>
+            ) : (
+              <>
+                {!isCompleted && bracketData && !bracketData.isEmpty && (
+                  <div className={styles.lbInProgressBanner}>
+                    <i className="ri-time-line" />
+                    <span>Tournament in progress — standings are provisional until a champion is crowned</span>
+                  </div>
+                )}
+                <div className={styles.lbActions}>
+                  <button className={`${styles.shareBtn} ${bracketShareCopied ? styles.shareBtnCopied : ''}`} onClick={() => { setShareCardMode('standings'); setShareGroupId(null); setBracketShareModal(true) }}>
+                    <i className="ri-image-line" /> Share Standings
+                  </button>
+                </div>
+                <div className={styles.lbList}>
+                  {rankedTeamLeaderboard.map(t => (
+                    <div key={t.squadId} className={styles.lbRow} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px' }}>
+                      <span style={{ width: 22, textAlign: 'center', fontWeight: 800, color: 'var(--text-muted)', flexShrink: 0 }}>{t.position}</span>
+                      {t.image
+                        ? <img src={t.image} alt="" style={{ width: 38, height: 38, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} />
+                        : <div style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--bg-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><i className="ri-team-line" /></div>
+                      }
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <MarqueeText text={t.name} wrapClassName={styles.groupNameWrap} textClassName={styles.groupNameText} />
+                        <div style={{ fontSize: 10.5, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {t.members.map(m => m.name).join(' · ')}
+                        </div>
+                      </div>
+                      <span style={{ fontWeight: 900, fontFamily: 'ui-monospace, monospace', color: 'var(--accent)', flexShrink: 0 }}>{t.points} pts</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )
           ) : rankedLeaderboard.length === 0 ? (
             <div className={styles.emptyTab}><i className="ri-bar-chart-line" /><p>No players yet</p></div>
           ) : (
