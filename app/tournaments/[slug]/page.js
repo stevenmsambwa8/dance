@@ -16,6 +16,7 @@ import UpgradeModal from '../../../components/UpgradeModal'
 import BracketShareModal from '../../../components/BracketShareModal'
 import MarqueeText from '../../../components/MarqueeText'
 import { computeStandings, buildGroups, addMemberToGroup } from '../../../lib/groupStage'
+import useTranslation from '../../../lib/useTranslation'
 
 const ADMIN_EMAIL = 'stevenmsambwa8@gmail.com'
 
@@ -387,7 +388,8 @@ const DQ_PENALTY = -5
 // isBye is now passed as an explicit prop instead of captured from outer scope.
 
 function PlayerSide({ entry, profile, won, lost, side, isBye }) {
-  const name = profile?.username || entry?.name || (entry?.status === 'open' ? 'Open' : '?')
+  const { t } = useTranslation()
+  const name = profile?.username || entry?.name || (entry?.status === 'open' ? t('tournaments.openSlot') : '?')
   const isPending = !entry?.userId && !isBye
   return (
     <div style={{
@@ -426,7 +428,7 @@ function PlayerSide({ entry, profile, won, lost, side, isBye }) {
       {/* Badges */}
       {profile && <UserBadges email={profile.email} plan={profile.plan} planExpiresAt={profile.plan_expires_at} countryFlag={profile.country_flag} isSeasonWinner={profile.is_season_winner} size={10} gap={2} />}
       {/* Winner tag */}
-      {won && <span style={{ fontSize: 9, fontWeight: 800, color: '#f59e0b', background: 'rgba(245,158,11,0.12)', padding: '2px 6px', borderRadius: 5, letterSpacing: '0.06em' }}>WINNER</span>}
+      {won && <span style={{ fontSize: 9, fontWeight: 800, color: '#f59e0b', background: 'rgba(245,158,11,0.12)', padding: '2px 6px', borderRadius: 5, letterSpacing: '0.06em' }}>{t('tournaments.winnerBadge')}</span>}
     </div>
   )
 }
@@ -437,6 +439,7 @@ export default function TournamentDetail() {
   const { slug } = useParams()
   const router = useRouter()
   const { user, isAdmin, profile } = useAuth()
+  const { t } = useTranslation()
   const { openAuthGate } = useAuthGate()
   const [showUpgrade, setShowUpgrade] = useState(false)
   const [upgradeFeature, setUpgradeFeature] = useState('pro_tournaments')
@@ -2554,7 +2557,7 @@ export default function TournamentDetail() {
   if (loadingTournament) return null
   if (!tournament) return (
     <div className={styles.page}>
-      <p style={{ color: 'var(--text-muted)', padding: '40px 20px', textAlign: 'center' }}>Tournament not found.</p>
+      <p style={{ color: 'var(--text-muted)', padding: '40px 20px', textAlign: 'center' }}>{t('tournaments.notFound')}</p>
     </div>
   )
 
@@ -2792,7 +2795,7 @@ export default function TournamentDetail() {
                 </button>
               )}
               {isFull && !registered && (
-                <span className={styles.heroFullChip}><i className="ri-lock-line" /> Full</span>
+                <span className={styles.heroFullChip}><i className="ri-lock-line" /> {t('tournaments.full')}</span>
               )}
             </div>
 
@@ -2807,7 +2810,7 @@ export default function TournamentDetail() {
                       : <span>{(creatorProfile.username || '?').slice(0, 2).toUpperCase()}</span>}
                   </div>
                   <div className={styles.heroCreatorInfo}>
-                    <span className={styles.heroCreatorBy}>Hosted by</span>
+                    <span className={styles.heroCreatorBy}>{t('tournaments.hostedBy')}</span>
                     <span className={styles.heroCreatorName}>
                       {creatorProfile.username}
                       <UserBadges email={creatorProfile.email} plan={creatorProfile.plan} planExpiresAt={creatorProfile.plan_expires_at} countryFlag={creatorProfile.country_flag}
@@ -2816,7 +2819,7 @@ export default function TournamentDetail() {
                   </div>
                 </a>
               )}
-              <button className={styles.heroShareBtn} onClick={shareLink} title="Share tournament">
+              <button className={styles.heroShareBtn} onClick={shareLink} title={t('tournaments.shareTournament')}>
                 <i className="ri-share-line" /> Share
               </button>
             </div>
@@ -2833,20 +2836,20 @@ export default function TournamentDetail() {
           <div className={styles.ticketStub}>
             <div className={styles.stubGrid}>
               <div className={styles.stubStat}>
-                <span className={styles.stubLabel}>Prize</span>
+                <span className={styles.stubLabel}>{t('tournaments.prizeLabel')}</span>
                 <span className={`${styles.stubVal} ${styles.stubValAccent}`}>{prizeTotal ? fmtTZS(prizeTotal) : 'None'}</span>
               </div>
               <div className={styles.stubStat}>
-                <span className={styles.stubLabel}>Players</span>
+                <span className={styles.stubLabel}>{t('players.players')}</span>
                 <span className={styles.stubVal}>{loadingParticipants ? '…' : `${realCount}/${tournament.slots}`}</span>
               </div>
               <div className={styles.stubStat}>
-                <span className={styles.stubLabel}>Format</span>
+                <span className={styles.stubLabel}>{t('tournaments.format')}</span>
                 <span className={styles.stubVal}>{tournament.format || '—'}</span>
               </div>
               {tournament.date && (
                 <div className={styles.stubStat}>
-                  <span className={styles.stubLabel}>Date</span>
+                  <span className={styles.stubLabel}>{t('tournaments.dateLabel')}</span>
                   <span className={styles.stubVal}>{tournament.date}</span>
                 </div>
               )}
@@ -2857,7 +2860,7 @@ export default function TournamentDetail() {
                 <div className={styles.slotFill} style={{ width: `${Math.min(100, (realCount / (tournament.slots || 1)) * 100)}%` }} />
               </div>
               <span className={styles.slotLabel}>
-                {!tournament.slots ? '' : Math.max(0, tournament.slots - realCount) === 0 ? 'Full' : `${Math.max(0, tournament.slots - realCount)} spots left`}
+                {!tournament.slots ? '' : Math.max(0, tournament.slots - realCount) === 0 ? t('tournaments.full') : t('tournaments.spotsLeft').replace('{count}', Math.max(0, tournament.slots - realCount))}
               </span>
             </div>
           </div>
@@ -2869,14 +2872,14 @@ export default function TournamentDetail() {
             <i className={paymentStatus === 'payment_submitted' ? 'ri-time-line' : paymentStatus === 'rejected' ? 'ri-error-warning-line' : 'ri-money-dollar-circle-line'} />
             <span>
               {paymentStatus === 'payment_submitted'
-                ? 'Payment submitted — awaiting admin approval'
+                ? t('tournaments.paymentSubmittedAwaiting')
                 : paymentStatus === 'rejected'
-                ? 'Payment rejected — please resubmit'
-                : `Entry fee: TZS ${Number(tournament.entrance_fee).toLocaleString()} via M-Pesa`}
+                ? t('tournaments.paymentRejectedResubmit')
+                : t('tournaments.entryFeeViaMpesa').replace('{amount}', Number(tournament.entrance_fee).toLocaleString())}
             </span>
             {(!paymentStatus || paymentStatus === 'rejected') && (
               <button className={styles.feeBannerBtn} onClick={() => setShowPayModal(true)}>
-                {paymentStatus === 'rejected' ? 'Resubmit' : 'Pay Now'}
+                {paymentStatus === 'rejected' ? t('tournaments.resubmit') : t('tournaments.payNow')}
               </button>
             )}
           </div>
@@ -2894,17 +2897,17 @@ export default function TournamentDetail() {
               <div className={styles.payHeader}>
                 <i className="ri-secure-payment-line" />
                 <div>
-                  <h3 className={styles.payTitle}>Send Entry Fee</h3>
-                  <p className={styles.paySub}>Choose one account, send <strong>TZS {fmtFeeLocal(tournament.entrance_fee)}</strong>, then submit proof.</p>
+                  <h3 className={styles.payTitle}>{t('tournaments.sendEntryFee')}</h3>
+                  <p className={styles.paySub}>{t('tournaments.chooseAccountSendPrefix')} <strong>TZS {fmtFeeLocal(tournament.entrance_fee)}</strong>{t('tournaments.thenSubmitProof')}</p>
                 </div>
               </div>
 
               <div className={styles.payAmountPill}>
-                <span>Amount to send</span>
+                <span>{t('tournaments.amountToSend')}</span>
                 <strong>TZS {fmtFeeLocal(tournament.entrance_fee)}</strong>
               </div>
 
-              <p className={styles.payChooseLabel}><span>Choose one account</span></p>
+              <p className={styles.payChooseLabel}><span>{t('tournaments.chooseOneAccount')}</span></p>
 
               <div className={styles.payGrid}>
                 <div className={styles.payCard}>
@@ -2918,11 +2921,11 @@ export default function TournamentDetail() {
                       className={`${styles.copyBtn} ${paySlugCopied === 'halo' ? styles.copyBtnDone : ''}`}
                       onClick={() => { navigator.clipboard?.writeText('25165945'); setPaySlugCopied('halo'); setTimeout(() => setPaySlugCopied(null), 2000) }}
                     >
-                      {paySlugCopied === 'halo' ? <><i className="ri-check-line" /> Copied</> : <><i className="ri-file-copy-line" /> Copy</>}
+                      {paySlugCopied === 'halo' ? <><i className="ri-check-line" /> {t('common.copied')}</> : <><i className="ri-file-copy-line" /> {t('common.copy')}</>}
                     </button>
                   </div>
                   <div className={styles.payCardMeta}>
-                    <span>Lipa Number</span>
+                    <span>{t('tournaments.lipaNumber')}</span>
                     <span className={styles.payCardAcct}>NABOGAMING</span>
                   </div>
                 </div>
@@ -2938,25 +2941,25 @@ export default function TournamentDetail() {
                       className={`${styles.copyBtn} ${paySlugCopied === 'mpesa' ? styles.copyBtnDone : ''}`}
                       onClick={() => { navigator.clipboard?.writeText('36835506'); setPaySlugCopied('mpesa'); setTimeout(() => setPaySlugCopied(null), 2000) }}
                     >
-                      {paySlugCopied === 'mpesa' ? <><i className="ri-check-line" /> Copied</> : <><i className="ri-file-copy-line" /> Copy</>}
+                      {paySlugCopied === 'mpesa' ? <><i className="ri-check-line" /> {t('common.copied')}</> : <><i className="ri-file-copy-line" /> {t('common.copy')}</>}
                     </button>
                   </div>
                   <div className={styles.payCardMeta}>
-                    <span>Lipa Number</span>
+                    <span>{t('tournaments.lipaNumber')}</span>
                     <span className={styles.payCardAcct}>STEVEN DAVID</span>
                   </div>
                 </div>
               </div>
 
-              <p className={styles.payProofLabel}>After paying, paste your proof below:</p>
+              <p className={styles.payProofLabel}>{t('tournaments.pasteProofBelow')}</p>
 
               <div className={styles.modalField}>
-                <label><i className="ri-fingerprint-line" /> Transaction ID / Reference <span className={styles.req}>*</span></label>
-                <input type="text" placeholder="e.g. ABC12345XY" value={payRef} onChange={e => setPayRef(e.target.value)} />
+                <label><i className="ri-fingerprint-line" /> {t('tournaments.transactionIdRef')} <span className={styles.req}>*</span></label>
+                <input type="text" placeholder={t('tournaments.transactionIdPlaceholder')} value={payRef} onChange={e => setPayRef(e.target.value)} />
               </div>
               <div className={styles.modalField}>
-                <label><i className="ri-phone-line" /> Phone Number Used</label>
-                <input type="tel" placeholder="e.g. 0712 345 678" value={payPhone} onChange={e => setPayPhone(e.target.value)} />
+                <label><i className="ri-phone-line" /> {t('tournaments.phoneNumberUsed')}</label>
+                <input type="tel" placeholder={t('tournaments.phoneNumberPlaceholder')} value={payPhone} onChange={e => setPayPhone(e.target.value)} />
               </div>
 
               {payErr && <p className={styles.modalErr}><i className="ri-error-warning-line" /> {payErr}</p>}
@@ -2967,8 +2970,8 @@ export default function TournamentDetail() {
                 disabled={payLoading || (!payRef.trim() && !payPhone.trim())}
               >
                 {payLoading
-                  ? <><i className="ri-loader-4-line" /> Submitting…</>
-                  : <><i className="ri-check-double-line" /> I've Paid — Notify Admin</>}
+                  ? <><i className="ri-loader-4-line" /> {t('tournaments.submittingPayment')}</>
+                  : <><i className="ri-check-double-line" /> {t('tournaments.ivePaidNotifyAdmin')}</>}
               </button>
             </div>
           </div>
@@ -2979,12 +2982,12 @@ export default function TournamentDetail() {
       <div className={styles.tabs}>
         {[
           ...(tournament.stage_format === 'groups_knockout'
-            ? [{ key: 'groups', icon: 'ri-layout-grid-line', title: 'Groups' }]
+            ? [{ key: 'groups', icon: 'ri-layout-grid-line', title: t('tournaments.groupsTab') }]
             : []),
-          { key: 'bracket',     icon: 'ri-node-tree',     title: 'Bracket' },
-          { key: 'matches',     icon: 'ri-sword-line',    title: 'Matches' },
-          { key: 'leaderboard', icon: 'ri-bar-chart-line',title: 'Leaderboard' },
-          { key: 'players',     icon: 'ri-group-line',    title: `Players (${loadingParticipants ? '…' : realCount})` },
+          { key: 'bracket',     icon: 'ri-node-tree',     title: t('tournaments.bracket') },
+          { key: 'matches',     icon: 'ri-sword-line',    title: t('matches.matches') },
+          { key: 'leaderboard', icon: 'ri-bar-chart-line',title: t('players.leaderboard') },
+          { key: 'players',     icon: 'ri-group-line',    title: t('tournaments.playersTabCount').replace('{count}', loadingParticipants ? '…' : realCount) },
         ].map(tab => (
           <button
             key={tab.key}
@@ -3006,17 +3009,17 @@ export default function TournamentDetail() {
             participants.length === 0 ? (
               <div className={styles.emptyTab}>
                 <i className="ri-layout-grid-line" style={{ fontSize: 28 }} />
-                <span>No one's registered yet — be the first!</span>
+                <span>{t('tournaments.noOneRegisteredBeFirst')}</span>
               </div>
             ) : (
               <div style={{ border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', background: 'var(--surface)' }}>
                 <div style={{ padding: '10px 14px', background: 'var(--bg-2)', fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span>Registered players</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>Groups not drawn yet</span>
+                  <span>{t('tournaments.registeredPlayers')}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>{t('tournaments.groupsNotDrawnYet')}</span>
                 </div>
                 <div style={{ padding: '4px 14px 8px' }}>
                   <div style={{ display: 'flex', gap: 8, padding: '6px 0', fontSize: 9, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                    <span style={{ width: 16 }}>#</span><span style={{ flex: 1 }}>Player</span><span style={{ width: 34, textAlign: 'center' }}>Pts</span>
+                    <span style={{ width: 16 }}>#</span><span style={{ flex: 1 }}>{t('tournaments.playerLabel')}</span><span style={{ width: 34, textAlign: 'center' }}>Pts</span>
                   </div>
                   {participants.map((p, i) => (
                     <div key={p.user_id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0', fontSize: 12.5, borderTop: '1px solid var(--border)' }}>
@@ -3025,7 +3028,7 @@ export default function TournamentDetail() {
                         {p.profiles?.avatar_url ? <img src={p.profiles.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (p.profiles?.username || '?').slice(0, 2).toUpperCase()}
                       </div>
                       <span style={{ flex: 1, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4 }}>
-                        {p.profiles?.username || 'Player'}
+                        {p.profiles?.username || t('tournaments.playerLabel')}
                         {p.user_id === user?.id && <span className={styles.youBadge}>You</span>}
                       </span>
                       <span style={{ width: 34, textAlign: 'center', fontWeight: 800, fontFamily: 'ui-monospace, monospace', color: 'var(--text-muted)' }}>0</span>
@@ -3039,7 +3042,7 @@ export default function TournamentDetail() {
               {bracketData.stage === 'knockout' && (
                 <div className={styles.feeBanner} style={{ background: 'rgba(34,197,94,0.08)', borderColor: 'rgba(34,197,94,0.25)', color: 'var(--accent)' }}>
                   <i className="ri-checkbox-circle-fill" />
-                  <span>Group stage complete — check the Bracket tab for the knockout draw.</span>
+                  <span>{t('tournaments.groupStageCompleteCheckBracket')}</span>
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -3048,7 +3051,7 @@ export default function TournamentDetail() {
                   onClick={() => { setShareCardMode('standings'); setShareGroupId(null); setBracketShareModal(true) }}
                   style={{ fontSize: 11, padding: '5px 10px' }}
                 >
-                  <i className="ri-image-line" /> Share Card
+                  <i className="ri-image-line" /> {t('tournaments.shareCard')}
                 </button>
               </div>
               {bracketData.groups.map(group => {
@@ -3062,13 +3065,13 @@ export default function TournamentDetail() {
                         onClick={() => { setShareCardMode('standings'); setShareGroupId(group.id); setBracketShareModal(true) }}
                         style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 9px', fontSize: 10.5, fontWeight: 800, color: 'var(--text-dim)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer' }}
                       >
-                        <i className="ri-image-line" style={{ fontSize: 12 }} /> Share
+                        <i className="ri-image-line" style={{ fontSize: 12 }} /> {t('common.share')}
                       </button>
                     </div>
                     <div style={{ padding: '4px 14px 8px', overflowX: 'auto' }}>
                       <div style={{ display: 'flex', gap: 6, padding: '6px 0', fontSize: 9, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', minWidth: 320 }}>
                         <span style={{ width: 16 }}>#</span>
-                        <span style={{ flex: 1 }}>Player</span>
+                        <span style={{ flex: 1 }}>{t('tournaments.playerLabel')}</span>
                         {['P', 'W', 'D', 'L', 'GF', 'GA', 'GD'].map(h => (
                           <span key={h} style={{ width: 22, textAlign: 'center' }}>{h}</span>
                         ))}
@@ -3159,17 +3162,17 @@ export default function TournamentDetail() {
               <i className="ri-node-tree" />
               {tournament.stage_format === 'groups_knockout' ? (
                 <>
-                  <p>Bracket not set up yet</p>
-                  <span>It'll be generated automatically once the group stage finishes — check the Groups tab.</span>
+                  <p>{t('tournaments.bracketNotSetUp')}</p>
+                  <span>{t('tournaments.bracketAutoAfterGroups')}</span>
                 </>
               ) : (
                 <>
-                  <p>Bracket not set up yet</p>
+                  <p>{t('tournaments.bracketNotSetUp')}</p>
                   {canManage
                     ? <button className={styles.adminActionBtn} style={{ marginTop: 10 }} onClick={initBracket}>
-                        <i className="ri-play-circle-line" /> Generate Bracket
+                        <i className="ri-play-circle-line" /> {t('tournaments.generateBracket')}
                       </button>
-                    : <span>The organiser will set up the bracket soon!</span>
+                    : <span>{t('tournaments.organiserWillSetupBracket')}</span>
                   }
                 </>
               )}
@@ -3425,14 +3428,14 @@ export default function TournamentDetail() {
               ))}
               {canManage && (
                 <div style={{ fontSize: 11.5, color: 'var(--text-muted)', textAlign: 'center', padding: '4px 0' }}>
-                  <i className="ri-information-line" /> Enter results from the manage dashboard's Group Stage card.
+                  <i className="ri-information-line" /> {t('tournaments.enterResultsFromManageDashboard')}
                 </div>
               )}
             </div>
           ) : !bracketData?.rounds || bracketData.isEmpty ? (
             <div className={styles.emptyTab}>
-              <i className="ri-sword-line" /><p>No matches yet</p>
-              <span>{canManage ? 'Generate the bracket to create matches.' : 'The organiser will set up the bracket soon!'}</span>
+              <i className="ri-sword-line" /><p>{t('tournaments.noMatchesYet')}</p>
+              <span>{canManage ? t('tournaments.generateBracketToCreateMatches') : t('tournaments.organiserWillSetupBracket')}</span>
             </div>
           ) : (() => {
             const totalRounds = bracketData.rounds.length
@@ -3448,7 +3451,7 @@ export default function TournamentDetail() {
               })
             })
 
-            if (allMatchups.length === 0) return <div className={styles.emptyTab}><i className="ri-sword-line" /><p>No matches found</p></div>
+            if (allMatchups.length === 0) return <div className={styles.emptyTab}><i className="ri-sword-line" /><p>{t('tournaments.noMatchesFound')}</p></div>
 
             const byRound = {}
             allMatchups.forEach(m => {
@@ -3495,7 +3498,7 @@ export default function TournamentDetail() {
                               {/* Centre VS / status */}
                               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0 }}>
                                 {isBye ? (
-                                  <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.06em', color: 'var(--text-muted)', background: 'var(--bg)', padding: '3px 7px', borderRadius: 6 }}>BYE</span>
+                                  <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.06em', color: 'var(--text-muted)', background: 'var(--bg)', padding: '3px 7px', borderRadius: 6 }}>{t('tournaments.byeLabel')}</span>
                                 ) : done ? (
                                   <i className="ri-trophy-fill" style={{ fontSize: 16, color: '#f59e0b' }} />
                                 ) : (
@@ -3535,7 +3538,7 @@ export default function TournamentDetail() {
                                   }}
                                 >
                                   <i className="ri-trophy-line" style={{ fontSize: 12 }} />
-                                  {aProfile?.username?.split(' ')[0] || 'P1'} wins
+                                  {aProfile?.username?.split(' ')[0] || 'P1'} {t('tournaments.winsSuffix')}
                                 </button>
                                 <button
                                   onClick={() => adminSetSlotStatus(rIdx, pIdx, 1, 'winner')}
@@ -3550,12 +3553,12 @@ export default function TournamentDetail() {
                                   }}
                                 >
                                   <i className="ri-trophy-line" style={{ fontSize: 12 }} />
-                                  {bProfile?.username?.split(' ')[0] || 'P2'} wins
+                                  {bProfile?.username?.split(' ')[0] || 'P2'} {t('tournaments.winsSuffix')}
                                 </button>
                                 <button
                                   onClick={() => adminSwapSlots(rIdx, pIdx, 0, rIdx, pIdx, 1)}
                                   disabled={bracketSaving || !a?.userId || !b?.userId}
-                                  title="Swap players"
+                                  title={t('tournaments.swapPlayers')}
                                   style={{
                                     padding: '6px 10px', borderRadius: 8, border: 'none', cursor: 'pointer',
                                     background: 'var(--bg)', color: 'var(--text-muted)',
@@ -3578,14 +3581,14 @@ export default function TournamentDetail() {
                                 <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
                                   <i className="ri-bar-chart-2-line" style={{ fontSize: 13, color: 'var(--text-muted)', flexShrink: 0 }} />
                                   <input
-                                    type="text" inputMode="numeric" placeholder="Score A"
+                                    type="text" inputMode="numeric" placeholder={t('tournaments.scoreA')}
                                     value={sc.a}
                                     onChange={e => setScore(rIdx, pIdx, 'a', e.target.value)}
                                     style={{ width: 64, padding: '5px 8px', borderRadius: 7, border: '1px solid var(--border-dark)', background: 'var(--bg)', color: 'var(--text)', fontSize: 13, fontWeight: 700, textAlign: 'center', fontFamily: 'var(--font)' }}
                                   />
                                   <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)' }}>–</span>
                                   <input
-                                    type="text" inputMode="numeric" placeholder="Score B"
+                                    type="text" inputMode="numeric" placeholder={t('tournaments.scoreB')}
                                     value={sc.b}
                                     onChange={e => setScore(rIdx, pIdx, 'b', e.target.value)}
                                     style={{ width: 64, padding: '5px 8px', borderRadius: 7, border: '1px solid var(--border-dark)', background: 'var(--bg)', color: 'var(--text)', fontSize: 13, fontWeight: 700, textAlign: 'center', fontFamily: 'var(--font)' }}
@@ -3595,7 +3598,7 @@ export default function TournamentDetail() {
                                     disabled={saving}
                                     style={{ marginLeft: 'auto', padding: '5px 12px', borderRadius: 7, border: 'none', background: saving ? 'var(--surface)' : 'var(--text)', color: saving ? 'var(--text-muted)' : 'var(--bg)', fontSize: 11, fontWeight: 800, cursor: saving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
                                   >
-                                    {saving ? <><i className="ri-loader-4-line" /> Saving…</> : <><i className="ri-save-line" /> Save</>}
+                                    {saving ? <><i className="ri-loader-4-line" /> {t('common.saving')}</> : <><i className="ri-save-line" /> {t('common.save')}</>}
                                   </button>
                                 </div>
                               ) : hasScore ? (
@@ -3636,18 +3639,18 @@ export default function TournamentDetail() {
             </div>
           ) : isSquadTournament ? (
             rankedTeamLeaderboard.length === 0 ? (
-              <div className={styles.emptyTab}><i className="ri-bar-chart-line" /><p>No squads registered yet</p></div>
+              <div className={styles.emptyTab}><i className="ri-bar-chart-line" /><p>{t('tournaments.noSquadsRegisteredYet')}</p></div>
             ) : (
               <>
                 {!isCompleted && bracketData && !bracketData.isEmpty && (
                   <div className={styles.lbInProgressBanner}>
                     <i className="ri-time-line" />
-                    <span>Tournament in progress — standings are provisional until a champion is crowned</span>
+                    <span>{t('tournaments.provisionalStandings')}</span>
                   </div>
                 )}
                 <div className={styles.lbActions}>
                   <button className={`${styles.shareBtn} ${bracketShareCopied ? styles.shareBtnCopied : ''}`} onClick={() => { setShareCardMode('standings'); setShareGroupId(null); setBracketShareModal(true) }}>
-                    <i className="ri-image-line" /> Share Standings
+                    <i className="ri-image-line" /> {t('tournaments.shareStandings')}
                   </button>
                 </div>
                 <div className={styles.lbList}>
@@ -3671,13 +3674,13 @@ export default function TournamentDetail() {
               </>
             )
           ) : rankedLeaderboard.length === 0 ? (
-            <div className={styles.emptyTab}><i className="ri-bar-chart-line" /><p>No players yet</p></div>
+            <div className={styles.emptyTab}><i className="ri-bar-chart-line" /><p>{t('tournaments.noPlayersYet')}</p></div>
           ) : (
             <>
               {!isCompleted && bracketData && !bracketData.isEmpty && (
                 <div className={styles.lbInProgressBanner}>
                   <i className="ri-time-line" />
-                  <span>Tournament in progress — standings are provisional until a champion is crowned</span>
+                  <span>{t('tournaments.provisionalStandings')}</span>
                 </div>
               )}
               {mvp && isCompleted && (
@@ -3784,12 +3787,12 @@ export default function TournamentDetail() {
                             {isMVP && <span className={styles.mvpBadgeInline}><i className="ri-sword-fill" /> MVP</span>}
                             {e.user_id === user?.id && <span className={styles.youBadge}>You</span>}
                             {/* Live bracket status chip — stage-aware */}
-                            {bStatus === 'champion' && <span className={styles.liveTagChamp}><i className="ri-trophy-fill" /> Champion</span>}
-                            {bStatus === 'final'    && <span className={styles.liveTagIn}><i className="ri-checkbox-circle-fill" /> Final</span>}
-                            {bStatus === 'semi'     && <span className={styles.liveTagIn}><i className="ri-checkbox-circle-fill" /> Semi-Final</span>}
-                            {bStatus === 'quarter'  && <span className={styles.liveTagIn}><i className="ri-checkbox-circle-fill" /> Quarter-Final</span>}
-                            {bStatus === 'in'       && <span className={styles.liveTagIn}><i className="ri-checkbox-circle-fill" /> Active</span>}
-                            {bStatus === 'out'      && <span className={styles.liveTagOut}><i className="ri-close-circle-fill" /> Eliminated</span>}
+                            {bStatus === 'champion' && <span className={styles.liveTagChamp}><i className="ri-trophy-fill" /> {t('tournaments.champion')}</span>}
+                            {bStatus === 'final'    && <span className={styles.liveTagIn}><i className="ri-checkbox-circle-fill" /> {t('tournaments.finalRound')}</span>}
+                            {bStatus === 'semi'     && <span className={styles.liveTagIn}><i className="ri-checkbox-circle-fill" /> {t('tournaments.semiFinalRound')}</span>}
+                            {bStatus === 'quarter'  && <span className={styles.liveTagIn}><i className="ri-checkbox-circle-fill" /> {t('tournaments.quarterFinalRound')}</span>}
+                            {bStatus === 'in'       && <span className={styles.liveTagIn}><i className="ri-checkbox-circle-fill" /> {t('tournaments.activeStatus')}</span>}
+                            {bStatus === 'out'      && <span className={styles.liveTagOut}><i className="ri-close-circle-fill" /> {t('tournaments.eliminatedStatus')}</span>}
                           </div>
                         </div>
                         <div className={styles.lbCol_status}>
@@ -3852,7 +3855,7 @@ export default function TournamentDetail() {
               ))}
             </div>
           ) : participants.length === 0 ? (
-            <div className={styles.emptyTab}><i className="ri-group-line" /><p>No players yet</p><span>Be the first to register!</span></div>
+            <div className={styles.emptyTab}><i className="ri-group-line" /><p>{t('tournaments.noPlayersYet')}</p><span>{t('tournaments.beFirstToRegister')}</span></div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
               {groupedParticipants.clans.map(({ clan, squads, loose }) => (
@@ -3894,7 +3897,7 @@ export default function TournamentDetail() {
                   {groupedParticipants.clans.length > 0 && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 8, marginBottom: 12, borderBottom: '1px solid var(--border)' }}>
                       <i className="ri-user-line" style={{ fontSize: 16, color: 'var(--text-muted)' }} />
-                      <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)' }}>Unaffiliated</span>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)' }}>{t('tournaments.unaffiliated')}</span>
                     </div>
                   )}
                   <div className={styles.playerGrid}>
@@ -3926,19 +3929,19 @@ export default function TournamentDetail() {
               </div>
               <div>
                 <div className={styles.historyName}>{historyModal.username}</div>
-                <div className={styles.historySubtitle}>Match history</div>
+                <div className={styles.historySubtitle}>{t('matches.matchHistory')}</div>
               </div>
               <button className={styles.historyClose} onClick={() => setHistoryModal(null)}><i className="ri-close-line" /></button>
             </div>
             <div className={styles.historyList}>
               {historyModal.history.length === 0
-                ? <p style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>No match history yet.</p>
+                ? <p style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>{t('tournaments.noMatchHistoryYet')}</p>
                 : historyModal.history.map((h, i) => (
                     <div key={i} className={styles.historyItem}>
                       <div className={styles.historyRound}>{h.round}</div>
-                      <div className={styles.historyOpp}>vs {h.opponentName}</div>
+                      <div className={styles.historyOpp}>{t('tournaments.vsPrefix')} {h.opponentName}</div>
                       <div className={`${styles.historyResult} ${h.status === 'winner' ? styles.historyWin : h.status === 'eliminated' || h.status === 'disqualified' ? styles.historyLoss : ''}`}>
-                        {h.status === 'winner' ? 'Won' : h.status === 'eliminated' ? 'Eliminated' : h.status === 'disqualified' ? 'DQ' : h.status}
+                        {h.status === 'winner' ? t('tournaments.wonStatus') : h.status === 'eliminated' ? t('tournaments.eliminatedStatus') : h.status === 'disqualified' ? t('tournaments.dqAbbrev') : h.status}
                       </div>
                     </div>
                   ))
@@ -3946,7 +3949,7 @@ export default function TournamentDetail() {
             </div>
             <div className={`${styles.historyCTA} ${styles.sheetCTARow}`}>
               <button className={styles.sheetCTAProfile} onClick={() => { setHistoryModal(null); router.push(`/profile/${historyModal.userId}`) }}>
-                <i className="ri-user-3-line" /> View Profile
+                <i className="ri-user-3-line" /> {t('profile.viewProfile')}
               </button>
               <SheetFollowBtn userId={historyModal.userId} />
             </div>
@@ -3968,8 +3971,8 @@ export default function TournamentDetail() {
             <div className={styles.confirmIcon}><i className="ri-alert-line" /></div>
             <p className={styles.confirmMessage}>{confirmModal.message}</p>
             <div className={styles.confirmActions}>
-              <button className={styles.confirmCancel} onClick={() => setConfirmModal(null)}>Cancel</button>
-              <button className={styles.confirmOk} onClick={() => { const fn = confirmModal.onConfirm; setConfirmModal(null); fn() }}>Confirm</button>
+              <button className={styles.confirmCancel} onClick={() => setConfirmModal(null)}>{t('common.cancel')}</button>
+              <button className={styles.confirmOk} onClick={() => { const fn = confirmModal.onConfirm; setConfirmModal(null); fn() }}>{t('common.confirm')}</button>
             </div>
           </div>
         </div>
@@ -3981,9 +3984,9 @@ export default function TournamentDetail() {
           <div className={styles.sheetBox} onClick={e => e.stopPropagation()}>
             <div className={styles.sheetHandle} />
             <div style={{ padding: '4px 4px 14px' }}>
-              <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 2 }}>Which squad?</div>
+              <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 2 }}>{t('tournaments.whichSquad')}</div>
               <div style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
-                This is a {tournament?.team_size}v{tournament?.team_size} team tournament. You lead more than one qualifying squad — pick which one enters as a team. The whole roster joins together.
+                {t('tournaments.squadPickerDesc').replace('{teamSize}', tournament?.team_size).replace('{teamSize2}', tournament?.team_size)}
               </div>
             </div>
 
@@ -4031,6 +4034,7 @@ export default function TournamentDetail() {
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function ChampDisplay({ entry, styles, isAdmin, onSetWinner, leaderboard, participants, isTeamBattle }) {
+  const { t } = useTranslation()
   // entry is either a solo slot { userId, name, ... } or a team { members, teamName, ... }
   const isTeam = isTeamBattle && entry?.members !== undefined
 
@@ -4049,7 +4053,7 @@ function ChampDisplay({ entry, styles, isAdmin, onSetWinner, leaderboard, partic
         <div className={styles.champCrown}><i className="ri-vip-crown-fill" /></div>
         <div className={styles.champSlot}>
           {isPending
-            ? <span className={styles.champTBD}>TBD</span>
+            ? <span className={styles.champTBD}>{t('tournaments.tbdLabel')}</span>
             : <>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                   <i className="ri-team-line" style={{ fontSize: 16, color: isWinner ? '#f59e0b' : 'var(--text-muted)' }} />
@@ -4066,10 +4070,10 @@ function ChampDisplay({ entry, styles, isAdmin, onSetWinner, leaderboard, partic
                   ))}
                 </div>
                 {isWinner && totalPts > 0 && <span className={styles.champPtsBadge}><i className="ri-star-fill" /> {totalPts} total pts</span>}
-                {isWinner && <span className={styles.champWinnerBadge}><i className="ri-trophy-fill" /> Champions</span>}
+                {isWinner && <span className={styles.champWinnerBadge}><i className="ri-trophy-fill" /> {t('tournaments.championsLabel')}</span>}
                 {isAdmin && !isWinner && (
                   <button className={`${styles.slotAction} ${styles.slotActionWin}`} style={{ marginTop: 6 }} onClick={onSetWinner}>
-                    <i className="ri-trophy-fill" /> Crown Champions (+30 pts each)
+                    <i className="ri-trophy-fill" /> {t('tournaments.crownChampionsTeam')}
                   </button>
                 )}
               </>
@@ -4091,7 +4095,7 @@ function ChampDisplay({ entry, styles, isAdmin, onSetWinner, leaderboard, partic
       <div className={styles.champCrown}><i className="ri-vip-crown-fill" /></div>
       <div className={styles.champSlot}>
         {isPending
-          ? <span className={styles.champTBD}>TBD</span>
+          ? <span className={styles.champTBD}>{t('tournaments.tbdLabel')}</span>
           : <>
               <SlotAvatar entry={entry} size="lg" liveProfile={champProfile} />
               <span className={styles.champName} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -4099,10 +4103,10 @@ function ChampDisplay({ entry, styles, isAdmin, onSetWinner, leaderboard, partic
                 <UserBadges email={champProfile?.email} plan={champProfile?.plan} planExpiresAt={champProfile?.plan_expires_at} countryFlag={champProfile?.country_flag} isSeasonWinner={champProfile?.is_season_winner} size={13} gap={2} />
               </span>
               {isWinner && champPts != null && <span className={styles.champPtsBadge}><i className="ri-star-fill" /> {champPts} pts</span>}
-              {isWinner && <span className={styles.champWinnerBadge}><i className="ri-trophy-fill" /> Champion</span>}
+              {isWinner && <span className={styles.champWinnerBadge}><i className="ri-trophy-fill" /> {t('tournaments.champion')}</span>}
               {isAdmin && !isWinner && (
                 <button className={`${styles.slotAction} ${styles.slotActionWin}`} style={{ marginTop: 6 }} onClick={onSetWinner}>
-                  <i className="ri-trophy-fill" /> Crown Champion (+30 pts bonus)
+                  <i className="ri-trophy-fill" /> {t('tournaments.crownChampionSolo')}
                 </button>
               )}
             </>
@@ -4150,6 +4154,7 @@ function autoTeamName(team, globalIdx) {
 }
 
 function TeamMatchCard({ pair, styles, isAdmin, teamSize, onSetStatus, onRenameTeam, passPoints, currentUserId, globalPairIdx, onJoin }) {
+  const { t } = useTranslation()
   const [teamA, teamB] = pair
   const [activeSheet, setActiveSheet] = useState(null)
   const [renamingTeam, setRenamingTeam] = useState(null) // { slotIdx, value }
@@ -4223,7 +4228,7 @@ function TeamMatchCard({ pair, styles, isAdmin, teamSize, onSetStatus, onRenameT
           </span>
           {/* Status badges */}
           {won && (
-            <span style={{ fontSize: 9, fontWeight: 800, color: '#f59e0b', background: 'rgba(245,158,11,0.12)', padding: '2px 6px', borderRadius: 4, flexShrink: 0 }}>WINNER</span>
+            <span style={{ fontSize: 9, fontWeight: 800, color: '#f59e0b', background: 'rgba(245,158,11,0.12)', padding: '2px 6px', borderRadius: 4, flexShrink: 0 }}>{t('tournaments.winnerBadge')}</span>
           )}
           {team.status === 'disqualified' && (
             <span style={{ fontSize: 9, fontWeight: 800, color: '#7c3aed', background: 'rgba(124,58,237,0.1)', padding: '2px 6px', borderRadius: 4, flexShrink: 0 }}>DQ</span>
@@ -4328,7 +4333,7 @@ function TeamMatchCard({ pair, styles, isAdmin, teamSize, onSetStatus, onRenameT
               <div style={{ margin: '0 0 12px', padding: '10px 14px', background: 'var(--bg)', borderRadius: 10, border: '1px solid var(--border)' }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                   <i className="ri-edit-line" style={{ marginRight: 4 }} />
-                  {activeSheet.team?.teamName ? 'Team Name (locked — already renamed)' : 'Set Team Name (one time)'}
+                  {activeSheet.team?.teamName ? t('tournaments.teamNameLocked') : t('tournaments.setTeamNameOnce')}
                 </div>
                 {activeSheet.team?.teamName
                   ? (
@@ -4342,7 +4347,7 @@ function TeamMatchCard({ pair, styles, isAdmin, teamSize, onSetStatus, onRenameT
                           maxLength={12}
                           value={renamingTeam.value}
                           onChange={e => setRenamingTeam(r => ({ ...r, value: e.target.value }))}
-                          placeholder="e.g. SteKal"
+                          placeholder={t('tournaments.teamNamePlaceholderEx')}
                           style={{ flex: 1, padding: '7px 10px', borderRadius: 8, border: '1.5px solid var(--accent)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13, fontWeight: 700, outline: 'none' }}
                         />
                         <button
@@ -4352,13 +4357,13 @@ function TeamMatchCard({ pair, styles, isAdmin, teamSize, onSetStatus, onRenameT
                           }}
                           style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: '#fff', fontWeight: 800, fontSize: 12, cursor: 'pointer' }}
                         >
-                          Save
+                          {t('common.save')}
                         </button>
                         <button
                           onClick={() => setRenamingTeam(null)}
                           style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-muted)', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
                         >
-                          Cancel
+                          {t('common.cancel')}
                         </button>
                       </div>
                     )
@@ -4367,7 +4372,7 @@ function TeamMatchCard({ pair, styles, isAdmin, teamSize, onSetStatus, onRenameT
                         onClick={() => setRenamingTeam({ slotIdx: activeSheet.slotIdx, value: autoTeamName(activeSheet.team, globalPairIdx * 2 + activeSheet.slotIdx) })}
                         style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 8, border: '1px dashed var(--border-dark)', background: 'transparent', color: 'var(--accent)', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
                       >
-                        <i className="ri-edit-line" /> Rename team
+                        <i className="ri-edit-line" /> {t('tournaments.renameTeam')}
                       </button>
                     )
                 }
@@ -4380,21 +4385,21 @@ function TeamMatchCard({ pair, styles, isAdmin, teamSize, onSetStatus, onRenameT
                 onClick={() => { onSetStatus(activeSheet.slotIdx, 'winner'); setActiveSheet(null) }}
                 disabled={activeSheet.team.status === 'winner'}>
                 <div className={styles.sheetBtnIcon} style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}><i className="ri-arrow-right-circle-fill" /></div>
-                <div className={styles.sheetBtnText}><span>Pass team to next round</span><span className={styles.sheetBtnSub}>+{passPoints} pts per member</span></div>
+                <div className={styles.sheetBtnText}><span>{t('tournaments.passTeamToNextRound')}</span><span className={styles.sheetBtnSub}>+{passPoints} pts per member</span></div>
                 {activeSheet.team.status === 'winner' && <i className="ri-checkbox-circle-fill" style={{ color: '#f59e0b', marginLeft: 'auto', fontSize: 16 }} />}
               </button>
               <button className={`${styles.sheetBtn} ${styles.sheetBtnElim}`}
                 onClick={() => { onSetStatus(activeSheet.slotIdx, 'eliminated'); setActiveSheet(null) }}
                 disabled={activeSheet.team.status === 'eliminated'}>
                 <div className={styles.sheetBtnIcon} style={{ background: 'rgba(220,38,38,0.1)', color: '#dc2626' }}><i className="ri-close-circle-fill" /></div>
-                <div className={styles.sheetBtnText}><span>Eliminate team</span><span className={styles.sheetBtnSub}>Remove from bracket</span></div>
+                <div className={styles.sheetBtnText}><span>{t('tournaments.eliminateTeam')}</span><span className={styles.sheetBtnSub}>{t('tournaments.removeFromBracket')}</span></div>
                 {activeSheet.team.status === 'eliminated' && <i className="ri-checkbox-circle-fill" style={{ color: '#dc2626', marginLeft: 'auto', fontSize: 16 }} />}
               </button>
               <button className={`${styles.sheetBtn} ${styles.sheetBtnDQ}`}
                 onClick={() => { onSetStatus(activeSheet.slotIdx, 'disqualified'); setActiveSheet(null) }}
                 disabled={activeSheet.team.status === 'disqualified'}>
                 <div className={styles.sheetBtnIcon} style={{ background: 'rgba(124,58,237,0.1)', color: '#7c3aed' }}><i className="ri-spam-2-fill" /></div>
-                <div className={styles.sheetBtnText}><span>Disqualify team</span><span className={styles.sheetBtnSub}>Flag as rule violation</span></div>
+                <div className={styles.sheetBtnText}><span>{t('tournaments.disqualifyTeam')}</span><span className={styles.sheetBtnSub}>{t('tournaments.flagRuleViolation')}</span></div>
                 {activeSheet.team.status === 'disqualified' && <i className="ri-checkbox-circle-fill" style={{ color: '#7c3aed', marginLeft: 'auto', fontSize: 16 }} />}
               </button>
             </div>
@@ -4407,6 +4412,7 @@ function TeamMatchCard({ pair, styles, isAdmin, teamSize, onSetStatus, onRenameT
 
 
 function MatchCard({ pair, styles, isAdmin, onSetStatus, onSwap, passPoints, leaderboard, participants, onJoin }) {
+  const { t } = useTranslation()
   const [a, b] = pair
   const [activeSheet, setActiveSheet] = useState(null)
   // FIX #4: removed unused swapMode state
@@ -4487,8 +4493,8 @@ function MatchCard({ pair, styles, isAdmin, onSetStatus, onSwap, passPoints, lea
                 <span className={styles.sheetPlayerMeta}>
                   {sheetEntry.status === 'winner'      && <><i className="ri-arrow-right-circle-fill" style={{ color: '#f59e0b' }} /> Passing · {sheetEarnedPts != null ? `${sheetEarnedPts} pts` : ''}</>}
                   {sheetEntry.status === 'eliminated'  && <><i className="ri-close-circle-fill" style={{ color: '#dc2626' }} /> Eliminated</>}
-                  {sheetEntry.status === 'disqualified'&& <><i className="ri-spam-2-fill" style={{ color: '#7c3aed' }} /> Disqualified</>}
-                  {sheetEntry.status === 'active'      && <><i className="ri-checkbox-circle-fill" style={{ color: 'var(--accent)' }} /> Active</>}
+                  {sheetEntry.status === 'disqualified'&& <><i className="ri-spam-2-fill" style={{ color: '#7c3aed' }} /> {t('tournaments.disqualifiedStatus')}</>}
+                  {sheetEntry.status === 'active'      && <><i className="ri-checkbox-circle-fill" style={{ color: 'var(--accent)' }} /> {t('tournaments.activeStatus')}</>}
                 </span>
               </div>
             </div>
@@ -4500,7 +4506,7 @@ function MatchCard({ pair, styles, isAdmin, onSetStatus, onSwap, passPoints, lea
                   <i className="ri-arrow-right-circle-fill" />
                 </div>
                 <div className={styles.sheetBtnText}>
-                  <span>Pass to next round</span>
+                  <span>{t('tournaments.passToNextRound')}</span>
                   <span className={styles.sheetBtnSub}>+{passPoints} pts awarded</span>
                 </div>
                 {sheetEntry.status === 'winner' && <i className="ri-checkbox-circle-fill" style={{ color: '#f59e0b', marginLeft: 'auto', fontSize: 16 }} />}
@@ -4511,8 +4517,8 @@ function MatchCard({ pair, styles, isAdmin, onSetStatus, onSwap, passPoints, lea
                   <i className="ri-close-circle-fill" />
                 </div>
                 <div className={styles.sheetBtnText}>
-                  <span>Eliminate</span>
-                  <span className={styles.sheetBtnSub}>Remove from bracket</span>
+                  <span>{t('tournaments.eliminateAction')}</span>
+                  <span className={styles.sheetBtnSub}>{t('tournaments.removeFromBracket')}</span>
                 </div>
                 {sheetEntry.status === 'eliminated' && <i className="ri-checkbox-circle-fill" style={{ color: '#dc2626', marginLeft: 'auto', fontSize: 16 }} />}
               </button>
@@ -4522,8 +4528,8 @@ function MatchCard({ pair, styles, isAdmin, onSetStatus, onSwap, passPoints, lea
                   <i className="ri-spam-2-fill" />
                 </div>
                 <div className={styles.sheetBtnText}>
-                  <span>Disqualify</span>
-                  <span className={styles.sheetBtnSub}>Flag as rule violation</span>
+                  <span>{t('tournaments.disqualifyAction')}</span>
+                  <span className={styles.sheetBtnSub}>{t('tournaments.flagRuleViolation')}</span>
                 </div>
                 {sheetEntry.status === 'disqualified' && <i className="ri-checkbox-circle-fill" style={{ color: '#7c3aed', marginLeft: 'auto', fontSize: 16 }} />}
               </button>
@@ -4536,8 +4542,8 @@ function MatchCard({ pair, styles, isAdmin, onSetStatus, onSwap, passPoints, lea
                     <i className="ri-arrow-left-right-line" />
                   </div>
                   <div className={styles.sheetBtnText}>
-                    <span>Swap with {otherProfile?.username || otherEntry.name}</span>
-                    <span className={styles.sheetBtnSub}>Switch positions in this match</span>
+                    <span>{t('tournaments.swapWithPrefix')} {otherProfile?.username || otherEntry.name}</span>
+                    <span className={styles.sheetBtnSub}>{t('tournaments.switchPositions')}</span>
                   </div>
                 </button>
               )}
@@ -4548,8 +4554,8 @@ function MatchCard({ pair, styles, isAdmin, onSetStatus, onSwap, passPoints, lea
                   <i className="ri-user-unfollow-line" />
                 </div>
                 <div className={styles.sheetBtnText}>
-                  <span style={{ color: '#ef4444' }}>Remove from bracket</span>
-                  <span className={styles.sheetBtnSub}>Slot becomes open again</span>
+                  <span style={{ color: '#ef4444' }}>{t('tournaments.removeFromBracket')}</span>
+                  <span className={styles.sheetBtnSub}>{t('tournaments.slotBecomesOpen')}</span>
                 </div>
               </button>
             </div>
@@ -4571,10 +4577,11 @@ function MatchCard({ pair, styles, isAdmin, onSetStatus, onSwap, passPoints, lea
 }
 
 function SlotRow({ entry, styles, isAdmin, onOpen, passPoints, earnedPts, entryProfile, onJoin }) {
+  const { t } = useTranslation()
   if (!entry || entry.status === 'bye') return (
     <div className={`${styles.slotRow} ${styles.slotRowBye}`}>
       <div className={styles.slotRowAvatarEmpty}><i className="ri-user-line" /></div>
-      <span className={styles.slotRowName}>BYE</span>
+      <span className={styles.slotRowName}>{t('tournaments.byeLabel')}</span>
     </div>
   )
   if (entry.status === 'open') return (
@@ -4587,9 +4594,9 @@ function SlotRow({ entry, styles, isAdmin, onOpen, passPoints, earnedPts, entryP
         <i className={onJoin ? 'ri-add-line' : 'ri-user-line'} />
       </div>
       <span className={styles.slotRowName} style={{ color: onJoin ? 'var(--accent)' : 'var(--text-muted)' }}>
-        {onJoin ? 'Join here' : 'Open'}
+        {onJoin ? t('tournaments.joinHere') : t('tournaments.openStatus')}
       </span>
-      {onJoin && <span style={{ marginLeft: 'auto', fontSize: 10, background: 'var(--accent)', color: '#fff', padding: '2px 7px', borderRadius: 6, flexShrink: 0 }}>+ Join</span>}
+      {onJoin && <span style={{ marginLeft: 'auto', fontSize: 10, background: 'var(--accent)', color: '#fff', padding: '2px 7px', borderRadius: 6, flexShrink: 0 }}>{t('tournaments.joinPlus')}</span>}
     </div>
   )
   const isPending = entry.status === 'pending'
