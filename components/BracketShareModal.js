@@ -608,8 +608,20 @@ export default function BracketShareModal({ open, onClose, mode = 'bracket', tou
     if (!open || !tournament) return
     setReady(false)
     setRenderError(null)
+    let settled = false
+    // Hard ceiling: no matter what goes wrong (a hung image load, a ref
+    // that never attaches, anything), the modal shows an error instead of
+    // spinning forever after 8s.
+    const watchdog = setTimeout(() => {
+      if (settled) return
+      settled = true
+      setRenderError('Rendering timed out. Close and try again — if it keeps happening, this is worth reporting.')
+    }, 8000)
     const t = setTimeout(async () => {
-      if (!canvasRef.current) return
+      if (!canvasRef.current) {
+        if (!settled) { settled = true; clearTimeout(watchdog); setRenderError('Card area was not ready. Close and reopen this modal.') }
+        return
+      }
       try {
         if (mode === 'standings') {
           const { computeStandings } = await import('../lib/groupStage')
@@ -619,16 +631,16 @@ export default function BracketShareModal({ open, onClose, mode = 'bracket', tou
         } else {
           await drawCard(canvasRef.current, { tournament, bracketData, participants: participants || [], gameMeta })
         }
-        setReady(true)
+        if (!settled) { settled = true; clearTimeout(watchdog); setReady(true) }
       } catch (e) {
         // Previously this only logged to console, so on a phone with no
         // devtools access the modal just spun forever with no clue why —
         // now the actual error surfaces in the UI so it can be reported.
         console.error('[BracketShareModal]', e)
-        setRenderError(e?.message || 'Something went wrong rendering the card.')
+        if (!settled) { settled = true; clearTimeout(watchdog); setRenderError(e?.message || 'Something went wrong rendering the card.') }
       }
     }, 80)
-    return () => clearTimeout(t)
+    return () => { clearTimeout(t); clearTimeout(watchdog) }
   }, [open, mode, tournament, bracketData, resolvedGroups, participants])
 
   if (!open) return null

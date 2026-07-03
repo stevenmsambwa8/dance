@@ -1,6 +1,6 @@
 'use client'
 import { getCurrentSeason, computeLevelAfterWin } from '@/lib/seasons'
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '../../../components/AuthProvider'
@@ -683,6 +683,32 @@ export default function TournamentDetail() {
       })
     return () => { cancelled = true }
   }, [participants, tournament?.game_slug])
+
+  // ── Group participants by clan → squad for the Players tab ───────────────
+  // { clans: [{ clan, squads: [{ squad, members }], loose: [members with no squad] }], solo: [members with no clan] }
+  const groupedParticipants = useMemo(() => {
+    const clanBuckets = {} // clan.id -> { clan, squadBuckets: { squadId -> {squad, members} }, loose: [] }
+    const solo = []
+    participants.forEach(p => {
+      const pc = participantClans[p.user_id]
+      if (!pc?.clan) { solo.push(p); return }
+      let bucket = clanBuckets[pc.clan.id]
+      if (!bucket) bucket = clanBuckets[pc.clan.id] = { clan: pc.clan, squadBuckets: {}, loose: [] }
+      if (pc.squad) {
+        let sb = bucket.squadBuckets[pc.squad.id]
+        if (!sb) sb = bucket.squadBuckets[pc.squad.id] = { squad: pc.squad, members: [] }
+        sb.members.push(p)
+      } else {
+        bucket.loose.push(p)
+      }
+    })
+    const clans = Object.values(clanBuckets).map(b => ({
+      clan: b.clan,
+      squads: Object.values(b.squadBuckets),
+      loose: b.loose,
+    }))
+    return { clans, solo }
+  }, [participants, participantClans])
 
   // ── Live countdown display for test tournament ───────────────────────────
   useEffect(() => {
@@ -2603,6 +2629,24 @@ export default function TournamentDetail() {
 
   const getPassPoints = (rIdx) => bracketData?.rounds ? getRoundPts(rIdx, bracketData.rounds.length).winnerPts : 0
 
+  // Plain, theme-neutral player card for the Players tab — clan/squad
+  // affiliation is conveyed by the section grouping above it, not by
+  // colored badges on the card itself.
+  function renderPlayerCard(p) {
+    return (
+      <div key={p.user_id} className={styles.playerCard} style={{ borderColor: 'var(--border)' }}>
+        <div className={styles.playerAvatar}>
+          {p.profiles?.avatar_url ? <img src={p.profiles.avatar_url} alt="" /> : <span>{(p.profiles?.username || '?').slice(0, 2).toUpperCase()}</span>}
+        </div>
+        <span className={styles.playerName} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+          {p.profiles?.username || 'Player'}
+          <UserBadges {...getUserBadgeProps(p.user_id)} size={11} gap={2} />
+        </span>
+        {p.user_id === user?.id && <span className={styles.youBadge}>You</span>}
+      </div>
+    )
+  }
+
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
@@ -3810,41 +3854,54 @@ export default function TournamentDetail() {
           ) : participants.length === 0 ? (
             <div className={styles.emptyTab}><i className="ri-group-line" /><p>No players yet</p><span>Be the first to register!</span></div>
           ) : (
-            <div className={styles.playerGrid}>
-              {participants.map(p => {
-                const pc = participantClans[p.user_id]
-                return (
-                  <div key={p.user_id} className={styles.playerCard}>
-                    <div className={styles.playerAvatar}>
-                      {p.profiles?.avatar_url ? <img src={p.profiles.avatar_url} alt="" /> : <span>{(p.profiles?.username || '?').slice(0, 2).toUpperCase()}</span>}
-                    </div>
-                    <span className={styles.playerName} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                      {p.profiles?.username || 'Player'}
-                      <UserBadges {...getUserBadgeProps(p.user_id)} size={11} gap={2} />
-                    </span>
-                    {p.user_id === user?.id && <span className={styles.youBadge}>You</span>}
-                    {(pc?.clan || pc?.squad) && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 5 }}>
-                        {pc?.clan && (
-                          <Link
-                            href={`/clans/${pc.clan.code}`}
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 9.5, fontWeight: 800, padding: '2px 6px', borderRadius: 5, background: 'rgba(34,197,94,0.12)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.25)', textDecoration: 'none' }}
-                          >
-                            <i className="ri-shield-star-line" style={{ fontSize: 9.5 }} />
-                            {pc.clan.name} ({pc.clan.code})
-                          </Link>
-                        )}
-                        {pc?.squad && (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 9.5, fontWeight: 800, padding: '2px 6px', borderRadius: 5, background: 'rgba(99,102,241,0.12)', color: '#6366f1', border: '1px solid rgba(99,102,241,0.25)' }}>
-                            <i className="ri-team-line" style={{ fontSize: 9.5 }} />
-                            {pc.squad.name}
-                          </span>
-                        )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+              {groupedParticipants.clans.map(({ clan, squads, loose }) => (
+                <div key={clan.id}>
+                  <Link
+                    href={`/clans/${clan.code}`}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', paddingBottom: 8, marginBottom: 12, borderBottom: '1px solid var(--border)' }}
+                  >
+                    {clan.logo_url
+                      ? <img src={clan.logo_url} alt="" style={{ width: 20, height: 20, borderRadius: 5, objectFit: 'cover' }} />
+                      : <i className="ri-shield-star-line" style={{ fontSize: 16, color: 'var(--text-muted)' }} />}
+                    <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)' }}>{clan.name}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>({clan.code})</span>
+                  </Link>
+
+                  {squads.map(({ squad, members }) => (
+                    <div key={squad.id} style={{ marginBottom: 14 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, paddingLeft: 2 }}>
+                        <i className="ri-team-line" style={{ fontSize: 12, color: 'var(--text-muted)' }} />
+                        <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-muted)' }}>{squad.name}</span>
+                        <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>· {members.length} player{members.length !== 1 ? 's' : ''}</span>
                       </div>
-                    )}
+                      <div className={styles.playerGrid}>
+                        {members.map(p => renderPlayerCard(p))}
+                      </div>
+                    </div>
+                  ))}
+
+                  {loose.length > 0 && (
+                    <div className={styles.playerGrid}>
+                      {loose.map(p => renderPlayerCard(p))}
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {groupedParticipants.solo.length > 0 && (
+                <div>
+                  {groupedParticipants.clans.length > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 8, marginBottom: 12, borderBottom: '1px solid var(--border)' }}>
+                      <i className="ri-user-line" style={{ fontSize: 16, color: 'var(--text-muted)' }} />
+                      <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)' }}>Unaffiliated</span>
+                    </div>
+                  )}
+                  <div className={styles.playerGrid}>
+                    {groupedParticipants.solo.map(p => renderPlayerCard(p))}
                   </div>
-                )
-              })}
+                </div>
+              )}
             </div>
           )}
         </section>
