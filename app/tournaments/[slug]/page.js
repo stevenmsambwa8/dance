@@ -500,6 +500,10 @@ export default function TournamentDetail() {
   const [selectedSquadId, setSelectedSquadId]   = useState(undefined) // undefined = not asked yet, null = chose solo, else a squad id
   const [squadPicker, setSquadPicker]           = useState(null)   // { pendingAction: 'register' | { pi, si, mi } } while the picker sheet is open
 
+  // ── Per-participant clan/squad badges (leaderboard + players tab) ────────
+  // { [user_id]: { clan: {id,name,code,logo_url,tag_prefix}, squad: {id,name,image_url}|null } }
+  const [participantClans, setParticipantClans] = useState({})
+
   const toastTimer   = useRef(null)
   const testExpireTimer = useRef(null)
   const bracketWrapRef = useRef(null)
@@ -655,6 +659,30 @@ export default function TournamentDetail() {
     })()
     return () => { cancelled = true }
   }, [tournament?.team_size, user])
+
+  // ── Clan/squad badge for every participant — used on the leaderboard
+  // ("from <Clan> (CODE)") and the Players tab (clan + squad tags). A player
+  // belongs to at most one clan per game, so we scope the clan_members
+  // lookup to this tournament's game to avoid pulling in unrelated clans. ──
+  useEffect(() => {
+    if (!tournament?.game_slug || participants.length === 0) { setParticipantClans({}); return }
+    let cancelled = false
+    const userIds = [...new Set(participants.map(p => p.user_id))]
+    supabase.from('clan_members')
+      .select('user_id, clans!inner(id, name, code, logo_url, tag_prefix, game), clan_squads(id, name, image_url)')
+      .in('user_id', userIds)
+      .eq('clans.game', tournament.game_slug)
+      .then(({ data, error }) => {
+        if (error) { console.error('load participant clans:', error); return }
+        if (cancelled) return
+        const map = {}
+        ;(data || []).forEach(row => {
+          map[row.user_id] = { clan: row.clans, squad: row.clan_squads || null }
+        })
+        setParticipantClans(map)
+      })
+    return () => { cancelled = true }
+  }, [participants, tournament?.game_slug])
 
   // ── Live countdown display for test tournament ───────────────────────────
   useEffect(() => {
@@ -3699,6 +3727,16 @@ export default function TournamentDetail() {
                             <UserBadges {...getUserBadgeProps(e.user_id)} size={12} gap={2} />
                           </span>
                           <div className={styles.lbNameBadges}>
+                            {participantClans[e.user_id]?.clan && (
+                              <Link
+                                href={`/clans/${participantClans[e.user_id].clan.code}`}
+                                onClick={ev => ev.stopPropagation()}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 800, padding: '2px 6px', borderRadius: 5, background: 'rgba(34,197,94,0.12)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.25)', textDecoration: 'none' }}
+                              >
+                                <i className="ri-shield-star-line" style={{ fontSize: 10 }} />
+                                {participantClans[e.user_id].clan.name} ({participantClans[e.user_id].clan.code})
+                              </Link>
+                            )}
                             {isMVP && <span className={styles.mvpBadgeInline}><i className="ri-sword-fill" /> MVP</span>}
                             {e.user_id === user?.id && <span className={styles.youBadge}>You</span>}
                             {/* Live bracket status chip — stage-aware */}
@@ -3773,18 +3811,40 @@ export default function TournamentDetail() {
             <div className={styles.emptyTab}><i className="ri-group-line" /><p>No players yet</p><span>Be the first to register!</span></div>
           ) : (
             <div className={styles.playerGrid}>
-              {participants.map(p => (
-                <div key={p.user_id} className={styles.playerCard}>
-                  <div className={styles.playerAvatar}>
-                    {p.profiles?.avatar_url ? <img src={p.profiles.avatar_url} alt="" /> : <span>{(p.profiles?.username || '?').slice(0, 2).toUpperCase()}</span>}
+              {participants.map(p => {
+                const pc = participantClans[p.user_id]
+                return (
+                  <div key={p.user_id} className={styles.playerCard}>
+                    <div className={styles.playerAvatar}>
+                      {p.profiles?.avatar_url ? <img src={p.profiles.avatar_url} alt="" /> : <span>{(p.profiles?.username || '?').slice(0, 2).toUpperCase()}</span>}
+                    </div>
+                    <span className={styles.playerName} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                      {p.profiles?.username || 'Player'}
+                      <UserBadges {...getUserBadgeProps(p.user_id)} size={11} gap={2} />
+                    </span>
+                    {p.user_id === user?.id && <span className={styles.youBadge}>You</span>}
+                    {(pc?.clan || pc?.squad) && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 5 }}>
+                        {pc?.clan && (
+                          <Link
+                            href={`/clans/${pc.clan.code}`}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 9.5, fontWeight: 800, padding: '2px 6px', borderRadius: 5, background: 'rgba(34,197,94,0.12)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.25)', textDecoration: 'none' }}
+                          >
+                            <i className="ri-shield-star-line" style={{ fontSize: 9.5 }} />
+                            {pc.clan.name} ({pc.clan.code})
+                          </Link>
+                        )}
+                        {pc?.squad && (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 9.5, fontWeight: 800, padding: '2px 6px', borderRadius: 5, background: 'rgba(99,102,241,0.12)', color: '#6366f1', border: '1px solid rgba(99,102,241,0.25)' }}>
+                            <i className="ri-team-line" style={{ fontSize: 9.5 }} />
+                            {pc.squad.name}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <span className={styles.playerName} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                    {p.profiles?.username || 'Player'}
-                    <UserBadges {...getUserBadgeProps(p.user_id)} size={11} gap={2} />
-                  </span>
-                  {p.user_id === user?.id && <span className={styles.youBadge}>You</span>}
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </section>

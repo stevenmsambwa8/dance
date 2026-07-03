@@ -165,12 +165,32 @@ function drawFooter(ctx, H, PAD, accent) {
   ctx.fillRect(0, H - 10, W, 10)
 }
 
+// Resolve a display name for a bracket slot. Solo slots carry `name`
+// directly; team-battle slots (squads) don't — they carry `teamName` and/or
+// a `members` array instead, matching the shape produced elsewhere in the
+// app (see the `tName` helper on the live bracket page). Without this,
+// every filled squad slot rendered as "TBD"/"?" on the share card even
+// though the slot was actually claimed.
+function slotDisplayName(slot) {
+  if (!slot) return null
+  if (slot.name) return slot.name
+  if (slot.teamName) return slot.teamName
+  const members = (slot.members || []).filter(m => m?.userId)
+  if (members.length) return members.map(m => (m.name || '').slice(0, 3)).join('').slice(0, 8) || null
+  return null
+}
+
 function drawSlot(ctx, x, y, w, h, slot, opponentWon, accentColor) {
-  const name   = slot?.name  || (slot?.status === 'open' ? 'Open' : '?')
+  const resolvedName = slotDisplayName(slot)
+  const name   = resolvedName || (slot?.status === 'open' ? 'Open' : '?')
   const isBye  = slot?.status === 'bye'
   const isWin  = slot?.status === 'winner'
   const isElim = opponentWon && !isWin
-  const isPend = !slot?.userId && !isBye
+  // A slot is "occupied" if it has a solo userId, a claimed team (teamName),
+  // or any real member in its roster — not just a top-level userId, which
+  // team-battle slots never carry.
+  const hasOccupant = !!(slot?.userId || slot?.teamName || (slot?.members || []).some(m => m?.userId))
+  const isPend = !hasOccupant && !isBye
 
   if (isWin) {
     ctx.fillStyle = accentColor
@@ -278,7 +298,8 @@ async function drawCard(canvas, { tournament, bracketData, participants, gameMet
   const finalRound = bracketData?.rounds?.[totalRounds - 2]
   if (finalRound) {
     const champ = (finalRound[0] || []).find(s => s?.status === 'winner')
-    if (champ?.name && champ.name !== '?' && champ.name !== 'TBD') champion = champ
+    const champName = slotDisplayName(champ)
+    if (champName && champName !== '?' && champName !== 'TBD') champion = { ...champ, name: champName }
   }
 
   const prize    = tournament?.prize
@@ -376,11 +397,14 @@ async function drawCard(canvas, { tournament, bracketData, participants, gameMet
 
   for (let r = 1; r < cols; r++) {
     matchPositions[r] = visRounds[r]?.map((_, mIdx) => {
-      const p1 = matchPositions[r - 1][mIdx * 2]
-      const p2 = matchPositions[r - 1][mIdx * 2 + 1]
+      const p1 = matchPositions[r - 1]?.[mIdx * 2]
+      const p2 = matchPositions[r - 1]?.[mIdx * 2 + 1]
+      // Guard against irregular round sizes so a single malformed bracket
+      // never throws mid-draw and leaves the card stuck on "rendering".
+      const fallbackY = y + mIdx * (MATCH_H + MATCH_GAP)
       return {
         x: PAD + r * (colW + colGap),
-        y: p2 ? (p1.y + p2.y) / 2 : p1.y
+        y: p2 ? ((p1?.y ?? fallbackY) + p2.y) / 2 : (p1?.y ?? p2?.y ?? fallbackY)
       }
     }) || []
   }
@@ -408,10 +432,10 @@ async function drawCard(canvas, { tournament, bracketData, participants, gameMet
       ctx.lineTo(midX, endY)
       ctx.lineTo(endX, endY)
 
-      const nextMatchPair = visRounds[rIdx + 1][nextRoundMIdx]
+      const nextMatchPair = visRounds[rIdx + 1]?.[nextRoundMIdx]
       const targetSlot = (mIdx % 2 === 0) ? nextMatchPair?.[0] : nextMatchPair?.[1]
 
-      ctx.strokeStyle = targetSlot?.name && targetSlot?.status !== 'open' ? accent : INK_15
+      ctx.strokeStyle = slotDisplayName(targetSlot) && targetSlot?.status !== 'open' ? accent : INK_15
       ctx.lineWidth = 2.5
       ctx.stroke()
     })
@@ -575,6 +599,7 @@ export default function BracketShareModal({ open, onClose, mode = 'bracket', tou
   const canvasRef               = useRef(null)
   const [ready, setReady]       = useState(false)
   const [downloaded, setDownloaded] = useState(false)
+  const [renderError, setRenderError] = useState(null)
 
   const gameMeta = GAME_META[tournament?.game_slug] || null
   const resolvedGroups = groups || bracketData?.groups || []
@@ -582,6 +607,7 @@ export default function BracketShareModal({ open, onClose, mode = 'bracket', tou
   useEffect(() => {
     if (!open || !tournament) return
     setReady(false)
+    setRenderError(null)
     const t = setTimeout(async () => {
       if (!canvasRef.current) return
       try {
@@ -594,7 +620,13 @@ export default function BracketShareModal({ open, onClose, mode = 'bracket', tou
           await drawCard(canvasRef.current, { tournament, bracketData, participants: participants || [], gameMeta })
         }
         setReady(true)
-      } catch (e) { console.error('[BracketShareModal]', e) }
+      } catch (e) {
+        // Previously this only logged to console, so on a phone with no
+        // devtools access the modal just spun forever with no clue why —
+        // now the actual error surfaces in the UI so it can be reported.
+        console.error('[BracketShareModal]', e)
+        setRenderError(e?.message || 'Something went wrong rendering the card.')
+      }
     }, 80)
     return () => clearTimeout(t)
   }, [open, mode, tournament, bracketData, resolvedGroups, participants])
@@ -654,10 +686,17 @@ export default function BracketShareModal({ open, onClose, mode = 'bracket', tou
 
         <div style={{ width:'100%', flex: 1, background:'#e2e8f0', border:'1px solid #1a1d2d', borderRadius:8, overflow:'hidden', position:'relative', minHeight:0 }}>
           <canvas ref={canvasRef} style={{ width:'100%', height:'100%', objectFit:'contain', display:'block', opacity: ready ? 1 : 0, transition:'opacity 0.2s' }} />
-          {!ready && (
+          {!ready && !renderError && (
             <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:8 }}>
               <i className="ri-loader-4-line" style={{ fontSize:26, color:'#94a3b8' }} />
               <span style={{ fontSize:12, color:'#475569', fontWeight:700 }}>RENDERING POSTER…</span>
+            </div>
+          )}
+          {renderError && (
+            <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:8, padding:20, textAlign:'center' }}>
+              <i className="ri-error-warning-line" style={{ fontSize:26, color:'#ef4444' }} />
+              <span style={{ fontSize:12, color:'#334155', fontWeight:700 }}>Couldn't render the card</span>
+              <span style={{ fontSize:11, color:'#64748b' }}>{renderError}</span>
             </div>
           )}
         </div>
