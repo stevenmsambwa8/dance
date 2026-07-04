@@ -16,21 +16,29 @@ const PAYMENT_DETAILS = {
 
 const ORDER = ['free', 'pro', 'elite', 'team']
 
+const POLL_INTERVAL_MS = 3000
+const POLL_TIMEOUT_MS  = 90000
+
 export default function UpgradeModal({ feature, profile, onClose }) {
   const { user } = useAuth()
   const countryFlag = profile?.country_flag || 'tanzania'
   const currentPlan = getActivePlan(profile)
   const currentIdx  = ORDER.indexOf(currentPlan)
 
+  // SonicPesa USSD push currently only supports TZS — other currencies fall back to manual proof
+  const ussdAvailable = countryFlag === 'tanzania'
+
   const requiredKey = FEATURE_PLAN[feature] || 'pro'
-  const [selected,   setSelected]   = useState(requiredKey)
-  const [step,       setStep]       = useState('plans')
-  const [method,     setMethod]     = useState('mpesa')
-  const [phone,      setPhone]      = useState('')
-  const [ref,        setRef]        = useState('')
-  const [copied,     setCopied]     = useState(null)
-  const [submitting, setSubmitting] = useState(false)
-  const [error,      setError]      = useState('')
+  const [selected,     setSelected]     = useState(requiredKey)
+  const [step,         setStep]         = useState('plans') // plans | payment | pushing | done | manual
+  const [method,       setMethod]       = useState('mpesa')
+  const [phone,        setPhone]        = useState('')
+  const [ref,          setRef]          = useState('')
+  const [copied,       setCopied]       = useState(null)
+  const [submitting,   setSubmitting]   = useState(false)
+  const [error,        setError]        = useState('')
+  const [subscriptionId, setSubscriptionId] = useState(null)
+  const [pushStatus,   setPushStatus]   = useState('') // waiting | timeout | failed
 
   useEffect(() => { document.body.style.overflow = 'hidden'; return () => { document.body.style.overflow = '' } }, [])
   useEffect(() => {
@@ -43,7 +51,99 @@ export default function UpgradeModal({ feature, profile, onClose }) {
     setCopied(key); setTimeout(() => setCopied(null), 2000)
   }
 
-  async function handleSubmit(e) {
+  // ── SonicPesa USSD push flow ──────────────────────────────
+  async function handlePushPay(e) {
+    e.preventDefault()
+    if (!user) return
+    if (!phone.trim()) { setError('Enter your M-Pesa phone number'); return }
+    setError(''); setSubmitting(true)
+
+    try {
+      const { data: sub, error: subErr } = await supabase.from('subscriptions').insert({
+        user_id:        user.id,
+        plan:           selected,
+        amount_tzs:     getPlanPriceTZS(selected),
+        currency:       'TZS',
+        payment_method: 'sonicpesa',
+        payment_phone:  phone.trim(),
+        status:         'pending',
+      }).select().single()
+      if (subErr) throw subErr
+      setSubscriptionId(sub.id)
+
+      const res = await fetch('/api/sonicpesa/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          plan:  selected,
+          phone: phone.trim(),
+          name:  profile?.username || '',
+          email: profile?.email || user?.email || '',
+        }),
+      })
+      const json = await res.json()
+      if (!json.ok || !json.order_id) throw new Error(json.error || 'Could not start payment')
+
+      await supabase.from('subscriptions').update({ payment_ref: json.order_id }).eq('id', sub.id)
+
+      setStep('pushing')
+      setPushStatus('waiting')
+      pollStatus(json.order_id, sub.id, Date.now())
+    } catch (err) {
+      setError(err.message || 'Could not start payment. Try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function pollStatus(orderId, subId, startedAt) {
+    if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
+      setPushStatus('timeout')
+      return
+    }
+    try {
+      const res = await fetch('/api/sonicpesa/order-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: orderId }),
+      })
+      const json = await res.json()
+
+      if (json.ok && json.status === 'success') {
+        await activatePaidSubscription(subId)
+        return
+      }
+      if (json.ok && json.status === 'failed') {
+        setPushStatus('failed')
+        return
+      }
+      setTimeout(() => pollStatus(orderId, subId, startedAt), POLL_INTERVAL_MS)
+    } catch {
+      setTimeout(() => pollStatus(orderId, subId, startedAt), POLL_INTERVAL_MS)
+    }
+  }
+
+  async function activatePaidSubscription(subId) {
+    try {
+      const { error: rpcErr } = await supabase.rpc('activate_subscription', {
+        p_subscription_id: subId,
+        p_months: 1,
+      })
+      if (rpcErr) throw rpcErr
+      setStep('done')
+    } catch (err) {
+      setError('Payment received, but activation needs a moment. Support will confirm shortly.')
+      setStep('done')
+    }
+  }
+
+  function retryPush() {
+    setPushStatus('')
+    setStep('payment')
+  }
+
+  // ── Manual proof-of-payment flow (fallback for non-TZS) ──
+  async function handleManualSubmit(e) {
     e.preventDefault()
     if (!user) return
     if (!phone.trim()) { setError('Enter your payment phone number'); return }
@@ -128,14 +228,14 @@ export default function UpgradeModal({ feature, profile, onClose }) {
               )
             })}
 
-            <button onClick={() => setStep('payment')} style={{ padding: 13, background: selectedPlan.color, color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'var(--font)' }}>
+            <button onClick={() => setStep(ussdAvailable ? 'payment' : 'manual')} style={{ padding: 13, background: selectedPlan.color, color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'var(--font)' }}>
               Continue with {selectedPlan.label} <i className="ri-arrow-right-line" />
             </button>
           </div>
         )}
 
-        {/* ── PAYMENT ── */}
-        {step === 'payment' && (
+        {/* ── PAYMENT (SonicPesa USSD push) ── */}
+        {step === 'payment' && ussdAvailable && (
           <div style={{ overflowY: 'auto', padding: '20px 18px', display: 'flex', flexDirection: 'column', gap: 14, scrollbarWidth: 'none' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingRight: 30 }}>
               <button onClick={() => setStep('plans')} style={{ width: 30, height: 30, borderRadius: '50%', border: '1px solid var(--border-dark)', background: 'var(--bg-2)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, flexShrink: 0 }}>
@@ -147,7 +247,95 @@ export default function UpgradeModal({ feature, profile, onClose }) {
               </div>
             </div>
 
-            {/* Method toggle */}
+            <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px', display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center', textAlign: 'center' }}>
+              <i className="ri-smartphone-line" style={{ fontSize: 26, color: selectedPlan.color }} />
+              <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', margin: 0 }}>You'll get a USSD payment prompt</p>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>Enter your M-Pesa PIN on your phone to confirm {price}.</p>
+            </div>
+
+            <form onSubmit={handlePushPay} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div>
+                <Label>Your M-Pesa Phone Number *</Label>
+                <input className="um-input" placeholder="0712 345 678" value={phone} onChange={e => setPhone(e.target.value)} />
+              </div>
+              {error && <p style={{ fontSize: 12, color: '#ef4444', margin: 0 }}>{error}</p>}
+              <button type="submit" disabled={submitting} style={{ marginTop: 4, padding: 13, background: selectedPlan.color, color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 800, cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.6 : 1, fontFamily: 'var(--font)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                {submitting ? 'Sending push…' : <><i className="ri-send-plane-line" /> Pay {price} Now</>}
+              </button>
+              <button type="button" onClick={() => setStep('manual')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 11, textDecoration: 'underline', cursor: 'pointer', fontFamily: 'var(--font)' }}>
+                Pay manually instead
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* ── PUSHING (waiting for USSD confirmation) ── */}
+        {step === 'pushing' && (
+          <div style={{ padding: '40px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, textAlign: 'center' }}>
+            {pushStatus === 'waiting' && (
+              <>
+                <div style={{ width: 64, height: 64, borderRadius: '50%', background: selectedPlan.color + '20', border: `2px solid ${selectedPlan.color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26 }}>
+                  <i className="ri-smartphone-line" style={{ color: selectedPlan.color }} />
+                </div>
+                <div>
+                  <p style={{ fontSize: 16, fontWeight: 900, color: 'var(--text)', margin: '0 0 6px' }}>Check your phone</p>
+                  <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0, lineHeight: 1.6 }}>
+                    A USSD prompt was sent to <strong style={{ color: 'var(--text)' }}>{phone}</strong>. Enter your PIN to complete the {price} payment.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: 5 }}>
+                  {[0, 1, 2].map(i => (
+                    <span key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: selectedPlan.color, opacity: 0.4, animation: `umPulse 1.2s ${i * 0.2}s infinite ease-in-out` }} />
+                  ))}
+                </div>
+                <style>{`@keyframes umPulse { 0%,100%{opacity:.3} 50%{opacity:1} }`}</style>
+              </>
+            )}
+
+            {pushStatus === 'timeout' && (
+              <>
+                <i className="ri-time-line" style={{ fontSize: 40, color: '#f59e0b' }} />
+                <div>
+                  <p style={{ fontSize: 16, fontWeight: 900, color: 'var(--text)', margin: '0 0 6px' }}>Still waiting…</p>
+                  <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0, lineHeight: 1.6 }}>
+                    We haven't received confirmation yet. If you already entered your PIN, it may just need a bit more time — check again shortly, or try again.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+                  <button onClick={retryPush} style={{ flex: 1, padding: 12, background: selectedPlan.color, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)' }}>Try Again</button>
+                  <button onClick={onClose} style={{ flex: 1, padding: 12, background: 'var(--bg-2)', color: 'var(--text-muted)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)' }}>Close</button>
+                </div>
+              </>
+            )}
+
+            {pushStatus === 'failed' && (
+              <>
+                <i className="ri-close-circle-line" style={{ fontSize: 40, color: '#ef4444' }} />
+                <div>
+                  <p style={{ fontSize: 16, fontWeight: 900, color: 'var(--text)', margin: '0 0 6px' }}>Payment didn't go through</p>
+                  <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0, lineHeight: 1.6 }}>
+                    The payment was declined or cancelled. You can try again.
+                  </p>
+                </div>
+                <button onClick={retryPush} style={{ width: '100%', padding: 12, background: selectedPlan.color, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)' }}>Try Again</button>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── MANUAL FALLBACK (non-TZS or opted out of USSD push) ── */}
+        {step === 'manual' && (
+          <div style={{ overflowY: 'auto', padding: '20px 18px', display: 'flex', flexDirection: 'column', gap: 14, scrollbarWidth: 'none' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingRight: 30 }}>
+              <button onClick={() => setStep(ussdAvailable ? 'payment' : 'plans')} style={{ width: 30, height: 30, borderRadius: '50%', border: '1px solid var(--border-dark)', background: 'var(--bg-2)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, flexShrink: 0 }}>
+                <i className="ri-arrow-left-line" />
+              </button>
+              <div>
+                <p style={{ fontSize: 16, fontWeight: 900, color: 'var(--text)', margin: 0 }}>{selectedPlan.badge} {selectedPlan.label} Plan</p>
+                <p style={{ fontSize: 12, color: selectedPlan.color, fontWeight: 700, margin: 0 }}>{price} / month</p>
+              </div>
+            </div>
+
             <div>
               <Label>Payment Method</Label>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -160,7 +348,6 @@ export default function UpgradeModal({ feature, profile, onClose }) {
               </div>
             </div>
 
-            {/* Send to */}
             <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
               <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Send {price} to</p>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
@@ -174,7 +361,7 @@ export default function UpgradeModal({ feature, profile, onClose }) {
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <form onSubmit={handleManualSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div>
                 <Label>Your Payment Phone Number *</Label>
                 <input className="um-input" placeholder="0712 345 678" value={phone} onChange={e => setPhone(e.target.value)} />
@@ -201,9 +388,13 @@ export default function UpgradeModal({ feature, profile, onClose }) {
               {selectedPlan.badge}
             </div>
             <div>
-              <p style={{ fontSize: 18, fontWeight: 900, color: 'var(--text)', margin: '0 0 6px' }}>Payment Submitted!</p>
+              <p style={{ fontSize: 18, fontWeight: 900, color: 'var(--text)', margin: '0 0 6px' }}>
+                {error ? 'Payment Received!' : 'Plan Activated!'}
+              </p>
               <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0, lineHeight: 1.6 }}>
-                Your <strong style={{ color: selectedPlan.color }}>{selectedPlan.label}</strong> upgrade is under review. You'll be notified once activated — usually within 24 hours.
+                {error
+                  ? error
+                  : <>Your <strong style={{ color: selectedPlan.color }}>{selectedPlan.label}</strong> plan is now active. Enjoy your new features!</>}
               </p>
             </div>
             <button onClick={onClose} style={{ padding: '11px 28px', background: 'var(--text)', color: 'var(--bg)', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)' }}>
@@ -211,6 +402,7 @@ export default function UpgradeModal({ feature, profile, onClose }) {
             </button>
           </div>
         )}
+
       </div>
     </div>
   )
