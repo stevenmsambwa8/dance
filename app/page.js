@@ -273,10 +273,10 @@ function NewsStrip({ stories, loading }) {
         <Link key={`${s.id}-${i}`} href={s.href} className={styles.newsCard}>
           <NewsCardMedia media={s.media} icon={s.icon} />
           <div className={styles.newsCardFade} />
+          <span className={styles.newsCardTime}>{s.timeLabel}</span>
           <div className={styles.newsCardText}>
             <span className={styles.newsCardHeadline}>{s.headline}</span>
             <span className={styles.newsCardSub}>{s.sub}</span>
-            <span className={styles.newsCardTime}>{s.timeLabel}</span>
           </div>
         </Link>
       ))}
@@ -318,6 +318,9 @@ export default function Home() {
 
   const [tournaments,  setTournaments]  = useState([])
   const [topPlayers,   setTopPlayers]   = useState([])
+  const [selectedGame,      setSelectedGame]      = useState('all')
+  const [gamePlayers,       setGamePlayers]       = useState([])
+  const [loadingGamePlayers, setLoadingGamePlayers] = useState(false)
   const [liveMatches,  setLiveMatches]  = useState([])
   const [shopItems,    setShopItems]    = useState([])
   const [shopImages,   setShopImages]   = useState({})
@@ -466,6 +469,17 @@ export default function Home() {
       el.removeEventListener('pointerdown', pause)
     }
   }, [tournaments])
+
+  useEffect(() => {
+    if (selectedGame === 'all') return
+    setLoadingGamePlayers(true)
+    supabase
+      .rpc('get_game_leaderboard', { p_game_slug: selectedGame, p_limit: 5 })
+      .then(({ data, error }) => {
+        setGamePlayers(error ? [] : (data || []))
+        setLoadingGamePlayers(false)
+      })
+  }, [selectedGame])
 
   useEffect(() => {
 
@@ -838,39 +852,77 @@ export default function Home() {
 
       {/* ══════════ LEADERBOARD ══════════ */}
       <Section icon="ri-bar-chart-line" title={t('players.leaderboard')} href="/players" linkLabel={t('home.allPlayers')}>
-        {loadingPlayers ? (
-          [1,2,3].map(i => <SkeletonRow key={i} />)
-        ) : (
-          <div className={styles.leaderList}>
-            {topPlayers.map((p, i) => {
-              const isMe   = user?.id === p.id
-              const medals = ['🥇', '🥈', '🥉']
-              const tm     = RANK_META[p.tier] || RANK_META.Gold
-              return (
-                <Link key={p.id} href={`/profile/${p.id}`} className={`${styles.leaderRow} ${isMe ? styles.leaderRowMe : ''}`}>
-                  <span className={styles.leaderPos}>{medals[i] || `#${i+1}`}</span>
-                  <div className={styles.leaderAvatar}>
-                    {p.avatar_url
-                      ? <img src={p.avatar_url} alt="" />
-                      : <span>{(p.username || '?').slice(0,2).toUpperCase()}</span>
-                    }
-                  </div>
-                  <div className={styles.leaderInfo}>
-                    <span className={styles.leaderName}>
-                      {p.username}
-                      {isMe && <span className={styles.youPill}>{t('home.you')}</span>}
-                      <UserBadges email={p.email} plan={p.plan} planExpiresAt={p.plan_expires_at} countryFlag={p.country_flag} isSeasonWinner={p.is_season_winner} size={11} gap={2} />
-                    </span>
-                    <span className={styles.leaderSub} style={{ color: tm.color }}>
-                      <i className={tm.icon} /> {p.tier} · Lv.{p.level ?? 1} · {p.wins || 0}W
-                    </span>
-                  </div>
-                  <span className={styles.leaderPts}>{(p.points || 0).toLocaleString()}<span className={styles.ptsLabel}> {t('home.pts').toLowerCase()}</span></span>
-                </Link>
-              )
-            })}
-          </div>
-        )}
+        <div className={styles.gameFilterRow}>
+          <button
+            className={`${styles.gameFilterChip} ${selectedGame === 'all' ? styles.gameFilterChipActive : ''}`}
+            onClick={() => setSelectedGame('all')}
+          >
+            <i className="ri-global-line" /> {t('common.all')}
+          </button>
+          {GAME_SLUGS.map(slug => {
+            const g = GAME_META[slug]
+            return (
+              <button
+                key={slug}
+                className={`${styles.gameFilterChip} ${selectedGame === slug ? styles.gameFilterChipActive : ''}`}
+                onClick={() => setSelectedGame(slug)}
+              >
+                <i className={g?.icon || 'ri-gamepad-line'} /> {g?.name || slug}
+              </button>
+            )
+          })}
+        </div>
+
+        {(() => {
+          const isAll   = selectedGame === 'all'
+          const loading = isAll ? loadingPlayers : loadingGamePlayers
+          const list    = isAll ? topPlayers : gamePlayers
+          const gameMeta = GAME_META[selectedGame]
+
+          if (loading) return [1,2,3].map(i => <SkeletonRow key={i} />)
+
+          if (list.length === 0) {
+            return (
+              <div className={styles.empty}>
+                <i className={gameMeta?.icon || 'ri-bar-chart-line'} />
+                <p>{t('home.noLeaderboardYet') || `No ${gameMeta?.name || ''} tournaments scored yet`}</p>
+              </div>
+            )
+          }
+
+          return (
+            <div className={styles.leaderList}>
+              {list.map((p, i) => {
+                const isMe   = user?.id === p.id
+                const medals = ['🥇', '🥈', '🥉']
+                const tm     = RANK_META[p.tier] || RANK_META.Gold
+                const pts    = isAll ? (p.points || 0) : (p.game_points || 0)
+                return (
+                  <Link key={p.id} href={`/profile/${p.id}`} className={`${styles.leaderRow} ${isMe ? styles.leaderRowMe : ''}`}>
+                    <span className={styles.leaderPos}>{medals[i] || `#${i+1}`}</span>
+                    <div className={styles.leaderAvatar}>
+                      {p.avatar_url
+                        ? <img src={p.avatar_url} alt="" />
+                        : <span>{(p.username || '?').slice(0,2).toUpperCase()}</span>
+                      }
+                    </div>
+                    <div className={styles.leaderInfo}>
+                      <span className={styles.leaderName}>
+                        {p.username}
+                        {isMe && <span className={styles.youPill}>{t('home.you')}</span>}
+                        <UserBadges email={p.email} plan={p.plan} planExpiresAt={p.plan_expires_at} countryFlag={p.country_flag} isSeasonWinner={p.is_season_winner} size={11} gap={2} />
+                      </span>
+                      <span className={styles.leaderSub} style={{ color: tm.color }}>
+                        <i className={tm.icon} /> {p.tier} · Lv.{p.level ?? 1} · {p.wins || 0}W
+                      </span>
+                    </div>
+                    <span className={styles.leaderPts}>{pts.toLocaleString()}<span className={styles.ptsLabel}> {t('home.pts').toLowerCase()}</span></span>
+                  </Link>
+                )
+              })}
+            </div>
+          )
+        })()}
       </Section>
 
       {/* ══════════ SCHEDULED MATCHES ══════════ */}
