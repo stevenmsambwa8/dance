@@ -9,11 +9,33 @@ import styles from './page.module.css'
 
 const ORDER = ['free', 'pro', 'elite', 'team']
 
+// 3-stop gradients themed around each plan's accent color.
+const PLAN_THEME = {
+  pro:   { grad: 'linear-gradient(135deg, #d8b4fe 0%, #a855f7 48%, #6d28d9 100%)', c2: '#7c3aed', soft: 'rgba(168,85,247,0.14)' },
+  elite: { grad: 'linear-gradient(135deg, #7dd3fc 0%, #38bdf8 45%, #6366f1 100%)', c2: '#4f46e5', soft: 'rgba(56,189,248,0.14)' },
+  team:  { grad: 'linear-gradient(135deg, #86efac 0%, #22c55e 45%, #0891b2 100%)', c2: '#0891b2', soft: 'rgba(34,197,94,0.14)' },
+}
+
+const TRUST_ITEMS = [
+  { key: 'trustInstant', desc: 'trustInstantDesc', icon: 'ri-flashlight-line', grad: 'linear-gradient(135deg, #a855f7, #ec4899)' },
+  { key: 'trustSecure', desc: 'trustSecureDesc', icon: 'ri-shield-check-line', grad: 'linear-gradient(135deg, #38bdf8, #6366f1)' },
+  { key: 'trustFlexible', desc: 'trustFlexibleDesc', icon: 'ri-refresh-line', grad: 'linear-gradient(135deg, #22c55e, #0891b2)' },
+  { key: 'trustSupport', desc: 'trustSupportDesc', icon: 'ri-customer-service-2-line', grad: 'linear-gradient(135deg, #f59e0b, #ef4444)' },
+]
+
+const FAQS = [
+  { q: 'faqQ1', a: 'faqA1' },
+  { q: 'faqQ2', a: 'faqA2' },
+  { q: 'faqQ3', a: 'faqA3' },
+  { q: 'faqQ4', a: 'faqA4' },
+]
+
 export default function UpgradePage() {
   const { user, profile } = useAuth()
-  const { openAuthGate }  = useAuthGate()
+  const { openAuthGate } = useAuthGate()
   const { t } = useTranslation()
   const [modal, setModal] = useState(null) // plan key
+  const [openFaq, setOpenFaq] = useState(0)
 
   const currentPlan = getActivePlan(profile)
   const countryFlag = profile?.country_flag || 'tanzania'
@@ -21,94 +43,168 @@ export default function UpgradePage() {
   const plans = Object.values(PLANS).filter(p => p.key !== 'free')
 
   return (
-    <div style={{ minHeight: '100dvh', background: 'var(--bg)', padding: '32px 16px 80px' }}>
-      <div style={{ maxWidth: 480, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div className={styles.page}>
+      <div className={styles.inner}>
 
         {/* Header */}
-        <div style={{ textAlign: 'center' }}>
-          <p style={{ fontSize: 26, fontWeight: 900, color: 'var(--text)', margin: '0 0 8px', lineHeight: 1.1 }}>{t('upgradePage.levelUpYourGame')}</p>
-          <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: 0 }}>{t('upgradePage.unlockFullExperience')}</p>
+        <div className={styles.header}>
+          <span className={styles.eyebrow}>
+            <i className="ri-rocket-2-line" /> NABOGAMING
+          </span>
+          <p className={styles.title}>{t('upgradePage.levelUpYourGame')}</p>
+          <p className={styles.subtitle}>{t('upgradePage.unlockFullExperience')}</p>
           {currentPlan !== 'free' && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10, padding: '5px 12px', background: 'var(--surface)', border: '1px solid var(--border-dark)', borderRadius: 20, fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>
-              <i className={PLANS[currentPlan]?.icon} style={{ color: PLANS[currentPlan]?.color }} />
-              {t('upgradePage.currentPlanPrefix')} {PLANS[currentPlan]?.label}
-            </span>
+            <div>
+              <span className={styles.currentPlanPill}>
+                <i className={PLANS[currentPlan]?.icon} style={{ color: PLANS[currentPlan]?.color }} />
+                {t('upgradePage.currentPlanPrefix')} {PLANS[currentPlan]?.label}
+              </span>
+            </div>
           )}
         </div>
 
-        {/* Plan cards */}
-        {plans.map(plan => {
-          const idx        = ORDER.indexOf(plan.key)
-          const currentIdx = ORDER.indexOf(currentPlan)
-          const isActive   = currentPlan === plan.key
-          const isLower    = idx <= currentIdx && !isActive
-          const price      = getPlanPrice(plan.key, countryFlag)
+        {/* Swipe hint */}
+        <p className={styles.swipeHint}>
+          <i className="ri-arrow-left-s-line" />
+          {t('upgradePage.swipeHint')}
+          <i className="ri-arrow-right-s-line" />
+        </p>
 
-          return (
-            <div key={plan.key} style={{
-              border: isActive ? `2px solid ${plan.color}` : plan.popular ? `2px solid ${plan.color}55` : '2px solid var(--border)',
-              borderRadius: 16, padding: '20px 18px', position: 'relative',
-              background: isActive ? plan.color + '0d' : 'var(--bg-2)',
-              opacity: isLower ? 0.5 : 1,
-            }}>
-              {plan.popular && !isActive && (
-                <span style={{ position: 'absolute', top: -1, right: 16, background: plan.color, color: '#fff', fontSize: 9, fontWeight: 800, padding: '3px 8px', borderRadius: '0 0 7px 7px', letterSpacing: '0.06em' }}>{t('upgradePage.mostPopular')}</span>
-              )}
-              {isActive && (
-                <span style={{ position: 'absolute', top: -1, right: 16, background: plan.color, color: '#fff', fontSize: 9, fontWeight: 800, padding: '3px 8px', borderRadius: '0 0 7px 7px', letterSpacing: '0.06em' }}>{t('upgradePage.yourPlan')}</span>
-              )}
+        {/* Scrollable plan cards */}
+        <div className={styles.scrollerWrap}>
+          <div className={styles.scroller}>
+            {plans.map(plan => {
+              const idx        = ORDER.indexOf(plan.key)
+              const currentIdx = ORDER.indexOf(currentPlan)
+              const isActive   = currentPlan === plan.key
+              const isLower    = idx <= currentIdx && !isActive
+              const price      = getPlanPrice(plan.key, countryFlag)
+              const theme      = PLAN_THEME[plan.key] || PLAN_THEME.pro
 
-              {/* Plan header */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 12, background: plan.color + '20', border: `1.5px solid ${plan.color}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>
-                    {plan.badge}
-                  </div>
-                  <div>
-                    <p style={{ fontSize: 18, fontWeight: 900, color: 'var(--text)', margin: 0 }}>{plan.label}</p>
-                    <p style={{ fontSize: 13, color: plan.color, fontWeight: 700, margin: '2px 0 0' }}>{price}<span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}> {t('upgradePage.perMonth')}</span></p>
-                  </div>
-                </div>
-                <i className={plan.icon} style={{ fontSize: 22, color: plan.color + '80' }} />
-              </div>
+              const cardStyle = {
+                '--plan-grad': theme.grad,
+                '--plan-c1-soft': theme.soft,
+                '--plan-c2': theme.c2,
+              }
 
-              {/* Features */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 16 }}>
-                {plan.features.map((f, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: 'var(--text-dim)' }}>
-                    <i className="ri-check-line" style={{ color: plan.color, fontSize: 14, flexShrink: 0, marginTop: 1 }} />
-                    <span>{f}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* CTA */}
-              {isActive ? (
-                <div style={{ padding: '10px 16px', borderRadius: 8, background: plan.color + '20', textAlign: 'center', fontSize: 13, fontWeight: 700, color: plan.color }}>
-                  <i className="ri-check-circle-line" /> {t('upgradePage.activePlan')}
-                </div>
-              ) : isLower ? (
-                <div style={{ padding: '10px 16px', borderRadius: 8, background: 'var(--border)', textAlign: 'center', fontSize: 13, fontWeight: 600, color: 'var(--text-muted)' }}>
-                  {t('upgradePage.alreadyUnlocked')}
-                </div>
-              ) : (
-                <button
-                  onClick={() => user ? setModal(plan.key) : openAuthGate()}
-                  style={{ width: '100%', padding: '12px 16px', borderRadius: 8, background: plan.color, color: '#fff', border: 'none', fontSize: 14, fontWeight: 800, cursor: 'pointer', fontFamily: 'var(--font)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'opacity 0.15s' }}
-                  onMouseEnter={e => e.currentTarget.style.opacity = '0.88'}
-                  onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+              return (
+                <div
+                  key={plan.key}
+                  className={[
+                    styles.card,
+                    isActive ? styles.cardActive : '',
+                    isLower ? styles.cardLower : '',
+                  ].join(' ')}
+                  style={cardStyle}
                 >
-                  {t('upgradePage.getPlan')} {plan.label} <i className="ri-arrow-right-line" />
-                </button>
-              )}
+                  <div className={styles.cardTop}>
+                    <div className={styles.cardBlobA} />
+                    <div className={styles.cardBlobB} />
+
+                    {plan.popular && !isActive && (
+                      <span className={styles.ribbon}>{t('upgradePage.mostPopular')}</span>
+                    )}
+                    {isActive && (
+                      <span className={styles.ribbon}>{t('upgradePage.yourPlan')}</span>
+                    )}
+
+                    <div className={styles.iconChip}>
+                      <i className={plan.icon} />
+                    </div>
+                    <p className={styles.planLabel}>{plan.label}</p>
+                    <div className={styles.planPriceRow}>
+                      <span className={styles.planPrice}>{price}</span>
+                      <span className={styles.planPer}>{t('upgradePage.perMonth')}</span>
+                    </div>
+                  </div>
+
+                  <div className={styles.cardBody}>
+                    <div className={styles.featureList}>
+                      {plan.features.map((f, i) => (
+                        <div key={i} className={styles.featureRow}>
+                          <span className={styles.featureCheck}>
+                            <i className="ri-check-line" />
+                          </span>
+                          <span>{f}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {isActive ? (
+                      <div className={[styles.cta, styles.ctaActive].join(' ')} style={{ background: theme.soft }}>
+                        <i className="ri-check-circle-line" /> {t('upgradePage.activePlan')}
+                      </div>
+                    ) : isLower ? (
+                      <div className={[styles.cta, styles.ctaLower].join(' ')}>
+                        {t('upgradePage.alreadyUnlocked')}
+                      </div>
+                    ) : (
+                      <button className={styles.cta} onClick={() => user ? setModal(plan.key) : openAuthGate()}>
+                        {t('upgradePage.getPlan')} {plan.label} <i className="ri-arrow-right-line" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Why upgrade / trust badges */}
+        <div className={styles.section}>
+          <p className={styles.sectionTitle}>{t('upgradePage.whyUpgradeTitle')}</p>
+          <div className={styles.trustGrid}>
+            {TRUST_ITEMS.map(item => (
+              <div key={item.key} className={styles.trustCard}>
+                <div className={styles.trustIcon} style={{ background: item.grad }}>
+                  <i className={item.icon} />
+                </div>
+                <p className={styles.trustTitle}>{t(`upgradePage.${item.key}`)}</p>
+                <p className={styles.trustDesc}>{t(`upgradePage.${item.desc}`)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Payment methods */}
+        <div className={styles.section}>
+          <p className={styles.sectionTitle}>{t('upgradePage.paymentMethodsTitle')}</p>
+          <div className={styles.payRow}>
+            <div className={styles.payChip}>
+              <i className="ri-smartphone-line" />
+              <span>M-Pesa</span>
             </div>
-          )
-        })}
+            <div className={styles.payChip}>
+              <i className="ri-smartphone-line" />
+              <span>Halopesa</span>
+            </div>
+          </div>
+        </div>
+
+        {/* FAQ */}
+        <div className={styles.section}>
+          <p className={styles.sectionTitle}>{t('upgradePage.faqTitle')}</p>
+          <div className={styles.faqList}>
+            {FAQS.map((faq, i) => {
+              const isOpen = openFaq === i
+              return (
+                <div key={faq.q} className={styles.faqItem}>
+                  <button
+                    className={[styles.faqQ, isOpen ? styles.faqQOpen : ''].join(' ')}
+                    onClick={() => setOpenFaq(isOpen ? -1 : i)}
+                  >
+                    <span>{t(`upgradePage.${faq.q}`)}</span>
+                    <i className="ri-arrow-down-s-line" />
+                  </button>
+                  {isOpen && <p className={styles.faqA}>{t(`upgradePage.${faq.a}`)}</p>}
+                </div>
+              )
+            })}
+          </div>
+        </div>
 
         {/* Footer note */}
-        <p style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.7 }}>
-          {t('upgradePage.footerNote')}
-        </p>
+        <p className={styles.footerNote}>{t('upgradePage.footerNote')}</p>
       </div>
 
       {modal && (

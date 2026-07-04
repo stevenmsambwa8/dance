@@ -1,1 +1,430 @@
-/* Upgrade page — all styles are inline; this file satisfies the module import */
+/* ============ Upgrade Page ============ */
+
+.page {
+  min-height: 100dvh;
+  background: var(--bg);
+  padding: 28px 0 90px;
+}
+
+.inner {
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+/* ── Header ── */
+.header {
+  text-align: center;
+  padding: 0 16px;
+  margin-bottom: 22px;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, rgba(168,85,247,0.16), rgba(56,189,248,0.16), rgba(34,197,94,0.16));
+  border: 1px solid var(--border-dark);
+  color: var(--text-dim);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  padding: 5px 12px;
+  border-radius: 20px;
+  margin-bottom: 12px;
+}
+
+.title {
+  font-size: 26px;
+  font-weight: 900;
+  margin: 0 0 6px;
+  line-height: 1.15;
+  background: linear-gradient(135deg, #a855f7, #38bdf8, #22c55e);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.subtitle {
+  font-size: 13.5px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.currentPlanPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 6px 13px;
+  background: var(--surface);
+  border: 1px solid var(--border-dark);
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* ── Scroller ── */
+.scrollerWrap {
+  position: relative;
+}
+
+.scroller {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding: 4px 16px 14px;
+  scrollbar-width: none;
+}
+
+.scroller::-webkit-scrollbar {
+  display: none;
+}
+
+.swipeHint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: 0 0 14px;
+}
+
+.swipeHint i {
+  font-size: 13px;
+  animation: swipeMove 1.6s ease-in-out infinite;
+}
+
+@keyframes swipeMove {
+  0%, 100% { transform: translateX(0); opacity: 0.5; }
+  50% { transform: translateX(4px); opacity: 1; }
+}
+
+/* ── Card ── */
+.card {
+  position: relative;
+  flex: 0 0 78%;
+  max-width: 300px;
+  scroll-snap-align: center;
+  border-radius: 22px;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border-dark);
+  display: flex;
+  flex-direction: column;
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.cardActive {
+  border-color: transparent;
+  box-shadow: 0 0 0 2px var(--plan-c2, var(--border-dark));
+}
+
+.cardLower {
+  opacity: 0.55;
+}
+
+.cardTop {
+  position: relative;
+  padding: 20px 18px 46px;
+  background: var(--plan-grad);
+  overflow: hidden;
+}
+
+.cardBlobA, .cardBlobB {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(18px);
+  pointer-events: none;
+}
+
+.cardBlobA {
+  width: 90px;
+  height: 90px;
+  background: rgba(255,255,255,0.28);
+  top: -30px;
+  right: -20px;
+}
+
+.cardBlobB {
+  width: 70px;
+  height: 70px;
+  background: rgba(0,0,0,0.16);
+  bottom: -30px;
+  left: -20px;
+}
+
+.ribbon {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(255,255,255,0.92);
+  color: var(--plan-c2, #111);
+  font-size: 9px;
+  font-weight: 900;
+  padding: 4px 10px;
+  border-radius: 20px;
+  letter-spacing: 0.06em;
+  z-index: 2;
+}
+
+.iconChip {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.22);
+  border: 1px solid rgba(255,255,255,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: #fff;
+  margin-bottom: 12px;
+  z-index: 1;
+}
+
+.planLabel {
+  position: relative;
+  font-size: 19px;
+  font-weight: 900;
+  color: #fff;
+  margin: 0 0 3px;
+  z-index: 1;
+}
+
+.planPriceRow {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  z-index: 1;
+}
+
+.planPrice {
+  font-size: 16px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.planPer {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.75);
+}
+
+/* Card body sits overlapping the gradient top */
+.cardBody {
+  position: relative;
+  margin-top: -28px;
+  background: var(--surface);
+  border-radius: 18px 18px 0 0;
+  padding: 18px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.featureList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.featureRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text-dim);
+  line-height: 1.35;
+}
+
+.featureCheck {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--plan-c1-soft, rgba(0,0,0,0.06));
+  color: var(--plan-c2, var(--text));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  margin-top: 1px;
+}
+
+.cta {
+  margin-top: auto;
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: none;
+  background: var(--plan-grad);
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 800;
+  font-family: var(--font);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: opacity 0.15s, transform 0.1s;
+}
+
+.cta:hover { opacity: 0.9; }
+.cta:active { transform: scale(0.98); }
+
+.ctaActive {
+  background: var(--plan-c1-soft, rgba(0,0,0,0.06));
+  color: var(--plan-c2, var(--text));
+}
+
+.ctaLower {
+  background: var(--border);
+  color: var(--text-muted);
+}
+
+/* ── Why upgrade / trust badges ── */
+.section {
+  padding: 26px 16px 4px;
+}
+
+.sectionTitle {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0 0 12px;
+}
+
+.trustGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.trustCard {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 12px;
+}
+
+.trustIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  color: #fff;
+  margin-bottom: 8px;
+}
+
+.trustTitle {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0 0 3px;
+}
+
+.trustDesc {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* ── Payment methods ── */
+.payRow {
+  display: flex;
+  gap: 10px;
+}
+
+.payChip {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.payChip i {
+  font-size: 18px;
+  color: var(--text-dim);
+}
+
+.payChip span {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* ── FAQ ── */
+.faqList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.faqItem {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.faqQ {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 13px 14px;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text);
+  font-family: var(--font);
+  cursor: pointer;
+}
+
+.faqQ i {
+  flex-shrink: 0;
+  font-size: 16px;
+  color: var(--text-muted);
+  transition: transform 0.2s;
+}
+
+.faqQOpen i {
+  transform: rotate(180deg);
+}
+
+.faqA {
+  padding: 0 14px 14px;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ── Footer ── */
+.footerNote {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.7;
+  padding: 24px 24px 0;
+}
