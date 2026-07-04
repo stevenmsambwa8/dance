@@ -107,10 +107,10 @@
 /* ── Card ── */
 .card {
   position: relative;
-  flex: 0 0 78%;
-  max-width: 300px;
+  flex: 0 0 62%;
+  max-width: 230px;
   scroll-snap-align: center;
-  border-radius: 22px;
+  border-radius: 20px;
   overflow: hidden;
   background: var(--surface);
   border: 1px solid var(--border-dark);
@@ -119,18 +119,13 @@
   transition: opacity 0.15s, transform 0.15s;
 }
 
-.cardActive {
-  border-color: transparent;
-  box-shadow: 0 0 0 2px var(--plan-c2, var(--border-dark));
-}
-
 .cardLower {
   opacity: 0.55;
 }
 
 .cardTop {
   position: relative;
-  padding: 20px 18px 46px;
+  padding: 16px 14px 34px;
   background: var(--plan-grad);
   overflow: hidden;
 }
@@ -138,62 +133,62 @@
 .cardBlobA, .cardBlobB {
   position: absolute;
   border-radius: 50%;
-  filter: blur(18px);
+  filter: blur(16px);
   pointer-events: none;
 }
 
 .cardBlobA {
-  width: 90px;
-  height: 90px;
+  width: 70px;
+  height: 70px;
   background: rgba(255,255,255,0.28);
-  top: -30px;
-  right: -20px;
+  top: -24px;
+  right: -16px;
 }
 
 .cardBlobB {
-  width: 70px;
-  height: 70px;
+  width: 56px;
+  height: 56px;
   background: rgba(0,0,0,0.16);
-  bottom: -30px;
-  left: -20px;
+  bottom: -24px;
+  left: -16px;
 }
 
 .ribbon {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  top: 10px;
+  right: 10px;
   background: rgba(255,255,255,0.92);
   color: var(--plan-c2, #111);
-  font-size: 9px;
+  font-size: 8.5px;
   font-weight: 900;
-  padding: 4px 10px;
+  padding: 3px 8px;
   border-radius: 20px;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   z-index: 2;
 }
 
 .iconChip {
   position: relative;
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
   background: rgba(255,255,255,0.22);
   border: 1px solid rgba(255,255,255,0.4);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
+  font-size: 18px;
   color: #fff;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   z-index: 1;
 }
 
 .planLabel {
   position: relative;
-  font-size: 19px;
+  font-size: 16px;
   font-weight: 900;
   color: #fff;
-  margin: 0 0 3px;
+  margin: 0 0 2px;
   z-index: 1;
 }
 
@@ -201,18 +196,18 @@
   position: relative;
   display: flex;
   align-items: baseline;
-  gap: 5px;
+  gap: 4px;
   z-index: 1;
 }
 
 .planPrice {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 800;
   color: #fff;
 }
 
 .planPer {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   color: rgba(255,255,255,0.75);
 }
@@ -220,10 +215,10 @@
 /* Card body sits overlapping the gradient top */
 .cardBody {
   position: relative;
-  margin-top: -28px;
+  margin-top: -22px;
   background: var(--surface);
-  border-radius: 18px 18px 0 0;
-  padding: 18px 18px 18px;
+  border-radius: 16px 16px 0 0;
+  padding: 14px 14px 14px;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -232,49 +227,49 @@
 .featureList {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 16px;
+  gap: 6px;
+  margin-bottom: 14px;
 }
 
 .featureRow {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  font-size: 12.5px;
+  gap: 7px;
+  font-size: 11.5px;
   color: var(--text-dim);
-  line-height: 1.35;
+  line-height: 1.3;
 }
 
 .featureCheck {
   flex-shrink: 0;
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
   background: var(--plan-c1-soft, rgba(0,0,0,0.06));
   color: var(--plan-c2, var(--text));
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 9px;
   margin-top: 1px;
 }
 
 .cta {
   margin-top: auto;
   width: 100%;
-  padding: 12px 16px;
-  border-radius: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
   border: none;
   background: var(--plan-grad);
   color: #fff;
-  font-size: 13.5px;
+  font-size: 12.5px;
   font-weight: 800;
   font-family: var(--font);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   transition: opacity 0.15s, transform 0.1s;
 }
 
@@ -418,6 +413,109 @@
   color: var(--text-muted);
   line-height: 1.5;
   margin: 0;
+}
+
+/* ── Suggested follows ── */
+.followScroll {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding: 2px 2px 6px;
+  scrollbar-width: none;
+}
+
+.followScroll::-webkit-scrollbar {
+  display: none;
+}
+
+.followCard {
+  flex: 0 0 118px;
+  scroll-snap-align: start;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 10px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  cursor: pointer;
+}
+
+.followAvatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.followAvatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.followName {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0 0 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.followMeta {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  margin: 0 0 10px;
+}
+
+.followBtn {
+  width: 100%;
+  padding: 7px 0;
+  border-radius: 8px;
+  border: 1px solid var(--border-dark);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 800;
+  font-family: var(--font);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.followBtnActive {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.followSkeleton {
+  flex: 0 0 118px;
+  height: 148px;
+  border-radius: 14px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
 }
 
 /* ── Footer ── */

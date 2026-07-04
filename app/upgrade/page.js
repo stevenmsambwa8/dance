@@ -1,8 +1,11 @@
 'use client'
-import { useState } from 'react'
-import { useAuth } from '../../components/AuthProvider'
+import { useState, useEffect, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuth, isHelpdeskEmail } from '../../components/AuthProvider'
 import { useAuthGate } from '../../components/AuthGateModal'
 import UpgradeModal from '../../components/UpgradeModal'
+import UserBadges from '../../components/UserBadges'
+import { supabase } from '../../lib/supabase'
 import { PLANS, getPlanPrice, getActivePlan, FEATURE_PLAN } from '../../lib/plans'
 import useTranslation from '../../lib/useTranslation'
 import styles from './page.module.css'
@@ -29,6 +32,103 @@ const FAQS = [
   { q: 'faqQ3', a: 'faqA3' },
   { q: 'faqQ4', a: 'faqA4' },
 ]
+
+const FOLLOW_SAMPLE_SIZE = 8
+
+/* ── Suggested follows: pulls everyday users, same data model as /players ── */
+function SuggestedFollows() {
+  const { user } = useAuth()
+  const { openAuthGate } = useAuthGate()
+  const router = useRouter()
+  const { t } = useTranslation()
+  const [people, setPeople] = useState(null) // null = loading
+  const [following, setFollowing] = useState({})
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      // Pull a wider pool of regular profiles, then sample a handful client-side
+      // so the row feels like "everyday users" rather than just the top ranks.
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url, tier, level, plan, plan_expires_at, country_flag, is_season_winner, email')
+        .order('created_at', { ascending: false })
+        .limit(40)
+      if (cancelled) return
+      const pool = (data || []).filter(p => p.id !== user?.id && !isHelpdeskEmail(p.email))
+      const shuffled = [...pool].sort(() => Math.random() - 0.5)
+      setPeople(shuffled.slice(0, FOLLOW_SAMPLE_SIZE))
+    }
+    load()
+    return () => { cancelled = true }
+  }, [user?.id])
+
+  useEffect(() => {
+    if (!user || !people?.length) return
+    supabase.from('follows').select('following_id').eq('follower_id', user.id)
+      .then(({ data }) => {
+        if (!data) return
+        const map = {}
+        data.forEach(f => { map[f.following_id] = true })
+        setFollowing(map)
+      })
+  }, [user, people])
+
+  async function toggleFollow(e, personId) {
+    e.stopPropagation()
+    if (!user) { openAuthGate(); return }
+    const isF = following[personId]
+    setFollowing(f => ({ ...f, [personId]: !isF }))
+    if (isF) {
+      await supabase.from('follows').delete()
+        .eq('follower_id', user.id).eq('following_id', personId)
+    } else {
+      await supabase.from('follows').insert({ follower_id: user.id, following_id: personId })
+    }
+  }
+
+  if (people && people.length === 0) return null
+
+  return (
+    <div className={styles.section}>
+      <p className={styles.sectionTitle}>{t('upgradePage.suggestedFollowsTitle')}</p>
+      <p className={styles.subtitle} style={{ margin: '-6px 0 12px', textAlign: 'left' }}>
+        {t('upgradePage.suggestedFollowsSub')}
+      </p>
+      <div className={styles.followScroll}>
+        {people === null
+          ? [...Array(4)].map((_, i) => <div key={i} className={styles.followSkeleton} />)
+          : people.map(p => {
+              const isF = !!following[p.id]
+              return (
+                <div key={p.id} className={styles.followCard} onClick={() => router.push(`/profile/${p.id}`)}>
+                  <div className={styles.followAvatar}>
+                    {p.avatar_url
+                      ? <img src={p.avatar_url} alt="" />
+                      : <span>{(p.username || '?').slice(0, 2).toUpperCase()}</span>}
+                  </div>
+                  <p className={styles.followName}>
+                    {(p.username || '?').length > 10 ? (p.username || '?').slice(0, 10) + '…' : (p.username || '?')}
+                    <UserBadges
+                      email={p.email} plan={p.plan} planExpiresAt={p.plan_expires_at}
+                      countryFlag={p.country_flag} isSeasonWinner={p.is_season_winner}
+                      size={10} gap={2} />
+                  </p>
+                  <p className={styles.followMeta}>{p.tier || 'Bronze'} · Lv.{p.level ?? 1}</p>
+                  <button
+                    className={[styles.followBtn, isF ? styles.followBtnActive : ''].join(' ')}
+                    onClick={e => toggleFollow(e, p.id)}
+                  >
+                    <i className={isF ? 'ri-check-line' : 'ri-user-add-line'} />
+                    {isF ? t('upgradePage.following') : t('upgradePage.follow')}
+                  </button>
+                </div>
+              )
+            })}
+      </div>
+    </div>
+  )
+}
 
 export default function UpgradePage() {
   const { user, profile } = useAuth()
@@ -90,11 +190,7 @@ export default function UpgradePage() {
               return (
                 <div
                   key={plan.key}
-                  className={[
-                    styles.card,
-                    isActive ? styles.cardActive : '',
-                    isLower ? styles.cardLower : '',
-                  ].join(' ')}
+                  className={[styles.card, isLower ? styles.cardLower : ''].join(' ')}
                   style={cardStyle}
                 >
                   <div className={styles.cardTop}>
@@ -149,6 +245,9 @@ export default function UpgradePage() {
             })}
           </div>
         </div>
+
+        {/* Suggested people to follow */}
+        <SuggestedFollows />
 
         {/* Why upgrade / trust badges */}
         <div className={styles.section}>
