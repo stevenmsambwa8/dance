@@ -491,6 +491,18 @@ export default function TournamentDetail() {
   const [payPhone, setPayPhone]           = useState('')
   const [payLoading, setPayLoading]       = useState(false)
   const [payErr, setPayErr]               = useState('')
+  // SonicPesa USSD push (instant, TZS-only) — falls back to the manual
+  // proof form above for anything the push can't handle.
+  const [payMode, setPayMode]             = useState('push') // 'push' | 'manual'
+  const [pushPhone, setPushPhone]         = useState('')
+  const [pushSubmitting, setPushSubmitting] = useState(false)
+  const [pushStatus, setPushStatus]       = useState('') // '' | 'waiting' | 'timeout' | 'failed'
+  const [pushErr, setPushErr]             = useState('')
+  // What the pay modal was opened to complete, so a successful push can
+  // finish the right action automatically:
+  //   { type: 'register' }                     — hero button (solo, or team claiming a fresh slot)
+  //   { type: 'joinSlot', pi, si, mi }          — clicked an existing squad's open seat in the bracket
+  const [payIntent, setPayIntent]         = useState({ type: 'register' })
   const [paySlugCopied, setPaySlugCopied]   = useState(null)
   const [creatorProfile, setCreatorProfile] = useState(null)
   const [testTimeLeft, setTestTimeLeft]   = useState(null) // ms remaining for test tournament
@@ -1117,6 +1129,110 @@ export default function TournamentDetail() {
   })()
 
   // ── Registration ──────────────────────────────────────────────────────────
+
+  // ── SonicPesa USSD push for entrance fee (instant, TZS-only) ──────────────
+  const PUSH_POLL_INTERVAL_MS = 3000
+  const PUSH_POLL_TIMEOUT_MS  = 90000
+
+  async function submitPushPayment(e) {
+    e.preventDefault()
+    if (!pushPhone.trim()) { setPushErr('Enter your M-Pesa phone number'); return }
+    setPushErr(''); setPushSubmitting(true)
+    const fee = tournament.entrance_fee
+
+    try {
+      const { data: existing } = await supabase
+        .from('tournament_payments').select('id,status')
+        .eq('tournament_id', id).eq('user_id', user.id).maybeSingle()
+      if (existing?.status === 'approved')          { setPushErr('Already approved — refresh.'); setPushSubmitting(false); return }
+      if (existing?.status === 'payment_submitted') { setPushErr('Already submitted — awaiting admin.'); setPushSubmitting(false); return }
+
+      const res = await fetch('/api/sonicpesa/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tournament_id: id,
+          phone: pushPhone.trim(),
+          name:  profile?.username || '',
+          email: profile?.email || user?.email || '',
+        }),
+      })
+      const json = await res.json()
+      if (!json.ok || !json.order_id) throw new Error(json.error || 'Could not start payment')
+
+      const { error: upErr } = await supabase.from('tournament_payments').upsert({
+        tournament_id: id, user_id: user.id,
+        payment_ref: json.order_id, payment_phone: pushPhone.trim(),
+        payment_method: 'sonicpesa', amount: fee, status: 'pending',
+        submitted_at: new Date().toISOString(),
+      }, { onConflict: 'tournament_id,user_id' })
+      if (upErr) throw upErr
+
+      setPushStatus('waiting')
+      pollPushStatus(json.order_id, Date.now())
+    } catch (err) {
+      setPushErr(err.message || 'Could not start payment. Try again.')
+    } finally {
+      setPushSubmitting(false)
+    }
+  }
+
+  async function pollPushStatus(orderId, startedAt) {
+    if (Date.now() - startedAt > PUSH_POLL_TIMEOUT_MS) {
+      setPushStatus('timeout')
+      return
+    }
+    try {
+      const res = await fetch('/api/sonicpesa/order-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: orderId }),
+      })
+      const json = await res.json()
+
+      if (json.ok && json.status === 'success') {
+        await onPushPaymentSuccess(orderId)
+        return
+      }
+      if (json.ok && json.status === 'failed') {
+        setPushStatus('failed')
+        return
+      }
+      setTimeout(() => pollPushStatus(orderId, startedAt), PUSH_POLL_INTERVAL_MS)
+    } catch {
+      setTimeout(() => pollPushStatus(orderId, startedAt), PUSH_POLL_INTERVAL_MS)
+    }
+  }
+
+  async function onPushPaymentSuccess(orderId) {
+    await supabase.from('tournament_payments')
+      .update({ status: 'approved', reviewed_at: new Date().toISOString() })
+      .eq('tournament_id', id).eq('user_id', user.id)
+
+    setPaymentStatus('approved')
+    setShowPayModal(false)
+    setPushStatus('')
+    showToast('Payment confirmed! Registering you now…', 'success')
+
+    // Complete whichever action opened the modal — same two paths the
+    // manual admin-approval flow already supports:
+    //  - joinSlot: filling an open seat on a squad that already claimed
+    //    a bracket slot (attemptJoinViaSlot handles the "join this squad"
+    //    confirm step itself)
+    //  - register: hero-button registration — solo auto-placement, or a
+    //    squad/clan leader claiming a brand-new team slot
+    if (payIntent?.type === 'joinSlot') {
+      attemptJoinViaSlot(payIntent.pi, payIntent.si, payIntent.mi)
+    } else {
+      attemptRegister()
+    }
+    setPayIntent({ type: 'register' })
+  }
+
+  function retryPush() {
+    setPushStatus('')
+    setPushErr('')
+  }
 
   // ── Submit entrance-fee payment proof ────────────────────────────────────
   async function submitPayment() {
@@ -2733,13 +2849,13 @@ export default function TournamentDetail() {
                 }
                 if (paymentStatus === 'rejected') {
                   return (
-                    <button className={styles.heroRegisterBtn} style={{ background: '#ef4444', borderColor: '#ef4444' }} onClick={() => setShowPayModal(true)}>
+                    <button className={styles.heroRegisterBtn} style={{ background: '#ef4444', borderColor: '#ef4444' }} onClick={() => { setPayIntent({ type: 'register' }); setShowPayModal(true) }}>
                       <i className="ri-error-warning-line" /> Resubmit Payment
                     </button>
                   )
                 }
                 return (
-                  <button className={styles.heroRegisterBtn} onClick={() => setShowPayModal(true)}>
+                  <button className={styles.heroRegisterBtn} onClick={() => { setPayIntent({ type: 'register' }); setShowPayModal(true) }}>
                     <i className="ri-money-dollar-circle-line" /> Register · TZS {Number(tournament.entrance_fee).toLocaleString()}
                   </button>
                 )
@@ -2878,7 +2994,7 @@ export default function TournamentDetail() {
                 : t('tournaments.entryFeeViaMpesa').replace('{amount}', Number(tournament.entrance_fee).toLocaleString())}
             </span>
             {(!paymentStatus || paymentStatus === 'rejected') && (
-              <button className={styles.feeBannerBtn} onClick={() => setShowPayModal(true)}>
+              <button className={styles.feeBannerBtn} onClick={() => { setPayIntent({ type: 'register' }); setShowPayModal(true) }}>
                 {paymentStatus === 'rejected' ? t('tournaments.resubmit') : t('tournaments.payNow')}
               </button>
             )}
@@ -2889,6 +3005,58 @@ export default function TournamentDetail() {
       {/* ── Payment Modal ── */}
       {showPayModal && (() => {
         const fmtFeeLocal = n => Number(n).toLocaleString()
+
+        // ── Pushing / waiting for USSD PIN confirmation ──
+        if (pushStatus === 'waiting' || pushStatus === 'timeout' || pushStatus === 'failed') {
+          return (
+            <div className={styles.modalBackdrop} onClick={() => pushStatus === 'waiting' ? null : setShowPayModal(false)}>
+              <div className={styles.modalSheet} onClick={e => e.stopPropagation()}>
+                {pushStatus !== 'waiting' && (
+                  <button className={styles.modalClose} onClick={() => setShowPayModal(false)}><i className="ri-close-line" /></button>
+                )}
+                <div style={{ padding: '28px 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, textAlign: 'center' }}>
+                  {pushStatus === 'waiting' && (
+                    <>
+                      <i className="ri-smartphone-line" style={{ fontSize: 34 }} />
+                      <div>
+                        <p style={{ fontWeight: 900, margin: '0 0 6px' }}>Check your phone</p>
+                        <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0, lineHeight: 1.6 }}>
+                          A USSD prompt was sent to <strong>{pushPhone}</strong>. Enter your PIN to confirm TZS {fmtFeeLocal(tournament.entrance_fee)}.
+                        </p>
+                      </div>
+                    </>
+                  )}
+                  {pushStatus === 'timeout' && (
+                    <>
+                      <i className="ri-time-line" style={{ fontSize: 34, color: '#f59e0b' }} />
+                      <div>
+                        <p style={{ fontWeight: 900, margin: '0 0 6px' }}>Still waiting…</p>
+                        <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0, lineHeight: 1.6 }}>
+                          No confirmation yet. If you already entered your PIN it may just need a bit more time — try again, or pay manually.
+                        </p>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+                        <button className={styles.modalSubmit} style={{ flex: 1 }} onClick={retryPush}>Try Again</button>
+                        <button className={styles.modalSubmit} style={{ flex: 1, background: 'var(--bg-2)', color: 'var(--text)' }} onClick={() => { setPayMode('manual'); retryPush() }}>Pay Manually</button>
+                      </div>
+                    </>
+                  )}
+                  {pushStatus === 'failed' && (
+                    <>
+                      <i className="ri-close-circle-line" style={{ fontSize: 34, color: '#ef4444' }} />
+                      <div>
+                        <p style={{ fontWeight: 900, margin: '0 0 6px' }}>Payment didn't go through</p>
+                        <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0, lineHeight: 1.6 }}>The payment was declined or cancelled.</p>
+                      </div>
+                      <button className={styles.modalSubmit} style={{ width: '100%' }} onClick={retryPush}>Try Again</button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        }
+
         return (
           <div className={styles.modalBackdrop} onClick={() => setShowPayModal(false)}>
             <div className={styles.modalSheet} onClick={e => e.stopPropagation()}>
@@ -2898,81 +3066,118 @@ export default function TournamentDetail() {
                 <i className="ri-secure-payment-line" />
                 <div>
                   <h3 className={styles.payTitle}>{t('tournaments.sendEntryFee')}</h3>
-                  <p className={styles.paySub}>{t('tournaments.chooseAccountSendPrefix')} <strong>TZS {fmtFeeLocal(tournament.entrance_fee)}</strong>{t('tournaments.thenSubmitProof')}</p>
+                  <p className={styles.paySub}>
+                    {payMode === 'push'
+                      ? <>Pay <strong>TZS {fmtFeeLocal(tournament.entrance_fee)}</strong> instantly via mobile money push.</>
+                      : <>{t('tournaments.chooseAccountSendPrefix')} <strong>TZS {fmtFeeLocal(tournament.entrance_fee)}</strong>{t('tournaments.thenSubmitProof')}</>}
+                  </p>
                 </div>
               </div>
 
-              <div className={styles.payAmountPill}>
-                <span>{t('tournaments.amountToSend')}</span>
-                <strong>TZS {fmtFeeLocal(tournament.entrance_fee)}</strong>
+              {/* Mode toggle */}
+              <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
+                <button
+                  onClick={() => setPayMode('push')}
+                  style={{ flex: 1, padding: '8px 10px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)', border: payMode === 'push' ? '1.5px solid var(--text)' : '1px solid var(--border)', background: payMode === 'push' ? 'var(--surface)' : 'var(--bg-2)', color: payMode === 'push' ? 'var(--text)' : 'var(--text-muted)' }}
+                >
+                  <i className="ri-flashlight-line" /> Instant Push
+                </button>
+                <button
+                  onClick={() => setPayMode('manual')}
+                  style={{ flex: 1, padding: '8px 10px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)', border: payMode === 'manual' ? '1.5px solid var(--text)' : '1px solid var(--border)', background: payMode === 'manual' ? 'var(--surface)' : 'var(--bg-2)', color: payMode === 'manual' ? 'var(--text)' : 'var(--text-muted)' }}
+                >
+                  <i className="ri-file-copy-2-line" /> Manual
+                </button>
               </div>
 
-              <p className={styles.payChooseLabel}><span>{t('tournaments.chooseOneAccount')}</span></p>
-
-              <div className={styles.payGrid}>
-                <div className={styles.payCard}>
-                  <div className={styles.payCardHead}>
-                    <i className="ri-sim-card-line" style={{ color: '#e11d48' }} />
-                    <span>Halopesa</span>
+              {payMode === 'push' ? (
+                <form onSubmit={submitPushPayment} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div className={styles.payAmountPill}>
+                    <span>{t('tournaments.amountToSend')}</span>
+                    <strong>TZS {fmtFeeLocal(tournament.entrance_fee)}</strong>
                   </div>
-                  <div className={styles.payCardNum}>
-                    <span>25165945</span>
-                    <button
-                      className={`${styles.copyBtn} ${paySlugCopied === 'halo' ? styles.copyBtnDone : ''}`}
-                      onClick={() => { navigator.clipboard?.writeText('25165945'); setPaySlugCopied('halo'); setTimeout(() => setPaySlugCopied(null), 2000) }}
-                    >
-                      {paySlugCopied === 'halo' ? <><i className="ri-check-line" /> {t('common.copied')}</> : <><i className="ri-file-copy-line" /> {t('common.copy')}</>}
-                    </button>
+                  <div className={styles.modalField}>
+                    <label><i className="ri-phone-line" /> Your M-Pesa Phone Number <span className={styles.req}>*</span></label>
+                    <input type="tel" placeholder="0712 345 678" value={pushPhone} onChange={e => setPushPhone(e.target.value)} />
                   </div>
-                  <div className={styles.payCardMeta}>
-                    <span>{t('tournaments.lipaNumber')}</span>
-                    <span className={styles.payCardAcct}>NABOGAMING</span>
+                  {pushErr && <p className={styles.modalErr}><i className="ri-error-warning-line" /> {pushErr}</p>}
+                  <button type="submit" className={styles.modalSubmit} disabled={pushSubmitting || !pushPhone.trim()}>
+                    {pushSubmitting
+                      ? <><i className="ri-loader-4-line" /> Sending push…</>
+                      : <><i className="ri-send-plane-line" /> Pay TZS {fmtFeeLocal(tournament.entrance_fee)} Now</>}
+                  </button>
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', margin: 0 }}>You'll get a PIN prompt on your phone. You're registered the instant it's confirmed — no admin wait.</p>
+                </form>
+              ) : (
+                <>
+                  <p className={styles.payChooseLabel}><span>{t('tournaments.chooseOneAccount')}</span></p>
+
+                  <div className={styles.payGrid}>
+                    <div className={styles.payCard}>
+                      <div className={styles.payCardHead}>
+                        <i className="ri-sim-card-line" style={{ color: '#e11d48' }} />
+                        <span>Halopesa</span>
+                      </div>
+                      <div className={styles.payCardNum}>
+                        <span>25165945</span>
+                        <button
+                          className={`${styles.copyBtn} ${paySlugCopied === 'halo' ? styles.copyBtnDone : ''}`}
+                          onClick={() => { navigator.clipboard?.writeText('25165945'); setPaySlugCopied('halo'); setTimeout(() => setPaySlugCopied(null), 2000) }}
+                        >
+                          {paySlugCopied === 'halo' ? <><i className="ri-check-line" /> {t('common.copied')}</> : <><i className="ri-file-copy-line" /> {t('common.copy')}</>}
+                        </button>
+                      </div>
+                      <div className={styles.payCardMeta}>
+                        <span>{t('tournaments.lipaNumber')}</span>
+                        <span className={styles.payCardAcct}>NABOGAMING</span>
+                      </div>
+                    </div>
+
+                    <div className={styles.payCard}>
+                      <div className={styles.payCardHead}>
+                        <i className="ri-sim-card-2-line" style={{ color: '#16a34a' }} />
+                        <span>M-Pesa</span>
+                      </div>
+                      <div className={styles.payCardNum}>
+                        <span>36835506</span>
+                        <button
+                          className={`${styles.copyBtn} ${paySlugCopied === 'mpesa' ? styles.copyBtnDone : ''}`}
+                          onClick={() => { navigator.clipboard?.writeText('36835506'); setPaySlugCopied('mpesa'); setTimeout(() => setPaySlugCopied(null), 2000) }}
+                        >
+                          {paySlugCopied === 'mpesa' ? <><i className="ri-check-line" /> {t('common.copied')}</> : <><i className="ri-file-copy-line" /> {t('common.copy')}</>}
+                        </button>
+                      </div>
+                      <div className={styles.payCardMeta}>
+                        <span>{t('tournaments.lipaNumber')}</span>
+                        <span className={styles.payCardAcct}>STEVEN DAVID</span>
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                <div className={styles.payCard}>
-                  <div className={styles.payCardHead}>
-                    <i className="ri-sim-card-2-line" style={{ color: '#16a34a' }} />
-                    <span>M-Pesa</span>
+                  <p className={styles.payProofLabel}>{t('tournaments.pasteProofBelow')}</p>
+
+                  <div className={styles.modalField}>
+                    <label><i className="ri-fingerprint-line" /> {t('tournaments.transactionIdRef')} <span className={styles.req}>*</span></label>
+                    <input type="text" placeholder={t('tournaments.transactionIdPlaceholder')} value={payRef} onChange={e => setPayRef(e.target.value)} />
                   </div>
-                  <div className={styles.payCardNum}>
-                    <span>36835506</span>
-                    <button
-                      className={`${styles.copyBtn} ${paySlugCopied === 'mpesa' ? styles.copyBtnDone : ''}`}
-                      onClick={() => { navigator.clipboard?.writeText('36835506'); setPaySlugCopied('mpesa'); setTimeout(() => setPaySlugCopied(null), 2000) }}
-                    >
-                      {paySlugCopied === 'mpesa' ? <><i className="ri-check-line" /> {t('common.copied')}</> : <><i className="ri-file-copy-line" /> {t('common.copy')}</>}
-                    </button>
+                  <div className={styles.modalField}>
+                    <label><i className="ri-phone-line" /> {t('tournaments.phoneNumberUsed')}</label>
+                    <input type="tel" placeholder={t('tournaments.phoneNumberPlaceholder')} value={payPhone} onChange={e => setPayPhone(e.target.value)} />
                   </div>
-                  <div className={styles.payCardMeta}>
-                    <span>{t('tournaments.lipaNumber')}</span>
-                    <span className={styles.payCardAcct}>STEVEN DAVID</span>
-                  </div>
-                </div>
-              </div>
 
-              <p className={styles.payProofLabel}>{t('tournaments.pasteProofBelow')}</p>
+                  {payErr && <p className={styles.modalErr}><i className="ri-error-warning-line" /> {payErr}</p>}
 
-              <div className={styles.modalField}>
-                <label><i className="ri-fingerprint-line" /> {t('tournaments.transactionIdRef')} <span className={styles.req}>*</span></label>
-                <input type="text" placeholder={t('tournaments.transactionIdPlaceholder')} value={payRef} onChange={e => setPayRef(e.target.value)} />
-              </div>
-              <div className={styles.modalField}>
-                <label><i className="ri-phone-line" /> {t('tournaments.phoneNumberUsed')}</label>
-                <input type="tel" placeholder={t('tournaments.phoneNumberPlaceholder')} value={payPhone} onChange={e => setPayPhone(e.target.value)} />
-              </div>
-
-              {payErr && <p className={styles.modalErr}><i className="ri-error-warning-line" /> {payErr}</p>}
-
-              <button
-                className={styles.modalSubmit}
-                onClick={submitPayment}
-                disabled={payLoading || (!payRef.trim() && !payPhone.trim())}
-              >
-                {payLoading
-                  ? <><i className="ri-loader-4-line" /> {t('tournaments.submittingPayment')}</>
-                  : <><i className="ri-check-double-line" /> {t('tournaments.ivePaidNotifyAdmin')}</>}
-              </button>
+                  <button
+                    className={styles.modalSubmit}
+                    onClick={submitPayment}
+                    disabled={payLoading || (!payRef.trim() && !payPhone.trim())}
+                  >
+                    {payLoading
+                      ? <><i className="ri-loader-4-line" /> {t('tournaments.submittingPayment')}</>
+                      : <><i className="ri-check-double-line" /> {t('tournaments.ivePaidNotifyAdmin')}</>}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )
@@ -3284,10 +3489,11 @@ export default function TournamentDetail() {
                                               const hasFee = (tournament.entrance_fee || 0) > 0
                                               if (!hasFee) return (teamSlotIdx, memberIdx) => attemptJoinViaSlot(pIdx, teamSlotIdx, memberIdx)
                                               if (paymentStatus === 'approved') return (teamSlotIdx, memberIdx) => attemptJoinViaSlot(pIdx, teamSlotIdx, memberIdx)
-                                              return () => {
+                                              return (teamSlotIdx, memberIdx) => {
                                                 if (paymentStatus === 'payment_submitted') {
                                                   showToast('Payment awaiting approval — you cannot join yet.', 'info')
                                                 } else {
+                                                  setPayIntent({ type: 'joinSlot', pi: pIdx, si: teamSlotIdx, mi: memberIdx })
                                                   setShowPayModal(true)
                                                 }
                                               }
@@ -3314,10 +3520,11 @@ export default function TournamentDetail() {
                                             const hasFee = (tournament.entrance_fee || 0) > 0
                                             if (!hasFee) return (sIdx) => attemptJoinViaSlot(pIdx, sIdx)
                                             if (paymentStatus === 'approved') return (sIdx) => attemptJoinViaSlot(pIdx, sIdx)
-                                            return () => {
+                                            return (sIdx) => {
                                               if (paymentStatus === 'payment_submitted') {
                                                 showToast('Payment awaiting approval — you cannot join yet.', 'info')
                                               } else {
+                                                setPayIntent({ type: 'joinSlot', pi: pIdx, si: sIdx })
                                                 setShowPayModal(true)
                                               }
                                             }

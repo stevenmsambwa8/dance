@@ -55,27 +55,54 @@ export async function POST(req) {
     const admin = getSupabaseAdmin()
 
     // Find the pending subscription we stored payment_ref = order_id for
-    const { data: sub, error: findErr } = await admin
+    const { data: sub } = await admin
       .from('subscriptions')
       .select('id, status')
       .eq('payment_ref', orderId)
       .eq('payment_method', 'sonicpesa')
-      .single()
+      .maybeSingle()
 
-    if (findErr || !sub) {
-      return NextResponse.json({ ok: false, error: 'Subscription not found for order' }, { status: 404 })
+    if (sub) {
+      // Already activated (e.g. client-side polling beat the webhook) — no-op
+      if (sub.status === 'active') {
+        return NextResponse.json({ ok: true, already_active: true })
+      }
+      const { error: rpcErr } = await admin.rpc('activate_subscription', {
+        p_subscription_id: sub.id,
+        p_months: 1,
+      })
+      if (rpcErr) throw rpcErr
+      return NextResponse.json({ ok: true })
     }
 
-    // Already activated (e.g. client-side polling beat the webhook) — no-op
-    if (sub.status === 'active') {
-      return NextResponse.json({ ok: true, already_active: true })
+    // Not a subscription — check tournament entry fee payments instead.
+    // NOTE: this only backstops the `tournament_payments` row. Actually
+    // enrolling the player into `tournament_participants` (bracket
+    // placement, group auto-draw, notifications) happens client-side in
+    // register() when the poll in the tournament page sees success. If the
+    // client closes before that poll fires, this marks the payment
+    // approved but the player needs to reopen the tournament page once to
+    // finish registering — same client-side-only limitation as the rest
+    // of the app until scheduled jobs exist.
+    const { data: pmt } = await admin
+      .from('tournament_payments')
+      .select('id, status')
+      .eq('payment_ref', orderId)
+      .eq('payment_method', 'sonicpesa')
+      .maybeSingle()
+
+    if (!pmt) {
+      return NextResponse.json({ ok: false, error: 'No subscription or tournament payment found for order' }, { status: 404 })
+    }
+    if (pmt.status === 'approved') {
+      return NextResponse.json({ ok: true, already_approved: true })
     }
 
-    const { error: rpcErr } = await admin.rpc('activate_subscription', {
-      p_subscription_id: sub.id,
-      p_months: 1,
-    })
-    if (rpcErr) throw rpcErr
+    const { error: updErr } = await admin
+      .from('tournament_payments')
+      .update({ status: 'approved', reviewed_at: new Date().toISOString() })
+      .eq('id', pmt.id)
+    if (updErr) throw updErr
 
     return NextResponse.json({ ok: true })
   } catch (err) {
