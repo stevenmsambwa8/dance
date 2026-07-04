@@ -134,7 +134,8 @@ export default function UpgradePage() {
   const { user, profile } = useAuth()
   const { openAuthGate } = useAuthGate()
   const { t } = useTranslation()
-  const [modal, setModal] = useState(null) // plan key
+  const [modal, setModal] = useState(null) // plan key (upgrade flow)
+  const [switchModal, setSwitchModal] = useState(null) // plan key (switch/downgrade flow)
   const [openFaq, setOpenFaq] = useState(0)
 
   const currentPlan = getActivePlan(profile)
@@ -231,9 +232,15 @@ export default function UpgradePage() {
                         <i className="ri-check-circle-line" /> {t('upgradePage.activePlan')}
                       </div>
                     ) : isLower ? (
-                      <div className={[styles.cta, styles.ctaLower].join(' ')}>
-                        {t('upgradePage.alreadyUnlocked')}
-                      </div>
+                      <>
+                        <button
+                          className={[styles.cta, styles.ctaSwitch].join(' ')}
+                          onClick={() => user ? setSwitchModal(plan.key) : openAuthGate()}
+                        >
+                          <i className="ri-arrow-left-right-line" /> {t('upgradePage.switchTo')} {plan.label}
+                        </button>
+                        <p className={styles.switchNote}>{t('upgradePage.switchDataIntact')}</p>
+                      </>
                     ) : (
                       <button className={styles.cta} onClick={() => user ? setModal(plan.key) : openAuthGate()}>
                         {t('upgradePage.getPlan')} {plan.label} <i className="ri-arrow-right-line" />
@@ -272,12 +279,25 @@ export default function UpgradePage() {
             <div className={styles.payChip}>
               <i className="ri-smartphone-line" />
               <span>M-Pesa</span>
+              <span className={styles.payTag}>{t('upgradePage.pushUssd')}</span>
+            </div>
+            <div className={styles.payChip}>
+              <i className="ri-smartphone-line" />
+              <span>Mixx by Yas</span>
+              <span className={styles.payTag}>{t('upgradePage.pushUssd')}</span>
             </div>
             <div className={styles.payChip}>
               <i className="ri-smartphone-line" />
               <span>Halopesa</span>
+              <span className={styles.payTag}>{t('upgradePage.pushUssd')}</span>
+            </div>
+            <div className={styles.payChip}>
+              <i className="ri-smartphone-line" />
+              <span>Airtel Money</span>
+              <span className={styles.payTag}>{t('upgradePage.pushUssd')}</span>
             </div>
           </div>
+          <p className={styles.payNote}>{t('upgradePage.paymentMethodsNote')}</p>
         </div>
 
         {/* FAQ */}
@@ -311,6 +331,16 @@ export default function UpgradePage() {
           feature={Object.keys(FEATURE_PLAN).find(f => FEATURE_PLAN[f] === modal) || 'create_tournament'}
           profile={profile}
           onClose={() => setModal(null)}
+        />
+      )}
+
+      {switchModal && (
+        <UpgradeModal
+          feature={Object.keys(FEATURE_PLAN).find(f => FEATURE_PLAN[f] === switchModal) || 'create_tournament'}
+          profile={profile}
+          allowAllPlans
+          initialPlan={switchModal}
+          onClose={() => setSwitchModal(null)}
         />
       )}
     </div>

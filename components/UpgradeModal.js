@@ -19,7 +19,7 @@ const ORDER = ['free', 'pro', 'elite', 'team']
 const POLL_INTERVAL_MS = 3000
 const POLL_TIMEOUT_MS  = 90000
 
-export default function UpgradeModal({ feature, profile, onClose }) {
+export default function UpgradeModal({ feature, profile, onClose, allowAllPlans = false, initialPlan = null }) {
   const { user } = useAuth()
   const countryFlag = profile?.country_flag || 'tanzania'
   const currentPlan = getActivePlan(profile)
@@ -28,7 +28,7 @@ export default function UpgradeModal({ feature, profile, onClose }) {
   // SonicPesa USSD push currently only supports TZS — other currencies fall back to manual proof
   const ussdAvailable = countryFlag === 'tanzania'
 
-  const requiredKey = FEATURE_PLAN[feature] || 'pro'
+  const requiredKey = initialPlan || FEATURE_PLAN[feature] || 'pro'
   const [selected,     setSelected]     = useState(requiredKey)
   const [step,         setStep]         = useState('plans') // plans | payment | pushing | done | manual
   const [method,       setMethod]       = useState('mpesa')
@@ -55,7 +55,7 @@ export default function UpgradeModal({ feature, profile, onClose }) {
   async function handlePushPay(e) {
     e.preventDefault()
     if (!user) return
-    if (!phone.trim()) { setError('Enter your M-Pesa phone number'); return }
+    if (!phone.trim()) { setError('Enter your mobile money phone number'); return }
     setError(''); setSubmitting(true)
 
     try {
@@ -169,7 +169,11 @@ export default function UpgradeModal({ feature, profile, onClose }) {
   const selectedPlan = PLANS[selected]
   const price        = getPlanPrice(selected, countryFlag)
   const payment      = PAYMENT_DETAILS[method]
-  const upgradeablePlans = Object.values(PLANS).filter(p => p.key !== 'free' && ORDER.indexOf(p.key) > currentIdx)
+  const upgradeablePlans = Object.values(PLANS).filter(p => {
+    if (p.key === 'free' || p.key === currentPlan) return false
+    return allowAllPlans ? true : ORDER.indexOf(p.key) > currentIdx
+  })
+  const isDowngrade = ORDER.indexOf(selected) < currentIdx
 
   return (
     <div onClick={(e) => { if (e.target === e.currentTarget) onClose() }} style={{ position: 'fixed', inset: 0, zIndex: 9997, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, animation: 'umFadeIn 0.18s ease' }}>
@@ -194,9 +198,22 @@ export default function UpgradeModal({ feature, profile, onClose }) {
         {step === 'plans' && (
           <div style={{ overflowY: 'auto', padding: '20px 18px', display: 'flex', flexDirection: 'column', gap: 14, scrollbarWidth: 'none' }}>
             <div style={{ textAlign: 'center', paddingRight: 30 }}>
-              <p style={{ fontSize: 18, fontWeight: 900, color: 'var(--text)', margin: '0 0 4px' }}>Upgrade Your Plan</p>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>Unlock more power on Nabogaming</p>
+              <p style={{ fontSize: 18, fontWeight: 900, color: 'var(--text)', margin: '0 0 4px' }}>
+                {allowAllPlans ? 'Switch Your Plan' : 'Upgrade Your Plan'}
+              </p>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
+                {allowAllPlans ? 'Move to any plan — your account stays exactly as it is' : 'Unlock more power on Nabogaming'}
+              </p>
             </div>
+
+            {allowAllPlans && (
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px' }}>
+                <i className="ri-shield-check-line" style={{ fontSize: 15, color: '#22c55e', flexShrink: 0, marginTop: 1 }} />
+                <p style={{ fontSize: 11.5, color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
+                  Your tournaments, match history, followers, and settings all stay intact when you switch plans — nothing is deleted, either way.
+                </p>
+              </div>
+            )}
 
             {upgradeablePlans.map(plan => {
               const isSelected = selected === plan.key
@@ -229,7 +246,7 @@ export default function UpgradeModal({ feature, profile, onClose }) {
             })}
 
             <button onClick={() => setStep(ussdAvailable ? 'payment' : 'manual')} style={{ padding: 13, background: selectedPlan.color, color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'var(--font)' }}>
-              Continue with {selectedPlan.label} <i className="ri-arrow-right-line" />
+              {isDowngrade ? `Switch to ${selectedPlan.label}` : `Continue with ${selectedPlan.label}`} <i className="ri-arrow-right-line" />
             </button>
           </div>
         )}
@@ -250,12 +267,12 @@ export default function UpgradeModal({ feature, profile, onClose }) {
             <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px', display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center', textAlign: 'center' }}>
               <i className="ri-smartphone-line" style={{ fontSize: 26, color: selectedPlan.color }} />
               <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', margin: 0 }}>You'll get a USSD payment prompt</p>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>Enter your M-Pesa PIN on your phone to confirm {price}.</p>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>Enter your PIN on your phone to confirm {price}. Works automatically with M-Pesa, Mixx by Yas, Halopesa, or Airtel Money.</p>
             </div>
 
             <form onSubmit={handlePushPay} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div>
-                <Label>Your M-Pesa Phone Number *</Label>
+                <Label>Your Mobile Money Phone Number *</Label>
                 <input className="um-input" placeholder="0712 345 678" value={phone} onChange={e => setPhone(e.target.value)} />
               </div>
               {error && <p style={{ fontSize: 12, color: '#ef4444', margin: 0 }}>{error}</p>}
@@ -346,6 +363,11 @@ export default function UpgradeModal({ feature, profile, onClose }) {
                   </button>
                 ))}
               </div>
+              {ussdAvailable && (
+                <p style={{ fontSize: 10.5, color: 'var(--text-muted)', margin: '6px 0 0', lineHeight: 1.5 }}>
+                  Using Mixx by Yas or Airtel Money? <button type="button" onClick={() => setStep('payment')} style={{ background: 'none', border: 'none', padding: 0, color: selectedPlan.color, fontSize: 10.5, fontWeight: 700, textDecoration: 'underline', cursor: 'pointer', fontFamily: 'var(--font)' }}>Use the automatic USSD push</button> instead — no manual transfer needed.
+                </p>
+              )}
             </div>
 
             <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
