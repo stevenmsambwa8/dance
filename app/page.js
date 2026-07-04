@@ -11,6 +11,7 @@ import UserBadges from '../components/UserBadges'
 import { useCurrency } from '../lib/useCurrency'
 import useTranslation from '../lib/useTranslation'
 import { identityColor } from '../lib/clanColors'
+import { getRecentStories } from '../lib/news'
 
 const CLAN_CAP = 125
 
@@ -218,6 +219,97 @@ function Section({ icon, title, href, linkLabel, children, className }) {
   )
 }
 
+/**
+ * NewsStrip — auto-scrolling, infinite-loop horizontal strip of real
+ * platform activity ("Headlines"), same component/behavior as the one
+ * in the search sidebar: game covers, match duo-avatars, or post avatars
+ * behind a dark fade, nudged forward continuously via requestAnimationFrame
+ * and snapped back seamlessly once a full duplicated set has scrolled by.
+ */
+function NewsStrip({ stories, loading }) {
+  const trackRef   = useRef(null)
+  const rafRef      = useRef(null)
+  const pausedRef   = useRef(false)
+  const resumeTimer = useRef(null)
+
+  useEffect(() => {
+    const track = trackRef.current
+    if (!track || stories.length === 0) return
+    const speed = 0.4
+    function step() {
+      if (!pausedRef.current && track) {
+        const halfWidth = track.scrollWidth / 2
+        track.scrollLeft += speed
+        if (track.scrollLeft >= halfWidth) track.scrollLeft -= halfWidth
+      }
+      rafRef.current = requestAnimationFrame(step)
+    }
+    rafRef.current = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(rafRef.current)
+  }, [stories])
+
+  function pause() {
+    pausedRef.current = true
+    clearTimeout(resumeTimer.current)
+  }
+  function resumeSoon() {
+    clearTimeout(resumeTimer.current)
+    resumeTimer.current = setTimeout(() => { pausedRef.current = false }, 1200)
+  }
+
+  if (!loading && stories.length === 0) return null
+  const looped = stories.length > 0 ? [...stories, ...stories] : []
+
+  return (
+    <div
+      ref={trackRef}
+      className={styles.newsTrack}
+      onPointerDown={pause}
+      onPointerUp={resumeSoon}
+      onPointerLeave={resumeSoon}
+    >
+      {loading && stories.length === 0 && <div className={styles.newsCardSkeleton} />}
+      {looped.map((s, i) => (
+        <Link key={`${s.id}-${i}`} href={s.href} className={styles.newsCard}>
+          <NewsCardMedia media={s.media} icon={s.icon} />
+          <div className={styles.newsCardFade} />
+          <div className={styles.newsCardText}>
+            <span className={styles.newsCardHeadline}>{s.headline}</span>
+            <span className={styles.newsCardSub}>{s.sub}</span>
+            <span className={styles.newsCardTime}>{s.timeLabel}</span>
+          </div>
+        </Link>
+      ))}
+    </div>
+  )
+}
+
+function NewsCardMedia({ media, icon }) {
+  if (media?.kind === 'game' && media.src) {
+    return <img src={media.src} alt="" className={styles.newsCardBg} />
+  }
+  if (media?.kind === 'duo' && (media.a || media.b)) {
+    return (
+      <div className={styles.newsCardDuo}>
+        <div className={styles.newsCardDuoHalf}>
+          {media.a ? <img src={media.a} alt="" /> : <div className={styles.newsCardAvatarFallback}><i className="ri-user-3-line" /></div>}
+        </div>
+        <div className={styles.newsCardDuoHalf}>
+          {media.b ? <img src={media.b} alt="" /> : <div className={styles.newsCardAvatarFallback}><i className="ri-user-3-line" /></div>}
+        </div>
+      </div>
+    )
+  }
+  if (media?.kind === 'avatar' && media.src) {
+    return <img src={media.src} alt="" className={styles.newsCardBg} />
+  }
+  return (
+    <div className={`${styles.newsCardBg} ${styles.newsCardIconFallback}`}>
+      <i className={icon} />
+    </div>
+  )
+}
+
 export default function Home() {
   const { user, profile, isAdmin } = useAuth()
   const { openAuthGate } = useAuthGate()
@@ -230,6 +322,8 @@ export default function Home() {
   const [shopItems,    setShopItems]    = useState([])
   const [shopImages,   setShopImages]   = useState({})
   const [recentPosts,  setRecentPosts]  = useState([])
+  const [stories,      setStories]      = useState([])
+  const [storiesLoading, setStoriesLoading] = useState(true)
 
   const [loadingTourns,  setLoadingTourns]  = useState(true)
   const [loadingPlayers, setLoadingPlayers] = useState(true)
@@ -302,6 +396,13 @@ export default function Home() {
       }
     }
     loadGameMasters()
+  }, [])
+
+  useEffect(() => {
+    getRecentStories(4).then(data => {
+      setStories(data)
+      setStoriesLoading(false)
+    })
   }, [])
 
   useEffect(() => {
@@ -619,6 +720,13 @@ export default function Home() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ══════════ HEADLINES ══════════ */}
+      {(storiesLoading || stories.length > 0) && (
+        <Section icon="ri-fire-line" title={t('home.headlines') || 'Headlines'}>
+          <NewsStrip stories={stories} loading={storiesLoading} />
+        </Section>
       )}
 
       {/* ══════════ TOURNAMENTS ══════════ */}

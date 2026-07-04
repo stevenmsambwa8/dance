@@ -269,7 +269,7 @@
 }
 
 .progressTrack {
-  height: 5px;
+  height: 9px;
   background: var(--border);
   border-radius: 99px;
   overflow: hidden;
@@ -345,7 +345,7 @@
   flex: 1;
 }
 
-.tGrid .skelCard { flex: 0 0 232px; height: 210px; }
+.tGrid .skelCard { flex: 0 0 264px; height: 210px; }
 
 .skelRow {
   display: flex;
@@ -462,7 +462,7 @@
 
 .tCard {
   flex: 0 0 auto;
-  width: 232px;
+  width: 264px;
   border: 1px solid var(--border);
   border-radius: 16px;
   overflow: hidden;
@@ -1468,3 +1468,144 @@
   transition: opacity 0.12s;
 }
 .mmDontShow:hover { opacity: 1; }
+
+/* ══════════ HEADLINES (news strip, same behavior as search sidebar) ══════════ */
+.newsTrack {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+  cursor: grab;
+  scrollbar-width: none;
+}
+.newsTrack::-webkit-scrollbar { display: none; }
+
+.newsCard {
+  position: relative;
+  flex: 0 0 auto;
+  width: 230px;
+  height: 130px;
+  border-radius: 16px;
+  overflow: hidden;
+  text-decoration: none;
+  color: #fff;
+  background: var(--surface, var(--bg-2));
+  border: 1px solid var(--border);
+}
+
+.newsCardBg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.newsCardIconFallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  color: var(--text-muted);
+  background: var(--surface, var(--bg-2));
+}
+
+.newsCardFade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.35) 45%, rgba(0,0,0,0.05) 75%);
+}
+
+.newsCardText {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px;
+}
+
+.newsCardHeadline {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  line-height: 1.25;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.newsCardSub {
+  font-size: 10.5px;
+  color: rgba(255,255,255,0.75);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.newsCardTime {
+  font-size: 9.5px;
+  color: rgba(255,255,255,0.55);
+}
+
+.newsCardDuo {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  background: var(--surface, var(--bg-2));
+}
+
+.newsCardDuoHalf {
+  position: relative;
+  flex: 1 1 50%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.newsCardDuoHalf img,
+.newsCardDuoHalf .newsCardAvatarFallback {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.newsCardDuoHalf:first-child {
+  clip-path: polygon(0 0, 100% 0, 88% 100%, 0 100%);
+}
+.newsCardDuoHalf:last-child {
+  clip-path: polygon(12% 0, 100% 0, 100% 100%, 0 100%);
+  margin-left: -8%;
+}
+
+.newsCardDuoHalf:first-child::after {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  right: -1px;
+  width: 2px;
+  background: var(--bg);
+  transform: skewX(-12deg);
+}
+
+.newsCardAvatarFallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface, var(--bg-2));
+  color: var(--text-muted);
+  font-size: 22px;
+}
+
+.newsCardSkeleton {
+  flex: 0 0 auto;
+  width: 230px;
+  height: 130px;
+  border-radius: 16px;
+  background: var(--surface, var(--bg-2));
+  border: 1px solid var(--border);
+  opacity: 0.5;
+}
