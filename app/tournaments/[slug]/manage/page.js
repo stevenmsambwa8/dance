@@ -6,6 +6,8 @@ import { supabase } from '../../../../lib/supabase'
 import styles from './page.module.css'
 import BracketBuilder from '../../../../components/BracketBuilder'
 import { buildGroups, computeStandings, isGroupStageComplete, getQualifiers } from '../../../../lib/groupStage'
+import usePageLoading from '../../../../components/usePageLoading'
+import useTranslation from '../../../../lib/useTranslation'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function getPlayerBracketStatus(userId, bracketData) {
@@ -641,13 +643,14 @@ function TutorialOverlay({ onClose }) {
 
 // ── Confirm modal ─────────────────────────────────────────────────────────────
 function ConfirmModal({ message, onConfirm, onCancel }) {
+  const { t } = useTranslation()
   return (
     <div className={styles.overlay}>
       <div className={styles.modal}>
         <p className={styles.modalMsg}>{message}</p>
         <div className={styles.modalBtns}>
-          <button className={styles.modalCancel} onClick={onCancel}>Cancel</button>
-          <button className={styles.modalConfirm} onClick={onConfirm}>Confirm</button>
+          <button className={styles.modalCancel} onClick={onCancel}>{t('common.cancel')}</button>
+          <button className={styles.modalConfirm} onClick={onConfirm}>{t('common.confirm')}</button>
         </div>
       </div>
     </div>
@@ -668,12 +671,14 @@ export default function TournamentManage() {
   const { slug }  = useParams()
   const router    = useRouter()
   const { user, isAdmin } = useAuth()
+  const { t } = useTranslation()
 
   const [tournament,   setTournament]   = useState(null)
   const [participants, setParticipants] = useState([])
   const [leaderboard,  setLeaderboard]  = useState([])
   const [bracketData,  setBracketData]  = useState(null)
   const [loading,      setLoading]      = useState(true)
+  usePageLoading(loading)
   const [saving,       setSaving]       = useState(false)
   const [activeTab,    setActiveTab]    = useState('overview')
   const [confirm,      setConfirm]      = useState(null)
@@ -792,12 +797,12 @@ export default function TournamentManage() {
         ...(bd?.slot_count > 0 ? { slots: bd.slot_count } : {}),
       }
       const { error } = await supabase.from('tournaments').update(updatePayload).eq('id', id.current)
-      if (error) showToast('Failed to save bracket.', 'error')
+      if (error) showToast(t('tournaments.failedSaveBracket'), 'error')
       else {
-        showToast('Bracket saved!')
-        setTournament(t => ({ ...t, round_names: bd?.round_names ?? t?.round_names, ...(bd?.slot_count > 0 ? { slots: bd.slot_count } : {}) }))
+        showToast(t('tournaments.bracketSavedToast'))
+        setTournament(tt => ({ ...tt, round_names: bd?.round_names ?? tt?.round_names, ...(bd?.slot_count > 0 ? { slots: bd.slot_count } : {}) }))
       }
-    } catch { showToast('Network error.', 'error') }
+    } catch { showToast(t('tournaments.networkErrorShort'), 'error') }
     finally { setSaving(false) }
   }
 
@@ -806,11 +811,11 @@ export default function TournamentManage() {
     if (!await verifyCanManage()) return
     const teamSize = tournament?.team_size || 1
     const bd = buildBracket(participants, teamSize)
-    if (!bd) { showToast('Need at least 2 players.', 'error'); return }
+    if (!bd) { showToast(t('tournaments.needAtLeast2Players'), 'error'); return }
     const { error } = await supabase.from('tournaments').update({ bracket_data: bd }).eq('id', id.current)
-    if (error) { showToast('Failed to generate bracket.', 'error'); return }
+    if (error) { showToast(t('tournaments.failedGenerateBracket'), 'error'); return }
     setBracketData(bd)
-    showToast('Bracket generated!', 'success')
+    showToast(t('tournaments.bracketGenerated'), 'success')
     const notifs = participants.filter(p => p.user_id).map(p => ({
       user_id: p.user_id, title: `Bracket generated — ${tournament.name}`,
       body: 'The bracket is live. Check your slot!',
@@ -825,14 +830,14 @@ export default function TournamentManage() {
     const teamSize = tournament?.team_size || 1
     const slots    = tournament?.slots    || 32
     setConfirm({
-      message: `Reset to a fresh ${teamSize > 1 ? teamSize + 'v' + teamSize + ' team' : '1v1'} lobby? All placements and points will be cleared.`,
+      message: `${t('tournaments.resetToFreshLobbyPrefix')} ${teamSize > 1 ? teamSize + 'v' + teamSize + ' ' + t('tournaments.teamLower') : '1v1'} ${t('tournaments.lobbyPlacementsCleared')}`,
       onConfirm: async () => {
         setConfirm(null)
         await supabase.from('tournament_leaderboard').delete().eq('tournament_id', id.current)
         const fresh = buildLobbyBracket(slots, teamSize)
         await supabase.from('tournaments').update({ bracket_data: fresh }).eq('id', id.current)
         setBracketData(fresh)
-        showToast('Bracket reset.', 'success')
+        showToast(t('tournaments.bracketResetDone'), 'success')
         load()
       },
     })
@@ -841,15 +846,15 @@ export default function TournamentManage() {
   // ── Group stage actions ─────────────────────────────────────────────────────
   async function initGroups() {
     if (!await verifyCanManage()) return
-    if (realCount < 2) { showToast('Need at least 2 players.', 'error'); return }
+    if (realCount < 2) { showToast(t('tournaments.needAtLeast2Players'), 'error'); return }
     const teamSize = tournament?.team_size || 1
     const groupCount = tournament?.group_count || 4
     const groups = buildGroups(participants, groupCount, teamSize)
     const bd = { stage: 'groups', groups, advancePerGroup: tournament?.advance_per_group || 2 }
     const { error } = await supabase.from('tournaments').update({ bracket_data: bd }).eq('id', id.current)
-    if (error) { showToast('Failed to generate groups.', 'error'); return }
+    if (error) { showToast(t('tournaments.failedGenerateGroups'), 'error'); return }
     setBracketData(bd)
-    showToast('Groups generated!', 'success')
+    showToast(t('tournaments.groupsGenerated'), 'success')
     const notifs = participants.filter(p => p.user_id).map(p => ({
       user_id: p.user_id, title: `Groups drawn — ${tournament.name}`,
       body: 'The group stage is set. Check your group and fixtures!',
@@ -862,7 +867,7 @@ export default function TournamentManage() {
   async function resetGroups() {
     if (!await verifyCanManage()) return
     setConfirm({
-      message: 'Reset the group draw? All group fixtures and scores will be cleared.',
+      message: t('tournaments.resetGroupDrawConfirm'),
       onConfirm: async () => {
         setConfirm(null)
         await supabase.from('tournament_leaderboard').delete().eq('tournament_id', id.current)
@@ -892,7 +897,7 @@ export default function TournamentManage() {
     const { error } = await supabase.from('tournaments').update({ bracket_data: merged }).eq('id', id.current)
     if (error) return null
     setBracketData(merged)
-    showToast('Group stage complete — knockout bracket generated automatically!', 'success')
+    showToast(t('tournaments.groupStageCompleteAutoKnockout'), 'success')
     const notifs = participants.filter(p => p.user_id).map(p => ({
       user_id: p.user_id, title: `Knockout stage begins — ${tournament.name}`,
       body: 'Groups are done — check the bracket to see if you advanced!',
@@ -983,7 +988,7 @@ export default function TournamentManage() {
   async function removeParticipant(userId, username) {
     if (!await verifyCanManage()) return
     setConfirm({
-      message: `Remove ${username || 'this player'} from the tournament? Their bracket slot will be cleared.`,
+      message: `${t('tournaments.removePrefix')} ${username || t('tournaments.thisPlayer')} ${t('tournaments.removeSuffix')}`,
       onConfirm: async () => {
         setConfirm(null)
         await Promise.all([
@@ -992,8 +997,8 @@ export default function TournamentManage() {
           supabase.from('tournament_payments').delete().eq('tournament_id', id.current).eq('user_id', userId),
         ])
         if (bracketData?.rounds) {
-          const openSlot   = { userId: null, name: 'Open', avatar: null, status: 'open' }
-          const openMember = { userId: null, name: 'Open', avatar: null, status: 'open' }
+          const openSlot   = { userId: null, name: t('tournaments.openStatus'), avatar: null, status: 'open' }
+          const openMember = { userId: null, name: t('tournaments.openStatus'), avatar: null, status: 'open' }
           const newRounds = bracketData.rounds.map(r => r.map(pair =>
             bracketData.isTeamBattle
               ? pair.map(team => !team?.members ? team : { ...team, members: team.members.map(m => m?.userId === userId ? openMember : m), status: team.members.every(m => !m?.userId || m.userId === userId) ? 'open' : team.status })
@@ -1002,7 +1007,7 @@ export default function TournamentManage() {
           const nb = { ...bracketData, rounds: newRounds }
           await saveBracket(nb); setBracketData(nb)
         }
-        showToast(`${username || 'Player'} removed.`, 'success')
+        showToast(`${username || t('tournaments.playerLabel')} ${t('tournaments.removedSuffix')}`, 'success')
         load()
       },
     })
@@ -1011,7 +1016,7 @@ export default function TournamentManage() {
   async function approvePayment(userId) {
     if (!await verifyCanManage()) return
     await supabase.from('tournament_payments').update({ status: 'approved' }).eq('tournament_id', id.current).eq('user_id', userId)
-    showToast('Payment approved.', 'success')
+    showToast(t('tournaments.paymentApproved'), 'success')
     load()
   }
 
@@ -1038,33 +1043,33 @@ export default function TournamentManage() {
     } else {
       let pick = null
       freshBd.rounds[0]?.forEach((pair, pi) => pair.forEach((s, si) => { if (!pick && !s?.userId && (s?.status === 'open' || s?.status === 'bye')) pick = { pi, si } }))
-      if (!pick) { showToast('No open slots.', 'error'); return }
+      if (!pick) { showToast(t('tournaments.noOpenSlots'), 'error'); return }
       newRounds = freshBd.rounds.map((r, ri) => ri !== 0 ? r : r.map((pair, pi) => pi !== pick.pi ? pair : pair.map((s, si) => si === pick.si ? mSlot : s)))
       placed = true
     }
-    if (!placed) { showToast('No open slots.', 'error'); return }
+    if (!placed) { showToast(t('tournaments.noOpenSlots'), 'error'); return }
     const nb = { ...freshBd, rounds: newRounds, isEmpty: false }
     await saveBracket(nb); setBracketData(nb)
-    showToast(`${prof?.username || 'Player'} added to bracket.`, 'success')
+    showToast(`${prof?.username || t('tournaments.playerLabel')} ${t('tournaments.addedToBracketSuffix')}`, 'success')
   }
 
   async function syncCount() {
     if (!await verifyCanManage()) return
     const { count } = await supabase.from('tournament_participants').select('*', { count: 'exact', head: true }).eq('tournament_id', id.current)
     await supabase.from('tournaments').update({ registered_count: count || 0 }).eq('id', id.current)
-    showToast(`Count synced: ${count}`, 'success')
+    showToast(`${t('tournaments.countSyncedPrefix')} ${count}`, 'success')
     load()
   }
 
   async function updateStatus(newStatus) {
     if (!await verifyCanManage()) return
     await supabase.from('tournaments').update({ status: newStatus }).eq('id', id.current)
-    setTournament(t => ({ ...t, status: newStatus }))
-    showToast(`Status → ${newStatus}`, 'success')
+    setTournament(tt => ({ ...tt, status: newStatus }))
+    showToast(`${t('tournaments.statusArrow')} ${newStatus}`, 'success')
   }
 
   async function saveEdit() {
-    if (!editForm?.name?.trim()) { setEditError('Name is required'); return }
+    if (!editForm?.name?.trim()) { setEditError(t('tournaments.nameIsRequired')); return }
     setEditSaving(true); setEditError(''); setEditSaved(false)
     const { error: err } = await supabase.from('tournaments').update({
       name:         editForm.name.trim(),
@@ -1082,8 +1087,8 @@ export default function TournamentManage() {
     setEditSaving(false)
     if (err) { setEditError(err.message); return }
     setEditSaved(true)
-    setTournament(t => ({ ...t, ...editForm }))
-    showToast('Tournament updated!')
+    setTournament(tt => ({ ...tt, ...editForm }))
+    showToast(t('tournaments.tournamentUpdated'))
     setTimeout(() => setEditSaved(false), 2500)
   }
 
@@ -1126,15 +1131,15 @@ export default function TournamentManage() {
       }))
       for (let i = 0; i < notifs.length; i += 100) await supabase.from('notifications').insert(notifs.slice(i, i + 100))
       setTransferDone(true)
-      showToast(`${toInsert.length} player${toInsert.length !== 1 ? 's' : ''} transferred successfully!`)
-    } catch (err) { showToast('Transfer failed: ' + err.message, 'error') }
+      showToast(`${toInsert.length} ${toInsert.length !== 1 ? t('tournaments.playersTransferredSuccess') : t('tournaments.playerTransferredSuccess')}`)
+    } catch (err) { showToast(t('tournaments.transferFailedPrefix') + err.message, 'error') }
     setTransferLoading(false)
   }
 
   async function deleteTournament() {
     if (!await verifyCanManage()) return
     setConfirm({
-      message: 'Permanently delete this tournament? All data — participants, bracket, payments, scores — will be lost. Cannot be undone.',
+      message: t('tournaments.deleteTournamentConfirm'),
       onConfirm: async () => {
         setConfirm(null)
         await Promise.all([
@@ -1149,8 +1154,8 @@ export default function TournamentManage() {
   }
 
   // ── Guards ────────────────────────────────────────────────────────────────
-  if (loading) return <div className={styles.loadWrap}><div className="loader" /></div>
-  if (!tournament) return <div className={styles.loadWrap}><p style={{ color: 'var(--text-muted)' }}>Tournament not found.</p></div>
+  if (loading) return null
+  if (!tournament) return <div className={styles.loadWrap}><p style={{ color: 'var(--text-muted)' }}>{t('tournaments.notFound')}</p></div>
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const realCount       = participants.length
@@ -1190,12 +1195,12 @@ export default function TournamentManage() {
         </button>
         <div className={styles.headerInfo}>
           <div className={styles.headerRole}>
-            {isAdmin ? '⬡ Admin · Command Centre' : '◈ Creator · Command Centre'}
+            {isAdmin ? <>⬡ {t('tournaments.adminCommandCentre')}</> : <>◈ {t('tournaments.creatorCommandCentre')}</>}
           </div>
           <div className={styles.headerTitle}>{tournament.name}</div>
         </div>
         {/* Tutorial help button */}
-        <button className={styles.headerIconBtn} onClick={() => setShowTutorial(true)} title="How this works">
+        <button className={styles.headerIconBtn} onClick={() => setShowTutorial(true)} title={t('tournaments.howThisWorks')}>
           <i className="ri-question-line" />
         </button>
         <button className={styles.headerIconBtn}
@@ -1216,16 +1221,16 @@ export default function TournamentManage() {
               <i className={STATUS_ICONS[tournament.status]} />
             </div>
             <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Current Status</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{t('tournaments.currentStatus')}</div>
               <div style={{ fontSize: 16, fontWeight: 900, color: STATUS_COLORS[tournament.status], textTransform: 'capitalize' }}>{tournament.status}</div>
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7 }}>
             {[
-              { s: 'active',    icon: 'ri-checkbox-circle-fill', label: 'Active',    sub: 'Open for registration' },
-              { s: 'ongoing',   icon: 'ri-live-fill',            label: 'Ongoing',   sub: 'Tournament in progress' },
-              { s: 'upcoming',  icon: 'ri-time-fill',            label: 'Upcoming',  sub: 'Not started yet' },
-              { s: 'completed', icon: 'ri-trophy-fill',          label: 'Completed', sub: 'Tournament ended' },
+              { s: 'active',    icon: 'ri-checkbox-circle-fill', label: t('common.active'),    sub: t('tournaments.openForRegistration') },
+              { s: 'ongoing',   icon: 'ri-live-fill',            label: t('tournaments.ongoingStatus'),   sub: t('tournaments.tournamentInProgressShort') },
+              { s: 'upcoming',  icon: 'ri-time-fill',            label: t('tournaments.upcomingStatus'),  sub: t('tournaments.notStartedYet') },
+              { s: 'completed', icon: 'ri-trophy-fill',          label: t('tournaments.completedStatus'), sub: t('tournaments.tournamentEnded') },
             ].map(({ s, icon, label, sub }) => {
               const isActive = tournament.status === s
               const col = STATUS_COLORS[s]
@@ -1252,10 +1257,10 @@ export default function TournamentManage() {
       {/* ── KPI strip ── */}
       <div className={styles.kpis}>
         {[
-          { val: realCount, sub: `/ ${tournament.slots}`, label: 'Players', color: '#22c55e', icon: 'ri-group-fill' },
-          { val: openSlots, sub: 'open slots', label: 'Available', color: openSlots > 0 ? '#f59e0b' : 'var(--text-muted)', icon: 'ri-door-open-line' },
-          { val: bracketRounds, sub: hasBracket ? 'bracket live' : 'no bracket', label: 'Rounds', color: '#6366f1', icon: 'ri-node-tree' },
-          { val: leaderboard.length, sub: 'ranked', label: 'Scored', color: '#f59e0b', icon: 'ri-bar-chart-fill' },
+          { val: realCount, sub: `/ ${tournament.slots}`, label: t('players.players'), color: '#22c55e', icon: 'ri-group-fill' },
+          { val: openSlots, sub: t('tournaments.openSlotsLower'), label: t('tournaments.availableLabel'), color: openSlots > 0 ? '#f59e0b' : 'var(--text-muted)', icon: 'ri-door-open-line' },
+          { val: bracketRounds, sub: hasBracket ? t('tournaments.bracketLiveLower') : t('tournaments.noBracketLower'), label: t('tournaments.roundsLabel'), color: '#6366f1', icon: 'ri-node-tree' },
+          { val: leaderboard.length, sub: t('tournaments.rankedLower'), label: t('tournaments.scoredLabel'), color: '#f59e0b', icon: 'ri-bar-chart-fill' },
         ].map(k => (
           <div key={k.label} className={styles.kpi}>
             <i className={`${k.icon} ${styles.kpiIcon}`} style={{ color: k.color }} />
@@ -1281,7 +1286,7 @@ export default function TournamentManage() {
           )}
           {pendingPayments.length > 0 && (
             <div className={`${styles.chip} ${styles.chipDanger}`} onClick={() => setActiveTab('players')}>
-              <i className="ri-alarm-warning-fill" /> {pendingPayments.length} payment{pendingPayments.length !== 1 ? 's' : ''} pending
+              <i className="ri-alarm-warning-fill" /> {pendingPayments.length} {pendingPayments.length !== 1 ? t('tournaments.paymentsPending') : t('tournaments.paymentPending')}
             </div>
           )}
         </div>
@@ -1289,14 +1294,14 @@ export default function TournamentManage() {
 
       {/* ── Tab bar (4 tabs now) ── */}
       <div className={styles.tabs}>
-        {TABS.map(t => (
-          <button key={t.key}
-            className={`${styles.tab} ${activeTab === t.key ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab(t.key)}>
-            <i className={t.icon} />
-            {t.label}
+        {TABS.map(tab => (
+          <button key={tab.key}
+            className={`${styles.tab} ${activeTab === tab.key ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab(tab.key)}>
+            <i className={tab.icon} />
+            {t(`tournaments.manageTab_${tab.key}`)}
             {/* Badge for pending payments on Players tab */}
-            {t.key === 'players' && pendingPayments.length > 0 && (
+            {tab.key === 'players' && pendingPayments.length > 0 && (
               <span style={{
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                 width: 16, height: 16, borderRadius: '50%',
@@ -1319,16 +1324,16 @@ export default function TournamentManage() {
             <div className={styles.card}>
               <div className={styles.cardHead}>
                 <i className="ri-layout-grid-line" style={{ color: '#f59e0b', fontSize: 16 }} />
-                <span className={styles.cardTitle}>Group Stage</span>
-                {saving && <span className={styles.cardSaving}><i className="ri-loader-4-line" /> Saving…</span>}
+                <span className={styles.cardTitle}>{t('tournaments.groupStage')}</span>
+                {saving && <span className={styles.cardSaving}><i className="ri-loader-4-line" /> {t('common.saving')}</span>}
               </div>
               {bracketData?.groups ? (
                 <>
                   <div className={styles.statRow}>
                     {[
-                      { val: bracketData.groups.length, label: 'Groups', color: '#f59e0b' },
-                      { val: bracketData.groups.reduce((n, g) => n + g.fixtures.filter(f => f.status === 'played').length, 0) + '/' + bracketData.groups.reduce((n, g) => n + g.fixtures.length, 0), label: 'Played', color: '#6366f1' },
-                      { val: bracketData.advancePerGroup ?? tournament?.advance_per_group ?? 2, label: 'Advance ea.', color: '#22c55e' },
+                      { val: bracketData.groups.length, label: t('tournaments.groupsTab'), color: '#f59e0b' },
+                      { val: bracketData.groups.reduce((n, g) => n + g.fixtures.filter(f => f.status === 'played').length, 0) + '/' + bracketData.groups.reduce((n, g) => n + g.fixtures.length, 0), label: t('tournaments.playedLabel'), color: '#6366f1' },
+                      { val: bracketData.advancePerGroup ?? tournament?.advance_per_group ?? 2, label: t('tournaments.advanceEach'), color: '#22c55e' },
                     ].map(s => (
                       <div key={s.label} className={styles.statBox}>
                         <span className={styles.statBoxVal} style={{ color: s.color }}>{s.val}</span>
@@ -1344,12 +1349,12 @@ export default function TournamentManage() {
                   }}>
                     <i className={isGroupStageComplete(bracketData.groups) ? 'ri-checkbox-circle-fill' : 'ri-information-line'} />
                     {isGroupStageComplete(bracketData.groups)
-                      ? 'All fixtures played — knockout bracket generated automatically.'
-                      : 'Knockout bracket builds automatically once every group fixture is played.'}
+                      ? t('tournaments.allFixturesPlayed')
+                      : t('tournaments.knockoutBuildsAuto')}
                   </div>
                   <div className={styles.btnRow}>
                     <button className={styles.btnDanger} onClick={resetGroups}>
-                      <i className="ri-restart-line" /> Reset Groups
+                      <i className="ri-restart-line" /> {t('tournaments.resetGroups')}
                     </button>
                   </div>
 
@@ -1365,11 +1370,11 @@ export default function TournamentManage() {
                           <div style={{ padding: '8px 12px', overflowX: 'auto' }}>
                             <div style={{ display: 'flex', gap: 6, padding: '4px 0 6px', fontSize: 9, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', minWidth: 320 }}>
                               <span style={{ width: 14 }}>#</span>
-                              <span style={{ flex: 1 }}>Team</span>
+                              <span style={{ flex: 1 }}>{t('tournaments.teamLabel')}</span>
                               {['P', 'W', 'D', 'L', 'GF', 'GA', 'GD'].map(h => (
                                 <span key={h} style={{ width: 22, textAlign: 'center' }}>{h}</span>
                               ))}
-                              <span style={{ width: 30, textAlign: 'center' }}>Pts</span>
+                              <span style={{ width: 30, textAlign: 'center' }}>{t('tournaments.ptsAbbrev')}</span>
                             </div>
                             {standings.map(row => {
                               const advances = row.position <= (bracketData.advancePerGroup ?? tournament?.advance_per_group ?? 2)
@@ -1429,8 +1434,8 @@ export default function TournamentManage() {
               ) : (
                 <div className={styles.btnRow}>
                   <button className={styles.btnPrimary} onClick={initGroups} disabled={realCount < 2}>
-                    <i className="ri-play-fill" /> Generate Groups
-                    {realCount < 2 && <span style={{ fontSize: 10, opacity: 0.6 }}> (2+ needed)</span>}
+                    <i className="ri-play-fill" /> {t('tournaments.generateGroups')}
+                    {realCount < 2 && <span style={{ fontSize: 10, opacity: 0.6 }}> {t('tournaments.twoPlusNeeded')}</span>}
                   </button>
                 </div>
               )}
@@ -1443,23 +1448,23 @@ export default function TournamentManage() {
           <div className={styles.card}>
             <div className={styles.cardHead}>
               <i className="ri-node-tree" style={{ color: '#6366f1', fontSize: 16 }} />
-              <span className={styles.cardTitle}>Bracket</span>
-              {saving && <span className={styles.cardSaving}><i className="ri-loader-4-line" /> Saving…</span>}
+              <span className={styles.cardTitle}>{t('tournaments.bracket')}</span>
+              {saving && <span className={styles.cardSaving}><i className="ri-loader-4-line" /> {t('common.saving')}</span>}
             </div>
             {bracketData?.teamSizeMismatch && (
               <div className={styles.mismatchBanner}>
                 <i className="ri-error-warning-line" style={{ color: '#f59e0b', fontSize: 18, flexShrink: 0 }} />
                 <div>
-                  <div className={styles.mismatchTitle}>Match type changed to {bracketData.currentTeamSize}v{bracketData.currentTeamSize}</div>
-                  <div className={styles.mismatchSub}>Reset and regenerate to apply the new format.</div>
+                  <div className={styles.mismatchTitle}>{t('tournaments.matchTypeChangedTo')} {bracketData.currentTeamSize}v{bracketData.currentTeamSize}</div>
+                  <div className={styles.mismatchSub}>{t('tournaments.resetRegenerateApply')}</div>
                 </div>
               </div>
             )}
             <div className={styles.statRow}>
               {[
-                { val: bracketRounds, label: 'Rounds', color: '#6366f1' },
-                { val: bracketData?.bracketSize ?? 0, label: 'Slots', color: '#22c55e' },
-                { val: bracketData?.isTeamBattle ? `${bracketData.teamSize}v${bracketData.teamSize}` : '1v1', label: 'Format', color: bracketData?.isTeamBattle ? '#a78bfa' : 'var(--text-muted)' },
+                { val: bracketRounds, label: t('tournaments.roundsLabel'), color: '#6366f1' },
+                { val: bracketData?.bracketSize ?? 0, label: t('tournaments.slotsLabel'), color: '#22c55e' },
+                { val: bracketData?.isTeamBattle ? `${bracketData.teamSize}v${bracketData.teamSize}` : '1v1', label: t('tournaments.format'), color: bracketData?.isTeamBattle ? '#a78bfa' : 'var(--text-muted)' },
               ].map(s => (
                 <div key={s.label} className={styles.statBox}>
                   <span className={styles.statBoxVal} style={{ color: s.color }}>{s.val}</span>
@@ -1470,15 +1475,15 @@ export default function TournamentManage() {
             <div className={styles.btnRow}>
               {!hasBracket
                 ? <button className={styles.btnPrimary} onClick={initBracket} disabled={realCount < 2}>
-                    <i className="ri-play-fill" /> Generate Bracket
-                    {realCount < 2 && <span style={{ fontSize: 10, opacity: 0.6 }}> (2+ needed)</span>}
+                    <i className="ri-play-fill" /> {t('tournaments.generateBracket')}
+                    {realCount < 2 && <span style={{ fontSize: 10, opacity: 0.6 }}> {t('tournaments.twoPlusNeeded')}</span>}
                   </button>
                 : <button className={styles.btnDanger} onClick={resetBracket}>
-                    <i className="ri-restart-line" /> Reset Bracket
+                    <i className="ri-restart-line" /> {t('tournaments.resetBracketBtn')}
                   </button>
               }
               <button className={styles.btnGhost} onClick={() => setActiveTab('bracket')}>
-                <i className="ri-edit-line" /> Edit
+                <i className="ri-edit-line" /> {t('common.edit')}
               </button>
               <button className={styles.btnGhost} onClick={() => router.push(`/tournaments/${tournament.slug || tournament.id}`)}>
                 <i className="ri-eye-line" />
@@ -1489,18 +1494,18 @@ export default function TournamentManage() {
 
           {/* Sync count */}
           <button className={styles.btnFull} onClick={syncCount}>
-            <i className="ri-refresh-line" /> Sync Player Count
+            <i className="ri-refresh-line" /> {t('tournaments.syncPlayerCount')}
           </button>
 
           {/* Top scores */}
           {leaderboard.length > 0 && (
             <div className={styles.card}>
-              <div className={styles.sectionLabel}>Top Scores</div>
+              <div className={styles.sectionLabel}>{t('tournaments.topScores')}</div>
               {leaderboard.slice(0, 5).map((e, i) => (
                 <div key={e.user_id} className={styles.scoreRow}>
                   <span className={styles.scoreRank}>{i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`}</span>
                   <span className={styles.scoreName}>{e.profiles?.username || '—'}</span>
-                  <span className={styles.scorePts}>{e.points ?? 0} <span className={styles.scorePtsSub}>pts</span></span>
+                  <span className={styles.scorePts}>{e.points ?? 0} <span className={styles.scorePtsSub}>{t('tournaments.ptsAbbrev')}</span></span>
                 </div>
               ))}
             </div>
@@ -1518,14 +1523,14 @@ export default function TournamentManage() {
             }}>
               <i className="ri-alarm-warning-fill" style={{ color: '#f59e0b', fontSize: 18 }} />
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 800, color: '#f59e0b' }}>{pendingPayments.length} payment{pendingPayments.length !== 1 ? 's' : ''} awaiting approval</div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>Tap Approve on each player below</div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: '#f59e0b' }}>{pendingPayments.length} {pendingPayments.length !== 1 ? t('tournaments.paymentsAwaitingApproval') : t('tournaments.paymentAwaitingApproval')}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{t('tournaments.tapApproveEachPlayer')}</div>
               </div>
             </div>
           )}
 
           {participants.length === 0
-            ? <p className={styles.empty}>No players yet</p>
+            ? <p className={styles.empty}>{t('tournaments.noPlayersYet')}</p>
             : participants.map(p => {
                 const bStatus = getPlayerBracketStatus(p.user_id, bracketData)
                 const dotColor = bStatus==='champion'?'#f59e0b':bStatus==='out'?'#dc2626':'#22c55e'
@@ -1537,23 +1542,23 @@ export default function TournamentManage() {
                       <span className={styles.playerDot} style={{ background: dotColor }} />
                     </div>
                     <div className={styles.playerInfo}>
-                      <span className={styles.playerName}>{p.profiles?.username || 'Unknown'}</span>
+                      <span className={styles.playerName}>{p.profiles?.username || t('tournaments.unknownPlayer')}</span>
                       <span className={styles.playerMeta}>Lv.{p.profiles?.level ?? 1}
                         {payStatus && (
                           <span style={{ marginLeft: 6, padding: '1px 6px', borderRadius: 4, fontSize: 9, fontWeight: 800,
                             background: payStatus === 'approved' ? '#22c55e20' : '#f59e0b20',
                             color: payStatus === 'approved' ? '#22c55e' : '#f59e0b',
                           }}>
-                            {payStatus === 'approved' ? 'PAID' : 'PENDING'}
+                            {payStatus === 'approved' ? t('tournaments.paidLabel') : t('tournaments.pendingLabel')}
                           </span>
                         )}
                       </span>
                     </div>
                     <div className={styles.playerBadges}>
                       {bStatus === 'champion' && <span>🏆</span>}
-                      {bStatus === 'out'      && <span className={styles.badgeOut}>OUT</span>}
+                      {bStatus === 'out'      && <span className={styles.badgeOut}>{t('tournaments.outAbbrev')}</span>}
                       {payStatus === 'payment_submitted' && (
-                        <button className={styles.btnAmber} onClick={() => approvePayment(p.user_id)}>Approve</button>
+                        <button className={styles.btnAmber} onClick={() => approvePayment(p.user_id)}>{t('tournaments.approveBtn')}</button>
                       )}
                       <button className={styles.btnRemove} onClick={() => removeParticipant(p.user_id, p.profiles?.username)}>
                         <i className="ri-user-unfollow-line" />
@@ -1571,10 +1576,9 @@ export default function TournamentManage() {
             {tournament?.stage_format === 'groups_knockout' && bracketData?.stage !== 'knockout' ? (
               <div className={styles.card} style={{ padding: '18px 16px', textAlign: 'center' }}>
                 <i className="ri-node-tree" style={{ fontSize: 22, color: 'var(--text-muted)' }} />
-                <p style={{ margin: '8px 0 4px', fontWeight: 700 }}>No bracket yet</p>
+                <p style={{ margin: '8px 0 4px', fontWeight: 700 }}>{t('tournaments.noBracketYet')}</p>
                 <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                  This tournament runs a group stage first. The knockout bracket builds itself automatically
-                  once every group fixture is played — head to the Overview tab to manage groups.
+                  {t('tournaments.groupStageFirstDesc')}
                 </span>
               </div>
             ) : (
@@ -1583,32 +1587,32 @@ export default function TournamentManage() {
                   <div className={styles.mismatchBanner}>
                     <i className="ri-error-warning-line" style={{ color: '#f59e0b', fontSize: 18, flexShrink: 0 }} />
                     <div>
-                      <div className={styles.mismatchTitle}>Match type changed to {bracketData.currentTeamSize}v{bracketData.currentTeamSize}</div>
-                      <div className={styles.mismatchSub}>Reset bracket to apply the new format.</div>
+                      <div className={styles.mismatchTitle}>{t('tournaments.matchTypeChangedTo')} {bracketData.currentTeamSize}v{bracketData.currentTeamSize}</div>
+                      <div className={styles.mismatchSub}>{t('tournaments.resetBracketToApply')}</div>
                     </div>
                   </div>
                 )}
                 <div className={styles.btnRow}>
                   {!hasBracket
                     ? <button className={styles.btnPrimary} onClick={initBracket} disabled={realCount < 2}>
-                        <i className="ri-play-fill" /> Generate from Players
-                        {realCount < 2 && <span style={{ fontSize: 10, opacity: 0.6 }}> (2+ needed)</span>}
+                        <i className="ri-play-fill" /> {t('tournaments.generateFromPlayers')}
+                        {realCount < 2 && <span style={{ fontSize: 10, opacity: 0.6 }}> {t('tournaments.twoPlusNeeded')}</span>}
                       </button>
                     : <button className={styles.btnDanger} onClick={resetBracket}>
-                        <i className="ri-restart-line" /> Reset Bracket
+                        <i className="ri-restart-line" /> {t('tournaments.resetBracketBtn')}
                       </button>
                   }
                   <button className={styles.btnGhost} onClick={() => router.push(`/tournaments/${tournament.slug || tournament.id}`)}>
-                    <i className="ri-eye-line" /> View
+                    <i className="ri-eye-line" /> {t('common.view')}
                   </button>
                 </div>
                 {bracketData?.rounds ? (
                   <div className={styles.card} style={{ padding: '14px 16px' }}>
                     <div className={styles.cardHead}>
                       <i className="ri-node-tree" style={{ color: '#6366f1', fontSize: 16 }} />
-                      <span className={styles.cardTitle}>Bracket Editor</span>
+                      <span className={styles.cardTitle}>{t('tournaments.bracketEditor')}</span>
                       <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>
-                        Drag to swap · Tap to rename
+                        {t('tournaments.dragToSwapTapToRename')}
                       </span>
                     </div>
                     <BracketBuilder
@@ -1624,20 +1628,20 @@ export default function TournamentManage() {
                 ) : (
                   <div className={styles.card} style={{ padding: '18px 16px', textAlign: 'center' }}>
                     <i className="ri-node-tree" style={{ fontSize: 22, color: 'var(--text-muted)' }} />
-                    <p style={{ margin: '8px 0 4px', fontWeight: 700 }}>No bracket yet</p>
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Generate one from the button above.</span>
+                    <p style={{ margin: '8px 0 4px', fontWeight: 700 }}>{t('tournaments.noBracketYet')}</p>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('tournaments.generateFromButtonAbove')}</span>
                   </div>
                 )}
                 {unplaced.length > 0 && (
                   <div className={styles.unplacedCard}>
-                    <div className={styles.unplacedHead}>{unplaced.length} unplaced player{unplaced.length !== 1 ? 's' : ''}</div>
+                    <div className={styles.unplacedHead}>{unplaced.length} {unplaced.length !== 1 ? t('tournaments.unplacedPlayers') : t('tournaments.unplacedPlayer')}</div>
                     {unplaced.map(p => (
                       <div key={p.user_id} className={styles.unplacedRow}>
                         <div className={styles.unplacedAvatar}>
                           <Avatar src={p.profiles?.avatar_url} name={p.profiles?.username} size={28} radius={7} />
                         </div>
-                        <span className={styles.unplacedName}>{p.profiles?.username || 'Player'}</span>
-                        <button className={styles.btnAdd} onClick={() => addToBracket(p)}>+ Add to bracket</button>
+                        <span className={styles.unplacedName}>{p.profiles?.username || t('tournaments.playerLabel')}</span>
+                        <button className={styles.btnAdd} onClick={() => addToBracket(p)}>{t('tournaments.addToBracket')}</button>
                       </div>
                     ))}
                   </div>
@@ -1654,8 +1658,8 @@ export default function TournamentManage() {
             {/* Section toggle */}
             <div style={{ display: 'flex', background: 'var(--surface)', borderRadius: 12, padding: 4, gap: 4, border: '1px solid var(--border)' }}>
               {[
-                { key: 'edit', label: 'Edit Details', icon: 'ri-edit-line' },
-                { key: 'danger', label: 'Advanced', icon: 'ri-error-warning-line' },
+                { key: 'edit', label: t('tournaments.editDetails'), icon: 'ri-edit-line' },
+                { key: 'danger', label: t('tournaments.advancedLabel'), icon: 'ri-error-warning-line' },
               ].map(s => (
                 <button key={s.key} onClick={() => setSettingsSection(s.key)} style={{
                   flex: 1, padding: '8px 12px', borderRadius: 9, display: 'flex', alignItems: 'center',
@@ -1678,9 +1682,9 @@ export default function TournamentManage() {
               <div className={styles.card} style={{ padding: '16px' }}>
                 <div className={styles.cardHead} style={{ marginBottom: 14 }}>
                   <i className="ri-settings-3-line" style={{ color: '#6366f1', fontSize: 16 }} />
-                  <span className={styles.cardTitle}>Tournament Details</span>
+                  <span className={styles.cardTitle}>{t('tournaments.tournamentDetails')}</span>
                   <button onClick={saveEdit} disabled={editSaving} style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: 8, background: editSaved ? '#22c55e' : '#6366f1', color: '#fff', border: 'none', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>
-                    {editSaving ? <><i className="ri-loader-4-line" /> Saving…</> : editSaved ? <><i className="ri-check-line" /> Saved</> : <><i className="ri-save-line" /> Save</>}
+                    {editSaving ? <><i className="ri-loader-4-line" /> {t('common.saving')}</> : editSaved ? <><i className="ri-check-line" /> {t('tournaments.savedLabel')}</> : <><i className="ri-save-line" /> {t('common.save')}</>}
                   </button>
                 </div>
 
@@ -1688,24 +1692,24 @@ export default function TournamentManage() {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <div className={styles.field}>
-                    <label>Tournament Name</label>
-                    <input value={editForm.name} onChange={e => setEF('name', e.target.value)} placeholder="Tournament name" className={styles.input} />
+                    <label>{t('tournaments.tournamentName')}</label>
+                    <input value={editForm.name} onChange={e => setEF('name', e.target.value)} placeholder={t('tournaments.tournamentNameLower')} className={styles.input} />
                   </div>
 
                   <div className={styles.field}>
-                    <label>Description</label>
-                    <textarea rows={3} value={editForm.description} onChange={e => setEF('description', e.target.value)} placeholder="Optional rules or info…" className={styles.textarea} />
+                    <label>{t('tournaments.descriptionLabel')}</label>
+                    <textarea rows={3} value={editForm.description} onChange={e => setEF('description', e.target.value)} placeholder={t('tournaments.optionalRulesInfo')} className={styles.textarea} />
                   </div>
 
                   <div style={{ display: 'flex', gap: 10 }}>
                     <div className={styles.field} style={{ flex: 1 }}>
-                      <label>Game</label>
+                      <label>{t('tournaments.gameLabel')}</label>
                       <select value={editForm.game_slug} onChange={e => setEF('game_slug', e.target.value)} className={styles.select}>
                         {GAME_SLUGS_MANAGE.map(s => <option key={s} value={s}>{GAME_NAMES_MANAGE[s]}</option>)}
                       </select>
                     </div>
                     <div className={styles.field} style={{ flex: 1 }}>
-                      <label>Format</label>
+                      <label>{t('tournaments.format')}</label>
                       <select value={editForm.format} onChange={e => setEF('format', e.target.value)} className={styles.select}>
                         {FORMATS_MANAGE.map(f => <option key={f}>{f}</option>)}
                       </select>
@@ -1714,30 +1718,30 @@ export default function TournamentManage() {
 
                   <div style={{ display: 'flex', gap: 10 }}>
                     <div className={styles.field} style={{ flex: 1 }}>
-                      <label>Status</label>
+                      <label>{t('tournaments.statusLabel')}</label>
                       <select value={editForm.status} onChange={e => setEF('status', e.target.value)} className={styles.select}>
                         {STATUSES_MANAGE.map(s => <option key={s}>{s}</option>)}
                       </select>
                     </div>
                     <div className={styles.field} style={{ flex: 1 }}>
-                      <label>Date</label>
-                      <input value={editForm.date} onChange={e => setEF('date', e.target.value)} placeholder="e.g. Jun 28" className={styles.input} />
+                      <label>{t('tournaments.dateLabel')}</label>
+                      <input value={editForm.date} onChange={e => setEF('date', e.target.value)} placeholder={t('tournaments.egJun28')} className={styles.input} />
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', gap: 10 }}>
                     <div className={styles.field} style={{ flex: 1 }}>
-                      <label>Prize Pool (TZS)</label>
-                      <input value={editForm.prize} onChange={e => setEF('prize', e.target.value)} placeholder="e.g. 500,000" className={styles.input} />
+                      <label>{t('tournaments.prizePoolTZS')}</label>
+                      <input value={editForm.prize} onChange={e => setEF('prize', e.target.value)} placeholder={t('tournaments.eg500000')} className={styles.input} />
                     </div>
                     <div className={styles.field} style={{ flex: 1 }}>
-                      <label>Entry Fee (TZS)</label>
-                      <input value={editForm.entrance_fee} onChange={e => setEF('entrance_fee', e.target.value)} placeholder="Leave blank = free" className={styles.input} />
+                      <label>{t('tournaments.entryFeeTZS')}</label>
+                      <input value={editForm.entrance_fee} onChange={e => setEF('entrance_fee', e.target.value)} placeholder={t('tournaments.leaveBlankFree')} className={styles.input} />
                     </div>
                   </div>
 
                   <div className={styles.field}>
-                    <label>Match Type</label>
+                    <label>{t('tournaments.matchTypeLabel')}</label>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
                       {TEAM_SIZE_OPTS.map(opt => (
                         <button key={opt.value} type="button" onClick={() => setEF('team_size', opt.value)}
@@ -1750,14 +1754,14 @@ export default function TournamentManage() {
                     {editForm.team_size !== (tournament?.team_size || 1) && (
                       <p style={{ marginTop: 8, fontSize: 12, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: 5 }}>
                         <i className="ri-information-line" />
-                        Match type changed — reset bracket in the Bracket tab to apply.
+                        {t('tournaments.matchTypeChangedResetBracket')}
                       </p>
                     )}
                   </div>
 
                   <div className={styles.field}>
-                    <label>Slots</label>
-                    <input type="number" value={editForm.slots} onChange={e => setEF('slots', e.target.value)} placeholder="e.g. 32" className={styles.input} />
+                    <label>{t('tournaments.slotsLabel')}</label>
+                    <input type="number" value={editForm.slots} onChange={e => setEF('slots', e.target.value)} placeholder={t('tournaments.eg32')} className={styles.input} />
                   </div>
 
                   {/* Pro Only toggle */}
@@ -1765,8 +1769,8 @@ export default function TournamentManage() {
                     style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 10, border: `1.5px solid ${editForm.pro_only ? '#a855f740' : 'var(--border)'}`, background: editForm.pro_only ? '#a855f710' : 'var(--surface)', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
                     <i className={editForm.pro_only ? 'ri-vip-crown-fill' : 'ri-vip-crown-line'} style={{ color: editForm.pro_only ? '#a855f7' : 'var(--text-muted)', fontSize: 18 }} />
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 800, color: editForm.pro_only ? '#a855f7' : 'var(--text)' }}>Pro & Elite Only</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{editForm.pro_only ? 'Only Pro & Elite members can join.' : 'Open to all players.'}</div>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: editForm.pro_only ? '#a855f7' : 'var(--text)' }}>{t('tournaments.proEliteOnly')}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{editForm.pro_only ? t('tournaments.onlyProEliteCanJoin') : t('tournaments.openToAllPlayers')}</div>
                     </div>
                     <div style={{ width: 36, height: 20, borderRadius: 10, background: editForm.pro_only ? '#a855f7' : 'var(--border)', position: 'relative', flexShrink: 0, transition: 'background 0.2s' }}>
                       <div style={{ position: 'absolute', top: 2, left: editForm.pro_only ? 18 : 2, width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
@@ -1783,34 +1787,34 @@ export default function TournamentManage() {
                 {/* Transfer Players */}
                 <div className={styles.dangerCard} style={{ borderColor: '#6366f130', background: '#6366f108' }}>
                   <div className={styles.dangerHead} style={{ color: '#6366f1' }}>
-                    <i className="ri-swap-line" style={{ fontSize: 18 }} /> Transfer Players
+                    <i className="ri-swap-line" style={{ fontSize: 18 }} /> {t('tournaments.transferPlayers')}
                   </div>
                   <p className={styles.dangerSub}>
-                    Move all {participants.length} registered players into another tournament with the same match type ({tournament?.team_size === 1 ? '1v1 Solo' : `${tournament?.team_size}v${tournament?.team_size} Team`}).
+                    {t('tournaments.transferSubPrefix')} {participants.length} {t('tournaments.transferSubMiddle')} ({tournament?.team_size === 1 ? t('tournaments.soloMatchType') : t('tournaments.teamMatchType').replace('{size}', tournament?.team_size).replace('{size2}', tournament?.team_size)}).
                   </p>
                   {!showTransfer ? (
                     <button className={styles.btnPrimary} onClick={loadTransferTargets} disabled={participants.length === 0} style={{ opacity: participants.length === 0 ? 0.5 : 1 }}>
-                      <i className="ri-swap-line" /> Choose Destination Tournament
+                      <i className="ri-swap-line" /> {t('tournaments.chooseDestination')}
                     </button>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                       {transferLoading && !transferTargets.length && (
                         <div style={{ fontSize: 13, color: 'var(--text-muted)', padding: '8px 0' }}>
-                          <i className="ri-loader-4-line" /> Loading tournaments…
+                          <i className="ri-loader-4-line" /> {t('tournaments.loadingTournaments')}
                         </div>
                       )}
                       {!transferLoading && !transferDone && transferTargets.length === 0 && (
                         <div style={{ fontSize: 13, color: 'var(--text-muted)', padding: '8px 0' }}>
-                          No matching tournaments found. Create a new tournament with the same match type first.
+                          {t('tournaments.noMatchingTournaments')}
                         </div>
                       )}
                       {transferDone ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, background: '#22c55e15', border: '1px solid #22c55e30' }}>
                           <i className="ri-checkbox-circle-fill" style={{ color: '#22c55e', fontSize: 18 }} />
                           <div>
-                            <div style={{ fontSize: 13, fontWeight: 800, color: '#22c55e' }}>Transfer complete!</div>
+                            <div style={{ fontSize: 13, fontWeight: 800, color: '#22c55e' }}>{t('tournaments.transferComplete')}</div>
                             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                              Players moved to "{transferTargets.find(t => t.id === transferTarget)?.name}". They were notified.
+                              {t('tournaments.playersMovedTo')} "{transferTargets.find(tt => tt.id === transferTarget)?.name}". {t('tournaments.theyWereNotified')}
                             </div>
                           </div>
                         </div>
@@ -1818,16 +1822,16 @@ export default function TournamentManage() {
                         <>
                           {transferTargets.length > 0 && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                              {transferTargets.map(t => {
-                                const isFull = (t.registered_count || 0) >= (t.slots || 0)
-                                const isSelected = transferTarget === t.id
+                              {transferTargets.map(target => {
+                                const isFull = (target.registered_count || 0) >= (target.slots || 0)
+                                const isSelected = transferTarget === target.id
                                 return (
-                                  <button key={t.id} onClick={() => setTransferTarget(isSelected ? null : t.id)} disabled={isFull}
+                                  <button key={target.id} onClick={() => setTransferTarget(isSelected ? null : target.id)} disabled={isFull}
                                     style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, border: `1.5px solid ${isSelected ? '#6366f1' : 'var(--border)'}`, background: isSelected ? '#6366f112' : 'var(--surface)', cursor: isFull ? 'not-allowed' : 'pointer', opacity: isFull ? 0.5 : 1, textAlign: 'left', width: '100%' }}>
                                     <i className="ri-tournament-line" style={{ color: isSelected ? '#6366f1' : 'var(--text-muted)', fontSize: 16, flexShrink: 0 }} />
                                     <div style={{ flex: 1, minWidth: 0 }}>
-                                      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</div>
-                                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{t.registered_count || 0}/{t.slots} players · {t.status}{isFull && ' · FULL'}</div>
+                                      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{target.name}</div>
+                                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{target.registered_count || 0}/{target.slots} {t('players.players').toLowerCase()} · {target.status}{isFull && ` · ${t('tournaments.full').toUpperCase()}`}</div>
                                     </div>
                                     {isSelected && <i className="ri-checkbox-circle-fill" style={{ color: '#6366f1', fontSize: 18, flexShrink: 0 }} />}
                                   </button>
@@ -1838,11 +1842,11 @@ export default function TournamentManage() {
                           <div style={{ display: 'flex', gap: 8 }}>
                             <button onClick={transferPlayers} disabled={!transferTarget || transferLoading}
                               style={{ flex: 1, padding: '10px', borderRadius: 9, background: transferTarget ? '#6366f1' : 'var(--border)', color: transferTarget ? '#fff' : 'var(--text-muted)', border: 'none', fontSize: 13, fontWeight: 800, cursor: transferTarget ? 'pointer' : 'default' }}>
-                              {transferLoading ? <><i className="ri-loader-4-line" /> Transferring…</> : <><i className="ri-swap-line" /> Transfer {participants.length} Players</>}
+                              {transferLoading ? <><i className="ri-loader-4-line" /> {t('tournaments.transferringLabel')}</> : <><i className="ri-swap-line" /> {t('tournaments.transferNPlayers').replace('{count}', participants.length)}</>}
                             </button>
                             <button onClick={() => { setShowTransfer(false); setTransferTarget(null); setTransferDone(false) }}
                               style={{ padding: '10px 14px', borderRadius: 9, background: 'var(--surface)', border: '1.5px solid var(--border)', fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', cursor: 'pointer' }}>
-                              Cancel
+                              {t('common.cancel')}
                             </button>
                           </div>
                         </>
@@ -1854,13 +1858,13 @@ export default function TournamentManage() {
                 {/* Delete Tournament */}
                 <div className={styles.dangerCard}>
                   <div className={styles.dangerHead}>
-                    <i className="ri-error-warning-fill" style={{ fontSize: 18 }} /> Danger Zone
+                    <i className="ri-error-warning-fill" style={{ fontSize: 18 }} /> {t('tournaments.dangerZone')}
                   </div>
                   <p className={styles.dangerSub}>
-                    Deleting this tournament permanently removes all bracket data, participants, payments, and leaderboard entries. This cannot be undone.
+                    {t('tournaments.deleteTournamentWarning')}
                   </p>
                   <button className={styles.btnDangerFull} onClick={deleteTournament}>
-                    <i className="ri-delete-bin-fill" style={{ fontSize: 18 }} /> Delete Tournament
+                    <i className="ri-delete-bin-fill" style={{ fontSize: 18 }} /> {t('tournaments.deleteTournamentBtn')}
                   </button>
                 </div>
               </div>
