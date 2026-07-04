@@ -345,7 +345,7 @@
   flex: 1;
 }
 
-.tGrid .skelCard { flex: 0 0 200px; height: 175px; }
+.tGrid .skelCard { flex: 0 0 232px; height: 210px; }
 
 .skelRow {
   display: flex;
@@ -436,32 +436,60 @@
 .ptsNeg   { color: var(--text-muted); }
 
 /* ══════════ TOURNAMENTS ══════════ */
+@keyframes tCardIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes tSlotShimmer {
+  0%   { background-position: -80px 0; }
+  100% { background-position: 160px 0; }
+}
+@keyframes tPulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.45; transform: scale(0.75); }
+}
+
 .tGrid {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   overflow-x: auto;
   padding-bottom: 12px;
   scrollbar-width: none;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
 }
 .tGrid::-webkit-scrollbar { display: none; }
 
 .tCard {
   flex: 0 0 auto;
-  width: 200px;
+  width: 232px;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 16px;
   overflow: hidden;
   text-decoration: none;
   color: inherit;
   background: var(--bg);
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.2s ease, box-shadow 0.25s ease, transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
   display: block;
+  animation: tCardIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  scroll-snap-align: start;
 }
-.tCard:hover { border-color: var(--border-dark); box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+.tGrid .tCard:nth-child(1) { animation-delay: 0.02s; }
+.tGrid .tCard:nth-child(2) { animation-delay: 0.07s; }
+.tGrid .tCard:nth-child(3) { animation-delay: 0.12s; }
+.tGrid .tCard:nth-child(4) { animation-delay: 0.17s; }
+.tGrid .tCard:nth-child(n+5) { animation-delay: 0.2s; }
+
+.tCard:hover {
+  border-color: var(--border-dark);
+  box-shadow: 0 10px 26px rgba(0,0,0,0.14);
+  transform: translateY(-5px);
+}
+.tCard:active { transform: translateY(-2px) scale(0.99); }
 
 .tCardImg {
   position: relative;
-  height: 110px;
+  height: 136px;
   overflow: hidden;
   background: var(--bg-2);
 }
@@ -470,6 +498,11 @@
   object-fit: cover;
   object-position: center 30%;
   filter: brightness(0.7);
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), filter 0.3s ease;
+}
+.tCard:hover .tCardImgEl {
+  transform: scale(1.08);
+  filter: brightness(0.78);
 }
 .tCardImgFallback {
   width: 100%; height: 100%;
@@ -498,6 +531,7 @@
   background: white;
   gap: 4px;
 }
+.tStatusBadge i { animation: tPulseDot 1.6s ease-in-out infinite; }
 .tFullBadge {
   font-size: 9px;
   font-weight: 800;
@@ -511,10 +545,10 @@
   backdrop-filter: blur(4px);
 }
 
-.tCardBody { padding: 8px 10px 10px; }
+.tCardBody { padding: 10px 12px 12px; }
 
 .tGameChip {
-  font-size: 9px;
+  font-size: 9.5px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -522,15 +556,15 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-bottom: 4px;
+  margin-bottom: 5px;
 }
 
 .tCardName {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 800;
   color: var(--text);
   line-height: 1.25;
-  margin-bottom: 6px;
+  margin-bottom: 7px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -538,33 +572,43 @@
 
 .tStatRow {
   display: flex;
-  gap: 8px;
-  font-size: 10px;
+  gap: 9px;
+  font-size: 10.5px;
   font-weight: 600;
   color: var(--text-muted);
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   flex-wrap: wrap;
 }
 .tStatRow span { display: flex; align-items: center; gap: 4px; }
-.tStatRow i    { font-size: 12px; }
+.tStatRow i    { font-size: 12.5px; }
 
 .tSlotBar { display: flex; align-items: center; gap: 8px; }
 .tSlotTrack {
   flex: 1;
-  height: 4px;
+  height: 7px;
   background: var(--border);
   border-radius: 99px;
   overflow: hidden;
 }
 .tSlotFill {
+  position: relative;
   height: 100%;
   border-radius: 99px;
-  background: var(--text-dim);
-  transition: width 0.4s ease;
+  background: linear-gradient(90deg, var(--text-dim), var(--text-muted));
+  transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  overflow: hidden;
 }
-.tSlotWarm { background: #f97316; }
-.tSlotFull { background: #dc2626; }
-.tSlotLabel { font-size: 10px; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
+.tSlotFill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 20%, rgba(255,255,255,0.35) 50%, transparent 80%);
+  background-size: 60px 100%;
+  animation: tSlotShimmer 1.8s linear infinite;
+}
+.tSlotWarm { background: linear-gradient(90deg, #f97316, #fb923c); }
+.tSlotFull { background: linear-gradient(90deg, #dc2626, #ef4444); }
+.tSlotLabel { font-size: 10.5px; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
 
 /* ══════════ LEADERBOARD ══════════ */
 .leaderList { display: flex; flex-direction: column; padding-bottom: 8px; }

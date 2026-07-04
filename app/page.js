@@ -248,6 +248,9 @@ export default function Home() {
   const [clanSquads,     setClanSquads]     = useState({})
   const [loadingClans,   setLoadingClans]   = useState(true)
 
+  const tGridRef = useRef(null)
+  const tPausedRef = useRef(false)
+
   useEffect(() => {
     async function loadGameMasters() {
       let masters = null
@@ -309,6 +312,61 @@ export default function Home() {
       .order('created_at', { ascending: false })
       .limit(4)
       .then(({ data }) => { setTournaments(filterTest(data)); setLoadingTourns(false) })
+  }, [])
+
+  // Auto-scroll tournament carousel: card-to-card snap, seamless infinite loop
+  useEffect(() => {
+    const el = tGridRef.current
+    if (!el || tournaments.length < 2) return
+
+    let i = 0
+    let raf = null
+    const total = tournaments.length
+
+    const getStep = () => {
+      const first = el.children[0]
+      if (!first) return 244
+      const gap = parseFloat(getComputedStyle(el).gap) || 12
+      return first.getBoundingClientRect().width + gap
+    }
+
+    const tick = () => {
+      if (tPausedRef.current) return
+      i += 1
+      el.scrollTo({ left: i * getStep(), behavior: 'smooth' })
+      if (i >= total) {
+        setTimeout(() => {
+          if (!tPausedRef.current) {
+            el.scrollTo({ left: 0, behavior: 'auto' })
+            i = 0
+          } else {
+            i = 0
+          }
+        }, 500)
+      }
+    }
+
+    const interval = setInterval(tick, 2800)
+
+    let resumeTimeout = null
+    const pause = () => {
+      tPausedRef.current = true
+      clearTimeout(resumeTimeout)
+      resumeTimeout = setTimeout(() => { tPausedRef.current = false }, 4000)
+    }
+    el.addEventListener('touchstart', pause, { passive: true })
+    el.addEventListener('pointerdown', pause)
+
+    return () => {
+      clearInterval(interval)
+      clearTimeout(resumeTimeout)
+      if (raf) cancelAnimationFrame(raf)
+      el.removeEventListener('touchstart', pause)
+      el.removeEventListener('pointerdown', pause)
+    }
+  }, [tournaments])
+
+  useEffect(() => {
 
     supabase
       .from('profiles')
@@ -574,8 +632,8 @@ export default function Home() {
             <Link href="/tournaments" className={styles.emptyBtn}>{t('home.browseAll')}</Link>
           </div>
         ) : (
-          <div className={styles.tGrid}>
-            {tournaments.map(tour => {
+          <div className={styles.tGrid} ref={tGridRef}>
+            {(tournaments.length > 1 ? [...tournaments, ...tournaments] : tournaments).map((tour, i) => {
               const game  = GAME_META[tour.game_slug]
               const prize = parsePrize(tour.prize)
               const fee   = parsePrize(tour.entrance_fee)
@@ -584,7 +642,7 @@ export default function Home() {
               const statusColors = { active: '#22c55e', ongoing: '#6366f1', upcoming: '#f59e0b' }
               const sc = statusColors[tour.status] || '#6b7280'
               return (
-                <Link key={tour.id} href={`/tournaments/${tour.slug || tour.id}`} className={styles.tCard}>
+                <Link key={`${tour.id}-${i}`} href={`/tournaments/${tour.slug || tour.id}`} className={styles.tCard}>
                   <div className={styles.tCardImg}>
                     {game?.image
                       ? <img src={game.image} alt={game.name} className={styles.tCardImgEl} />
