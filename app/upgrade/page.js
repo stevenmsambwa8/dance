@@ -277,23 +277,31 @@ export default function UpgradePage() {
           <p className={styles.sectionTitle}>{t('upgradePage.paymentMethodsTitle')}</p>
           <div className={styles.payRow}>
             <div className={styles.payChip}>
-              <i className="ri-smartphone-line" />
-              <span>M-Pesa</span>
+              <div className={styles.payChipTop}>
+                <i className="ri-smartphone-line" />
+                <span>M-Pesa</span>
+              </div>
               <span className={styles.payTag}>{t('upgradePage.pushUssd')}</span>
             </div>
             <div className={styles.payChip}>
-              <i className="ri-smartphone-line" />
-              <span>Mixx by Yas</span>
+              <div className={styles.payChipTop}>
+                <i className="ri-smartphone-line" />
+                <span>Mixx by Yas</span>
+              </div>
               <span className={styles.payTag}>{t('upgradePage.pushUssd')}</span>
             </div>
             <div className={styles.payChip}>
-              <i className="ri-smartphone-line" />
-              <span>Halopesa</span>
+              <div className={styles.payChipTop}>
+                <i className="ri-smartphone-line" />
+                <span>Halopesa</span>
+              </div>
               <span className={styles.payTag}>{t('upgradePage.pushUssd')}</span>
             </div>
             <div className={styles.payChip}>
-              <i className="ri-smartphone-line" />
-              <span>Airtel Money</span>
+              <div className={styles.payChipTop}>
+                <i className="ri-smartphone-line" />
+                <span>Airtel Money</span>
+              </div>
               <span className={styles.payTag}>{t('upgradePage.pushUssd')}</span>
             </div>
           </div>
