@@ -12,6 +12,7 @@ import { useCurrency } from '../lib/useCurrency'
 import useTranslation from '../lib/useTranslation'
 import { identityColor } from '../lib/clanColors'
 import { getRecentStories } from '../lib/news'
+import DailyRewardCard from '../components/DailyRewardCard'
 
 const CLAN_CAP = 125
 
@@ -828,6 +829,9 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* ══════════ DAILY LOGIN REWARDS ══════════ */}
+      {user && <DailyRewardCard />}
 
       {/* ══════════ HEADLINES ══════════ */}
       {(storiesLoading || stories.length > 0) && (

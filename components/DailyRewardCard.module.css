@@ -1,0 +1,107 @@
+.card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  background: var(--bg);
+  margin-bottom: 14px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.title {
+  font-size: 13px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.claimedPill {
+  font-size: 10px;
+  font-weight: 800;
+  color: #22c55e;
+  background: rgba(34,197,94,0.12);
+  border: 1px solid rgba(34,197,94,0.3);
+  padding: 3px 8px;
+  border-radius: 99px;
+}
+
+.days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+  margin-bottom: 12px;
+}
+
+.dayPip {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 2px;
+  border-radius: 10px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+}
+.dayNum { font-size: 8.5px; font-weight: 700; color: var(--text-muted); }
+.dayPts { font-size: 10.5px; font-weight: 800; }
+
+.dayDone {
+  background: rgba(34,197,94,0.1);
+  border-color: rgba(34,197,94,0.35);
+}
+.dayDone .dayPts { color: #22c55e; }
+.dayCheck {
+  position: absolute;
+  top: 2px; right: 3px;
+  font-size: 9px;
+  color: #22c55e;
+}
+
+.dayTarget {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(99,102,241,0.15);
+}
+
+.claimBtn {
+  width: 100%;
+  padding: 11px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.claimBtn:disabled {
+  background: var(--bg-2);
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.claimedMsg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #22c55e;
+  padding: 11px;
+  justify-content: center;
+  background: rgba(34,197,94,0.08);
+  border-radius: 10px;
+}
+.brokenNote { color: var(--text-muted); font-weight: 600; }
+
+.warning {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-align: center;
+  margin: 8px 0 0;
+}
