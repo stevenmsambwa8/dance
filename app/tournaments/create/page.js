@@ -42,9 +42,9 @@ export default function CreateTournament() {
 
   if (!user) {
     return (
-      <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16, background: 'var(--bg)', textAlign: 'center' }}>
-        <p style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Sign in to create tournaments</p>
-        <button onClick={openAuthGate} style={{ padding: '11px 24px', background: 'var(--text)', color: 'var(--bg)', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)' }}>Sign In</button>
+      <div className={styles.gateWrap}>
+        <p className={styles.gateTitle}>Sign in to create tournaments</p>
+        <button onClick={openAuthGate} className={styles.gateBtn}>Sign In</button>
       </div>
     )
   }
@@ -63,6 +63,8 @@ function CreateForm({ user, profile, isAdmin, router }) {
   const prefillTeamSize = Number(searchParams.get('team_size'))
 
   const [step, setStep] = useState(0)
+  // direction drives which way the step content slides in from
+  const [direction, setDirection] = useState('forward')
 
   const [form, setForm] = useState({
     name: '', game_slug: (prefillGameSlug && GAME_SLUGS.includes(prefillGameSlug)) ? prefillGameSlug : (GAME_SLUGS[0] || 'pubg'),
@@ -178,6 +180,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
 
   function next() {
     if (!validateStep(step)) return
+    setDirection('forward')
     // Groups + Knockout tournaments don't pre-build a bracket — it's generated
     // later, once the group stage finishes — so skip the Bracket step entirely.
     // Groups+Knockout and Battle Royale Points tournaments don't pre-build a
@@ -194,6 +197,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
     setStep(s => Math.min(s + 1, STEPS.length - 1))
   }
   function back() {
+    setDirection('back')
     if (step === STEPS.length - 1 && (form.stage_format === 'groups_knockout' || form.stage_format === 'br_points')) {
       setStep(1)
       return
@@ -358,6 +362,8 @@ function CreateForm({ user, profile, isAdmin, router }) {
     )
   }
 
+  const slideClass = direction === 'forward' ? styles.slideFromRight : styles.slideFromLeft
+
   // ── Form ──────────────────────────────────────────────────────────────────
   return (
     <div className={styles.page}>
@@ -388,10 +394,11 @@ function CreateForm({ user, profile, isAdmin, router }) {
       </div>
 
       <div className={styles.card}>
+        <div key={step} className={`${styles.stepContent} ${slideClass}`}>
 
         {/* ── Step 0: Details ── */}
         {step === 0 && (
-          <div className={styles.stepContent}>
+          <>
             <h2 className={styles.stepHeading}><i className="ri-file-text-line" /> Basic Details</h2>
             <p className={styles.stepHint}>Give your tournament a name and pick the game.</p>
             <div className={styles.field}>
@@ -414,12 +421,12 @@ function CreateForm({ user, profile, isAdmin, router }) {
               <label>Description <span className={styles.opt}>(optional)</span></label>
               <textarea rows={3} value={form.description} placeholder="Brief description of the tournament…" onChange={e => set('description', e.target.value)} />
             </div>
-          </div>
+          </>
         )}
 
         {/* ── Step 1: Format ── */}
         {step === 1 && (
-          <div className={styles.stepContent}>
+          <>
             <h2 className={styles.stepHeading}><i className="ri-gamepad-line" /> Format & Rules</h2>
             <p className={styles.stepHint}>Set structure, prize, and entry options. Bracket is built next.</p>
 
@@ -449,12 +456,11 @@ function CreateForm({ user, profile, isAdmin, router }) {
               <div className={styles.chipRow}>
                 {TEAM_SIZE_OPTIONS.map(opt => (
                   <button key={opt.value} type="button"
-                    className={`${styles.chip} ${form.team_size === opt.value ? styles.chipActive : ''}`}
+                    className={`${styles.chip} ${styles.teamSizeChip} ${form.team_size === opt.value ? styles.chipActive : ''}`}
                     onClick={() => { set('team_size', opt.value); setBracketDraft(null) }}
-                    style={{ flexDirection: 'column', gap: 2, minWidth: 60, paddingTop: 8, paddingBottom: 8 }}
                   >
-                    <span style={{ fontWeight: 800, fontSize: 14 }}>{opt.label}</span>
-                    <span style={{ fontSize: 10, opacity: 0.7 }}>{opt.sub}</span>
+                    <span className={styles.teamSizeChipLabel}>{opt.label}</span>
+                    <span className={styles.teamSizeChipSub}>{opt.sub}</span>
                   </button>
                 ))}
               </div>
@@ -488,9 +494,9 @@ function CreateForm({ user, profile, isAdmin, router }) {
                   <span className={styles.feeHint} style={{ marginTop: 6 }}>
                     <i className="ri-skull-line" /> No bracket — players/squads play a series of matches. Each match is scored by placement + kills, summed across all matches for a final standings table.
                   </span>
-                  <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-                    <div style={{ flex: 1 }}>
-                      <label style={{ fontSize: 11, color: 'var(--text-muted)' }}>Number of matches</label>
+                  <div className={styles.subRow}>
+                    <div className={styles.subCol}>
+                      <label className={styles.subColLabel}>Number of matches</label>
                       <div className={styles.chipRow}>
                         {[3, 4, 6, 8].map(n => (
                           <button key={n} type="button" className={`${styles.chip} ${form.br_match_count === n ? styles.chipActive : ''}`}
@@ -498,8 +504,8 @@ function CreateForm({ user, profile, isAdmin, router }) {
                         ))}
                       </div>
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <label style={{ fontSize: 11, color: 'var(--text-muted)' }}>Points per kill</label>
+                    <div className={styles.subCol}>
+                      <label className={styles.subColLabel}>Points per kill</label>
                       <div className={styles.chipRow}>
                         {[0.5, 1, 1.5, 2].map(n => (
                           <button key={n} type="button" className={`${styles.chip} ${form.br_kill_point_value === n ? styles.chipActive : ''}`}
@@ -509,7 +515,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
                     </div>
                   </div>
                   <div style={{ marginTop: 10 }}>
-                    <label style={{ fontSize: 11, color: 'var(--text-muted)' }}>Placement points table</label>
+                    <label className={styles.subColLabel}>Placement points table</label>
                     <div className={styles.chipRow}>
                       {Object.entries(PLACEMENT_TABLE_PRESETS).map(([key, preset]) => (
                         <button key={key} type="button" className={`${styles.chip} ${form.br_placement_preset === key ? styles.chipActive : ''}`}
@@ -518,14 +524,13 @@ function CreateForm({ user, profile, isAdmin, router }) {
                         </button>
                       ))}
                     </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                    <div className={styles.placementGrid}>
                       {Object.entries(form.br_placement_table).sort((a, b) => Number(a[0]) - Number(b[0])).map(([place, pts]) => (
-                        <div key={place} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px 8px' }}>
-                          <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-muted)' }}>#{place}</span>
+                        <div key={place} className={styles.placementPill}>
+                          <span className={styles.placementRank}>#{place}</span>
                           <input
-                            type="number" value={pts} min={0}
+                            type="number" value={pts} min={0} className={styles.placementInput}
                             onChange={e => set('br_placement_table', { ...form.br_placement_table, [place]: Number(e.target.value) || 0 })}
-                            style={{ width: 40, fontSize: 12, fontWeight: 700, textAlign: 'center', padding: '2px 4px' }}
                           />
                         </div>
                       ))}
@@ -542,9 +547,9 @@ function CreateForm({ user, profile, isAdmin, router }) {
                   <span className={styles.feeHint} style={{ marginTop: 6 }}>
                     <i className="ri-node-tree" /> Players are split into groups for round-robin play. Top finishers move into a knockout bracket.
                   </span>
-                  <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-                    <div style={{ flex: 1 }}>
-                      <label style={{ fontSize: 11, color: 'var(--text-muted)' }}>Number of groups</label>
+                  <div className={styles.subRow}>
+                    <div className={styles.subCol}>
+                      <label className={styles.subColLabel}>Number of groups</label>
                       <div className={styles.chipRow}>
                         {[2, 4, 8].map(n => (
                           <button key={n} type="button" className={`${styles.chip} ${form.group_count === n ? styles.chipActive : ''}`}
@@ -552,8 +557,8 @@ function CreateForm({ user, profile, isAdmin, router }) {
                         ))}
                       </div>
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <label style={{ fontSize: 11, color: 'var(--text-muted)' }}>Advance per group</label>
+                    <div className={styles.subCol}>
+                      <label className={styles.subColLabel}>Advance per group</label>
                       <div className={styles.chipRow}>
                         {[1, 2, 4].map(n => (
                           <button key={n} type="button" className={`${styles.chip} ${form.advance_per_group === n ? styles.chipActive : ''}`}
@@ -568,17 +573,16 @@ function CreateForm({ user, profile, isAdmin, router }) {
 
             <div className={styles.field}>
               <label><i className="ri-shield-star-line" style={{ marginRight: 4 }} />Clan Tournament <span className={styles.opt}>(optional)</span></label>
-              <button type="button" className={`${styles.testToggle} ${form.clan_id !== null ? styles.testToggleOn : ''}`}
-                onClick={() => set('clan_id', form.clan_id !== null ? null : '')}
-                style={{ borderColor: form.clan_id !== null ? '#22c55e' : undefined, background: form.clan_id !== null ? '#22c55e20' : undefined }}>
+              <button type="button" className={`${styles.testToggle} ${styles.testToggleClan} ${form.clan_id !== null ? styles.testToggleOn : ''}`}
+                onClick={() => set('clan_id', form.clan_id !== null ? null : '')}>
                 <div className={styles.testToggleLeft}>
-                  <i className={form.clan_id !== null ? 'ri-shield-star-fill' : 'ri-shield-star-line'} style={{ color: form.clan_id !== null ? '#22c55e' : undefined }} />
+                  <i className={form.clan_id !== null ? 'ri-shield-star-fill' : 'ri-shield-star-line'} />
                   <div>
-                    <span className={styles.testToggleLabel} style={{ color: form.clan_id !== null ? '#22c55e' : undefined }}>Restrict to a Clan</span>
+                    <span className={styles.testToggleLabel}>Restrict to a Clan</span>
                     <span className={styles.testToggleHint}>{form.clan_id !== null ? 'Only members of the selected clan can join.' : 'Open to a single clan\u2019s squads instead of everyone.'}</span>
                   </div>
                 </div>
-                <div className={`${styles.testToggleSwitch} ${form.clan_id !== null ? styles.testToggleSwitchOn : ''}`} style={{ background: form.clan_id !== null ? '#22c55e' : undefined }}>
+                <div className={`${styles.testToggleSwitch} ${form.clan_id !== null ? styles.testToggleSwitchOn : ''}`}>
                   <div className={styles.testToggleKnob} />
                 </div>
               </button>
@@ -594,7 +598,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
                     ) : (
                       clans.filter(c => !clanSearch || c.name.toLowerCase().includes(clanSearch.toLowerCase())).map(c => (
                         <button key={c.id} type="button" className={`${styles.chip} ${form.clan_id === c.id ? styles.chipActive : ''}`} onClick={() => set('clan_id', c.id)}>
-                          {c.logo_url && <img src={c.logo_url} alt="" style={{ width: 16, height: 16, borderRadius: 4, objectFit: 'cover', marginRight: 5, verticalAlign: 'middle' }} />}
+                          {c.logo_url && <img src={c.logo_url} alt="" className={styles.clanLogo} />}
                           {c.name} <span style={{ opacity: 0.6 }}>· {c.member_count}</span>
                         </button>
                       ))
@@ -627,17 +631,16 @@ function CreateForm({ user, profile, isAdmin, router }) {
             </div>
 
             {/* Pro Only toggle */}
-            <button type="button" className={`${styles.testToggle} ${form.pro_only ? styles.testToggleOn : ''}`}
-              onClick={() => set('pro_only', !form.pro_only)}
-              style={{ borderColor: form.pro_only ? '#a855f7' : undefined, background: form.pro_only ? '#a855f720' : undefined }}>
+            <button type="button" className={`${styles.testToggle} ${styles.testTogglePro} ${form.pro_only ? styles.testToggleOn : ''}`}
+              onClick={() => set('pro_only', !form.pro_only)}>
               <div className={styles.testToggleLeft}>
-                <i className={form.pro_only ? 'ri-vip-crown-fill' : 'ri-vip-crown-line'} style={{ color: form.pro_only ? '#a855f7' : undefined }} />
+                <i className={form.pro_only ? 'ri-vip-crown-fill' : 'ri-vip-crown-line'} />
                 <div>
-                  <span className={styles.testToggleLabel} style={{ color: form.pro_only ? '#a855f7' : undefined }}>Pro & Elite Only</span>
+                  <span className={styles.testToggleLabel}>Pro & Elite Only</span>
                   <span className={styles.testToggleHint}>{form.pro_only ? 'Only Pro, Elite & Team members can join.' : 'Restrict to paid plan members only.'}</span>
                 </div>
               </div>
-              <div className={`${styles.testToggleSwitch} ${form.pro_only ? styles.testToggleSwitchOn : ''}`} style={{ background: form.pro_only ? '#a855f7' : undefined }}>
+              <div className={`${styles.testToggleSwitch} ${form.pro_only ? styles.testToggleSwitchOn : ''}`}>
                 <div className={styles.testToggleKnob} />
               </div>
             </button>
@@ -668,18 +671,18 @@ function CreateForm({ user, profile, isAdmin, router }) {
                 <button className={styles.quotaErrBtn} onClick={() => router.push('/upgrade')}>Upgrade →</button>
               </div>
             )}
-          </div>
+          </>
         )}
 
         {/* ── Step 2: Bracket Builder ── */}
         {step === 2 && (
-          <div className={styles.stepContent}>
+          <>
             <h2 className={styles.stepHeading}><i className="ri-node-tree" /> Build Your Bracket</h2>
             <p className={styles.stepHint}>
               Pick a starting shape then customise freely — add/remove rounds, drag slots to swap,
               tap any name to rename, mark BYEs.{' '}
               {bracketDraft?.slot_count > 0 && (
-                <strong style={{ color: '#22c55e' }}>{bracketDraft.slot_count} player slots</strong>
+                <strong style={{ color: 'var(--tone-clan)' }}>{bracketDraft.slot_count} player slots</strong>
               )} will be the tournament capacity. Edit more after launch from Manage.
             </p>
             <BracketBuilder
@@ -688,12 +691,12 @@ function CreateForm({ user, profile, isAdmin, router }) {
               participants={[]}
               teamSize={form.team_size}
             />
-          </div>
+          </>
         )}
 
         {/* ── Step 3: Review & Launch ── */}
         {step === 3 && (
-          <div className={styles.stepContent}>
+          <>
             <h2 className={styles.stepHeading}><i className="ri-rocket-line" /> Review & Launch</h2>
             <p className={styles.stepHint}>Everything look good? Hit launch to go live.</p>
             <div className={styles.reviewCard}>
@@ -721,26 +724,27 @@ function CreateForm({ user, profile, isAdmin, router }) {
               ))}
               <div className={styles.reviewRow}>
                 <span className={styles.reviewLabel}><i className="ri-shield-star-line" /> Clan</span>
-                <span className={styles.reviewVal} style={{ color: form.clan_id ? '#22c55e' : 'var(--text-muted)' }}>
+                <span className={`${styles.reviewVal} ${form.clan_id ? styles.reviewValClan : styles.reviewValMuted}`}>
                   {form.clan_id ? (clans.find(c => c.id === form.clan_id)?.name || 'Selected clan') : 'Open to everyone'}
                 </span>
               </div>
               <div className={styles.reviewRow}>
                 <span className={styles.reviewLabel}><i className="ri-vip-crown-line" /> Access</span>
-                <span className={styles.reviewVal} style={{ color: form.pro_only ? '#a855f7' : 'var(--text-muted)' }}>
+                <span className={`${styles.reviewVal} ${form.pro_only ? styles.reviewValPro : styles.reviewValMuted}`}>
                   {form.pro_only ? '👑 Pro & Elite only' : 'Open to all'}
                 </span>
               </div>
               <div className={styles.reviewRow}>
                 <span className={styles.reviewLabel}><i className="ri-flask-line" /> Mode</span>
-                <span className={styles.reviewVal} style={{ color: form.is_test ? '#f59e0b' : 'var(--text-muted)' }}>
+                <span className={`${styles.reviewVal} ${form.is_test ? styles.reviewValTest : styles.reviewValMuted}`}>
                   {form.is_test ? '🧪 Test Run (silent)' : 'Live'}
                 </span>
               </div>
             </div>
             {errors._submit && <div className={styles.submitErr}><i className="ri-error-warning-line" /> {errors._submit}</div>}
-          </div>
+          </>
         )}
+        </div>
       </div>
 
       <div className={styles.navRow}>
