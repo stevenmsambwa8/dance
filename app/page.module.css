@@ -1654,11 +1654,11 @@
 }
 
 .newsCardSkeleton {
+  position: relative;
   flex: 0 0 auto;
   width: 230px;
   height: 130px;
   border-radius: 16px;
-  background: var(--surface, var(--bg-2));
+  overflow: hidden;
   border: 1px solid var(--border);
-  opacity: 0.5;
 }

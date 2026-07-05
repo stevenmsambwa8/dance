@@ -12,7 +12,7 @@ import { useCurrency } from '../lib/useCurrency'
 import useTranslation from '../lib/useTranslation'
 import { identityColor } from '../lib/clanColors'
 import { getRecentStories } from '../lib/news'
-import DailyRewardCard from '../components/DailyRewardCard'
+import DailyRewardModal from '../components/DailyRewardModal'
 
 const CLAN_CAP = 125
 
@@ -279,6 +279,26 @@ function SkeletonShopCard() {
     </div>
   )
 }
+function SkeletonHeroBody() {
+  return (
+    <div className={styles.heroBody}>
+      <div className={styles.skelLine} style={{ width: '48%', height: 22, marginBottom: 10, borderRadius: 8 }} />
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        <div className={styles.skelLine} style={{ width: 70, height: 22, borderRadius: 99 }} />
+        <div className={styles.skelLine} style={{ width: 56, height: 22, borderRadius: 99 }} />
+        <div className={styles.skelLine} style={{ width: 60, height: 22, borderRadius: 99 }} />
+      </div>
+      <div className={styles.heroStats}>
+        {[1,2,3,4].map(i => (
+          <div key={i} className={styles.heroStat} style={{ background: 'var(--bg-2)', border: 'none' }}>
+            <div className={styles.skelLine} style={{ width: 26, height: 16, marginBottom: 4 }} />
+            <div className={styles.skelLine} style={{ width: 38, height: 8 }} />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 function SkeletonFeedPost() {
   return (
     <div className={styles.feedPost}>
@@ -362,7 +382,16 @@ function NewsStrip({ stories, loading }) {
       onPointerUp={resumeSoon}
       onPointerLeave={resumeSoon}
     >
-      {loading && stories.length === 0 && <div className={styles.newsCardSkeleton} />}
+      {loading && stories.length === 0 && [1,2,3].map(i => (
+        <div key={i} className={styles.newsCardSkeleton}>
+          <div className={styles.skelBlock} style={{ position: 'absolute', inset: 0, borderRadius: 16 }} />
+          <div className={styles.skelLine} style={{ position: 'absolute', top: 8, right: 8, width: 44, height: 16, borderRadius: 99 }} />
+          <div style={{ position: 'absolute', left: 12, right: 12, bottom: 12, display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <div className={styles.skelLine} style={{ width: '75%', height: 11 }} />
+            <div className={styles.skelLine} style={{ width: '45%', height: 9 }} />
+          </div>
+        </div>
+      ))}
       {looped.map((s, i) => (
         <Link key={`${s.id}-${i}`} href={s.href} className={styles.newsCard}>
           <NewsCardMedia media={s.media} icon={s.icon} />
@@ -405,7 +434,7 @@ function NewsCardMedia({ media, icon }) {
 }
 
 export default function Home() {
-  const { user, profile, isAdmin } = useAuth()
+  const { user, profile, isAdmin, loading: authLoading } = useAuth()
   const { openAuthGate } = useAuthGate()
   const { fmtAmt, currencyMeta } = useCurrency(profile?.country_flag)
   const { t } = useTranslation()
@@ -743,7 +772,9 @@ export default function Home() {
             <div className={styles.heroSeason}>
               <i className="ri-calendar-line" /> {t('season.season')} {season} · {daysLeft}d {t('home.daysLeft')}
             </div>
-            {profile && (
+            {authLoading ? (
+              <div className={styles.skelCircle} style={{ width: 40, height: 40 }} />
+            ) : profile && (
               <Link href="/account" className={styles.heroAvatarBtn}>
                 {profile.avatar_url
                   ? <img src={profile.avatar_url} className={styles.heroAvatarImg} alt="" />
@@ -753,7 +784,9 @@ export default function Home() {
             )}
           </div>
 
-          {profile ? (
+          {authLoading ? (
+            <SkeletonHeroBody />
+          ) : profile ? (
             <div className={styles.heroBody}>
               <div className={styles.heroName}>
                 {profile.username}
@@ -830,8 +863,8 @@ export default function Home() {
         </div>
       )}
 
-      {/* ══════════ DAILY LOGIN REWARDS ══════════ */}
-      {user && <DailyRewardCard />}
+      {/* ══════════ DAILY LOGIN REWARDS (modal + floating trigger) ══════════ */}
+      {user && <DailyRewardModal />}
 
       {/* ══════════ HEADLINES ══════════ */}
       {(storiesLoading || stories.length > 0) && (
