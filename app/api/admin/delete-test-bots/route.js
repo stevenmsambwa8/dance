@@ -45,8 +45,45 @@ export async function GET(request) {
     const deleted = []
     const errors = []
 
+    // Same dependency-safe table list as app/api/delete-account/route.js —
+    // a bot can pick up rows in any of these once it's played in a test
+    // tournament (results, notifications, earnings, leaderboard entries).
+    // Skipping any of them means the profiles delete below fails on a
+    // foreign key constraint and the bot silently survives.
+    const dependentTables = [
+      { table: 'tournament_leaderboard',   col: 'user_id'       },
+      { table: 'tournament_participants',  col: 'user_id'       },
+      { table: 'tournament_payments',      col: 'user_id'       },
+      { table: 'notifications',            col: 'user_id'       },
+      { table: 'follows',                  col: 'follower_id'   },
+      { table: 'follows',                  col: 'following_id'  },
+      { table: 'earnings_log',             col: 'user_id'       },
+      { table: 'achievements',             col: 'user_id'       },
+      { table: 'season_history',           col: 'user_id'       },
+      { table: 'comments',                 col: 'user_id'       },
+      { table: 'post_likes',               col: 'user_id'       },
+      { table: 'posts',                    col: 'user_id'       },
+      { table: 'negotiation_messages',     col: 'sender_id'     },
+      { table: 'buy_requests',             col: 'buyer_id'      },
+      { table: 'buy_requests',             col: 'seller_id'     },
+      { table: 'game_chat_messages',       col: 'user_id'       },
+      { table: 'direct_messages',          col: 'sender_id'     },
+      { table: 'direct_messages',          col: 'receiver_id'   },
+      { table: 'score_requests',           col: 'requester_id'  },
+      { table: 'score_requests',           col: 'opponent_id'   },
+      { table: 'game_subscriptions',       col: 'user_id'       },
+      { table: 'shop_items',               col: 'seller_id'     },
+      { table: 'matches',                  col: 'challenger_id' },
+      { table: 'matches',                  col: 'challenged_id' },
+    ]
+
     for (const bot of bots || []) {
-      await supabaseAdmin.from('tournament_participants').delete().eq('user_id', bot.id)
+      for (const { table, col } of dependentTables) {
+        const { error } = await supabaseAdmin.from(table).delete().eq(col, bot.id)
+        if (error && !error.message.includes('does not exist')) {
+          console.warn(`delete-test-bots: warning clearing ${table}.${col} for ${bot.id}:`, error.message)
+        }
+      }
 
       const { error: profileErr } = await supabaseAdmin.from('profiles').delete().eq('id', bot.id)
       if (profileErr) { errors.push({ id: bot.id, step: 'profile', message: profileErr.message }); continue }
