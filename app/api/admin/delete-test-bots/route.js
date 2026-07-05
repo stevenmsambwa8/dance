@@ -8,6 +8,11 @@ const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 })
 
+// Give this route the full 60s Vercel allows on Hobby, since deleting many
+// bots' auth.users rows one-by-one (the Admin API has no bulk-delete) is
+// the slow part and can't be batched away.
+export const maxDuration = 60
+
 /**
  * GET /api/admin/delete-test-bots?secret=YOUR_ADMIN_SEED_SECRET
  *
@@ -18,10 +23,13 @@ const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
  * behind. If you re-run seed-test-bots later, it'll try to reuse the same
  * botN@bots.nabogaming.internal emails and fail with "already registered".
  *
- * This route removes both sides cleanly:
- *  1. Any tournament_participants rows for each bot
- *  2. The profiles row
- *  3. The auth.users row
+ * PERFORMANCE NOTE: this used to loop per-bot × per-table (bots × 22 tables
+ * = 2,500+ sequential round-trips with 116 bots), which blew past Vercel's
+ * function time limit and just hung until it got killed. Now each
+ * dependent table is cleared ONCE for all bot ids at once via `.in()`, so
+ * it's 22 table deletes total + one bulk profiles delete, run in parallel.
+ * The only unavoidable per-bot loop left is deleting auth.users, since
+ * Supabase's Admin API has no bulk-delete for that.
  */
 export async function GET(request) {
   try {
@@ -42,19 +50,16 @@ export async function GET(request) {
 
     if (findErr) throw findErr
 
-    // Diagnostics — helps pinpoint whether is_bot is actually being set/read
-    // correctly, without needing direct DB access to check.
     const matchedByIsBot = (bots || []).filter(b => b.is_bot === true).length
     const matchedByEmailOnly = (bots || []).filter(b => b.is_bot !== true).length
 
-    const deleted = []
-    const errors = []
+    if (!bots || bots.length === 0) {
+      return NextResponse.json({ success: true, deletedCount: 0, deleted: [], matchedByIsBot, matchedByEmailOnly, errors: [] })
+    }
 
-    // Same dependency-safe table list as app/api/delete-account/route.js —
-    // a bot can pick up rows in any of these once it's played in a test
-    // tournament (results, notifications, earnings, leaderboard entries).
-    // Skipping any of them means the profiles delete below fails on a
-    // foreign key constraint and the bot silently survives.
+    const botIds = bots.map(b => b.id)
+    const tableErrors = []
+
     const dependentTables = [
       { table: 'tournament_leaderboard',   col: 'user_id'       },
       { table: 'tournament_participants',  col: 'user_id'       },
@@ -82,20 +87,26 @@ export async function GET(request) {
       { table: 'matches',                  col: 'challenged_id' },
     ]
 
-    for (const bot of bots || []) {
-      for (const { table, col } of dependentTables) {
-        const { error } = await supabaseAdmin.from(table).delete().eq(col, bot.id)
-        if (error && !error.message.includes('does not exist')) {
-          console.warn(`delete-test-bots: warning clearing ${table}.${col} for ${bot.id}:`, error.message)
-        }
+    // One batched delete per table (all bot ids at once) instead of one
+    // per bot — this is the change that fixes the hang.
+    await Promise.all(dependentTables.map(async ({ table, col }) => {
+      const { error } = await supabaseAdmin.from(table).delete().in(col, botIds)
+      if (error && !error.message.includes('does not exist')) {
+        tableErrors.push({ table, col, message: error.message })
       }
+    }))
 
-      const { error: profileErr } = await supabaseAdmin.from('profiles').delete().eq('id', bot.id)
-      if (profileErr) { errors.push({ id: bot.id, step: 'profile', message: profileErr.message }); continue }
+    // Bulk-delete all profiles rows in one call.
+    const { error: profileErr } = await supabaseAdmin.from('profiles').delete().in('id', botIds)
+    if (profileErr) throw profileErr
 
+    // auth.users has no bulk-delete in the Admin API, so this loop is
+    // unavoidable — but it's only ~116 calls now, not ~2,500.
+    const deleted = []
+    const errors = [...tableErrors]
+    for (const bot of bots) {
       const { error: authErr } = await supabaseAdmin.auth.admin.deleteUser(bot.id)
-      if (authErr) { errors.push({ id: bot.id, step: 'auth', message: authErr.message }); continue }
-
+      if (authErr) { errors.push({ id: bot.id, username: bot.username, step: 'auth', message: authErr.message }); continue }
       deleted.push(bot.username)
     }
 
