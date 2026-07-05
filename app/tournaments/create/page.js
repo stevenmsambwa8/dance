@@ -201,6 +201,28 @@ function CreateForm({ user, profile, isAdmin, router }) {
     setStep(s => Math.max(s - 1, 0))
   }
 
+  // Test Run mode: fill the new tournament with reusable dummy "Test Player N"
+  // profiles (seeded once via SQL, flagged profiles.is_bot = true) so the
+  // creator can see a populated bracket/standings without real registrants.
+  async function seedTestPlayers(tournamentId, count) {
+    const need = Math.max(0, Number(count) || 0)
+    if (!need) return
+    const { data: bots, error: botsErr } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('is_bot', true)
+      .order('username')
+      .limit(need)
+    if (botsErr || !bots?.length) {
+      console.error('seedTestPlayers: no bot profiles found — run the bot-seed SQL first.', botsErr)
+      return
+    }
+    const rows = bots.map(b => ({ tournament_id: tournamentId, user_id: b.id }))
+    const { error: insertErr } = await supabase.from('tournament_participants').insert(rows)
+    if (insertErr) { console.error('seedTestPlayers: insert failed', insertErr); return }
+    await supabase.from('tournaments').update({ registered_count: rows.length }).eq('id', tournamentId)
+  }
+
   async function submit() {
     if (!user || submitting) return
     if (!isPaidPlan && myCreated !== null) {
@@ -250,6 +272,8 @@ function CreateForm({ user, profile, isAdmin, router }) {
     await tick(50, 'Tournament created!')
 
     if (form.is_test) {
+      setProgressLabel('Seeding test players…')
+      await seedTestPlayers(newT.id, newT.slots)
       setProgressLabel('Test run ready — no notifications sent.')
     } else {
       setProgressLabel('Notifying players…')
