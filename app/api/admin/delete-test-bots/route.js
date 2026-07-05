@@ -43,15 +43,26 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { data: bots, error: findErr } = await supabaseAdmin
-      .from('profiles')
-      .select('id, username, email, is_bot')
-      .or('is_bot.eq.true,email.ilike.%@bots.nabogaming.internal')
+    // Two separate queries merged together, instead of one .or() string —
+    // .or() takes a raw PostgREST filter string and special characters like
+    // % and @ inside an ilike pattern can get mis-parsed, silently matching
+    // nothing for that half of the filter (which is exactly what happened:
+    // is_bot=true bots were found, but email-matched bots were not).
+    const [{ data: byIsBot, error: err1 }, { data: byEmail, error: err2 }] = await Promise.all([
+      supabaseAdmin.from('profiles').select('id, username, email, is_bot').eq('is_bot', true),
+      supabaseAdmin.from('profiles').select('id, username, email, is_bot').ilike('email', '%@bots.nabogaming.internal'),
+    ])
 
-    if (findErr) throw findErr
+    if (err1) throw err1
+    if (err2) throw err2
 
-    const matchedByIsBot = (bots || []).filter(b => b.is_bot === true).length
-    const matchedByEmailOnly = (bots || []).filter(b => b.is_bot !== true).length
+    const mergedById = new Map()
+    for (const b of byIsBot || []) mergedById.set(b.id, b)
+    for (const b of byEmail || []) mergedById.set(b.id, b)
+    const bots = Array.from(mergedById.values())
+
+    const matchedByIsBot = (byIsBot || []).length
+    const matchedByEmailOnly = bots.length - matchedByIsBot
 
     if (!bots || bots.length === 0) {
       return NextResponse.json({ success: true, deletedCount: 0, deleted: [], matchedByIsBot, matchedByEmailOnly, errors: [] })
