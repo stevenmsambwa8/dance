@@ -205,6 +205,99 @@ function SkeletonCard() {
   return <div className={styles.skelCard} />
 }
 
+/* Shape-matched skeletons — mirror the real card/row markup below so each
+   section's loading state actually looks like what's about to appear,
+   instead of one generic block/row reused everywhere. */
+function SkeletonTournamentCard() {
+  return (
+    <div className={styles.tCard} style={{ animation: 'none' }}>
+      <div className={styles.tCardImg}><div className={styles.skelBlock} style={{ position: 'absolute', inset: 0, borderRadius: 0 }} /></div>
+      <div className={styles.tCardBody}>
+        <div className={styles.skelLine} style={{ width: '32%', height: 8, marginBottom: 8 }} />
+        <div className={styles.skelLine} style={{ width: '72%', height: 12, marginBottom: 10 }} />
+        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+          <div className={styles.skelLine} style={{ width: 46, height: 8 }} />
+          <div className={styles.skelLine} style={{ width: 46, height: 8 }} />
+          <div className={styles.skelLine} style={{ width: 46, height: 8 }} />
+        </div>
+        <div className={styles.skelLine} style={{ width: '100%', height: 7, borderRadius: 99 }} />
+      </div>
+    </div>
+  )
+}
+function SkeletonMatchRow() {
+  return (
+    <div className={styles.matchRow}>
+      <div className={styles.skelBlock} style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0 }} />
+      <div className={styles.matchInfo}>
+        <div className={styles.skelLine} style={{ width: '55%', height: 10, marginBottom: 4 }} />
+        <div className={styles.skelLine} style={{ width: '35%', height: 8 }} />
+      </div>
+      <div className={styles.skelLine} style={{ width: 44, height: 14, borderRadius: 6 }} />
+    </div>
+  )
+}
+function SkeletonLeaderRow() {
+  return (
+    <div className={styles.leaderRow}>
+      <div className={styles.skelLine} style={{ width: 18, height: 14, flexShrink: 0 }} />
+      <div className={styles.skelCircle} />
+      <div className={styles.leaderInfo}>
+        <div className={styles.skelLine} style={{ width: '50%', height: 10, marginBottom: 4 }} />
+        <div className={styles.skelLine} style={{ width: '65%', height: 8 }} />
+      </div>
+      <div className={styles.skelLine} style={{ width: 42, height: 12 }} />
+    </div>
+  )
+}
+function SkeletonClanCard() {
+  return (
+    <div className={styles.clanCard} style={{ background: 'var(--bg-2)' }}>
+      <div className={styles.clanCardBody}>
+        <div className={styles.clanCardTop}>
+          <div className={styles.skelBlock} style={{ width: 32, height: 32, borderRadius: 8, flexShrink: 0 }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flex: 1, minWidth: 0 }}>
+            <div className={styles.skelLine} style={{ width: '70%', height: 10 }} />
+            <div className={styles.skelLine} style={{ width: '40%', height: 8 }} />
+          </div>
+        </div>
+        <div className={styles.skelLine} style={{ width: '55%', height: 8, marginTop: 4 }} />
+        <div className={styles.skelLine} style={{ width: '100%', height: 3, borderRadius: 2 }} />
+      </div>
+    </div>
+  )
+}
+function SkeletonShopCard() {
+  return (
+    <div className={styles.shopCard}>
+      <div className={styles.shopImgWrap}><div className={styles.skelBlock} style={{ position: 'absolute', inset: 0, borderRadius: 0 }} /></div>
+      <div className={styles.shopBody}>
+        <div className={styles.skelLine} style={{ width: '80%', height: 10, marginBottom: 4 }} />
+        <div className={styles.skelLine} style={{ width: '40%', height: 10 }} />
+      </div>
+    </div>
+  )
+}
+function SkeletonFeedPost() {
+  return (
+    <div className={styles.feedPost}>
+      <div className={styles.skelCircle} style={{ width: 36, height: 36 }} />
+      <div className={styles.feedBody}>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+          <div className={styles.skelLine} style={{ width: 68, height: 9 }} />
+          <div className={styles.skelLine} style={{ width: 38, height: 9 }} />
+        </div>
+        <div className={styles.skelLine} style={{ width: '95%', height: 9, marginBottom: 4 }} />
+        <div className={styles.skelLine} style={{ width: '70%', height: 9, marginBottom: 8 }} />
+        <div style={{ display: 'flex', gap: 12 }}>
+          <div className={styles.skelLine} style={{ width: 22, height: 8 }} />
+          <div className={styles.skelLine} style={{ width: 22, height: 8 }} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ── Section wrapper ── */
 function Section({ icon, title, href, linkLabel, children, className }) {
   const { t } = useTranslation()
@@ -746,7 +839,7 @@ export default function Home() {
       {/* ══════════ TOURNAMENTS ══════════ */}
       <Section icon="ri-node-tree" title={t('tournaments.tournaments')} href="/tournaments" linkLabel={t('common.all')}>
         {loadingTourns ? (
-          <div className={styles.tGrid}><SkeletonCard /><SkeletonCard /></div>
+          <div className={styles.tGrid}><SkeletonTournamentCard /><SkeletonTournamentCard /></div>
         ) : tournaments.length === 0 ? (
           <div className={styles.empty}>
             <i className="ri-node-tree" />
@@ -803,7 +896,7 @@ export default function Home() {
       {user && (
         <Section icon="ri-swords-line" title={t('matches.myMatches')} href="/matches" linkLabel={t('common.all')}>
           {loadingUser ? (
-            [1,2,3].map(i => <SkeletonRow key={i} />)
+            [1,2,3].map(i => <SkeletonMatchRow key={i} />)
           ) : upcoming.length === 0 && recent.length === 0 ? (
             <div className={styles.empty}>
               <i className="ri-swords-line" />
@@ -879,7 +972,7 @@ export default function Home() {
           const list    = isAll ? topPlayers : gamePlayers
           const gameMeta = GAME_META[selectedGame]
 
-          if (loading) return [1,2,3].map(i => <SkeletonRow key={i} />)
+          if (loading) return [1,2,3].map(i => <SkeletonLeaderRow key={i} />)
 
           if (list.length === 0) {
             return (
@@ -928,7 +1021,7 @@ export default function Home() {
       {/* ══════════ SCHEDULED MATCHES ══════════ */}
       <Section icon="ri-calendar-check-line" title={t('tournaments.statusScheduled')} href="/matches" linkLabel={t('home.allMatches')}>
         {loadingMatches ? (
-          [1,2,3].map(i => <SkeletonRow key={i} />)
+          [1,2,3].map(i => <SkeletonMatchRow key={i} />)
         ) : liveMatches.length === 0 ? (
           <div className={styles.empty}>
             <i className="ri-calendar-check-line" />
@@ -972,7 +1065,7 @@ export default function Home() {
       {/* ══════════ CLANS ══════════ */}
       <Section icon="ri-shield-star-line" title={t('home.clans')} href="/clans" linkLabel={t('home.allClans')}>
         {loadingClans ? (
-          <div className={styles.clanGrid}><SkeletonCard /><SkeletonCard /><SkeletonCard /></div>
+          <div className={styles.clanGrid}><SkeletonClanCard /><SkeletonClanCard /><SkeletonClanCard /></div>
         ) : availableClans.length === 0 ? (
           <div className={styles.empty}>
             <i className="ri-shield-star-line" />
@@ -1049,7 +1142,7 @@ export default function Home() {
       {/* ══════════ SHOP SPOTLIGHT ══════════ */}
       <Section icon="ri-store-2-line" title={t('shop.shop')} href="/shop" linkLabel={t('home.browseAll')}>
         {loadingShop ? (
-          <div className={styles.shopGrid}><SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard /></div>
+          <div className={styles.shopGrid}><SkeletonShopCard /><SkeletonShopCard /><SkeletonShopCard /><SkeletonShopCard /></div>
         ) : shopItems.length === 0 ? (
           <div className={styles.empty}><i className="ri-store-2-line" /><p>{t('home.noListingsYet')}</p></div>
         ) : (
@@ -1080,7 +1173,7 @@ export default function Home() {
       {/* ══════════ COMMUNITY FEED ══════════ */}
       <Section icon="ri-compass-3-line" title={t('navigation.community')} href="/feed" linkLabel={t('navigation.feed')}>
         {loadingFeed ? (
-          [1,2].map(i => <SkeletonRow key={i} />)
+          [1,2].map(i => <SkeletonFeedPost key={i} />)
         ) : recentPosts.length === 0 ? (
           <div className={styles.empty}><i className="ri-compass-3-line" /><p>{t('home.noPostsYet')}</p></div>
         ) : (
