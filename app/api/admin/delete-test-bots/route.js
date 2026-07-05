@@ -71,7 +71,7 @@ export async function GET(request) {
       { table: 'negotiation_messages',     col: 'sender_id'     },
       { table: 'buy_requests',             col: 'buyer_id'      },
       { table: 'buy_requests',             col: 'seller_id'     },
-      { table: 'game_chat_messages',       col: 'user_id'       },
+      { table: 'game_chat_messages',       col: 'sender_id'     },
       { table: 'direct_messages',          col: 'sender_id'     },
       { table: 'direct_messages',          col: 'receiver_id'   },
       { table: 'score_requests',           col: 'requester_id'  },
