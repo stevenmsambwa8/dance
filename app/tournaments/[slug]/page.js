@@ -14,8 +14,10 @@ import { useCurrency } from '../../../lib/useCurrency'
 import { canDo, underLimit, getActivePlan } from '../../../lib/plans'
 import UpgradeModal from '../../../components/UpgradeModal'
 import BracketShareModal from '../../../components/BracketShareModal'
+import Modal from '../../../components/Modal'
 import MarqueeText from '../../../components/MarqueeText'
 import { computeStandings, buildGroups, addMemberToGroup } from '../../../lib/groupStage'
+import { parseBRData, computeBRStandings, unitizeParticipants, addOrUpdateMatch, removeMatch as removeBRMatch, isBRComplete } from '../../../lib/brPoints'
 import useTranslation from '../../../lib/useTranslation'
 
 const ADMIN_EMAIL = 'stevenmsambwa8@gmail.com'
@@ -469,6 +471,11 @@ export default function TournamentDetail() {
   const [shareCardMode, setShareCardMode] = useState('bracket') // 'bracket' | 'standings'
   const [shareGroupId, setShareGroupId] = useState(null) // null = all groups, else scope card to one group
   const [expandedFixtures, setExpandedFixtures] = useState({}) // { [groupId]: boolean }
+  const [brMatchesOpen, setBrMatchesOpen] = useState(false)
+
+  // ── Battle Royale Points admin state ──────────────────────────────────
+  const [brMatchModal, setBrMatchModal] = useState(null) // { matchId|null, name, rows: [{unitId,name,placement,kills}] }
+  const [brSaving, setBrSaving] = useState(false)
 
   const [lbActionMenu, setLbActionMenu] = useState(null)
   const [lbEntry, setLbEntry] = useState({ userId: '', points: '', position: '' })
@@ -549,11 +556,18 @@ export default function TournamentDetail() {
     if (t.stage_format === 'groups_knockout') {
       setActiveTab(cur => cur === 'bracket' ? 'groups' : cur)
     }
+    if (t.stage_format === 'br_points') {
+      setActiveTab(cur => cur === 'bracket' ? 'standings' : cur)
+    }
     const _loadParsed   = parseBracketData(t.bracket_data)
     const _loadTeamSize = t.team_size || 1
     const _loadSquads   = t.squads_needed || null
     let _loadFinal
-    if (!_loadParsed) {
+    if (t.stage_format === 'br_points') {
+      // Battle Royale Points tournaments own their bracket_data shape
+      // (format/config/matches) — never run bracket/lobby logic on it.
+      _loadFinal = _loadParsed
+    } else if (!_loadParsed) {
       _loadFinal = (t.slots >= 2 && t.stage_format !== 'groups_knockout') ? buildLobbyBracket(t.slots, _loadTeamSize, _loadSquads) : null
     } else {
       const _loadMode     = _loadParsed.isTeamBattle ? (_loadParsed.teamSize || 2) : 1
@@ -785,7 +799,9 @@ export default function TournamentDetail() {
           const _bMode2      = _parsedBd2 ? (_parsedBd2.isTeamBattle ? (_parsedBd2.teamSize || 2) : 1) : null
           const _mismatch2   = _parsedBd2 && (_bMode2 !== _dbTeamSize2)
           let _finalBd2
-          if (!_parsedBd2) {
+          if (t.stage_format === 'br_points') {
+            _finalBd2 = _parsedBd2
+          } else if (!_parsedBd2) {
             _finalBd2 = (t.slots >= 2 && t.stage_format !== 'groups_knockout') ? buildLobbyBracket(t.slots, _dbTeamSize2, _dbSquads2) : null
           } else if (_mismatch2 && _parsedBd2.isEmpty) {
             _finalBd2 = buildLobbyBracket(t.slots, _dbTeamSize2, _dbSquads2)
@@ -1334,6 +1350,69 @@ export default function TournamentDetail() {
       setBracketData(newBd)
     } catch (e) {
       console.error('autoUpdateGroupsOnJoin failed', e)
+    }
+  }
+
+  // ── Battle Royale Points: admin match logging ────────────────────────────
+  // Opens the log-match modal, prefilled with every current unit (solo
+  // players or squads) at placement/kills = blank, or an existing match's
+  // saved results if editing.
+  function openBrMatchModal(existingMatch = null) {
+    const teamSize = tournament?.team_size || 1
+    const units = unitizeParticipants(participants, teamSize)
+    const rows = units.map(u => {
+      const prior = existingMatch?.results?.find(r => r.unitId === u.unitId)
+      // New match → default everyone in as "played". Editing → only rows
+      // that already have a logged result start checked; the rest start
+      // unchecked (they weren't marked as playing that lobby last time).
+      return {
+        unitId: u.unitId, name: u.name,
+        played: existingMatch ? !!prior : true,
+        placement: prior?.placement ?? '',
+        kills: prior?.kills ?? '',
+      }
+    })
+    setBrMatchModal({
+      matchId: existingMatch?.id || null,
+      name: existingMatch?.name || `Match ${(bracketData?.matches?.length || 0) + 1}`,
+      rows,
+    })
+  }
+
+  async function saveBrMatch() {
+    if (!brMatchModal || brSaving) return
+    setBrSaving(true)
+    try {
+      const results = brMatchModal.rows
+        .filter(r => r.played && r.placement !== '' && r.placement !== null)
+        .map(r => ({ unitId: r.unitId, name: r.name, placement: Number(r.placement), kills: Number(r.kills) || 0 }))
+      const match = { id: brMatchModal.matchId, name: brMatchModal.name, playedAt: new Date().toISOString(), results }
+      const freshBd = parseBRData(bracketData) || parseBRData(tournament?.bracket_data)
+      const newBd = addOrUpdateMatch(freshBd, match)
+      const { error } = await supabase.from('tournaments').update({ bracket_data: newBd }).eq('id', id)
+      if (error) throw error
+      setBracketData(newBd)
+      setBrMatchModal(null)
+    } catch (e) {
+      console.error('saveBrMatch failed', e)
+    } finally {
+      setBrSaving(false)
+    }
+  }
+
+  async function deleteBrMatch(matchId) {
+    if (brSaving) return
+    setBrSaving(true)
+    try {
+      const freshBd = parseBRData(bracketData) || parseBRData(tournament?.bracket_data)
+      const newBd = removeBRMatch(freshBd, matchId)
+      const { error } = await supabase.from('tournaments').update({ bracket_data: newBd }).eq('id', id)
+      if (error) throw error
+      setBracketData(newBd)
+    } catch (e) {
+      console.error('deleteBrMatch failed', e)
+    } finally {
+      setBrSaving(false)
     }
   }
 
@@ -3189,7 +3268,9 @@ export default function TournamentDetail() {
           ...(tournament.stage_format === 'groups_knockout'
             ? [{ key: 'groups', icon: 'ri-layout-grid-line', title: t('tournaments.groupsTab') }]
             : []),
-          { key: 'bracket',     icon: 'ri-node-tree',     title: t('tournaments.bracket') },
+          ...(tournament.stage_format === 'br_points'
+            ? [{ key: 'standings', icon: 'ri-bar-chart-2-line', title: 'Standings' }]
+            : [{ key: 'bracket', icon: 'ri-node-tree', title: t('tournaments.bracket') }]),
           { key: 'matches',     icon: 'ri-sword-line',    title: t('matches.matches') },
           { key: 'leaderboard', icon: 'ri-bar-chart-line',title: t('players.leaderboard') },
           { key: 'players',     icon: 'ri-group-line',    title: t('tournaments.playersTabCount').replace('{count}', loadingParticipants ? '…' : realCount) },
@@ -3345,6 +3426,133 @@ export default function TournamentDetail() {
           )}
         </section>
       )}
+
+      {/* ── BATTLE ROYALE STANDINGS TAB ── */}
+      {activeTab === 'standings' && (() => {
+        const brData = parseBRData(bracketData) || parseBRData(tournament?.bracket_data) || { config: { matchCount: 0, killPointValue: 1, placementTable: {} }, matches: [] }
+        const teamSize = tournament?.team_size || 1
+        const units = unitizeParticipants(participants, teamSize)
+        const standings = computeBRStandings(brData, units)
+        const matchesPlayed = brData.matches?.length || 0
+        const matchCount = brData.config?.matchCount || 0
+        const complete = isBRComplete(brData)
+        return (
+          <section className={styles.section}>
+            {(loadingTournament || loadingParticipants) ? (
+              <div className={styles.skeletonList}>
+                {[1, 2, 3, 4, 5].map(i => (
+                  <div key={i} className={styles.skeletonLbRow}>
+                    <div className={styles.skeletonAvatar} />
+                    <div style={{ flex: 1 }}>
+                      <div className={styles.skeletonLine} style={{ width: '50%', marginBottom: 6 }} />
+                      <div className={styles.skeletonLine} style={{ width: '30%' }} />
+                    </div>
+                    <div className={styles.skeletonLine} style={{ width: 40 }} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div className={styles.feeBanner} style={{
+                  background: complete ? 'rgba(34,197,94,0.08)' : 'rgba(99,102,241,0.08)',
+                  borderColor:  complete ? 'rgba(34,197,94,0.25)' : 'rgba(99,102,241,0.25)',
+                  color: complete ? 'var(--accent)' : '#6366f1',
+                }}>
+                  <i className={complete ? 'ri-checkbox-circle-fill' : 'ri-time-line'} />
+                  <span>{complete ? 'All matches played — final standings' : `${matchesPlayed} / ${matchCount || '?'} matches played`}</span>
+                </div>
+
+                {units.length === 0 ? (
+                  <div className={styles.emptyTab}>
+                    <i className="ri-skull-line" />
+                    <p>{isSquadTournament ? 'No squads registered yet' : 'No players registered yet'}</p>
+                  </div>
+                ) : (
+                  <div style={{ border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', background: 'var(--surface)' }}>
+                    <div style={{ padding: '10px 14px', background: 'var(--bg-2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 800 }}>Standings</span>
+                      <button
+                        className={`${styles.shareBtn} ${bracketShareCopied ? styles.shareBtnCopied : ''}`}
+                        onClick={() => { setShareCardMode('standings'); setShareGroupId(null); setBracketShareModal(true) }}
+                        style={{ fontSize: 11, padding: '5px 10px' }}
+                      >
+                        <i className="ri-image-line" /> Share Card
+                      </button>
+                    </div>
+                    <div style={{ padding: '4px 14px 8px', overflowX: 'auto' }}>
+                      <div style={{ display: 'flex', gap: 6, padding: '6px 0', fontSize: 9, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', minWidth: 340 }}>
+                        <span style={{ width: 16 }}>#</span>
+                        <span style={{ flex: 1 }}>{isSquadTournament ? 'Squad' : 'Player'}</span>
+                        <span style={{ width: 34, textAlign: 'center' }}>MP</span>
+                        <span style={{ width: 34, textAlign: 'center' }}>Kills</span>
+                        <span style={{ width: 34, textAlign: 'center' }}>Best</span>
+                        <span style={{ width: 40, textAlign: 'center' }}>Pts</span>
+                      </div>
+                      {standings.map(row => (
+                        <div key={row.unitId} style={{
+                          display: 'flex', alignItems: 'center', gap: 6, padding: '7px 0', fontSize: 12, borderTop: '1px solid var(--border)', minWidth: 340,
+                          borderLeft: row.position === 1 ? '2px solid #f59e0b' : '2px solid transparent', paddingLeft: 4,
+                        }}>
+                          <span style={{ width: 16, color: row.position === 1 ? '#f59e0b' : 'var(--text-muted)', fontWeight: 800 }}>{row.position}</span>
+                          {row.avatar
+                            ? <img src={row.avatar} alt="" style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, marginRight: 2 }} />
+                            : null}
+                          <MarqueeText text={row.name} wrapClassName={styles.groupNameWrap} textClassName={styles.groupNameText} />
+                          <span style={{ width: 34, textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace' }}>{row.matchesPlayed}</span>
+                          <span style={{ width: 34, textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace' }}>{row.totalKills}</span>
+                          <span style={{ width: 34, textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace' }}>{row.bestPlacement ?? '—'}</span>
+                          <span style={{ width: 40, textAlign: 'center', fontWeight: 900, fontFamily: 'ui-monospace, monospace', color: 'var(--accent)' }}>{row.totalPoints}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {canManage && (
+                  <button
+                    className={styles.adminActionBtn}
+                    onClick={() => openBrMatchModal(null)}
+                  >
+                    <i className="ri-add-circle-line" /> Log Match Result
+                  </button>
+                )}
+
+                {matchesPlayed > 0 && (
+                  <div style={{ border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', background: 'var(--surface)' }}>
+                    <button
+                      onClick={() => setBrMatchesOpen(o => !o)}
+                      style={{
+                        width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                        padding: '9px 14px', fontSize: 11.5, fontWeight: 800, color: 'var(--text-dim)',
+                        background: 'var(--bg-2)', border: 'none', cursor: 'pointer',
+                      }}
+                    >
+                      <i className={brMatchesOpen ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'} />
+                      {brMatchesOpen ? 'Hide Match History' : `View Match History (${matchesPlayed})`}
+                    </button>
+                    {brMatchesOpen && brData.matches.map(m => (
+                      <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', fontSize: 12, borderTop: '1px solid var(--border)' }}>
+                        <span style={{ flex: 1, fontWeight: 700 }}>{m.name}</span>
+                        <span style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>{m.results?.length || 0} results</span>
+                        {canManage && (
+                          <>
+                            <button onClick={() => openBrMatchModal(m)} style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', padding: 4 }}>
+                              <i className="ri-edit-line" />
+                            </button>
+                            <button onClick={() => deleteBrMatch(m.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }}>
+                              <i className="ri-delete-bin-line" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+        )
+      })()}
 
       {/* ── BRACKET TAB ── */}
       {activeTab === 'bracket' && (
@@ -4230,6 +4438,80 @@ export default function TournamentDetail() {
         groups={shareGroupId ? bracketData?.groups?.filter(g => g.id === shareGroupId) : bracketData?.groups}
         participants={shareGroupId ? (bracketData?.groups?.find(g => g.id === shareGroupId)?.members || []) : participants}
       />
+
+      {/* ── Battle Royale: Log Match Result modal ── */}
+      <Modal
+        open={!!brMatchModal}
+        onClose={() => !brSaving && setBrMatchModal(null)}
+        title={brMatchModal?.matchId ? 'Edit Match Result' : 'Log Match Result'}
+        size="lg"
+        footer={
+          <>
+            <button
+              onClick={() => setBrMatchModal(null)}
+              disabled={brSaving}
+              style={{ padding: '9px 16px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-2)', color: 'var(--text)', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={saveBrMatch}
+              disabled={brSaving}
+              style={{ padding: '9px 16px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: '#fff', fontWeight: 800, fontSize: 13, cursor: 'pointer', opacity: brSaving ? 0.7 : 1 }}
+            >
+              {brSaving ? 'Saving…' : 'Save Match'}
+            </button>
+          </>
+        }
+      >
+        {brMatchModal && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 11, color: 'var(--text-muted)' }}>Match Name</label>
+              <input
+                type="text"
+                value={brMatchModal.name}
+                onChange={e => setBrMatchModal(m => ({ ...m, name: e.target.value }))}
+              />
+            </div>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              <i className="ri-information-line" /> Tick who played this lobby, then enter their placement (1 = winner) and kills. Unticked rows are left out of this match's results.
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 0', fontSize: 9, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <span style={{ width: 20, textAlign: 'center' }}>✓</span>
+              <span style={{ flex: 1 }}>{isSquadTournament ? 'Squad' : 'Player'}</span>
+              <span style={{ width: 70, textAlign: 'center' }}>Placement</span>
+              <span style={{ width: 60, textAlign: 'center' }}>Kills</span>
+            </div>
+            <div style={{ maxHeight: 320, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {brMatchModal.rows.map((row, idx) => (
+                <div key={row.unitId} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0', borderTop: '1px solid var(--border)', opacity: row.played ? 1 : 0.45 }}>
+                  <input
+                    type="checkbox" checked={row.played}
+                    onChange={e => setBrMatchModal(m => ({ ...m, rows: m.rows.map((r, i) => i === idx ? { ...r, played: e.target.checked } : r) }))}
+                    style={{ width: 20, height: 16, flexShrink: 0, cursor: 'pointer' }}
+                  />
+                  <MarqueeText text={row.name} wrapClassName={styles.groupNameWrap} textClassName={styles.groupNameText} />
+                  <input
+                    type="number" min={1} value={row.placement}
+                    placeholder="—"
+                    disabled={!row.played}
+                    onChange={e => setBrMatchModal(m => ({ ...m, rows: m.rows.map((r, i) => i === idx ? { ...r, placement: e.target.value } : r) }))}
+                    style={{ width: 70, textAlign: 'center', fontSize: 13, fontWeight: 700, padding: '5px 4px', opacity: row.played ? 1 : 0.5 }}
+                  />
+                  <input
+                    type="number" min={0} value={row.kills}
+                    placeholder="0"
+                    disabled={!row.played}
+                    onChange={e => setBrMatchModal(m => ({ ...m, rows: m.rows.map((r, i) => i === idx ? { ...r, kills: e.target.value } : r) }))}
+                    style={{ width: 60, textAlign: 'center', fontSize: 13, fontWeight: 700, padding: '5px 4px', opacity: row.played ? 1 : 0.5 }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

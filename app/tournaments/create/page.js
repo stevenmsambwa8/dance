@@ -7,6 +7,7 @@ import { supabase } from '../../../lib/supabase'
 import { GAME_SLUGS, GAME_META } from '../../../lib/constants'
 import { getActivePlan } from '../../../lib/plans'
 import BracketBuilder, { buildEmptyBracket } from '../../../components/BracketBuilder'
+import { buildEmptyBRBracket, PLACEMENT_TABLE_PRESETS, DEFAULT_KILL_POINT_VALUE } from '../../../lib/brPoints'
 import styles from './page.module.css'
 
 const GAME_NAMES = Object.fromEntries(GAME_SLUGS.map(s => [s, GAME_META[s].name]))
@@ -72,6 +73,10 @@ function CreateForm({ user, profile, isAdmin, router }) {
     stage_format: 'knockout',
     group_count: 4,
     advance_per_group: 2,
+    br_match_count: 6,
+    br_kill_point_value: DEFAULT_KILL_POINT_VALUE,
+    br_placement_preset: 'standard',
+    br_placement_table: { ...PLACEMENT_TABLE_PRESETS.standard.table },
     is_test: false,
     pro_only: false,
     clan_id: prefillClanId,
@@ -115,6 +120,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
       })
   }, [form.game_slug])
 
+  const isBRGame     = (GAME_META[form.game_slug]?.genre || '').includes('Battle Royale')
   const activePlan   = getActivePlan(profile)
   const isPaidPlan   = isAdmin || activePlan === 'pro' || activePlan === 'elite' || activePlan === 'team'
   const myFreeCount  = (myCreated || []).filter(t => !parseFee(t.entrance_fee)).length
@@ -130,6 +136,12 @@ function CreateForm({ user, profile, isAdmin, router }) {
   }
 
   function set(key, val) { setForm(f => ({ ...f, [key]: val })); setErrors(e => ({ ...e, [key]: null })) }
+
+  // Battle Royale Points is only a valid stage format for BR-genre games —
+  // if the creator swaps to a non-BR game while it's selected, fall back.
+  useEffect(() => {
+    if (form.stage_format === 'br_points' && !isBRGame) set('stage_format', 'knockout')
+  }, [form.game_slug])
 
   // When advancing to bracket step, seed a default shape from slots count.
   // Converts total slots → round match counts (e.g. 32 slots → [16,8,4,2,1])
@@ -151,6 +163,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
     }
     if (idx === 1) {
       if (!form.slots || form.slots < 2) e.slots = 'Need at least 2 slots'
+      if (form.stage_format === 'br_points' && (!form.br_match_count || form.br_match_count < 1)) e._br = 'Need at least 1 match'
       if (form.clan_id !== null && !form.clan_id) e._clan = 'Pick a clan or turn off the clan restriction'
       if (!isPaidPlan && myCreated !== null) {
         const thisFee = parseFee(form.entrance_fee)
@@ -167,7 +180,10 @@ function CreateForm({ user, profile, isAdmin, router }) {
     if (!validateStep(step)) return
     // Groups + Knockout tournaments don't pre-build a bracket — it's generated
     // later, once the group stage finishes — so skip the Bracket step entirely.
-    if (step === 1 && form.stage_format === 'groups_knockout') {
+    // Groups+Knockout and Battle Royale Points tournaments don't pre-build a
+    // bracket — groups build one later once group stage finishes; BR points
+    // tournaments never have a bracket at all — so skip the Bracket step.
+    if (step === 1 && (form.stage_format === 'groups_knockout' || form.stage_format === 'br_points')) {
       setStep(STEPS.length - 1)
       return
     }
@@ -178,7 +194,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
     setStep(s => Math.min(s + 1, STEPS.length - 1))
   }
   function back() {
-    if (step === STEPS.length - 1 && form.stage_format === 'groups_knockout') {
+    if (step === STEPS.length - 1 && (form.stage_format === 'groups_knockout' || form.stage_format === 'br_points')) {
       setStep(1)
       return
     }
@@ -207,7 +223,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
       prize:            form.prize,
       // Use actual slot count from bracket editor — not the form.slots picker
       // bracket_data.slot_count = real open slots counted from round 0
-      slots:            form.stage_format === 'groups_knockout' ? Number(form.slots) : (bracketDraft?.slot_count ?? Number(form.slots)),
+      slots:            (form.stage_format === 'groups_knockout' || form.stage_format === 'br_points') ? Number(form.slots) : (bracketDraft?.slot_count ?? Number(form.slots)),
       date:             form.date,
       description:      form.description,
       entrance_fee:     fee,
@@ -215,8 +231,12 @@ function CreateForm({ user, profile, isAdmin, router }) {
       stage_format:     form.stage_format || 'knockout',
       group_count:      form.stage_format === 'groups_knockout' ? Number(form.group_count) : null,
       advance_per_group: form.stage_format === 'groups_knockout' ? Number(form.advance_per_group) : null,
-      bracket_data:     form.stage_format === 'groups_knockout' ? null : (bracketDraft || null),
-      round_names:      form.stage_format === 'groups_knockout' ? null : (bracketDraft?.round_names ?? null),
+      // BR points tournaments store their scoring config + (empty) match log
+      // in bracket_data, same column groups/knockout use for their own shapes.
+      bracket_data:     form.stage_format === 'br_points'
+        ? buildEmptyBRBracket({ matchCount: Number(form.br_match_count), killPointValue: Number(form.br_kill_point_value), placementTable: form.br_placement_table })
+        : (form.stage_format === 'groups_knockout' ? null : (bracketDraft || null)),
+      round_names:      (form.stage_format === 'groups_knockout' || form.stage_format === 'br_points') ? null : (bracketDraft?.round_names ?? null),
       is_test:          form.is_test,
       pro_only:         form.pro_only,
       clan_id:          form.clan_id || null,
@@ -432,7 +452,67 @@ function CreateForm({ user, profile, isAdmin, router }) {
                   onClick={() => set('stage_format', 'groups_knockout')}>
                   Groups + Knockout
                 </button>
+                {isBRGame && (
+                  <button type="button" className={`${styles.chip} ${form.stage_format === 'br_points' ? styles.chipActive : ''}`}
+                    onClick={() => set('stage_format', 'br_points')}>
+                    Battle Royale Points
+                  </button>
+                )}
               </div>
+              {form.stage_format === 'br_points' && (
+                <>
+                  <span className={styles.feeHint} style={{ marginTop: 6 }}>
+                    <i className="ri-skull-line" /> No bracket — players/squads play a series of matches. Each match is scored by placement + kills, summed across all matches for a final standings table.
+                  </span>
+                  <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: 11, color: 'var(--text-muted)' }}>Number of matches</label>
+                      <div className={styles.chipRow}>
+                        {[3, 4, 6, 8].map(n => (
+                          <button key={n} type="button" className={`${styles.chip} ${form.br_match_count === n ? styles.chipActive : ''}`}
+                            onClick={() => set('br_match_count', n)}>{n}</button>
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: 11, color: 'var(--text-muted)' }}>Points per kill</label>
+                      <div className={styles.chipRow}>
+                        {[0.5, 1, 1.5, 2].map(n => (
+                          <button key={n} type="button" className={`${styles.chip} ${form.br_kill_point_value === n ? styles.chipActive : ''}`}
+                            onClick={() => set('br_kill_point_value', n)}>{n}</button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ marginTop: 10 }}>
+                    <label style={{ fontSize: 11, color: 'var(--text-muted)' }}>Placement points table</label>
+                    <div className={styles.chipRow}>
+                      {Object.entries(PLACEMENT_TABLE_PRESETS).map(([key, preset]) => (
+                        <button key={key} type="button" className={`${styles.chip} ${form.br_placement_preset === key ? styles.chipActive : ''}`}
+                          onClick={() => { set('br_placement_preset', key); set('br_placement_table', { ...preset.table }) }}>
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                      {Object.entries(form.br_placement_table).sort((a, b) => Number(a[0]) - Number(b[0])).map(([place, pts]) => (
+                        <div key={place} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px 8px' }}>
+                          <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-muted)' }}>#{place}</span>
+                          <input
+                            type="number" value={pts} min={0}
+                            onChange={e => set('br_placement_table', { ...form.br_placement_table, [place]: Number(e.target.value) || 0 })}
+                            style={{ width: 40, fontSize: 12, fontWeight: 700, textAlign: 'center', padding: '2px 4px' }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <span className={styles.feeHint} style={{ marginTop: 6 }}>
+                      <i className="ri-information-line" /> Placements not listed above score 0 placement points — kills still count for everyone.
+                    </span>
+                  </div>
+                  {errors._br && <span className={styles.errMsg}>{errors._br}</span>}
+                </>
+              )}
               {form.stage_format === 'groups_knockout' && (
                 <>
                   <span className={styles.feeHint} style={{ marginTop: 6 }}>
@@ -599,7 +679,13 @@ function CreateForm({ user, profile, isAdmin, router }) {
                 ['ri-layout-grid-line',         'Format',     form.format || '—'],
                 ['ri-group-line',               'Slots',      bracketDraft?.slot_count ?? form.slots],
                 ['ri-team-line',                'Match Type', form.team_size === 1 ? '1v1 — Solo' : `${form.team_size}v${form.team_size} — Team Battle`],
-                ['ri-node-tree',                'Bracket',    bracketDraft ? `${bracketDraft.rounds?.length} rounds · ${bracketDraft.rounds?.[0]?.length * 2} slots` : 'Auto-generated on launch'],
+                ...(form.stage_format === 'br_points'
+                  ? [
+                      ['ri-skull-line',      'Matches',        `${form.br_match_count}`],
+                      ['ri-crosshair-2-line','Points per kill', `${form.br_kill_point_value}`],
+                    ]
+                  : [['ri-node-tree', 'Bracket', bracketDraft ? `${bracketDraft.rounds?.length} rounds · ${bracketDraft.rounds?.[0]?.length * 2} slots` : 'Auto-generated on launch']]
+                ),
                 ['ri-money-dollar-circle-line', 'Prize',      form.prize ? `TZS ${form.prize}` : '—'],
                 ['ri-ticket-line',              'Entry Fee',  form.entrance_fee ? `TZS ${Number(String(form.entrance_fee).replace(/,/g,'')).toLocaleString()}` : 'Free'],
                 ['ri-calendar-event-line',      'Date',       form.date || '—'],
