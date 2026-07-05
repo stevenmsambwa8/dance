@@ -37,10 +37,15 @@ export async function GET(request) {
 
     const { data: bots, error: findErr } = await supabaseAdmin
       .from('profiles')
-      .select('id, username')
-      .eq('is_bot', true)
+      .select('id, username, email, is_bot')
+      .or('is_bot.eq.true,email.ilike.%@bots.nabogaming.internal')
 
     if (findErr) throw findErr
+
+    // Diagnostics — helps pinpoint whether is_bot is actually being set/read
+    // correctly, without needing direct DB access to check.
+    const matchedByIsBot = (bots || []).filter(b => b.is_bot === true).length
+    const matchedByEmailOnly = (bots || []).filter(b => b.is_bot !== true).length
 
     const deleted = []
     const errors = []
@@ -98,6 +103,8 @@ export async function GET(request) {
       success: true,
       deletedCount: deleted.length,
       deleted,
+      matchedByIsBot,
+      matchedByEmailOnly,
       errors,
     })
   } catch (err) {
