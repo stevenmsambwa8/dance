@@ -35,6 +35,22 @@ const TEAM_SIZE_OPTIONS = [
 const FREE_LIMIT_FREE_TOURNEYS = 2
 const FREE_LIMIT_PAID_TOURNEYS = 1
 
+// Small helper so <img> failures don't leave broken-image icons —
+// falls back to the game's Remix icon glyph instead.
+function GameThumb({ slug, className }) {
+  const meta = GAME_META[slug]
+  const [broken, setBroken] = useState(false)
+  return (
+    <span className={className}>
+      {meta?.image && !broken ? (
+        <img src={meta.image} alt="" onError={() => setBroken(true)} />
+      ) : (
+        <i className={meta?.icon || 'ri-gamepad-line'} />
+      )}
+    </span>
+  )
+}
+
 export default function CreateTournament() {
   const { user, profile, isAdmin } = useAuth()
   const { openAuthGate } = useAuthGate()
@@ -63,7 +79,6 @@ function CreateForm({ user, profile, isAdmin, router }) {
   const prefillTeamSize = Number(searchParams.get('team_size'))
 
   const [step, setStep] = useState(0)
-  // direction drives which way the step content slides in from
   const [direction, setDirection] = useState('forward')
 
   const [form, setForm] = useState({
@@ -88,7 +103,6 @@ function CreateForm({ user, profile, isAdmin, router }) {
   const [clansLoading, setClansLoading] = useState(false)
   const [clanSearch, setClanSearch] = useState('')
 
-  // Bracket — built in step 2, saved to DB on launch
   const [bracketDraft, setBracketDraft] = useState(null)
 
   const [errors,        setErrors]        = useState({})
@@ -115,7 +129,6 @@ function CreateForm({ user, profile, isAdmin, router }) {
       .then(({ data }) => {
         setClans(data || [])
         setClansLoading(false)
-        // Selected clan no longer matches this game — clear it
         if (form.clan_id && !(data || []).some(c => c.id === form.clan_id)) {
           set('clan_id', null)
         }
@@ -139,15 +152,10 @@ function CreateForm({ user, profile, isAdmin, router }) {
 
   function set(key, val) { setForm(f => ({ ...f, [key]: val })); setErrors(e => ({ ...e, [key]: null })) }
 
-  // Battle Royale Points is only a valid stage format for BR-genre games —
-  // if the creator swaps to a non-BR game while it's selected, fall back.
   useEffect(() => {
     if (form.stage_format === 'br_points' && !isBRGame) set('stage_format', 'knockout')
   }, [form.game_slug])
 
-  // When advancing to bracket step, seed a default shape from slots count.
-  // Converts total slots → round match counts (e.g. 32 slots → [16,8,4,2,1])
-  // Creator can freely change it in the builder.
   function rebuildBracket(slots, teamSize) {
     const effectiveSlots = teamSize > 1 ? Math.ceil(slots / teamSize) : slots
     const roundCounts = []
@@ -181,16 +189,10 @@ function CreateForm({ user, profile, isAdmin, router }) {
   function next() {
     if (!validateStep(step)) return
     setDirection('forward')
-    // Groups + Knockout tournaments don't pre-build a bracket — it's generated
-    // later, once the group stage finishes — so skip the Bracket step entirely.
-    // Groups+Knockout and Battle Royale Points tournaments don't pre-build a
-    // bracket — groups build one later once group stage finishes; BR points
-    // tournaments never have a bracket at all — so skip the Bracket step.
     if (step === 1 && (form.stage_format === 'groups_knockout' || form.stage_format === 'br_points')) {
       setStep(STEPS.length - 1)
       return
     }
-    // When advancing from Format (step 1) → Bracket (step 2), auto-generate initial bracket
     if (step === 1 && !bracketDraft) {
       rebuildBracket(form.slots, form.team_size)
     }
@@ -205,9 +207,6 @@ function CreateForm({ user, profile, isAdmin, router }) {
     setStep(s => Math.max(s - 1, 0))
   }
 
-  // Test Run mode: fill the new tournament with reusable dummy "Test Player N"
-  // profiles (seeded once via SQL, flagged profiles.is_bot = true) so the
-  // creator can see a populated bracket/standings without real registrants.
   async function seedTestPlayers(tournamentId, count) {
     const need = Math.max(0, Number(count) || 0)
     if (!need) return
@@ -247,8 +246,6 @@ function CreateForm({ user, profile, isAdmin, router }) {
       game_slug:        form.game_slug,
       format:           form.format,
       prize:            form.prize,
-      // Use actual slot count from bracket editor — not the form.slots picker
-      // bracket_data.slot_count = real open slots counted from round 0
       slots:            (form.stage_format === 'groups_knockout' || form.stage_format === 'br_points') ? Number(form.slots) : (bracketDraft?.slot_count ?? Number(form.slots)),
       date:             form.date,
       description:      form.description,
@@ -257,8 +254,6 @@ function CreateForm({ user, profile, isAdmin, router }) {
       stage_format:     form.stage_format || 'knockout',
       group_count:      form.stage_format === 'groups_knockout' ? Number(form.group_count) : null,
       advance_per_group: form.stage_format === 'groups_knockout' ? Number(form.advance_per_group) : null,
-      // BR points tournaments store their scoring config + (empty) match log
-      // in bracket_data, same column groups/knockout use for their own shapes.
       bracket_data:     form.stage_format === 'br_points'
         ? buildEmptyBRBracket({ matchCount: Number(form.br_match_count), killPointValue: Number(form.br_kill_point_value), placementTable: form.br_placement_table })
         : (form.stage_format === 'groups_knockout' ? null : (bracketDraft || null)),
@@ -281,7 +276,6 @@ function CreateForm({ user, profile, isAdmin, router }) {
       setProgressLabel('Test run ready — no notifications sent.')
     } else {
       setProgressLabel('Notifying players…')
-      // Clan tournaments only notify that clan's members — everyone else can't join anyway
       const { data: allProfiles } = form.clan_id
         ? await supabase.from('clan_members').select('user_id').eq('clan_id', form.clan_id).neq('user_id', user.id)
             .then(({ data }) => ({ data: (data || []).map(m => ({ id: m.user_id })) }))
@@ -363,6 +357,8 @@ function CreateForm({ user, profile, isAdmin, router }) {
   }
 
   const slideClass = direction === 'forward' ? styles.slideFromRight : styles.slideFromLeft
+  const pct = Math.round((step / (STEPS.length - 1)) * 100)
+  const filteredClans = clans.filter(c => !clanSearch || c.name.toLowerCase().includes(clanSearch.toLowerCase()))
 
   // ── Form ──────────────────────────────────────────────────────────────────
   return (
@@ -370,7 +366,6 @@ function CreateForm({ user, profile, isAdmin, router }) {
       <div className={styles.topBar}>
         <button className={styles.backBtn} onClick={() => step === 0 ? router.back() : back()}><i className="ri-arrow-left-line" /></button>
         <span className={styles.topTitle}>Create Tournament</span>
-        <span className={styles.topStep}>{step + 1} / {STEPS.length}</span>
       </div>
 
       {!isPaidPlan && myCreated !== null && (
@@ -383,14 +378,23 @@ function CreateForm({ user, profile, isAdmin, router }) {
         </div>
       )}
 
-      <div className={styles.stepRow}>
-        {STEPS.map((s, i) => (
-          <div key={s.key} className={`${styles.stepItem} ${i === step ? styles.stepActive : ''} ${i < step ? styles.stepDone : ''}`}>
-            <div className={styles.stepDot}>{i < step ? <i className="ri-check-line" /> : <i className={s.icon} />}</div>
-            <span className={styles.stepLabel}>{s.label}</span>
-            {i < STEPS.length - 1 && <div className={`${styles.stepLine} ${i < step ? styles.stepLineDone : ''}`} />}
-          </div>
-        ))}
+      {/* ── Segmented progress bar ── */}
+      <div className={styles.progressWrap}>
+        <div className={styles.progressTop}>
+          <span className={styles.progressStepText}><i className={STEPS[step].icon} /> {STEPS[step].label}</span>
+          <span className={styles.progressPct}>{pct}%</span>
+        </div>
+        <div className={styles.progressTrack}>
+          <div className={styles.progressFill} style={{ width: `${pct}%` }} />
+          <div className={styles.progressKnob} style={{ left: `${pct}%` }}><i className={STEPS[step].icon} /></div>
+        </div>
+        <div className={styles.progressLabels}>
+          {STEPS.map((s, i) => (
+            <span key={s.key} className={`${styles.progressLabel} ${i === step ? styles.progressLabelActive : ''} ${i < step ? styles.progressLabelDone : ''}`}>
+              {s.label}
+            </span>
+          ))}
+        </div>
       </div>
 
       <div className={styles.card}>
@@ -401,25 +405,49 @@ function CreateForm({ user, profile, isAdmin, router }) {
           <>
             <h2 className={styles.stepHeading}><i className="ri-file-text-line" /> Basic Details</h2>
             <p className={styles.stepHint}>Give your tournament a name and pick the game.</p>
-            <div className={styles.field}>
+
+            <div className={`${styles.field} ${styles.nameField}`} style={{ marginBottom: 14 }}>
               <label>Tournament Name <span className={styles.req}>*</span></label>
               <input type="text" value={form.name} placeholder="e.g. Solo Showdown Season 1" onChange={e => set('name', e.target.value)} className={errors.name ? styles.inputError : ''} autoFocus />
               {errors.name && <span className={styles.errMsg}>{errors.name}</span>}
             </div>
-            <div className={styles.field}>
-              <label>Game <span className={styles.req}>*</span></label>
-              <div className={styles.gameGrid}>
-                {GAME_SLUGS.map(s => (
-                  <button key={s} type="button" className={`${styles.gameChip} ${form.game_slug === s ? styles.gameChipActive : ''}`} onClick={() => set('game_slug', s)}>
-                    {GAME_NAMES[s] || s}
-                  </button>
-                ))}
+
+            <div className={styles.sectionCard}>
+              <div className={styles.sectionHead}>
+                <span className={styles.sectionIcon}><i className="ri-gamepad-line" /></span>
+                <div>
+                  <h3 className={styles.sectionTitle}>Game</h3>
+                  <p className={styles.sectionSub}>What players will be competing in</p>
+                </div>
               </div>
-              {errors.game_slug && <span className={styles.errMsg}>{errors.game_slug}</span>}
+              <div className={styles.sectionBody}>
+                <div className={styles.gameTileGrid}>
+                  {GAME_SLUGS.map(s => {
+                    const active = form.game_slug === s
+                    return (
+                      <button key={s} type="button" className={`${styles.gameTile} ${active ? styles.gameTileActive : ''}`} onClick={() => set('game_slug', s)}>
+                        <GameThumb slug={s} className={styles.gameTileThumb} />
+                        <span className={styles.gameTileName}>{GAME_NAMES[s] || s}</span>
+                        {active && <span className={styles.gameTileCheck}><i className="ri-check-line" /></span>}
+                      </button>
+                    )
+                  })}
+                </div>
+                {errors.game_slug && <span className={styles.errMsg}>{errors.game_slug}</span>}
+              </div>
             </div>
-            <div className={styles.field}>
-              <label>Description <span className={styles.opt}>(optional)</span></label>
-              <textarea rows={3} value={form.description} placeholder="Brief description of the tournament…" onChange={e => set('description', e.target.value)} />
+
+            <div className={styles.sectionCard}>
+              <div className={styles.sectionHead}>
+                <span className={styles.sectionIcon}><i className="ri-align-left" /></span>
+                <div>
+                  <h3 className={styles.sectionTitle}>Description</h3>
+                  <p className={styles.sectionSub}>Optional — shown on the tournament page</p>
+                </div>
+              </div>
+              <div className={styles.sectionBody}>
+                <textarea rows={3} value={form.description} placeholder="Brief description of the tournament…" onChange={e => set('description', e.target.value)} />
+              </div>
             </div>
           </>
         )}
@@ -430,240 +458,272 @@ function CreateForm({ user, profile, isAdmin, router }) {
             <h2 className={styles.stepHeading}><i className="ri-gamepad-line" /> Format & Rules</h2>
             <p className={styles.stepHint}>Set structure, prize, and entry options. Bracket is built next.</p>
 
-            <div className={styles.field}>
-              <label>Format</label>
-              <div className={styles.chipRow}>
-                {FORMATS.map(f => (
-                  <button key={f} type="button" className={`${styles.chip} ${form.format === f ? styles.chipActive : ''}`} onClick={() => set('format', form.format === f ? '' : f)}>{f}</button>
-                ))}
-              </div>
-              <input type="text" value={form.format} placeholder="Or type a custom format…" onChange={e => set('format', e.target.value)} style={{ marginTop: 8 }} />
-            </div>
-
-            <div className={styles.field}>
-              <label>Total Slots <span className={styles.req}>*</span></label>
-              <div className={styles.chipRow}>
-                {SLOT_OPTIONS.map(n => (
-                  <button key={n} type="button" className={`${styles.chip} ${form.slots === n ? styles.chipActive : ''}`}
-                    onClick={() => { set('slots', n); setBracketDraft(null) }}>{n}</button>
-                ))}
-              </div>
-              {errors.slots && <span className={styles.errMsg}>{errors.slots}</span>}
-            </div>
-
-            <div className={styles.field}>
-              <label>Match Type</label>
-              <div className={styles.chipRow}>
-                {TEAM_SIZE_OPTIONS.map(opt => (
-                  <button key={opt.value} type="button"
-                    className={`${styles.chip} ${styles.teamSizeChip} ${form.team_size === opt.value ? styles.chipActive : ''}`}
-                    onClick={() => { set('team_size', opt.value); setBracketDraft(null) }}
-                  >
-                    <span className={styles.teamSizeChipLabel}>{opt.label}</span>
-                    <span className={styles.teamSizeChipSub}>{opt.sub}</span>
-                  </button>
-                ))}
-              </div>
-              {form.team_size > 1 && (
-                <span className={styles.feeHint} style={{ marginTop: 6 }}>
-                  <i className="ri-team-line" /> Team Battle — players grouped into teams of {form.team_size}.
-                </span>
-              )}
-            </div>
-
-            <div className={styles.field}>
-              <label>Stage Format</label>
-              <div className={styles.chipRow}>
-                <button type="button" className={`${styles.chip} ${form.stage_format === 'knockout' ? styles.chipActive : ''}`}
-                  onClick={() => set('stage_format', 'knockout')}>
-                  Knockout
-                </button>
-                <button type="button" className={`${styles.chip} ${form.stage_format === 'groups_knockout' ? styles.chipActive : ''}`}
-                  onClick={() => set('stage_format', 'groups_knockout')}>
-                  Groups + Knockout
-                </button>
-                {isBRGame && (
-                  <button type="button" className={`${styles.chip} ${form.stage_format === 'br_points' ? styles.chipActive : ''}`}
-                    onClick={() => set('stage_format', 'br_points')}>
-                    Battle Royale Points
-                  </button>
-                )}
-              </div>
-              {form.stage_format === 'br_points' && (
-                <>
-                  <span className={styles.feeHint} style={{ marginTop: 6 }}>
-                    <i className="ri-skull-line" /> No bracket — players/squads play a series of matches. Each match is scored by placement + kills, summed across all matches for a final standings table.
-                  </span>
-                  <div className={styles.subRow}>
-                    <div className={styles.subCol}>
-                      <label className={styles.subColLabel}>Number of matches</label>
-                      <div className={styles.chipRow}>
-                        {[3, 4, 6, 8].map(n => (
-                          <button key={n} type="button" className={`${styles.chip} ${form.br_match_count === n ? styles.chipActive : ''}`}
-                            onClick={() => set('br_match_count', n)}>{n}</button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className={styles.subCol}>
-                      <label className={styles.subColLabel}>Points per kill</label>
-                      <div className={styles.chipRow}>
-                        {[0.5, 1, 1.5, 2].map(n => (
-                          <button key={n} type="button" className={`${styles.chip} ${form.br_kill_point_value === n ? styles.chipActive : ''}`}
-                            onClick={() => set('br_kill_point_value', n)}>{n}</button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ marginTop: 10 }}>
-                    <label className={styles.subColLabel}>Placement points table</label>
-                    <div className={styles.chipRow}>
-                      {Object.entries(PLACEMENT_TABLE_PRESETS).map(([key, preset]) => (
-                        <button key={key} type="button" className={`${styles.chip} ${form.br_placement_preset === key ? styles.chipActive : ''}`}
-                          onClick={() => { set('br_placement_preset', key); set('br_placement_table', { ...preset.table }) }}>
-                          {preset.label}
-                        </button>
-                      ))}
-                    </div>
-                    <div className={styles.placementGrid}>
-                      {Object.entries(form.br_placement_table).sort((a, b) => Number(a[0]) - Number(b[0])).map(([place, pts]) => (
-                        <div key={place} className={styles.placementPill}>
-                          <span className={styles.placementRank}>#{place}</span>
-                          <input
-                            type="number" value={pts} min={0} className={styles.placementInput}
-                            onChange={e => set('br_placement_table', { ...form.br_placement_table, [place]: Number(e.target.value) || 0 })}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                    <span className={styles.feeHint} style={{ marginTop: 6 }}>
-                      <i className="ri-information-line" /> Placements not listed above score 0 placement points — kills still count for everyone.
-                    </span>
-                  </div>
-                  {errors._br && <span className={styles.errMsg}>{errors._br}</span>}
-                </>
-              )}
-              {form.stage_format === 'groups_knockout' && (
-                <>
-                  <span className={styles.feeHint} style={{ marginTop: 6 }}>
-                    <i className="ri-node-tree" /> Players are split into groups for round-robin play. Top finishers move into a knockout bracket.
-                  </span>
-                  <div className={styles.subRow}>
-                    <div className={styles.subCol}>
-                      <label className={styles.subColLabel}>Number of groups</label>
-                      <div className={styles.chipRow}>
-                        {[2, 4, 8].map(n => (
-                          <button key={n} type="button" className={`${styles.chip} ${form.group_count === n ? styles.chipActive : ''}`}
-                            onClick={() => set('group_count', n)}>{n}</button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className={styles.subCol}>
-                      <label className={styles.subColLabel}>Advance per group</label>
-                      <div className={styles.chipRow}>
-                        {[1, 2, 4].map(n => (
-                          <button key={n} type="button" className={`${styles.chip} ${form.advance_per_group === n ? styles.chipActive : ''}`}
-                            onClick={() => set('advance_per_group', n)}>{n}</button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div className={styles.field}>
-              <label><i className="ri-shield-star-line" style={{ marginRight: 4 }} />Clan Tournament <span className={styles.opt}>(optional)</span></label>
-              <button type="button" className={`${styles.testToggle} ${styles.testToggleClan} ${form.clan_id !== null ? styles.testToggleOn : ''}`}
-                onClick={() => set('clan_id', form.clan_id !== null ? null : '')}>
-                <div className={styles.testToggleLeft}>
-                  <i className={form.clan_id !== null ? 'ri-shield-star-fill' : 'ri-shield-star-line'} />
-                  <div>
-                    <span className={styles.testToggleLabel}>Restrict to a Clan</span>
-                    <span className={styles.testToggleHint}>{form.clan_id !== null ? 'Only members of the selected clan can join.' : 'Open to a single clan\u2019s squads instead of everyone.'}</span>
-                  </div>
+            {/* Format */}
+            <div className={styles.sectionCard}>
+              <div className={styles.sectionHead}>
+                <span className={styles.sectionIcon}><i className="ri-layout-grid-line" /></span>
+                <div>
+                  <h3 className={styles.sectionTitle}>Format</h3>
+                  <p className={styles.sectionSub}>Match style for this tournament</p>
                 </div>
-                <div className={`${styles.testToggleSwitch} ${form.clan_id !== null ? styles.testToggleSwitchOn : ''}`}>
-                  <div className={styles.testToggleKnob} />
+              </div>
+              <div className={styles.sectionBody}>
+                <div className={styles.chipRow}>
+                  {FORMATS.map(f => (
+                    <button key={f} type="button" className={`${styles.chip} ${form.format === f ? styles.chipActive : ''}`} onClick={() => set('format', form.format === f ? '' : f)}>{f}</button>
+                  ))}
                 </div>
-              </button>
+                <input type="text" value={form.format} placeholder="Or type a custom format…" onChange={e => set('format', e.target.value)} />
+              </div>
+            </div>
 
-              {form.clan_id !== null && (
-                <div style={{ marginTop: 10 }}>
-                  <input type="text" value={clanSearch} placeholder="Search clans…" onChange={e => setClanSearch(e.target.value)} />
-                  <div className={styles.chipRow} style={{ marginTop: 8 }}>
-                    {clansLoading ? (
-                      <span className={styles.testToggleHint}>Loading clans…</span>
-                    ) : clans.filter(c => !clanSearch || c.name.toLowerCase().includes(clanSearch.toLowerCase())).length === 0 ? (
-                      <span className={styles.testToggleHint}>No clans found for {GAME_NAMES[form.game_slug] || form.game_slug}.</span>
-                    ) : (
-                      clans.filter(c => !clanSearch || c.name.toLowerCase().includes(clanSearch.toLowerCase())).map(c => (
-                        <button key={c.id} type="button" className={`${styles.chip} ${form.clan_id === c.id ? styles.chipActive : ''}`} onClick={() => set('clan_id', c.id)}>
-                          {c.logo_url && <img src={c.logo_url} alt="" className={styles.clanLogo} />}
-                          {c.name} <span style={{ opacity: 0.6 }}>· {c.member_count}</span>
-                        </button>
-                      ))
-                    )}
+            {/* Bracket size */}
+            <div className={styles.sectionCard}>
+              <div className={styles.sectionHead}>
+                <span className={styles.sectionIcon}><i className="ri-group-line" /></span>
+                <div>
+                  <h3 className={styles.sectionTitle}>Bracket Size</h3>
+                  <p className={styles.sectionSub}>Slots &amp; team composition</p>
+                </div>
+              </div>
+              <div className={styles.sectionBody}>
+                <div className={styles.field}>
+                  <label>Total Slots <span className={styles.req}>*</span></label>
+                  <div className={styles.chipRow}>
+                    {SLOT_OPTIONS.map(n => (
+                      <button key={n} type="button" className={`${styles.chip} ${form.slots === n ? styles.chipActive : ''}`}
+                        onClick={() => { set('slots', n); setBracketDraft(null) }}>{n}</button>
+                    ))}
+                  </div>
+                  {errors.slots && <span className={styles.errMsg}>{errors.slots}</span>}
+                </div>
+                <div className={styles.field}>
+                  <label>Match Type</label>
+                  <div className={styles.chipRow}>
+                    {TEAM_SIZE_OPTIONS.map(opt => (
+                      <button key={opt.value} type="button"
+                        className={`${styles.chip} ${styles.teamSizeChip} ${form.team_size === opt.value ? styles.chipActive : ''}`}
+                        onClick={() => { set('team_size', opt.value); setBracketDraft(null) }}
+                      >
+                        <span className={styles.teamSizeChipLabel}>{opt.label}</span>
+                        <span className={styles.teamSizeChipSub}>{opt.sub}</span>
+                      </button>
+                    ))}
                   </div>
                   {form.team_size > 1 && (
-                    <span className={styles.feeHint} style={{ marginTop: 6 }}>
-                      <i className="ri-team-line" /> Squads from this clan claim team slots — squadmates fill the open spots first-come, first-served.
-                    </span>
+                    <span className={styles.feeHint}><i className="ri-team-line" /> Team Battle — players grouped into teams of {form.team_size}.</span>
                   )}
                 </div>
-              )}
-            </div>
-
-            <div className={styles.fieldRow}>
-              <div className={styles.field}>
-                <label>Prize Pool (TZS)</label>
-                <input type="text" value={form.prize} placeholder="e.g. 500,000" onChange={e => set('prize', e.target.value)} />
-              </div>
-              <div className={styles.field}>
-                <label>Date</label>
-                <input type="text" value={form.date} placeholder="e.g. Apr 20" onChange={e => set('date', e.target.value)} />
               </div>
             </div>
 
-            <div className={styles.field}>
-              <label><i className="ri-money-dollar-circle-line" style={{ marginRight: 4 }} />Entrance Fee (TZS) <span className={styles.opt}>(optional)</span></label>
-              <input type="text" value={form.entrance_fee} placeholder="e.g. 2,000 — leave blank for free entry" onChange={e => set('entrance_fee', e.target.value)} />
-              {form.entrance_fee && <span className={styles.feeHint}><i className="ri-information-line" /> Players submit M-Pesa proof — admin approves before registration.</span>}
-            </div>
-
-            {/* Pro Only toggle */}
-            <button type="button" className={`${styles.testToggle} ${styles.testTogglePro} ${form.pro_only ? styles.testToggleOn : ''}`}
-              onClick={() => set('pro_only', !form.pro_only)}>
-              <div className={styles.testToggleLeft}>
-                <i className={form.pro_only ? 'ri-vip-crown-fill' : 'ri-vip-crown-line'} />
+            {/* Stage structure */}
+            <div className={styles.sectionCard}>
+              <div className={styles.sectionHead}>
+                <span className={styles.sectionIcon}><i className="ri-node-tree" /></span>
                 <div>
-                  <span className={styles.testToggleLabel}>Pro & Elite Only</span>
-                  <span className={styles.testToggleHint}>{form.pro_only ? 'Only Pro, Elite & Team members can join.' : 'Restrict to paid plan members only.'}</span>
+                  <h3 className={styles.sectionTitle}>Stage Structure</h3>
+                  <p className={styles.sectionSub}>How players progress to a winner</p>
                 </div>
               </div>
-              <div className={`${styles.testToggleSwitch} ${form.pro_only ? styles.testToggleSwitchOn : ''}`}>
-                <div className={styles.testToggleKnob} />
-              </div>
-            </button>
+              <div className={styles.sectionBody}>
+                <div className={styles.chipRow}>
+                  <button type="button" className={`${styles.chip} ${form.stage_format === 'knockout' ? styles.chipActive : ''}`}
+                    onClick={() => set('stage_format', 'knockout')}>Knockout</button>
+                  <button type="button" className={`${styles.chip} ${form.stage_format === 'groups_knockout' ? styles.chipActive : ''}`}
+                    onClick={() => set('stage_format', 'groups_knockout')}>Groups + Knockout</button>
+                  {isBRGame && (
+                    <button type="button" className={`${styles.chip} ${form.stage_format === 'br_points' ? styles.chipActive : ''}`}
+                      onClick={() => set('stage_format', 'br_points')}>Battle Royale Points</button>
+                  )}
+                </div>
 
-            {/* Test Run toggle */}
-            <button type="button" className={`${styles.testToggle} ${form.is_test ? styles.testToggleOn : ''}`} onClick={() => set('is_test', !form.is_test)}>
-              <div className={styles.testToggleLeft}>
-                <i className={form.is_test ? 'ri-flask-fill' : 'ri-flask-line'} />
+                {form.stage_format === 'br_points' && (
+                  <>
+                    <span className={styles.feeHint}><i className="ri-skull-line" /> No bracket — players/squads play a series of matches. Each match is scored by placement + kills, summed across all matches for a final standings table.</span>
+                    <div className={styles.subRow}>
+                      <div className={styles.subCol}>
+                        <label className={styles.subColLabel}>Number of matches</label>
+                        <div className={styles.chipRow}>
+                          {[3, 4, 6, 8].map(n => (
+                            <button key={n} type="button" className={`${styles.chip} ${form.br_match_count === n ? styles.chipActive : ''}`}
+                              onClick={() => set('br_match_count', n)}>{n}</button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className={styles.subCol}>
+                        <label className={styles.subColLabel}>Points per kill</label>
+                        <div className={styles.chipRow}>
+                          {[0.5, 1, 1.5, 2].map(n => (
+                            <button key={n} type="button" className={`${styles.chip} ${form.br_kill_point_value === n ? styles.chipActive : ''}`}
+                              onClick={() => set('br_kill_point_value', n)}>{n}</button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className={styles.field}>
+                      <label className={styles.subColLabel} style={{ textTransform: 'none', letterSpacing: 0 }}>Placement points table</label>
+                      <div className={styles.chipRow}>
+                        {Object.entries(PLACEMENT_TABLE_PRESETS).map(([key, preset]) => (
+                          <button key={key} type="button" className={`${styles.chip} ${form.br_placement_preset === key ? styles.chipActive : ''}`}
+                            onClick={() => { set('br_placement_preset', key); set('br_placement_table', { ...preset.table }) }}>
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+                      <div className={styles.placementGrid}>
+                        {Object.entries(form.br_placement_table).sort((a, b) => Number(a[0]) - Number(b[0])).map(([place, pts]) => (
+                          <div key={place} className={styles.placementPill}>
+                            <span className={styles.placementRank}>#{place}</span>
+                            <input
+                              type="number" value={pts} min={0} className={styles.placementInput}
+                              onChange={e => set('br_placement_table', { ...form.br_placement_table, [place]: Number(e.target.value) || 0 })}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <span className={styles.feeHint}><i className="ri-information-line" /> Placements not listed above score 0 placement points — kills still count for everyone.</span>
+                    </div>
+                    {errors._br && <span className={styles.errMsg}>{errors._br}</span>}
+                  </>
+                )}
+
+                {form.stage_format === 'groups_knockout' && (
+                  <>
+                    <span className={styles.feeHint}><i className="ri-node-tree" /> Players are split into groups for round-robin play. Top finishers move into a knockout bracket.</span>
+                    <div className={styles.subRow}>
+                      <div className={styles.subCol}>
+                        <label className={styles.subColLabel}>Number of groups</label>
+                        <div className={styles.chipRow}>
+                          {[2, 4, 8].map(n => (
+                            <button key={n} type="button" className={`${styles.chip} ${form.group_count === n ? styles.chipActive : ''}`}
+                              onClick={() => set('group_count', n)}>{n}</button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className={styles.subCol}>
+                        <label className={styles.subColLabel}>Advance per group</label>
+                        <div className={styles.chipRow}>
+                          {[1, 2, 4].map(n => (
+                            <button key={n} type="button" className={`${styles.chip} ${form.advance_per_group === n ? styles.chipActive : ''}`}
+                              onClick={() => set('advance_per_group', n)}>{n}</button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Access */}
+            <div className={styles.sectionCard}>
+              <div className={styles.sectionHead}>
+                <span className={styles.sectionIcon}><i className="ri-shield-star-line" /></span>
                 <div>
-                  <span className={styles.testToggleLabel}>Test Run</span>
-                  <span className={styles.testToggleHint}>{form.is_test ? 'Active — no notifications sent.' : 'Run a silent test — no notifications, hidden from other users.'}</span>
+                  <h3 className={styles.sectionTitle}>Access</h3>
+                  <p className={styles.sectionSub}>Who's allowed to join</p>
                 </div>
               </div>
-              <div className={`${styles.testToggleSwitch} ${form.is_test ? styles.testToggleSwitchOn : ''}`}>
-                <div className={styles.testToggleKnob} />
-              </div>
-            </button>
+              <div className={styles.sectionBody}>
+                <button type="button" className={`${styles.toggleRow} ${styles.toneClan} ${form.clan_id !== null ? styles.toggleOn : ''}`}
+                  onClick={() => set('clan_id', form.clan_id !== null ? null : '')}>
+                  <div className={styles.toggleLeft}>
+                    <i className={form.clan_id !== null ? 'ri-shield-star-fill' : 'ri-shield-star-line'} />
+                    <div>
+                      <span className={styles.toggleLabel}>Restrict to a Clan</span>
+                      <span className={styles.toggleHint}>{form.clan_id !== null ? 'Only members of the selected clan can join.' : 'Open to a single clan\u2019s squads instead of everyone.'}</span>
+                    </div>
+                  </div>
+                  <div className={`${styles.toggleSwitch} ${form.clan_id !== null ? styles.toggleSwitchOn : ''}`}><div className={styles.toggleKnob} /></div>
+                </button>
 
-            {errors._clan && (
-              <div className={styles.quotaErr}>
-                <i className="ri-shield-star-line" /><span>{errors._clan}</span>
+                {form.clan_id !== null && (
+                  <div className={styles.field}>
+                    <input type="text" value={clanSearch} placeholder="Search clans…" onChange={e => setClanSearch(e.target.value)} />
+                    <div className={styles.chipRow}>
+                      {clansLoading ? (
+                        <span className={styles.toggleHint}>Loading clans…</span>
+                      ) : filteredClans.length === 0 ? (
+                        <span className={styles.toggleHint}>No clans found for {GAME_NAMES[form.game_slug] || form.game_slug}.</span>
+                      ) : (
+                        filteredClans.map(c => (
+                          <button key={c.id} type="button" className={`${styles.chip} ${form.clan_id === c.id ? styles.chipActive : ''}`} onClick={() => set('clan_id', c.id)}>
+                            {c.logo_url && <img src={c.logo_url} alt="" className={styles.clanLogo} />}
+                            {c.name} <span style={{ opacity: 0.6 }}>· {c.member_count}</span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                    {form.team_size > 1 && (
+                      <span className={styles.feeHint}><i className="ri-team-line" /> Squads from this clan claim team slots — squadmates fill the open spots first-come, first-served.</span>
+                    )}
+                  </div>
+                )}
+
+                {errors._clan && (
+                  <div className={styles.quotaErr}><i className="ri-shield-star-line" /><span>{errors._clan}</span></div>
+                )}
+
+                <div className={styles.toggleDivider} />
+
+                <button type="button" className={`${styles.toggleRow} ${styles.tonePro} ${form.pro_only ? styles.toggleOn : ''}`}
+                  onClick={() => set('pro_only', !form.pro_only)}>
+                  <div className={styles.toggleLeft}>
+                    <i className={form.pro_only ? 'ri-vip-crown-fill' : 'ri-vip-crown-line'} />
+                    <div>
+                      <span className={styles.toggleLabel}>Pro & Elite Only</span>
+                      <span className={styles.toggleHint}>{form.pro_only ? 'Only Pro, Elite & Team members can join.' : 'Restrict to paid plan members only.'}</span>
+                    </div>
+                  </div>
+                  <div className={`${styles.toggleSwitch} ${form.pro_only ? styles.toggleSwitchOn : ''}`}><div className={styles.toggleKnob} /></div>
+                </button>
               </div>
-            )}
+            </div>
+
+            {/* Pricing & schedule */}
+            <div className={styles.sectionCard}>
+              <div className={styles.sectionHead}>
+                <span className={styles.sectionIcon}><i className="ri-money-dollar-circle-line" /></span>
+                <div>
+                  <h3 className={styles.sectionTitle}>Pricing & Schedule</h3>
+                  <p className={styles.sectionSub}>Prize, date, and entry cost</p>
+                </div>
+              </div>
+              <div className={styles.sectionBody}>
+                <div className={styles.fieldRow}>
+                  <div className={styles.field}>
+                    <label>Prize Pool (TZS)</label>
+                    <input type="text" value={form.prize} placeholder="e.g. 500,000" onChange={e => set('prize', e.target.value)} />
+                  </div>
+                  <div className={styles.field}>
+                    <label>Date</label>
+                    <input type="text" value={form.date} placeholder="e.g. Apr 20" onChange={e => set('date', e.target.value)} />
+                  </div>
+                </div>
+                <div className={styles.field}>
+                  <label><i className="ri-ticket-line" style={{ marginRight: 4 }} />Entrance Fee (TZS) <span className={styles.opt}>(optional)</span></label>
+                  <input type="text" value={form.entrance_fee} placeholder="e.g. 2,000 — leave blank for free entry" onChange={e => set('entrance_fee', e.target.value)} />
+                  {form.entrance_fee && <span className={styles.feeHint}><i className="ri-information-line" /> Players submit M-Pesa proof — admin approves before registration.</span>}
+                </div>
+              </div>
+            </div>
+
+            {/* Test run — caution-tinted, kept standalone */}
+            <div className={`${styles.sectionCard} ${styles.testCard} ${form.is_test ? styles.testCardOn : ''}`}>
+              <div className={styles.sectionBody} style={{ padding: 12 }}>
+                <button type="button" className={`${styles.toggleRow} ${styles.toneTest} ${form.is_test ? styles.toggleOn : ''}`} onClick={() => set('is_test', !form.is_test)}>
+                  <div className={styles.toggleLeft}>
+                    <i className={form.is_test ? 'ri-flask-fill' : 'ri-flask-line'} />
+                    <div>
+                      <span className={styles.toggleLabel}>Test Run</span>
+                      <span className={styles.toggleHint}>{form.is_test ? 'Active — no notifications sent.' : 'Run a silent test — no notifications, hidden from other users.'}</span>
+                    </div>
+                  </div>
+                  <div className={`${styles.toggleSwitch} ${form.is_test ? styles.toggleSwitchOn : ''}`}><div className={styles.toggleKnob} /></div>
+                </button>
+              </div>
+            </div>
 
             {errors._quota && (
               <div className={styles.quotaErr}>
@@ -699,29 +759,41 @@ function CreateForm({ user, profile, isAdmin, router }) {
           <>
             <h2 className={styles.stepHeading}><i className="ri-rocket-line" /> Review & Launch</h2>
             <p className={styles.stepHint}>Everything look good? Hit launch to go live.</p>
+
+            <div className={styles.heroSummary}>
+              <GameThumb slug={form.game_slug} className={styles.heroThumb} />
+              <div className={styles.heroInfo}>
+                <span className={styles.heroGame}>{GAME_NAMES[form.game_slug] || form.game_slug}</span>
+                <h3 className={styles.heroName}>{form.name || 'Untitled Tournament'}</h3>
+                <div className={styles.heroStats}>
+                  <span><i className="ri-group-line" /> {bracketDraft?.slot_count ?? form.slots} slots</span>
+                  <span><i className="ri-ticket-line" /> {form.entrance_fee ? `TZS ${Number(String(form.entrance_fee).replace(/,/g,'')).toLocaleString()}` : 'Free entry'}</span>
+                </div>
+              </div>
+            </div>
+
             <div className={styles.reviewCard}>
               {[
-                ['ri-trophy-line',              'Name',       form.name || '—'],
-                ['ri-gamepad-line',             'Game',       GAME_NAMES[form.game_slug] || form.game_slug],
-                ['ri-layout-grid-line',         'Format',     form.format || '—'],
-                ['ri-group-line',               'Slots',      bracketDraft?.slot_count ?? form.slots],
-                ['ri-team-line',                'Match Type', form.team_size === 1 ? '1v1 — Solo' : `${form.team_size}v${form.team_size} — Team Battle`],
+                ['ri-layout-grid-line', 'Format',     form.format || '—'],
+                ['ri-team-line',        'Match Type', form.team_size === 1 ? '1v1 — Solo' : `${form.team_size}v${form.team_size} — Team Battle`],
                 ...(form.stage_format === 'br_points'
                   ? [
-                      ['ri-skull-line',      'Matches',        `${form.br_match_count}`],
-                      ['ri-crosshair-2-line','Points per kill', `${form.br_kill_point_value}`],
+                      ['ri-skull-line',       'Matches',          `${form.br_match_count}`],
+                      ['ri-crosshair-2-line', 'Points per kill',  `${form.br_kill_point_value}`],
                     ]
                   : [['ri-node-tree', 'Bracket', bracketDraft ? `${bracketDraft.rounds?.length} rounds · ${bracketDraft.rounds?.[0]?.length * 2} slots` : 'Auto-generated on launch']]
                 ),
-                ['ri-money-dollar-circle-line', 'Prize',      form.prize ? `TZS ${form.prize}` : '—'],
-                ['ri-ticket-line',              'Entry Fee',  form.entrance_fee ? `TZS ${Number(String(form.entrance_fee).replace(/,/g,'')).toLocaleString()}` : 'Free'],
-                ['ri-calendar-event-line',      'Date',       form.date || '—'],
+                ['ri-money-dollar-circle-line', 'Prize', form.prize ? `TZS ${form.prize}` : '—'],
+                ['ri-calendar-event-line',      'Date',  form.date || '—'],
               ].map(([icon, label, val]) => (
                 <div key={label} className={styles.reviewRow}>
                   <span className={styles.reviewLabel}><i className={icon} /> {label}</span>
                   <span className={styles.reviewVal}>{val}</span>
                 </div>
               ))}
+            </div>
+
+            <div className={styles.reviewCard}>
               <div className={styles.reviewRow}>
                 <span className={styles.reviewLabel}><i className="ri-shield-star-line" /> Clan</span>
                 <span className={`${styles.reviewVal} ${form.clan_id ? styles.reviewValClan : styles.reviewValMuted}`}>
@@ -741,6 +813,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
                 </span>
               </div>
             </div>
+
             {errors._submit && <div className={styles.submitErr}><i className="ri-error-warning-line" /> {errors._submit}</div>}
           </>
         )}
