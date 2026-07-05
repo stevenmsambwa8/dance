@@ -17,7 +17,7 @@ import BracketShareModal from '../../../components/BracketShareModal'
 import Modal from '../../../components/Modal'
 import MarqueeText from '../../../components/MarqueeText'
 import { computeStandings, buildGroups, addMemberToGroup } from '../../../lib/groupStage'
-import { parseBRData, computeBRStandings, unitizeParticipants, addOrUpdateMatch, removeMatch as removeBRMatch, isBRComplete } from '../../../lib/brPoints'
+import { parseBRData, computeBRStandings, unitizeParticipants, addOrUpdateMatch, removeMatch as removeBRMatch, isBRComplete, buildEmptyBRBracket } from '../../../lib/brPoints'
 import useTranslation from '../../../lib/useTranslation'
 
 const ADMIN_EMAIL = 'stevenmsambwa8@gmail.com'
@@ -1387,7 +1387,7 @@ export default function TournamentDetail() {
         .filter(r => r.played && r.placement !== '' && r.placement !== null)
         .map(r => ({ unitId: r.unitId, name: r.name, placement: Number(r.placement), kills: Number(r.kills) || 0 }))
       const match = { id: brMatchModal.matchId, name: brMatchModal.name, playedAt: new Date().toISOString(), results }
-      const freshBd = parseBRData(bracketData) || parseBRData(tournament?.bracket_data)
+      const freshBd = parseBRData(bracketData) || buildEmptyBRBracket()
       const newBd = addOrUpdateMatch(freshBd, match)
       const { error } = await supabase.from('tournaments').update({ bracket_data: newBd }).eq('id', id)
       if (error) throw error
@@ -1404,7 +1404,7 @@ export default function TournamentDetail() {
     if (brSaving) return
     setBrSaving(true)
     try {
-      const freshBd = parseBRData(bracketData) || parseBRData(tournament?.bracket_data)
+      const freshBd = parseBRData(bracketData) || buildEmptyBRBracket()
       const newBd = removeBRMatch(freshBd, matchId)
       const { error } = await supabase.from('tournaments').update({ bracket_data: newBd }).eq('id', id)
       if (error) throw error
@@ -3429,7 +3429,7 @@ export default function TournamentDetail() {
 
       {/* ── BATTLE ROYALE STANDINGS TAB ── */}
       {activeTab === 'standings' && (() => {
-        const brData = parseBRData(bracketData) || parseBRData(tournament?.bracket_data) || { config: { matchCount: 0, killPointValue: 1, placementTable: {} }, matches: [] }
+        const brData = parseBRData(bracketData) || buildEmptyBRBracket()
         const teamSize = tournament?.team_size || 1
         const units = unitizeParticipants(participants, teamSize)
         const standings = computeBRStandings(brData, units)
