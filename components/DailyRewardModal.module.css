@@ -3,7 +3,7 @@
   position: fixed;
   right: 16px;
   bottom: 90px;
-  z-index: 40;
+  z-index: 210;
   width: 48px;
   height: 48px;
   border-radius: 0;
@@ -35,7 +35,7 @@
 .overlay {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: 500;
   background: rgba(0,0,0,0.72);
   backdrop-filter: blur(3px);
   display: flex;
