@@ -3,6 +3,8 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
+import { useAuth } from './AuthProvider'
+import { useAuthGate } from './AuthGateModal'
 import { GAME_SLUGS, GAME_META } from '../lib/constants'
 import { getRecentStories } from '../lib/news'
 import styles from './SearchSidebar.module.css'
@@ -37,6 +39,8 @@ import styles from './SearchSidebar.module.css'
  */
 export default function SearchSidebar({ open, onClose }) {
   const router = useRouter()
+  const { user } = useAuth()
+  const { openAuthGate } = useAuthGate()
   const [query, setQuery]       = useState('')
   const [loading, setLoading]   = useState(false)
   const [jumping, setJumping]   = useState(false)
@@ -44,8 +48,42 @@ export default function SearchSidebar({ open, onClose }) {
   const [recommended, setRecommended] = useState({ tournaments: [], players: [] })
   const [stories, setStories]         = useState([])
   const [storiesLoading, setStoriesLoading] = useState(false)
+  // Which searched/recommended player ids the current user already follows.
+  // Absence from the set just means "not following" — we never store false
+  // explicitly, so toggling just adds/removes ids.
+  const [followingSet, setFollowingSet] = useState(new Set())
   const inputRef  = useRef(null)
   const debounce  = useRef(null)
+
+  // Given a batch of player rows just fetched, look up which of them the
+  // current user already follows and merge those ids into followingSet.
+  async function hydrateFollowing(players) {
+    if (!user || !players?.length) return
+    const ids = players.map(p => p.id).filter(id => id !== user.id)
+    if (!ids.length) return
+    const { data } = await supabase
+      .from('follows').select('following_id')
+      .eq('follower_id', user.id).in('following_id', ids)
+    if (data?.length) {
+      setFollowingSet(prev => new Set([...prev, ...data.map(r => r.following_id)]))
+    }
+  }
+
+  async function toggleFollow(playerId) {
+    if (!user) { openAuthGate(); return }
+    const isFollowing = followingSet.has(playerId)
+    // Optimistic update first, so the button feels instant.
+    setFollowingSet(prev => {
+      const next = new Set(prev)
+      isFollowing ? next.delete(playerId) : next.add(playerId)
+      return next
+    })
+    if (isFollowing) {
+      await supabase.from('follows').delete().eq('follower_id', user.id).eq('following_id', playerId)
+    } else {
+      await supabase.from('follows').insert({ follower_id: user.id, following_id: playerId })
+    }
+  }
 
   // Focus input + load recommendations the moment the panel opens
   useEffect(() => {
@@ -78,6 +116,7 @@ export default function SearchSidebar({ open, onClose }) {
         .order('level', { ascending: false }).limit(4),
     ])
     setRecommended({ tournaments: tournaments || [], players: players || [] })
+    hydrateFollowing(players || [])
   }
 
   async function loadStories() {
@@ -138,6 +177,7 @@ export default function SearchSidebar({ open, onClose }) {
       shop: shop || [],
     })
     setLoading(false)
+    hydrateFollowing(players || [])
   }
 
   function handleChange(e) {
@@ -204,7 +244,7 @@ export default function SearchSidebar({ open, onClose }) {
           />
           {jumping && <span className={styles.jumpingHint}>Jumping…</span>}
           {query && (
-            <button className={styles.clearBtn} onClick={() => { setQuery(''); setResults({ games: [], tournaments: [], players: [], shop: [] }) }}>
+            <button className={styles.clearBtn} onClick={() => { setQuery(''); setResults({ games: [], tournaments: [], players: [], clans: [], shop: [] }) }}>
               <i className="ri-close-circle-fill" />
             </button>
           )}
@@ -242,7 +282,7 @@ export default function SearchSidebar({ open, onClose }) {
                 <>
                   <SectionLabel text="Top players" />
                   {recommended.players.map(p => (
-                    <PlayerRow key={p.id} p={p} onClick={handleClose} />
+                    <PlayerRow key={p.id} p={p} onClick={handleClose} isFollowing={followingSet.has(p.id)} onToggleFollow={toggleFollow} />
                   ))}
                 </>
               )}
@@ -287,7 +327,7 @@ export default function SearchSidebar({ open, onClose }) {
                 <>
                   <SectionLabel text="Players" />
                   {results.players.map(p => (
-                    <PlayerRow key={p.id} p={p} onClick={handleClose} />
+                    <PlayerRow key={p.id} p={p} onClick={handleClose} isFollowing={followingSet.has(p.id)} onToggleFollow={toggleFollow} />
                   ))}
                 </>
               )}
@@ -452,9 +492,19 @@ function NewsCardMedia({ media, icon }) {
 
 function TournamentRow({ t, onClick }) {
   const router = useRouter()
+  const [copied, setCopied] = useState(false)
   const gameName = GAME_META[t.game_slug]?.name || t.game_slug
   const href = `/tournaments/${t.id}`
   const ctaLabel = t.status === 'active' ? 'Join' : 'View'
+
+  function shareLink(e) {
+    e.stopPropagation()
+    const url = `${window.location.origin}${href}`
+    navigator.clipboard?.writeText(url)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+
   return (
     <div className={styles.resultRow} onClick={() => { router.push(href); onClick?.() }}>
       <div className={styles.resultIcon}><i className="ri-trophy-line" /></div>
@@ -462,17 +512,31 @@ function TournamentRow({ t, onClick }) {
         <span className={styles.resultTitle}>{t.name}</span>
         <span className={styles.resultSub}>{gameName} · {t.status}</span>
       </div>
-      <Link href={href} className={styles.resultCta} onClick={(e) => { e.stopPropagation(); onClick?.() }}>
-        {ctaLabel}
-      </Link>
+      <div className={styles.resultCtaGroup}>
+        <button className={styles.resultCtaSecondary} onClick={shareLink}>
+          {copied ? 'Copied' : 'Share'}
+        </button>
+        <Link href={href} className={styles.resultCta} onClick={(e) => { e.stopPropagation(); onClick?.() }}>
+          {ctaLabel}
+        </Link>
+      </div>
     </div>
   )
 }
 
 function ClanRow({ c, onClick }) {
   const router = useRouter()
+  const [copied, setCopied] = useState(false)
   const gameName = GAME_META[c.game]?.name || c.game
   const href = `/clans/${c.code}`
+
+  function copyCode(e) {
+    e.stopPropagation()
+    navigator.clipboard?.writeText(c.code)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+
   return (
     <div className={styles.resultRow} onClick={() => { router.push(href); onClick?.() }}>
       <div className={styles.resultIcon}>
@@ -487,14 +551,19 @@ function ClanRow({ c, onClick }) {
         </span>
         <span className={styles.resultSub}>{gameName} · {c.member_count} members · code {c.code}</span>
       </div>
-      <Link href={href} className={styles.resultCta} onClick={(e) => { e.stopPropagation(); onClick?.() }}>
-        View
-      </Link>
+      <div className={styles.resultCtaGroup}>
+        <button className={styles.resultCtaSecondary} onClick={copyCode}>
+          {copied ? 'Copied' : 'Copy Code'}
+        </button>
+        <Link href={href} className={styles.resultCta} onClick={(e) => { e.stopPropagation(); onClick?.() }}>
+          View
+        </Link>
+      </div>
     </div>
   )
 }
 
-function PlayerRow({ p, onClick }) {
+function PlayerRow({ p, onClick, isFollowing, onToggleFollow }) {
   const router = useRouter()
   const href = `/profile/${p.id}`
   return (
@@ -509,9 +578,17 @@ function PlayerRow({ p, onClick }) {
         <span className={styles.resultTitle}>{p.username}</span>
         <span className={styles.resultSub}>{p.tier || 'Unranked'} · Lv.{p.level ?? '—'}</span>
       </div>
-      <Link href={href} className={styles.resultCta} onClick={(e) => { e.stopPropagation(); onClick?.() }}>
-        View
-      </Link>
+      <div className={styles.resultCtaGroup}>
+        <button
+          className={isFollowing ? styles.resultCtaSecondary : styles.resultCta}
+          onClick={(e) => { e.stopPropagation(); onToggleFollow?.(p.id) }}
+        >
+          {isFollowing ? 'Following' : 'Follow'}
+        </button>
+        <Link href={href} className={styles.resultCtaSecondary} onClick={(e) => { e.stopPropagation(); onClick?.() }}>
+          View
+        </Link>
+      </div>
     </div>
   )
 }
