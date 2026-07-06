@@ -343,10 +343,10 @@ export default function Nav() {
             </Link>
           )}
 
-          {/* ── Daily Login Reward — homepage only, matches the notif bell's
-                icon-button style. Logic/modal lives in DailyRewardModal;
-                this just supplies a nav-styled trigger via render-prop. ── */}
-          {user && path === '/' && (
+          {/* ── Daily Login Reward — global, same as the notif bell.
+                Logic/modal lives in DailyRewardModal; this just supplies a
+                nav-styled trigger via render-prop. ── */}
+          {user && (
             <DailyRewardModal renderTrigger={({ onClick, claimedToday }) => (
               <button className={styles.groupIconBtn} onClick={onClick} title="Daily login reward">
                 <i className="ri-gift-2-line" />
