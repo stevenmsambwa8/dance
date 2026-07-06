@@ -27,18 +27,20 @@ function useCountUp(target, duration = 700) {
 }
 
 /**
- * 7-day login streak modal. Auto-opens once per page load when today's
- * reward hasn't been claimed yet.
+ * 7-day login streak modal. Auto-opens once per mount when today's reward
+ * hasn't been claimed yet.
  *
- * By default renders its own floating gift button as the trigger. Pass
- * `renderTrigger({ onClick, claimedToday, loading })` to supply a custom
- * trigger instead (e.g. a nav-bar icon) — the modal's open/claim logic
- * stays here either way, only the clickable element changes.
+ * Renders no trigger of its own — the caller supplies one via
+ * `renderTrigger({ onClick, claimedToday })` (Nav.js uses this to show a
+ * gift icon styled to match its other header buttons). Homepage-only
+ * gating happens in NavWrapper.js (passed down as Nav's `showDailyReward`
+ * prop, which controls whether Nav mounts this component at all) — don't
+ * re-add path checks in here, that gate already lives one level up.
  *
  * Missing a day resets the streak to Day 1 on next claim — there is
  * deliberately no "claim a skipped day" path here, don't add one.
  */
-export default function DailyRewardModal({ renderTrigger } = {}) {
+export default function DailyRewardModal({ renderTrigger }) {
   const [status, setStatus] = useState(null)
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
@@ -107,20 +109,7 @@ export default function DailyRewardModal({ renderTrigger } = {}) {
 
   return (
     <>
-      {renderTrigger ? (
-        renderTrigger({ onClick: () => setOpen(true), claimedToday, loading: false })
-      ) : (
-        /* Default floating trigger — always available so closing the modal
-           never strands the player without a way to claim later in the day. */
-        <button
-          className={`${styles.trigger} ${!claimedToday ? styles.triggerPulse : ''}`}
-          onClick={() => setOpen(true)}
-          aria-label="Daily login reward"
-        >
-          <i className="ri-gift-fill" />
-          {!claimedToday && <span className={styles.triggerDot} />}
-        </button>
-      )}
+      {renderTrigger && renderTrigger({ onClick: () => setOpen(true), claimedToday })}
 
       {open && (
         <div className={styles.overlay} onClick={() => setOpen(false)}>
@@ -182,7 +171,7 @@ export default function DailyRewardModal({ renderTrigger } = {}) {
               </button>
             )}
 
-            <p className={styles.footNote}>Earn as you go · Provided by Atollmark</p>
+            <p className={styles.footNote}>Earn as you go · Provided by Atollmark T & C Applied</p>
           </div>
         </div>
       )}
