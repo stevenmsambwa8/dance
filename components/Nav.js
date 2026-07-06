@@ -14,7 +14,7 @@ import styles from './Nav.module.css'
 import DailyRewardModal from './DailyRewardModal'
 import { getActivePlan, PLANS } from '../lib/plans'
 
-export default function Nav({ showDailyReward = false }) {
+export default function Nav() {
   const path = usePathname()
   const router = useRouter()
   const { theme, toggle } = useTheme()
@@ -346,7 +346,7 @@ export default function Nav({ showDailyReward = false }) {
           {/* ── Daily Login Reward — global, same as the notif bell.
                 Logic/modal lives in DailyRewardModal; this just supplies a
                 nav-styled trigger via render-prop. ── */}
-          {user && showDailyReward && (
+          {user && (
             <DailyRewardModal renderTrigger={({ onClick, claimedToday }) => (
               <button className={styles.groupIconBtn} onClick={onClick} title="Daily login reward">
                 <i className="ri-gift-2-line" />

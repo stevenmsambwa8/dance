@@ -451,23 +451,30 @@ function NewsCardMedia({ media, icon }) {
 }
 
 function TournamentRow({ t, onClick }) {
+  const router = useRouter()
   const gameName = GAME_META[t.game_slug]?.name || t.game_slug
+  const href = `/tournaments/${t.id}`
+  const ctaLabel = t.status === 'active' ? 'Join' : 'View'
   return (
-    <Link href={`/tournaments/${t.id}`} className={styles.resultRow} onClick={onClick}>
+    <div className={styles.resultRow} onClick={() => { router.push(href); onClick?.() }}>
       <div className={styles.resultIcon}><i className="ri-trophy-line" /></div>
       <div className={styles.resultMeta}>
         <span className={styles.resultTitle}>{t.name}</span>
         <span className={styles.resultSub}>{gameName} · {t.status}</span>
       </div>
-      <i className={`ri-arrow-right-s-line ${styles.resultArrow}`} />
-    </Link>
+      <Link href={href} className={styles.resultCta} onClick={(e) => { e.stopPropagation(); onClick?.() }}>
+        {ctaLabel}
+      </Link>
+    </div>
   )
 }
 
 function ClanRow({ c, onClick }) {
+  const router = useRouter()
   const gameName = GAME_META[c.game]?.name || c.game
+  const href = `/clans/${c.code}`
   return (
-    <Link href={`/clans/${c.code}`} className={styles.resultRow} onClick={onClick}>
+    <div className={styles.resultRow} onClick={() => { router.push(href); onClick?.() }}>
       <div className={styles.resultIcon}>
         {c.logo_url
           ? <img src={c.logo_url} alt="" className={styles.resultAvatar} />
@@ -480,14 +487,18 @@ function ClanRow({ c, onClick }) {
         </span>
         <span className={styles.resultSub}>{gameName} · {c.member_count} members · code {c.code}</span>
       </div>
-      <i className={`ri-arrow-right-s-line ${styles.resultArrow}`} />
-    </Link>
+      <Link href={href} className={styles.resultCta} onClick={(e) => { e.stopPropagation(); onClick?.() }}>
+        View
+      </Link>
+    </div>
   )
 }
 
 function PlayerRow({ p, onClick }) {
+  const router = useRouter()
+  const href = `/profile/${p.id}`
   return (
-    <Link href={`/profile/${p.id}`} className={styles.resultRow} onClick={onClick}>
+    <div className={styles.resultRow} onClick={() => { router.push(href); onClick?.() }}>
       <div className={styles.resultIcon}>
         {p.avatar_url
           ? <img src={p.avatar_url} alt="" className={styles.resultAvatar} />
@@ -498,7 +509,9 @@ function PlayerRow({ p, onClick }) {
         <span className={styles.resultTitle}>{p.username}</span>
         <span className={styles.resultSub}>{p.tier || 'Unranked'} · Lv.{p.level ?? '—'}</span>
       </div>
-      <i className={`ri-arrow-right-s-line ${styles.resultArrow}`} />
-    </Link>
+      <Link href={href} className={styles.resultCta} onClick={(e) => { e.stopPropagation(); onClick?.() }}>
+        View
+      </Link>
+    </div>
   )
 }
