@@ -12,7 +12,6 @@ import { useCurrency } from '../lib/useCurrency'
 import useTranslation from '../lib/useTranslation'
 import { identityColor } from '../lib/clanColors'
 import { getRecentStories } from '../lib/news'
-import DailyRewardModal from '../components/DailyRewardModal'
 
 const CLAN_CAP = 125
 
@@ -866,8 +865,8 @@ export default function Home() {
         </div>
       )}
 
-      {/* ══════════ DAILY LOGIN REWARDS (modal + floating trigger) ══════════ */}
-      {user && <DailyRewardModal />}
+      {/* Daily Login Rewards now lives in the Nav header (gift icon,
+          between the plan icon and the sidebar toggle) — see Nav.js. */}
 
       {/* ══════════ HEADLINES ══════════ */}
       {(storiesLoading || stories.length > 0) && (

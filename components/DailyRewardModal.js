@@ -27,18 +27,18 @@ function useCountUp(target, duration = 700) {
 }
 
 /**
- * 7-day login streak — modal version. Auto-opens once per page load when
- * today's reward hasn't been claimed yet; can also be reopened via the
- * small floating gift trigger it renders (so closing it without claiming
- * doesn't strand the player with no way back in).
+ * 7-day login streak modal. Auto-opens once per page load when today's
+ * reward hasn't been claimed yet.
  *
- * Drop <DailyRewardModal /> once, anywhere in the logged-in tree — it
- * renders nothing for guests and handles its own open/close state.
+ * By default renders its own floating gift button as the trigger. Pass
+ * `renderTrigger({ onClick, claimedToday, loading })` to supply a custom
+ * trigger instead (e.g. a nav-bar icon) — the modal's open/claim logic
+ * stays here either way, only the clickable element changes.
  *
  * Missing a day resets the streak to Day 1 on next claim — there is
  * deliberately no "claim a skipped day" path here, don't add one.
  */
-export default function DailyRewardModal() {
+export default function DailyRewardModal({ renderTrigger } = {}) {
   const [status, setStatus] = useState(null)
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
@@ -107,16 +107,20 @@ export default function DailyRewardModal() {
 
   return (
     <>
-      {/* Floating trigger — always available so closing the modal never
-          strands the player without a way to claim later in the day. */}
-      <button
-        className={`${styles.trigger} ${!claimedToday ? styles.triggerPulse : ''}`}
-        onClick={() => setOpen(true)}
-        aria-label="Daily login reward"
-      >
-        <i className="ri-gift-fill" />
-        {!claimedToday && <span className={styles.triggerDot} />}
-      </button>
+      {renderTrigger ? (
+        renderTrigger({ onClick: () => setOpen(true), claimedToday, loading: false })
+      ) : (
+        /* Default floating trigger — always available so closing the modal
+           never strands the player without a way to claim later in the day. */
+        <button
+          className={`${styles.trigger} ${!claimedToday ? styles.triggerPulse : ''}`}
+          onClick={() => setOpen(true)}
+          aria-label="Daily login reward"
+        >
+          <i className="ri-gift-fill" />
+          {!claimedToday && <span className={styles.triggerDot} />}
+        </button>
+      )}
 
       {open && (
         <div className={styles.overlay} onClick={() => setOpen(false)}>

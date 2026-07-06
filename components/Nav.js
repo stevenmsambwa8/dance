@@ -11,6 +11,7 @@ import { supabase } from '../lib/supabase'
 import NavMusicBar from './NavMusicBar'
 import SearchSidebar from './SearchSidebar'
 import styles from './Nav.module.css'
+import DailyRewardModal from './DailyRewardModal'
 import { getActivePlan, PLANS } from '../lib/plans'
 
 export default function Nav() {
@@ -340,6 +341,18 @@ export default function Nav() {
                 : <i className="ri-user-3-line" />
               }
             </Link>
+          )}
+
+          {/* ── Daily Login Reward — homepage only, matches the notif bell's
+                icon-button style. Logic/modal lives in DailyRewardModal;
+                this just supplies a nav-styled trigger via render-prop. ── */}
+          {user && path === '/' && (
+            <DailyRewardModal renderTrigger={({ onClick, claimedToday }) => (
+              <button className={styles.groupIconBtn} onClick={onClick} title="Daily login reward">
+                <i className="ri-gift-2-line" />
+                {!claimedToday && <span className={styles.badge} />}
+              </button>
+            )} />
           )}
 
           <button className={styles.hamburger} onClick={() => setSidebarOpen(true)}>
