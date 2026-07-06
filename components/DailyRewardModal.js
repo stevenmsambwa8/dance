@@ -1,191 +1,260 @@
-'use client'
-
-import { useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
-import styles from './DailyRewardModal.module.css'
-
-// Animates 0 → target over `duration` ms using requestAnimationFrame.
-// target === null means "not counting" (renders 0, but caller shouldn't show it).
-function useCountUp(target, duration = 700) {
-  const [val, setVal] = useState(0)
-  useEffect(() => {
-    if (target == null) { setVal(0); return }
-    setVal(0)
-    let startTs = null
-    let raf
-    function step(ts) {
-      if (startTs === null) startTs = ts
-      const progress = Math.min((ts - startTs) / duration, 1)
-      setVal(Math.floor(progress * target))
-      if (progress < 1) raf = requestAnimationFrame(step)
-      else setVal(target)
-    }
-    raf = requestAnimationFrame(step)
-    return () => cancelAnimationFrame(raf)
-  }, [target, duration])
-  return val
+/* ══════════ FLOATING TRIGGER ══════════ */
+.trigger {
+  position: fixed;
+  right: 16px;
+  bottom: 90px;
+  z-index: 210;
+  width: 48px;
+  height: 48px;
+  border-radius: 0;
+  border: none;
+  background: linear-gradient(145deg, #6366f1, #a855f7);
+  color: #fff;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(99,102,241,0.45);
+}
+.triggerPulse { animation: triggerPulse 1.8s ease-in-out infinite; }
+.triggerDot {
+  position: absolute;
+  top: -3px; right: -3px;
+  width: 12px; height: 12px;
+  border-radius: 0;
+  background: #ef4444;
+  box-shadow: 0 0 0 2px #0b0b0f;
+}
+@keyframes triggerPulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.08); }
 }
 
-/**
- * 7-day login streak modal. Auto-opens once per page load when today's
- * reward hasn't been claimed yet.
- *
- * By default renders its own floating gift button as the trigger. Pass
- * `renderTrigger({ onClick, claimedToday, loading })` to supply a custom
- * trigger instead (e.g. a nav-bar icon) — the modal's open/claim logic
- * stays here either way, only the clickable element changes.
- *
- * Missing a day resets the streak to Day 1 on next claim — there is
- * deliberately no "claim a skipped day" path here, don't add one.
- */
-export default function DailyRewardModal({ renderTrigger } = {}) {
-  const [status, setStatus] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [open, setOpen] = useState(false)
-  const [autoPromptDone, setAutoPromptDone] = useState(false)
-  const [claiming, setClaiming] = useState(false)
-  const [justClaimed, setJustClaimed] = useState(null)
-  const countedReward = useCountUp(justClaimed?.reward ?? null, 700)
+/* ══════════ OVERLAY / MODAL SHELL ══════════ */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  background: rgba(0,0,0,0.72);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.2s ease;
+}
+@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
 
-  async function loadStatus() {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) { setLoading(false); return }
-    try {
-      const res = await fetch('/api/daily-reward', {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      })
-      const json = await res.json()
-      if (res.ok) setStatus(json)
-    } finally {
-      setLoading(false)
-    }
-  }
+.modal {
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  border-radius: 0;
+  overflow: hidden;
+  padding: 26px 20px 20px;
+  background:
+    radial-gradient(circle at 15% 0%, rgba(168,85,247,0.35), transparent 55%),
+    radial-gradient(circle at 100% 100%, rgba(99,102,241,0.35), transparent 55%),
+    linear-gradient(160deg, #14121f 0%, #0b0b12 100%);
+  animation: modalIn 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  box-shadow: 0 30px 80px rgba(0,0,0,0.55);
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
 
-  useEffect(() => { loadStatus() }, [])
+/* Diagonal shine sweep across the whole card, purely decorative.
+   Animates via `transform` on a two-segment track (classic seamless
+   marquee) instead of animating `background-position` — the old approach
+   forces a repaint every frame and looks choppy/janky on mobile GPUs.
+   transform is compositor-only, so this stays buttery smooth. */
+.glow {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.glowTrack {
+  display: flex;
+  width: 200%;
+  height: 100%;
+  animation: glowSlide 5s linear infinite;
+  will-change: transform;
+}
+.glowSeg {
+  flex: 0 0 50%;
+  height: 100%;
+  background: repeating-linear-gradient(
+    115deg,
+    transparent 0px,
+    transparent 40px,
+    rgba(255,255,255,0.07) 40px,
+    rgba(255,255,255,0.07) 60px,
+    transparent 60px,
+    transparent 140px
+  );
+}
+@keyframes glowSlide {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-50%, 0, 0); }
+}
 
-  // Auto-open once per mount if today's reward is still unclaimed.
-  useEffect(() => {
-    if (!loading && status && !status.claimedToday && !autoPromptDone) {
-      setOpen(true)
-      setAutoPromptDone(true)
-    }
-  }, [loading, status, autoPromptDone])
+.closeBtn {
+  position: absolute;
+  top: 12px; right: 12px;
+  z-index: 2;
+  width: 28px; height: 28px;
+  border-radius: 0;
+  border: none;
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
 
-  useEffect(() => {
-    if (!open) return
-    const handler = (e) => { if (e.key === 'Escape') setOpen(false) }
-    document.addEventListener('keydown', handler)
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.removeEventListener('keydown', handler)
-      document.body.style.overflow = ''
-    }
-  }, [open])
+/* ══════════ HEADER ══════════ */
+.header {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  margin-bottom: 20px;
+}
+.giftIcon {
+  width: 56px; height: 56px;
+  margin: 0 auto 10px;
+  border-radius: 0;
+  background: linear-gradient(145deg, #6366f1, #a855f7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  color: #fff;
+  box-shadow: 0 10px 30px rgba(168,85,247,0.5);
+  animation: giftFloat 2.4s ease-in-out infinite;
+}
+@keyframes giftFloat {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50%      { transform: translateY(-5px) rotate(3deg); }
+}
+.title {
+  font-size: 17px;
+  font-weight: 900;
+  color: #fff;
+  margin: 0 0 4px;
+  letter-spacing: 0.01em;
+}
+.subtitle {
+  font-size: 12px;
+  color: rgba(255,255,255,0.55);
+  margin: 0;
+}
 
-  async function handleClaim() {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
-    setClaiming(true)
-    try {
-      const res = await fetch('/api/daily-reward', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      })
-      const json = await res.json()
-      if (res.ok && json.success) {
-        setJustClaimed(json)
-        await loadStatus()
-      }
-    } finally {
-      setClaiming(false)
-    }
-  }
+/* ══════════ DAY PIPS — filled/glow states, no border colors ══════════ */
+.days {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.dayPip {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 14px 4px;
+  border-radius: 0;
+  background: rgba(255,255,255,0.05);
+}
+.dayNum { font-size: 10px; font-weight: 800; color: rgba(255,255,255,0.4); }
+.dayPts { font-size: 12px; font-weight: 900; color: rgba(255,255,255,0.75); }
 
-  if (loading || !status) return null
+.dayDone {
+  background: linear-gradient(160deg, rgba(34,197,94,0.35), rgba(34,197,94,0.12));
+  box-shadow: inset 0 0 0 1px rgba(34,197,94,0.25);
+}
+.dayDone .dayNum, .dayDone .dayPts { color: #4ade80; }
+.dayCheck {
+  position: absolute;
+  top: 2px; right: 2px;
+  font-size: 9px;
+  color: #4ade80;
+}
 
-  const { tiers, currentDay, claimedToday, nextDay, nextReward } = status
+.dayTarget {
+  background: linear-gradient(160deg, rgba(168,85,247,0.4), rgba(99,102,241,0.2));
+  box-shadow: 0 0 16px rgba(168,85,247,0.5);
+  animation: targetPulse 1.6s ease-in-out infinite;
+}
+.dayTarget .dayNum, .dayTarget .dayPts { color: #fff; }
+@keyframes targetPulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(168,85,247,0.4); }
+  50%      { box-shadow: 0 0 22px rgba(168,85,247,0.7); }
+}
 
-  return (
-    <>
-      {renderTrigger ? (
-        renderTrigger({ onClick: () => setOpen(true), claimedToday, loading: false })
-      ) : (
-        /* Default floating trigger — always available so closing the modal
-           never strands the player without a way to claim later in the day. */
-        <button
-          className={`${styles.trigger} ${!claimedToday ? styles.triggerPulse : ''}`}
-          onClick={() => setOpen(true)}
-          aria-label="Daily login reward"
-        >
-          <i className="ri-gift-fill" />
-          {!claimedToday && <span className={styles.triggerDot} />}
-        </button>
-      )}
+.dayFinal { background: linear-gradient(160deg, rgba(245,158,11,0.25), rgba(255,255,255,0.05)); grid-column: span 2; }
+.dayFinal.dayTarget { background: linear-gradient(160deg, #f59e0b, #a855f7); }
+.dayFinal .dayPts { color: #fbbf24; }
 
-      {open && (
-        <div className={styles.overlay} onClick={() => setOpen(false)}>
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <button className={styles.closeBtn} onClick={() => setOpen(false)}>
-              <i className="ri-close-line" />
-            </button>
+/* ══════════ CLAIM BUTTON ══════════ */
+.claimBtn {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  padding: 13px;
+  border-radius: 0;
+  border: none;
+  background: linear-gradient(120deg, #6366f1, #a855f7);
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow: 0 10px 26px rgba(99,102,241,0.4);
+}
+.claimBtn:disabled {
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.4);
+  box-shadow: none;
+  cursor: default;
+}
 
-            <div className={styles.glow}>
-              <div className={styles.glowTrack}>
-                <div className={styles.glowSeg} />
-                <div className={styles.glowSeg} />
-              </div>
-            </div>
+.claimedMsg {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #4ade80;
+  padding: 13px;
+  background: rgba(34,197,94,0.1);
+  border-radius: 0;
+}
+.brokenNote {
+  width: 100%;
+  text-align: center;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.45);
+}
 
-            <div className={styles.header}>
-              <div className={styles.giftIcon}><i className="ri-gift-2-fill" /></div>
-              <h3 className={styles.title}>Daily Login Rewards</h3>
-              <p className={styles.subtitle}>Log in 7 days in a row for the big bonus 🔥</p>
-            </div>
-
-            <div className={styles.days}>
-              {tiers.map((pts, i) => {
-                const day = i + 1
-                const isDone   = claimedToday ? day <= currentDay : day < nextDay
-                const isTarget = !claimedToday && day === nextDay
-                const isFinal  = day === 7
-                return (
-                  <div
-                    key={day}
-                    className={[
-                      styles.dayPip,
-                      isDone ? styles.dayDone : '',
-                      isTarget ? styles.dayTarget : '',
-                      isFinal ? styles.dayFinal : '',
-                    ].join(' ')}
-                  >
-                    {isDone && <i className={`ri-check-line ${styles.dayCheck}`} />}
-                    <span className={styles.dayNum}>{day}</span>
-                    <span className={styles.dayPts}>{isFinal ? '🔥' : ''}+{pts}</span>
-                  </div>
-                )
-              })}
-            </div>
-
-            {justClaimed ? (
-              <div className={styles.claimedMsg}>
-                <i className="ri-checkbox-circle-fill" />
-                <span>+{countedReward} points — Day {justClaimed.day}/7</span>
-                {justClaimed.streakBroken && <span className={styles.brokenNote}>Streak restarted</span>}
-              </div>
-            ) : (
-              <button
-                className={styles.claimBtn}
-                disabled={claimedToday || claiming}
-                onClick={handleClaim}
-              >
-                {claiming ? 'Claiming…' : claimedToday ? 'Come back tomorrow' : `Claim Day ${nextDay} · +${nextReward} pts`}
-              </button>
-            )}
-
-            <p className={styles.footNote}>Earn as you go · Provided by Atollmark</p>
-          </div>
-        </div>
-      )}
-    </>
-  )
+.footNote {
+  position: relative;
+  z-index: 1;
+  font-size: 10px;
+  color: rgba(255,255,255,0.4);
+  text-align: center;
+  margin: 10px 0 0;
 }
