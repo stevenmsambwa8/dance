@@ -65,13 +65,27 @@
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* Diagonal shine sweep across the whole card, purely decorative — uses a
-   repeating pattern + background-position so the loop is seamless with no
-   snap/jump at the restart point, unlike animating transform between two
-   fixed offsets. */
+/* Diagonal shine sweep across the whole card, purely decorative.
+   Animates via `transform` on a two-segment track (classic seamless
+   marquee) instead of animating `background-position` — the old approach
+   forces a repaint every frame and looks choppy/janky on mobile GPUs.
+   transform is compositor-only, so this stays buttery smooth. */
 .glow {
   position: absolute;
   inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.glowTrack {
+  display: flex;
+  width: 200%;
+  height: 100%;
+  animation: glowSlide 5s linear infinite;
+  will-change: transform;
+}
+.glowSeg {
+  flex: 0 0 50%;
+  height: 100%;
   background: repeating-linear-gradient(
     115deg,
     transparent 0px,
@@ -81,13 +95,10 @@
     transparent 60px,
     transparent 140px
   );
-  background-size: 200% 200%;
-  animation: shine 6s linear infinite;
-  pointer-events: none;
 }
-@keyframes shine {
-  0%   { background-position: 0% 0%; }
-  100% { background-position: -140px -140px; }
+@keyframes glowSlide {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-50%, 0, 0); }
 }
 
 .closeBtn {

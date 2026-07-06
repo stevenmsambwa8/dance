@@ -125,7 +125,12 @@ export default function DailyRewardModal() {
               <i className="ri-close-line" />
             </button>
 
-            <div className={styles.glow} />
+            <div className={styles.glow}>
+              <div className={styles.glowTrack}>
+                <div className={styles.glowSeg} />
+                <div className={styles.glowSeg} />
+              </div>
+            </div>
 
             <div className={styles.header}>
               <div className={styles.giftIcon}><i className="ri-gift-2-fill" /></div>

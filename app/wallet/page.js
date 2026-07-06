@@ -17,6 +17,7 @@ const TYPE_ICONS = {
   tournament_podium:   { icon: 'ri-medal-line',               color: '#a78bfa' },
   prize:               { icon: 'ri-money-dollar-circle-line', color: '#f59e0b' },
   shop_payout:         { icon: 'ri-store-2-line',             color: '#34d399' },
+  daily_reward:        { icon: 'ri-gift-2-line',              color: '#a855f7' },
 }
 
 const TYPE_LABEL_KEYS = {
@@ -29,6 +30,7 @@ const TYPE_LABEL_KEYS = {
   tournament_podium:    'walletPage.podiumFinish',
   prize:                'walletPage.prizeAwarded',
   shop_payout:           'walletPage.shopSale',
+  daily_reward:          'walletPage.dailyReward',
 }
 
 function typeMeta(type, t) {

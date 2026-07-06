@@ -123,6 +123,13 @@ export async function POST(request) {
       .eq('id', user.id)
     if (updateErr) throw updateErr
 
+    await supabaseAdmin.from('earnings_log').insert({
+      user_id: user.id,
+      type: 'daily_reward',
+      points: reward,
+      description: `Day ${claimDay} of 7 login streak${claimDay === 7 ? ' — cycle complete 🔥' : ''}`,
+    })
+
     await supabaseAdmin.from('notifications').insert({
       user_id: user.id,
       title: '🎁 Daily Reward Claimed',
