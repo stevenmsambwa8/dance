@@ -16,6 +16,7 @@ const PUSH_TYPES = new Set([
   'direct_message',
   'group_chat',
   'tournament',
+  'payment',
   'buy_request',
   'request_update',
   'negotiation_message',
@@ -98,6 +99,8 @@ function getDeepLink(type, meta) {
       return meta?.game_slug ? `${APP_URL}/games/${meta.game_slug}/chat` : `${APP_URL}/games`
     case 'tournament':
       return meta?.tournament_id ? `${APP_URL}/tournaments/${meta.tournament_id}` : `${APP_URL}/tournaments`
+    case 'payment':
+      return meta?.tournament_id ? `${APP_URL}/tournaments/${meta.tournament_id}/manage` : `${APP_URL}/dashboard`
     case 'buy_request':
     case 'request_update':
     case 'negotiation_message':
@@ -122,5 +125,6 @@ function getCollapseId(type, meta) {
   if (type === 'group_chat' && meta?.game_slug)             return `gchat-${meta.game_slug}`
   if (type === 'negotiation_message' && meta?.request_id)  return `req-${meta.request_id}`
   if (type === 'match_recruit' && meta?.match_id)           return `recruit-${meta.match_id}`
+  if (type === 'payment' && meta?.tournament_id)            return `pay-${meta.tournament_id}`
   return type
 }
