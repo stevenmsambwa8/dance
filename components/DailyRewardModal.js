@@ -4,6 +4,28 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import styles from './DailyRewardModal.module.css'
 
+// Animates 0 → target over `duration` ms using requestAnimationFrame.
+// target === null means "not counting" (renders 0, but caller shouldn't show it).
+function useCountUp(target, duration = 700) {
+  const [val, setVal] = useState(0)
+  useEffect(() => {
+    if (target == null) { setVal(0); return }
+    setVal(0)
+    let startTs = null
+    let raf
+    function step(ts) {
+      if (startTs === null) startTs = ts
+      const progress = Math.min((ts - startTs) / duration, 1)
+      setVal(Math.floor(progress * target))
+      if (progress < 1) raf = requestAnimationFrame(step)
+      else setVal(target)
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [target, duration])
+  return val
+}
+
 /**
  * 7-day login streak — modal version. Auto-opens once per page load when
  * today's reward hasn't been claimed yet; can also be reopened via the
@@ -23,6 +45,7 @@ export default function DailyRewardModal() {
   const [autoPromptDone, setAutoPromptDone] = useState(false)
   const [claiming, setClaiming] = useState(false)
   const [justClaimed, setJustClaimed] = useState(null)
+  const countedReward = useCountUp(justClaimed?.reward ?? null, 700)
 
   async function loadStatus() {
     const { data: { session } } = await supabase.auth.getSession()
@@ -137,7 +160,7 @@ export default function DailyRewardModal() {
             {justClaimed ? (
               <div className={styles.claimedMsg}>
                 <i className="ri-checkbox-circle-fill" />
-                <span>+{justClaimed.reward} points — Day {justClaimed.day}/7</span>
+                <span>+{countedReward} points — Day {justClaimed.day}/7</span>
                 {justClaimed.streakBroken && <span className={styles.brokenNote}>Streak restarted</span>}
               </div>
             ) : (
@@ -150,7 +173,7 @@ export default function DailyRewardModal() {
               </button>
             )}
 
-            <p className={styles.footNote}>Miss a day and your streak resets to Day 1 — skipped rewards can't be claimed later.</p>
+            <p className={styles.footNote}>Earn as you go · Provided by Atollmark</p>
           </div>
         </div>
       )}

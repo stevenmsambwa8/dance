@@ -1514,16 +1514,8 @@
   padding-bottom: 4px;
   cursor: grab;
   scrollbar-width: none;
-  margin-left: -16px;
-  margin-right: -16px;
-  width: calc(100% + 32px);
-  padding-left: 0;
-  padding-right: 0;
 }
 .newsTrack::-webkit-scrollbar { display: none; }
-.newsTrack .newsCard:first-child { border-top-left-radius: 0; border-bottom-left-radius: 0; }
-.newsTrack .newsCard:last-child  { border-top-right-radius: 0; border-bottom-right-radius: 0; }
-.newsTrack .newsCardSkeleton:first-child { border-top-left-radius: 0; border-bottom-left-radius: 0; }
 
 .newsCard {
   position: relative;

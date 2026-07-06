@@ -291,8 +291,11 @@ function SkeletonHeroBody() {
       <div className={styles.heroStats}>
         {[1,2,3,4].map(i => (
           <div key={i} className={styles.heroStat} style={{ background: 'var(--bg-2)', border: 'none' }}>
-            <div className={styles.skelLine} style={{ width: 26, height: 16, marginBottom: 4 }} />
-            <div className={styles.skelLine} style={{ width: 38, height: 8 }} />
+            <div className={styles.skelLine} style={{ width: 26, height: 16, marginBottom: 5 }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+              <div className={styles.skelLine} style={{ width: 8, height: 8, borderRadius: '50%' }} />
+              <div className={styles.skelLine} style={{ width: 30, height: 8 }} />
+            </div>
           </div>
         ))}
       </div>
