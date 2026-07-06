@@ -31,9 +31,13 @@ export default function NavWrapper() {
     <style>{`main { padding-bottom: 0 !important; }`}</style>
   )
 
+  // Daily Login Reward gift icon is gated here, at the layout level —
+  // homepage only, not inside Nav itself.
+  const showDailyReward = pathname === '/'
+
   return (
     <>
-      <Nav />
+      <Nav showDailyReward={showDailyReward} />
       <BottomNav />
       <style>{`main { padding-bottom: 80px; }`}</style>
     </>
