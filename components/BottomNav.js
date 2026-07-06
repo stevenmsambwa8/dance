@@ -10,8 +10,8 @@ import styles from './BottomNav.module.css'
 const navLinks = [
   { href: '/',            label: 'Home',        icon: 'ri-stack-line',     iconActive: 'ri-stack-fill' },
   { href: '/tournaments', label: 'Tournaments', icon: 'ri-trophy-line',    iconActive: 'ri-trophy-fill' },
-  { href: '/games',       label: 'Games',       icon: 'ri-gamepad-line',   iconActive: 'ri-gamepad-fill' },
-  { href: '/wallet',      label: 'Wallet',      icon: 'ri-wallet-3-line', iconActive: 'ri-wallet-3-fill' },
+  { href: '/games',       label: 'Games',       icon: 'ri-gamepad-line',   iconActive: 'ri-gamepad-fill', big: true },
+  { href: '/season',      label: 'Season',      icon: 'ri-dashboard-line', iconActive: 'ri-dashboard-fill' },
   { href: '/feed',        label: 'Feed',        icon: 'ri-compass-3-line', iconActive: 'ri-compass-3-fill' },
 ]
 
@@ -42,20 +42,21 @@ export default function BottomNav() {
   return (
     <nav className={styles.wrapper}>
       <div className={styles.container}>
-        {navLinks.map(({ href, label, icon, iconActive }) => {
+        {navLinks.map(({ href, label, icon, iconActive, big }) => {
           const isActive = href === '/' ? path === '/' : path.startsWith(href)
 
           return (
             <Link 
               key={href} 
               href={href} 
-              className={`${styles.item} ${isActive ? styles.active : ''}`}
+              className={`${styles.item} ${isActive ? styles.active : ''} ${big ? styles.itemBig : ''}`}
+              aria-label={label}
             >
               <span className={styles.iconWrap}>
                 <i className={isActive ? iconActive : icon} />
                 {href === '/' && unread > 0 && <span className={styles.navBadge} />}
               </span>
-              <span className={styles.label}>{label}</span>
+              {!big && <span className={styles.label}>{label}</span>}
             </Link>
           )
         })}

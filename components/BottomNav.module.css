@@ -81,6 +81,16 @@
   box-shadow: 0 0 0 2px var(--bg);
 }
 
+/* Games — no label, just a bigger icon since it has no caption taking up
+   the row's vertical space underneath it. */
+.itemBig .iconWrap {
+  width: 40px;
+  height: 40px;
+}
+.itemBig i {
+  font-size: 27px;
+}
+
 /* ── Active State ── */
 .active {
   color: var(--text) !important;
