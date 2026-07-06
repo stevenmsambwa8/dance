@@ -58,6 +58,40 @@
   font-size: 20px;
 }
 
+/* Pill highlight behind the icon only, so the active state reads clearly
+   without recoloring the whole column (label stays a plain color change). */
+.iconWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 26px;
+  border-radius: 12px;
+  transition: background 0.2s ease;
+}
+
+.active .iconWrap {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  animation: iconPop 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes iconPop {
+  0%   { transform: scale(0.8); }
+  60%  { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+.navBadge {
+  position: absolute;
+  top: 1px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 0 2px var(--bg);
+}
+
 /* ── Active State ── */
 .active {
   color: var(--text) !important;
@@ -95,7 +129,8 @@
   background: var(--accent, #6366f1);
   color: #fff;
   transform: translateY(-14px); /* pokes up above the pill, like the reference */
-  transition: transform 0.15s ease;
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
 .centerCircle i {
@@ -103,9 +138,8 @@
 }
 
 .centerActive {
-  /* Already filled/colored by default — active state just keeps it consistent,
-     no extra glow/shadow per the no-glow direction used elsewhere in this nav. */
   background: var(--accent, #6366f1);
+  box-shadow: 0 6px 22px color-mix(in srgb, var(--accent) 60%, transparent);
 }
 
 .centerItem:active .centerCircle {

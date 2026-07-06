@@ -66,7 +66,10 @@ export default function BottomNav() {
               href={href} 
               className={`${styles.item} ${isActive ? styles.active : ''}`}
             >
-              <i className={isActive ? iconActive : icon} />
+              <span className={styles.iconWrap}>
+                <i className={isActive ? iconActive : icon} />
+                {href === '/' && unread > 0 && <span className={styles.navBadge} />}
+              </span>
               <span className={styles.label}>{label}</span>
             </Link>
           )

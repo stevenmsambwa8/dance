@@ -205,16 +205,23 @@
 
 .resultCta {
   flex-shrink: 0;
-  padding: 6px 14px;
+  padding: 7px 15px;
+  border: none;
   border-radius: 99px;
   background: var(--accent);
   color: #fff;
-  font-size: 11.5px;
-  font-weight: 800;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
   text-decoration: none;
   white-space: nowrap;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  line-height: 1;
 }
-.resultCta:hover { opacity: 0.9; }
+.resultCta:hover  { filter: brightness(0.94); }
+.resultCta:active { filter: brightness(0.88); transform: scale(0.97); }
 
 .resultCtaGroup {
   display: flex;
@@ -225,18 +232,23 @@
 
 .resultCtaSecondary {
   flex-shrink: 0;
-  padding: 6px 12px;
+  padding: 7px 13px;
+  border: none;
   border-radius: 99px;
   background: var(--bg-2);
   color: var(--text);
-  border: 1px solid var(--border-dark, var(--border));
-  font-size: 11.5px;
-  font-weight: 700;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  line-height: 1;
 }
 .resultCtaSecondary:hover { background: var(--surface); }
+.resultCtaSecondary:active { transform: scale(0.97); }
 
 /* ── News strip (headlines) — wide auto-scrolling cards with real media ── */
 .newsSection {
