@@ -132,9 +132,9 @@ export default function StartupModals() {
 
             <div className={styles.actions}>
               <button className={styles.secondaryBtn} onClick={() => closeAll(true)}>Remind me in 7 days</button>
-              <Link href="/creators-hub" className={styles.primaryBtn} onClick={() => closeAll(false)}>
-                Explore Creators Hub
-              </Link>
+              <button className={styles.primaryBtn} disabled>
+                Explore
+              </button>
             </div>
           </div>
         )}

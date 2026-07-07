@@ -84,7 +84,7 @@
   right: 12px;
   width: 28px;
   height: 28px;
-  border-radius: 0;
+  border-radius: 10px;
   border: none;
   background: var(--bg-2);
   color: var(--text);
@@ -246,7 +246,7 @@
 .rowCta {
   flex-shrink: 0;
   padding: 5px 12px;
-  border-radius: 0;
+  border-radius: 999px;
   background: var(--accent);
   color: #fff;
   font-size: 11px;
@@ -291,9 +291,9 @@
 .secondaryBtn {
   flex: 1;
   padding: 12px;
-  border-radius: 0;
+  border-radius: 14px;
   border: 1px solid var(--border);
-  background: var(--bg-2);
+  background: linear-gradient(135deg, var(--bg-2) 0%, var(--surface) 100%);
   color: var(--text);
   font-size: 12.5px;
   font-weight: 700;
@@ -303,13 +303,13 @@
 
 .secondaryBtn:active {
   transform: translateY(1px);
-  background: var(--surface);
+  background: linear-gradient(135deg, var(--surface) 0%, var(--bg-2) 100%);
 }
 
 .primaryBtn {
   flex: 1;
   padding: 12px;
-  border-radius: 0;
+  border-radius: 14px;
   border: none;
   background: linear-gradient(100deg, var(--accent) 0%, var(--accent) 45%, color-mix(in srgb, var(--accent) 70%, #fff) 52%, var(--accent) 60%, var(--accent) 100%);
   background-size: 220% 100%;
@@ -329,6 +329,17 @@
 
 .primaryBtn:active {
   transform: translateY(1px);
+}
+
+.primaryBtn:disabled {
+  background: var(--bg-2);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.primaryBtn:disabled:hover {
+  background-position: 100% 0;
 }
 
 /* ── Respect reduced motion ── */
