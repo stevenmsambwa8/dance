@@ -17,6 +17,7 @@ const PUSH_TYPES = new Set([
   'group_chat',
   'tournament',
   'payment',
+  'creator_application',
   'buy_request',
   'request_update',
   'negotiation_message',
@@ -101,6 +102,8 @@ function getDeepLink(type, meta) {
       return meta?.tournament_id ? `${APP_URL}/tournaments/${meta.tournament_id}` : `${APP_URL}/tournaments`
     case 'payment':
       return meta?.tournament_id ? `${APP_URL}/tournaments/${meta.tournament_id}/manage` : `${APP_URL}/dashboard`
+    case 'creator_application':
+      return `${APP_URL}/dashboard`
     case 'buy_request':
     case 'request_update':
     case 'negotiation_message':
