@@ -112,8 +112,8 @@
 
 .statsRow {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
   margin-bottom: 18px;
 }
 .statBox {
@@ -124,8 +124,8 @@
   border-radius: 14px;
   border: 1px solid var(--border);
 }
-.statVal { font-size: 19px; font-weight: 900; }
-.statLabel { font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; margin-top: 2px; }
+.statVal { font-size: 17px; font-weight: 900; }
+.statLabel { font-size: 9.5px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; margin-top: 2px; }
 
 .upgradeCard {
   display: flex;

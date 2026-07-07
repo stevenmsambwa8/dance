@@ -27,6 +27,7 @@ export default function Feed() {
   const [likersLoading, setLikersLoading] = useState(false)
   const [likers, setLikers] = useState([])
   const [following, setFollowing] = useState({})
+  const [topLikers, setTopLikers] = useState({})
 
   useEffect(() => { loadPosts() }, [])
 
@@ -34,7 +35,7 @@ export default function Feed() {
     setLoading(true)
     const { data, error } = await supabase
       .from('posts')
-      .select('id, user_id, content, likes, comment_count, created_at, profiles(id, username, tier, level, avatar_url, email, plan, plan_expires_at)')
+      .select('id, user_id, content, likes, comment_count, created_at, profiles(id, username, tier, level, avatar_url, email, plan, plan_expires_at, game_tags)')
       .order('created_at', { ascending: false })
       .limit(50)
     if (!error) setPosts(data || [])
@@ -117,7 +118,7 @@ export default function Feed() {
     const { data, error } = await supabase
       .from('posts')
       .insert({ user_id: user.id, content: newPost.trim(), likes: 0, comment_count: 0 })
-      .select('id, user_id, content, likes, comment_count, created_at, profiles(id, username, tier, level, avatar_url, email, plan, plan_expires_at)')
+      .select('id, user_id, content, likes, comment_count, created_at, profiles(id, username, tier, level, avatar_url, email, plan, plan_expires_at, game_tags)')
       .single()
     if (error) {
       setPostError(error.message)
@@ -152,6 +153,18 @@ export default function Feed() {
         setFollowing(f => ({ ...f, ...map }))
       })
   }, [user, posts.length])
+
+  useEffect(() => {
+    const likedPostIds = posts.filter(p => p.likes > 0).map(p => p.id)
+    if (likedPostIds.length === 0) return
+    supabase.from('post_likes').select('post_id, profiles(username)').in('post_id', likedPostIds)
+      .then(({ data }) => {
+        if (!data) return
+        const map = {}
+        data.forEach(l => { if (!map[l.post_id]) map[l.post_id] = l.profiles?.username || 'Player' })
+        setTopLikers(m => ({ ...m, ...map }))
+      })
+  }, [posts.length])
 
   async function toggleFollow(authorId) {
     if (!user) return openAuthGate()
@@ -212,6 +225,13 @@ export default function Feed() {
                       </button>
                     )}
                   </div>
+                  {(post.profiles?.game_tags || []).length > 0 && (
+                    <div className={styles.postTags}>
+                      {post.profiles.game_tags.map(g => (
+                        <span key={g} className={styles.postTag}>{g}</span>
+                      ))}
+                    </div>
+                  )}
                   <p className={styles.postContent}>{post.content}</p>
                   <div className={styles.postActions}>
                     <div className={styles.actionsLeft}>
@@ -240,7 +260,7 @@ export default function Feed() {
                   </div>
                   {post.likes > 0 && (
                     <button className={styles.likesCaption} onClick={() => openLikers(post)}>
-                      Liked by {post.likes} {post.likes === 1 ? 'person' : 'people'}
+                      Liked by {topLikers[post.id] || 'someone'}{post.likes > 1 ? ` and ${post.likes - 1} ${post.likes - 1 === 1 ? 'other' : 'others'}` : ''}
                     </button>
                   )}
                 </div>

@@ -7,6 +7,7 @@ import { useAuthGate } from '../../components/AuthGateModal'
 import { supabase } from '../../lib/supabase'
 import { GAME_META } from '../../lib/constants'
 import { getActivePlan } from '../../lib/plans'
+import { useCurrency } from '../../lib/useCurrency'
 import styles from './page.module.css'
 
 /**
@@ -31,6 +32,7 @@ import styles from './page.module.css'
 export default function CreatorsHubPage() {
   const { user, profile } = useAuth()
   const { openAuthGate } = useAuthGate()
+  const { fmtAmt } = useCurrency(profile?.country_flag)
   const [applying, setApplying] = useState(false)
   const [applied, setApplied] = useState(false)
   const [myTournaments, setMyTournaments] = useState([])
@@ -162,6 +164,7 @@ export default function CreatorsHubPage() {
   }
 
   const activeCount = myTournaments.filter(t => t.status === 'active').length
+  const totalRevenue = myTournaments.reduce((sum, t) => sum + (t.entrance_fee || 0) * (t.registered_count || 0), 0)
 
   return (
     <div className={styles.page}>
@@ -196,7 +199,22 @@ export default function CreatorsHubPage() {
           <span className={styles.statVal}>{participantCount}</span>
           <span className={styles.statLabel}>Total Players</span>
         </div>
+        <div className={styles.statBox}>
+          <span className={styles.statVal} style={{ fontSize: totalRevenue >= 100000 ? 13 : undefined }}>
+            {totalRevenue > 0 ? fmtAmt(totalRevenue) : '—'}
+          </span>
+          <span className={styles.statLabel}>Earnings</span>
+        </div>
       </div>
+
+      <Link href="/wallet" className={styles.upgradeCard}>
+        <div className={styles.upgradeIcon}><i className="ri-money-dollar-circle-fill" /></div>
+        <div className={styles.upgradeMeta}>
+          <span className={styles.upgradeTitle}>{totalRevenue > 0 ? `Earned ${fmtAmt(totalRevenue)} from entry fees` : 'No earnings yet'}</span>
+          <span className={styles.upgradeSub}>Gross revenue from entrance fees across all your tournaments. See the full payout history in your Wallet.</span>
+        </div>
+        <i className="ri-arrow-right-s-line" />
+      </Link>
 
       <Link href="/tournaments/create" className={styles.createBtn}>
         <i className="ri-add-circle-fill" /> Create New Tournament
