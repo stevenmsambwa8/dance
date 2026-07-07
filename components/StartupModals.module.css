@@ -2,12 +2,24 @@
   position: fixed;
   inset: 0;
   z-index: 600; /* above BottomNav (200), Nav dropdowns, and the daily-reward modal (500) */
-  background: rgba(0,0,0,0.72);
-  backdrop-filter: blur(3px);
+  background: rgba(0,0,0,0);
+  backdrop-filter: blur(0px);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
+  transition: background 0.32s ease, backdrop-filter 0.32s ease;
+}
+
+.overlayIn {
+  background: rgba(0,0,0,0.72);
+  backdrop-filter: blur(3px);
+}
+
+.overlayOut {
+  background: rgba(0,0,0,0);
+  backdrop-filter: blur(0px);
+  transition: background 0.22s ease, backdrop-filter 0.22s ease;
 }
 
 .modal {
@@ -15,10 +27,55 @@
   width: 100%;
   max-width: 380px;
   border-radius: 0;
-  padding: 26px 20px 20px;
+  padding: 30px 20px 20px;
   background: var(--bg);
   border: 1px solid var(--border);
   box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.36s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.modalIn {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.modalOut {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+/* ── Step progress dots ── */
+.dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.dot {
+  width: 16px;
+  height: 3px;
+  background: var(--border);
+  transition: background 0.35s ease, box-shadow 0.35s ease;
+}
+
+.dotActive {
+  background: var(--accent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+/* ── Step content transition (fade + horizontal drift, no scale) ── */
+.stepPane {
+  animation: paneIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes paneIn {
+  from { opacity: 0; transform: translateX(14px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
 .closeBtn {
@@ -36,12 +93,49 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  transition: transform 0.25s ease, background 0.25s ease, color 0.25s ease;
 }
 
-.badge {
+.closeBtn:hover {
+  transform: rotate(90deg);
+  background: var(--accent);
+  color: #fff;
+}
+
+/* ── Badge with ambient pulse ring (opacity/blur only — never scales) ── */
+.badgeWrap {
+  position: relative;
   width: 52px;
   height: 52px;
   margin: 0 auto 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: badgeFloat 3.2s ease-in-out infinite;
+}
+
+@keyframes badgeFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+
+.badgeRing {
+  position: absolute;
+  inset: -6px;
+  border: 1px solid var(--accent);
+  opacity: 0.35;
+  animation: ringPulse 2.4s ease-out infinite;
+}
+
+@keyframes ringPulse {
+  0%   { opacity: 0.45; box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 35%, transparent); }
+  100% { opacity: 0;    box-shadow: 0 0 0 10px color-mix(in srgb, var(--accent) 0%, transparent); }
+}
+
+.badge {
+  position: relative;
+  width: 52px;
+  height: 52px;
   border-radius: 0;
   background: var(--accent);
   color: #fff;
@@ -57,6 +151,8 @@
   text-align: center;
   margin: 0 0 4px;
   color: var(--text);
+  animation: fadeUp 0.45s ease both;
+  animation-delay: 0.05s;
 }
 
 .subtitle {
@@ -64,6 +160,13 @@
   color: var(--text-muted);
   text-align: center;
   margin: 0 0 18px;
+  animation: fadeUp 0.45s ease both;
+  animation-delay: 0.1s;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 /* ── Tournament list (step 1) ── */
@@ -90,6 +193,17 @@
   background: var(--bg-2);
   text-decoration: none;
   color: var(--text);
+  opacity: 0;
+  transform: translateY(8px);
+  animation: fadeUp 0.4s ease both;
+  animation-delay: calc(0.12s + var(--i, 0) * 0.07s);
+  transition: background 0.2s ease, border-color 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.row:active {
+  background: var(--surface);
+  border-color: var(--border);
 }
 
 .rowIcon {
@@ -103,6 +217,12 @@
   font-size: 14px;
   color: var(--accent);
   flex-shrink: 0;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.row:active .rowIcon {
+  background: var(--accent);
+  color: #fff;
 }
 
 .rowMeta {
@@ -148,6 +268,10 @@
   gap: 8px;
   font-size: 12.5px;
   color: var(--text);
+  opacity: 0;
+  transform: translateY(8px);
+  animation: fadeUp 0.4s ease both;
+  animation-delay: calc(0.12s + var(--i, 0) * 0.08s);
 }
 .perks li i {
   color: var(--accent);
@@ -159,6 +283,9 @@
 .actions {
   display: flex;
   gap: 8px;
+  opacity: 0;
+  animation: fadeUp 0.4s ease both;
+  animation-delay: 0.32s;
 }
 
 .secondaryBtn {
@@ -171,6 +298,12 @@
   font-size: 12.5px;
   font-weight: 700;
   cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+.secondaryBtn:active {
+  transform: translateY(1px);
+  background: var(--surface);
 }
 
 .primaryBtn {
@@ -178,11 +311,35 @@
   padding: 12px;
   border-radius: 0;
   border: none;
-  background: var(--accent);
+  background: linear-gradient(100deg, var(--accent) 0%, var(--accent) 45%, color-mix(in srgb, var(--accent) 70%, #fff) 52%, var(--accent) 60%, var(--accent) 100%);
+  background-size: 220% 100%;
+  background-position: 100% 0;
   color: #fff;
   font-size: 12.5px;
   font-weight: 800;
   text-align: center;
   text-decoration: none;
   cursor: pointer;
+  transition: transform 0.2s ease, background-position 0.6s ease;
+}
+
+.primaryBtn:hover {
+  background-position: 0 0;
+}
+
+.primaryBtn:active {
+  transform: translateY(1px);
+}
+
+/* ── Respect reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .overlay, .overlayIn, .overlayOut,
+  .modal, .modalIn, .modalOut,
+  .stepPane, .title, .subtitle, .row, .perks li, .actions,
+  .badgeWrap, .badgeRing, .primaryBtn, .closeBtn {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
 }
