@@ -298,23 +298,29 @@ export default function GameChat() {
 
   async function loadAll() {
     setLoading(true)
-    const [{ data: msgs }, { count: subs }] = await Promise.all([
+    const [{ data: msgs }, { count: subs }, profResult, subResult] = await Promise.all([
       supabase.from('game_chat_messages')
         .select('*, profiles(id, username, avatar_url, email, tier, level, country_flag, is_season_winner, plan, plan_expires_at)')
         .eq('game_slug', slug).order('created_at', { ascending: true }).limit(200),
       supabase.from('game_subscriptions').select('*', { count: 'exact', head: true }).eq('game_slug', slug),
+      user ? supabase.from('profiles')
+        .select('id, username, avatar_url, email, tier, level, country_flag, is_season_winner')
+        .eq('id', user.id).single() : Promise.resolve({ data: null }),
+      user ? supabase.from('game_subscriptions')
+        .select('id').eq('game_slug', slug).eq('user_id', user.id).maybeSingle() : Promise.resolve({ data: null }),
     ])
     setMessages((msgs || []).map(enrichMsg))
     setMemberCount(subs || 0)
     if (user) {
-      const { data: prof } = await supabase.from('profiles')
-        .select('id, username, avatar_url, email, tier, level, country_flag, is_season_winner')
-        .eq('id', user.id).single()
-      setMyProfile(prof || null)
-      // Check actual subscription status
-      const { data: mySub } = await supabase.from('game_subscriptions')
-        .select('id').eq('game_slug', slug).eq('user_id', user.id).maybeSingle()
-      setSubscribed(!!mySub)
+      setMyProfile(profResult.data || null)
+      setSubscribed(!!subResult.data)
+    }
+    setLoading(false)
+    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 200)
+
+    // Non-critical: who the viewer already follows, used only for the context menu.
+    // Fetched after first paint so it never delays showing the chat.
+    if (user) {
       const senderIds = [...new Set((msgs || []).map(m => m.sender_id).filter(id => id !== user.id))]
       if (senderIds.length) {
         const { data: follows } = await supabase.from('follows')
@@ -324,8 +330,6 @@ export default function GameChat() {
         setFollowing(map)
       }
     }
-    setLoading(false)
-    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 200)
   }
 
   async function sendMessage() {
@@ -528,7 +532,32 @@ export default function GameChat() {
       </div>
     </div>
   )
-  if (loading) return null
+  if (loading) return (
+    <div className={styles.page}>
+      {game.image && <div className={styles.pageBg} style={{ backgroundImage: `url(${game.image})` }} />}
+      <div className={styles.chatWrap}>
+        <div className={styles.topBar}>
+          <Link href={`/games/${slug}`} className={styles.backBtn}><i className="ri-arrow-left-line" /></Link>
+          <div className={styles.groupAvatar}>
+            {game.image
+              ? <img src={game.image} alt={game.name} className={styles.groupAvatarImg} />
+              : <i className="ri-gamepad-fill" />}
+          </div>
+          <div className={styles.groupText}>
+            <span className={styles.groupName}>{game.name} Chat</span>
+            <span className={`${styles.skelLine} ${styles.skelLineSub}`} />
+          </div>
+        </div>
+        <div className={styles.chatBox}>
+          {[0, 1, 2, 3, 4].map(i => (
+            <div key={i} className={styles.msgRow} style={{ justifyContent: i % 2 ? 'flex-end' : 'flex-start' }}>
+              <div className={styles.skelBubble} style={{ width: 90 + (i * 35) % 150 }} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
 
   return (
     <div className={styles.page}>

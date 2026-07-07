@@ -1054,3 +1054,25 @@
   .chatBox   { padding: 16px 24px 8px; }
   .inputArea { padding: 10px 20px; }
 }
+
+/* ── Instant loading skeleton ── */
+.skelLine {
+  display: block;
+  height: 10px;
+  width: 90px;
+  border-radius: 6px;
+  background: var(--surface);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.skelLineSub { width: 100px; margin-top: 4px; }
+.skelBubble {
+  height: 36px;
+  border-radius: 16px;
+  background: var(--surface);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}

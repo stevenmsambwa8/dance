@@ -94,9 +94,15 @@ export default function DMPage() {
 
   async function loadAll() {
     setLoading(true)
-    const [{ data: other }, { data: me }] = await Promise.all([
+    const [{ data: other }, { data: me }, { data: msgs }, { data: existingMsgs }] = await Promise.all([
       supabase.from('profiles').select('id, username, avatar_url, tier, level, online_status, last_seen').eq('id', userId).single(),
       supabase.from('profiles').select('id, username, avatar_url, tier, plan, plan_expires_at').eq('id', user.id).single(),
+      supabase.from('direct_messages')
+        .select('*, sender:profiles!direct_messages_sender_id_fkey(id, username, avatar_url)')
+        .eq('thread_id', threadId)
+        .order('created_at', { ascending: true })
+        .limit(300),
+      supabase.from('direct_messages').select('thread_id').or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`),
     ])
     setOtherProfile(other || null)
     setMyProfile(me || null)
@@ -105,13 +111,8 @@ export default function DMPage() {
     const activePlan = getActivePlan(me)
     const isFreeUser = !isAdmin && activePlan === 'free'
     if (isFreeUser) {
-      // Count distinct threads this user already has
-      const { data: existingMsgs } = await supabase
-        .from('direct_messages')
-        .select('thread_id')
-        .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
       const existingThreadIds = [...new Set((existingMsgs || []).map(m => m.thread_id))]
-      const isExistingThread = existingThreadIds.includes([user.id, userId].sort().join('--'))
+      const isExistingThread = existingThreadIds.includes(threadId)
       if (!isExistingThread && existingThreadIds.length >= 10) {
         setDmBlocked(true)
         setLoading(false)
@@ -119,13 +120,6 @@ export default function DMPage() {
       }
     }
     // ─────────────────────────────────────────────────────────────────────
-
-    const { data: msgs } = await supabase
-      .from('direct_messages')
-      .select('*, sender:profiles!direct_messages_sender_id_fkey(id, username, avatar_url)')
-      .eq('thread_id', threadId)
-      .order('created_at', { ascending: true })
-      .limit(300)
 
     setMessages(msgs || [])
     setLoading(false)
@@ -224,7 +218,31 @@ export default function DMPage() {
     </div>
   )
 
-  if (loading) return null
+  if (loading) return (
+    <div className={styles.page}>
+      <div className={styles.chatWrap}>
+        <div className={styles.topBar}>
+          <button className={styles.backBtn} onClick={() => router.back()}>
+            <i className="ri-arrow-left-line" />
+          </button>
+          <div className={styles.profileLink}>
+            <div className={`${styles.pAvatar} ${styles.skelCircle}`} />
+            <div className={styles.pText}>
+              <span className={`${styles.skelLine} ${styles.skelLineName}`} />
+              <span className={`${styles.skelLine} ${styles.skelLineSub}`} />
+            </div>
+          </div>
+        </div>
+        <div className={styles.chatBox}>
+          {[0, 1, 2, 3].map(i => (
+            <div key={i} className={`${styles.msgRow} ${i % 2 ? styles.mine : styles.theirs}`}>
+              <div className={`${styles.skelBubble} ${i % 2 ? styles.skelBubbleMine : styles.skelBubbleTheirs}`} style={{ width: 90 + (i * 35) % 140 }} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
 
   if (!otherProfile) return (
     <div className={styles.page}>
