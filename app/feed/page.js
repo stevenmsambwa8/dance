@@ -26,6 +26,7 @@ export default function Feed() {
   const [likersOpen, setLikersOpen] = useState(false)
   const [likersLoading, setLikersLoading] = useState(false)
   const [likers, setLikers] = useState([])
+  const [following, setFollowing] = useState({})
 
   useEffect(() => { loadPosts() }, [])
 
@@ -139,6 +140,31 @@ export default function Feed() {
       })
   }, [user, posts.length])
 
+  useEffect(() => {
+    if (!user || posts.length === 0) return
+    const authorIds = [...new Set(posts.map(p => p.user_id).filter(id => id && id !== user.id))]
+    if (authorIds.length === 0) return
+    supabase.from('follows').select('following_id').eq('follower_id', user.id).in('following_id', authorIds)
+      .then(({ data }) => {
+        if (!data) return
+        const map = {}
+        data.forEach(f => { map[f.following_id] = true })
+        setFollowing(f => ({ ...f, ...map }))
+      })
+  }, [user, posts.length])
+
+  async function toggleFollow(authorId) {
+    if (!user) return openAuthGate()
+    if (!authorId || authorId === user.id) return
+    const isFollowing = following[authorId]
+    setFollowing(f => ({ ...f, [authorId]: !isFollowing }))
+    if (isFollowing) {
+      await supabase.from('follows').delete().eq('follower_id', user.id).eq('following_id', authorId)
+    } else {
+      await supabase.from('follows').insert({ follower_id: user.id, following_id: authorId })
+    }
+  }
+
   const ADMIN_EMAIL = 'stevenmsambwa8@gmail.com'
 
   function isPostVerified(post) {
@@ -149,12 +175,6 @@ export default function Feed() {
     <div className={styles.page}>
       {user ? (
         <div className={styles.composeBar} onClick={() => setPostModal(true)}>
-          <div className={styles.composeAvatar}>
-            {profile?.avatar_url
-              ? <img src={profile.avatar_url} alt="" className={styles.avatarImg} />
-              : <span>{(profile?.username || 'P').slice(0, 2).toUpperCase()}</span>
-            }
-          </div>
           <span className={styles.composePlaceholder}>What&apos;s on your mind, {profile?.username || 'Player'}?</span>
           <button className={styles.composeBtn}>Post</button>
         </div>
@@ -194,17 +214,29 @@ export default function Feed() {
                   </div>
                   <p className={styles.postContent}>{post.content}</p>
                   <div className={styles.postActions}>
-                    <button className={styles.action} onClick={() => openPost(post)}>
-                      <i className="ri-chat-1-line" />
-                      {post.comment_count || 0}
-                    </button>
-                    <button className={`${styles.action} ${liked[post.id] ? styles.liked : ''}`} onClick={() => toggleLike(post)}>
-                      <i className={liked[post.id] ? 'ri-heart-fill' : 'ri-heart-line'} />
-                      {post.likes || 0}
-                    </button>
-                    <button className={styles.action} onClick={() => navigator.share?.({ text: post.content })}>
-                      <i className="ri-share-forward-line" />
-                    </button>
+                    <div className={styles.actionsLeft}>
+                      <button className={`${styles.action} ${liked[post.id] ? styles.liked : ''}`} onClick={() => toggleLike(post)}>
+                        <i className={liked[post.id] ? 'ri-heart-fill' : 'ri-heart-line'} />
+                        {post.likes || 0}
+                      </button>
+                      <button className={styles.action} onClick={() => openPost(post)}>
+                        <i className="ri-chat-1-line" />
+                        {post.comment_count || 0}
+                      </button>
+                    </div>
+                    <div className={styles.actionsRight}>
+                      <button className={styles.action} onClick={() => navigator.share?.({ text: post.content })}>
+                        <i className="ri-share-forward-line" />
+                      </button>
+                      {user && user.id !== post.user_id && (
+                        <button
+                          className={`${styles.followBtn} ${following[post.user_id] ? styles.followingBtn : ''}`}
+                          onClick={() => toggleFollow(post.user_id)}
+                        >
+                          {following[post.user_id] ? 'Following' : 'Follow'}
+                        </button>
+                      )}
+                    </div>
                   </div>
                   {post.likes > 0 && (
                     <button className={styles.likesCaption} onClick={() => openLikers(post)}>
