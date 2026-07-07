@@ -296,7 +296,6 @@ export default function GameChat() {
               if (prev.find(m => m.id === data.id)) return prev
               return [...prev, enriched]
             })
-            setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 80)
           })
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'game_chat_messages', filter: 'game_slug=eq.' + slug }, payload => {
