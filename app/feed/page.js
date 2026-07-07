@@ -23,6 +23,9 @@ export default function Feed() {
   const [submitting, setSubmitting] = useState(false)
   const [postError, setPostError] = useState('')
   const textareaRef = useRef(null)
+  const [likersOpen, setLikersOpen] = useState(false)
+  const [likersLoading, setLikersLoading] = useState(false)
+  const [likers, setLikers] = useState([])
 
   useEffect(() => { loadPosts() }, [])
 
@@ -44,7 +47,27 @@ export default function Feed() {
       .select('id, post_id, user_id, text, created_at, profiles(username, avatar_url)')
       .eq('post_id', post.id)
       .order('created_at', { ascending: true })
-    setComments(data || [])
+    const list = data || []
+    setComments(list)
+    // Self-heal: the stored comment_count can drift from reality (deleted
+    // rows, failed increments elsewhere) — reconcile it against what we
+    // actually just fetched so the count shown on the post is trustworthy.
+    if (list.length !== (post.comment_count || 0)) {
+      setPosts(p => p.map(x => x.id === post.id ? { ...x, comment_count: list.length } : x))
+      setSelected(s => s && s.id === post.id ? { ...s, comment_count: list.length } : s)
+      await supabase.from('posts').update({ comment_count: list.length }).eq('id', post.id)
+    }
+  }
+
+  async function openLikers(post) {
+    setLikersOpen(true)
+    setLikersLoading(true)
+    const { data } = await supabase
+      .from('post_likes')
+      .select('user_id, profiles(username, avatar_url)')
+      .eq('post_id', post.id)
+    setLikers(data || [])
+    setLikersLoading(false)
   }
 
   async function toggleLike(post) {
@@ -183,6 +206,11 @@ export default function Feed() {
                       <i className="ri-share-forward-line" />
                     </button>
                   </div>
+                  {post.likes > 0 && (
+                    <button className={styles.likesCaption} onClick={() => openLikers(post)}>
+                      Liked by {post.likes} {post.likes === 1 ? 'person' : 'people'}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -194,7 +222,7 @@ export default function Feed() {
       <Modal
         open={!!selected}
         onClose={() => { setSelected(null); setComment('') }}
-        title={selected ? `${selected.profiles?.username || 'Player'}'s post` : ''}
+        title={selected ? `${comments.length} Comment${comments.length === 1 ? '' : 's'}` : ''}
         size="md"
         footer={
           user ? (
@@ -222,6 +250,34 @@ export default function Feed() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Likes Modal — Instagram-style list of who liked the post */}
+      <Modal
+        open={likersOpen}
+        onClose={() => { setLikersOpen(false); setLikers([]) }}
+        title="Likes"
+        size="md"
+      >
+        {likersLoading ? (
+          <p className={styles.noComments}>Loading…</p>
+        ) : likers.length === 0 ? (
+          <p className={styles.noComments}>No likes yet.</p>
+        ) : (
+          <div className={styles.likersList}>
+            {likers.map((l, i) => (
+              <a key={l.user_id || i} href={`/profile/${l.user_id}`} className={styles.likerRow}>
+                <div className={styles.likerAvatar}>
+                  {l.profiles?.avatar_url
+                    ? <img src={l.profiles.avatar_url} alt="" className={styles.avatarImg} />
+                    : <span>{(l.profiles?.username || 'P').slice(0, 2).toUpperCase()}</span>
+                  }
+                </div>
+                <span className={styles.likerName}>{l.profiles?.username || 'Player'}</span>
+              </a>
+            ))}
           </div>
         )}
       </Modal>
