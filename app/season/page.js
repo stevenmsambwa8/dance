@@ -130,7 +130,7 @@ export default function SeasonPage() {
   // Points breakdown
   const matchPts   = logs.filter(l => l.type?.startsWith('match')).reduce((s, l) => s + (l.points ?? 0), 0)
   const tourneyPts = logs.filter(l => l.type?.startsWith('tournament')).reduce((s, l) => s + (l.points ?? 0), 0)
-  const prizeTZS   = logs.filter(l => l.type === 'prize').reduce((s, l) => s + (l.points ?? 0), 0)
+  const prizeTZS   = logs.filter(l => l.type === 'prize' || l.type === 'join_bonus' || l.type === 'full_bonus').reduce((s, l) => s + (l.points ?? 0), 0)
 
   const encouragement = getEncouragement(seasonWins, seasonLosses)
 

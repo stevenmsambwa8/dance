@@ -69,7 +69,7 @@ export default function CreatorsHubPage() {
     setLoadingTournaments(true)
     supabase
       .from('tournaments')
-      .select('id, name, game_slug, status, entrance_fee, created_at')
+      .select('id, name, game_slug, status, entrance_fee, slots, registered_count, created_at')
       .eq('created_by', user.id)
       .order('created_at', { ascending: false })
       .then(async ({ data }) => {
@@ -213,6 +213,35 @@ export default function CreatorsHubPage() {
         </Link>
       )}
 
+      <h3 className={styles.sectionTitle}>Hosting Activity</h3>
+      {myTournaments.length === 0 ? (
+        <div className={styles.chartCard}>
+          <p className={styles.chartEmpty}>Your player-count graph shows up here once you've hosted a few tournaments.</p>
+        </div>
+      ) : (
+        <div className={styles.chartCard}>
+          <div className={styles.chartHeaderRow}>
+            <span className={styles.chartHeaderTitle}>Players per tournament</span>
+            <span className={styles.chartHeaderSub}>last {Math.min(myTournaments.length, 6)}</span>
+          </div>
+          <div className={styles.chartBars}>
+            {[...myTournaments].slice(0, 6).reverse().map(t => {
+              const val = t.registered_count || 0
+              const max = Math.max(1, ...myTournaments.slice(0, 6).map(x => x.registered_count || 0))
+              const pct = Math.max(4, Math.round((val / max) * 100))
+              return (
+                <div key={t.id} className={styles.chartBarCol}>
+                  <div className={styles.chartBarWrap}>
+                    <div className={styles.chartBar} style={{ height: `${pct}%` }} title={`${t.name}: ${val} players`} />
+                  </div>
+                  <span className={styles.chartBarLabel}>{val}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       <h3 className={styles.sectionTitle}>Hosting Tips</h3>
       <div className={styles.tipsCard}>
         <div className={styles.tipRow}><i className="ri-megaphone-fill" /><span>Post your tournament in the feed 24h before it starts — early buzz fills slots faster.</span></div>
@@ -228,16 +257,27 @@ export default function CreatorsHubPage() {
         <p className={styles.empty}>You haven't created a tournament yet.</p>
       ) : (
         <div className={styles.list}>
-          {myTournaments.map(t => (
-            <Link key={t.id} href={`/tournaments/${t.id}/manage`} className={styles.row}>
-              <div className={styles.rowIcon}><i className="ri-trophy-line" /></div>
-              <div className={styles.rowMeta}>
-                <span className={styles.rowName}>{t.name}</span>
-                <span className={styles.rowSub}>{GAME_META[t.game_slug]?.name || t.game_slug} · {t.status}</span>
-              </div>
-              <i className="ri-arrow-right-s-line" />
-            </Link>
-          ))}
+          {myTournaments.map(t => {
+            const game = GAME_META[t.game_slug]
+            const fillPct = t.slots ? Math.min(100, Math.round(((t.registered_count || 0) / t.slots) * 100)) : 0
+            return (
+              <Link key={t.id} href={`/tournaments/${t.id}/manage`} className={styles.row}>
+                <div className={styles.rowIcon}>
+                  {game?.image ? <img src={game.image} alt={game.name} /> : <i className="ri-trophy-line" />}
+                </div>
+                <div className={styles.rowMeta}>
+                  <span className={styles.rowName}>{t.name}</span>
+                  <span className={styles.rowSub}>{game?.name || t.game_slug} · {t.status}{t.slots ? ` · ${t.registered_count || 0}/${t.slots}` : ''}</span>
+                  {t.slots > 0 && (
+                    <div className={styles.rowFillTrack}>
+                      <div className={styles.rowFillBar} style={{ width: `${fillPct}%` }} />
+                    </div>
+                  )}
+                </div>
+                <i className="ri-arrow-right-s-line" />
+              </Link>
+            )
+          })}
         </div>
       )}
     </div>

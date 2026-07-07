@@ -18,7 +18,12 @@ const TYPE_ICONS = {
   prize:               { icon: 'ri-money-dollar-circle-line', color: '#f59e0b' },
   shop_payout:         { icon: 'ri-store-2-line',             color: '#34d399' },
   daily_reward:        { icon: 'ri-gift-2-line',              color: '#a855f7' },
+  join_bonus:          { icon: 'ri-door-open-line',           color: '#22c55e' },
+  full_bonus:          { icon: 'ri-group-2-line',             color: '#eab308' },
 }
+
+// Types that represent real TZS money rather than in-app points.
+const MONEY_TYPES = new Set(['prize', 'join_bonus', 'full_bonus'])
 
 const TYPE_LABEL_KEYS = {
   match_win:            'walletPage.matchWin',
@@ -31,6 +36,8 @@ const TYPE_LABEL_KEYS = {
   prize:                'walletPage.prizeAwarded',
   shop_payout:           'walletPage.shopSale',
   daily_reward:          'walletPage.dailyReward',
+  join_bonus:            'walletPage.joinBonus',
+  full_bonus:            'walletPage.fullSlotsBonus',
 }
 
 function typeMeta(type, t) {
@@ -75,14 +82,14 @@ export default function WalletPage() {
     ? logs
     : logs.filter(l => {
         if (filter === 'shop') return l.type === 'shop_payout'
-        if (filter === 'prize') return l.type === 'prize'
+        if (filter === 'prize') return MONEY_TYPES.has(l.type)
         return l.type?.startsWith(filter)
       })
 
-  const totalPts   = logs.filter(l => l.type !== 'prize').reduce((s, l) => s + (l.points ?? 0), 0)
+  const totalPts   = logs.filter(l => !MONEY_TYPES.has(l.type)).reduce((s, l) => s + (l.points ?? 0), 0)
   const matchPts   = logs.filter(l => l.type?.startsWith('match')).reduce((s, l) => s + (l.points ?? 0), 0)
   const tourneyPts = logs.filter(l => l.type?.startsWith('tournament')).reduce((s, l) => s + (l.points ?? 0), 0)
-  const prizeTZS   = logs.filter(l => l.type === 'prize').reduce((s, l) => s + (l.points ?? 0), 0)
+  const prizeTZS   = logs.filter(l => MONEY_TYPES.has(l.type)).reduce((s, l) => s + (l.points ?? 0), 0)
   const shopCount  = logs.filter(l => l.type === 'shop_payout').length
 
   if (!user) return (
@@ -158,7 +165,7 @@ export default function WalletPage() {
             const meta = typeMeta(log.type, t)
             const pts  = log.points ?? 0
             const isShop  = log.type === 'shop_payout'
-            const isPrize = log.type === 'prize'
+            const isPrize = MONEY_TYPES.has(log.type)
             return (
               <div key={log.id || i} className={styles.logRow}>
                 <div className={styles.logIcon} style={{ color: meta.color, background: meta.color + '18' }}>

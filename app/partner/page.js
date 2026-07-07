@@ -198,7 +198,7 @@ export default function PartnerPage() {
         ) : (
           <div className={styles.earningsList}>
             {earnings.map((e, i) => {
-              const isPrize = e.type === 'prize'
+              const isPrize = e.type === 'prize' || e.type === 'join_bonus' || e.type === 'full_bonus'
               return (
                 <div key={e.id || i} className={styles.earningRow}>
                   <div className={styles.earningIcon} style={{ color: isPrize ? '#f59e0b' : '#22c55e', background: isPrize ? '#f59e0b22' : '#22c55e22' }}>

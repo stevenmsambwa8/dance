@@ -11,6 +11,7 @@ import styles from './page.module.css'
 import usePageLoading from '../../../components/usePageLoading'
 
 import { getTierTheme } from '../../../lib/tierTheme'
+import { awardJoinBonus, maybeAwardFullSlotsBonus } from '../../../lib/tournamentBonus'
 
 function getTierColor(tier) {
   return getTierTheme(tier)?.primary || '#f59e0b'
@@ -288,6 +289,8 @@ export default function GameDetail() {
     const newCount = count ?? (t.registered_count || 0) + 1
     setRegistered(r => ({ ...r, [t.id]: true }))
     setTournaments(ts => ts.map(x => x.id === t.id ? { ...x, registered_count: newCount } : x))
+    await awardJoinBonus(supabase, user.id, t.id, t.name)
+    await maybeAwardFullSlotsBonus(supabase, t.id, t.name, t.slots)
     // Place in bracket
     const { data: tData } = await supabase.from('tournaments').select('bracket_data').eq('id', t.id).single()
     if (tData?.bracket_data) {

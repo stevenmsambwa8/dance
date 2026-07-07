@@ -12,7 +12,7 @@
 .gateIcon {
   width: 56px; height: 56px;
   margin: 0 auto 14px;
-  border-radius: 0;
+  border-radius: 18px;
   background: var(--accent);
   color: #fff;
   display: flex; align-items: center; justify-content: center;
@@ -26,7 +26,7 @@
 .heroIcon {
   width: 60px; height: 60px;
   margin: 0 auto 14px;
-  border-radius: 0;
+  border-radius: 18px;
   background: var(--accent);
   color: #fff;
   display: flex; align-items: center; justify-content: center;
@@ -37,7 +37,7 @@
 
 .perksCard {
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: 16px;
   padding: 14px;
   margin-bottom: 18px;
   display: flex;
@@ -58,7 +58,7 @@
   align-items: center;
   gap: 8px;
   padding: 13px;
-  border-radius: 0;
+  border-radius: 12px;
   background: var(--bg-2);
   color: var(--text-muted);
   font-size: 12.5px;
@@ -69,7 +69,7 @@
 .primaryBtn {
   width: 100%;
   padding: 14px;
-  border-radius: 0;
+  border-radius: 14px;
   border: none;
   background: var(--accent);
   color: #fff;
@@ -88,7 +88,7 @@
 }
 .dashBadge {
   width: 44px; height: 44px;
-  border-radius: 0;
+  border-radius: 14px;
   background: var(--accent);
   color: #fff;
   display: flex; align-items: center; justify-content: center;
@@ -103,7 +103,7 @@
   align-items: flex-start;
   gap: 10px;
   padding: 13px;
-  border-radius: 0;
+  border-radius: 16px;
   background: var(--bg-2);
   margin-bottom: 16px;
 }
@@ -121,7 +121,7 @@
   flex-direction: column;
   align-items: center;
   padding: 12px 4px;
-  border-radius: 0;
+  border-radius: 14px;
   border: 1px solid var(--border);
 }
 .statVal { font-size: 19px; font-weight: 900; }
@@ -132,7 +132,7 @@
   align-items: center;
   gap: 12px;
   padding: 13px;
-  border-radius: 0;
+  border-radius: 14px;
   border: 1px solid var(--border);
   background: var(--bg-2);
   text-decoration: none;
@@ -141,7 +141,7 @@
 }
 .upgradeIcon {
   width: 38px; height: 38px;
-  border-radius: 0;
+  border-radius: 12px;
   background: var(--accent);
   color: #fff;
   display: flex; align-items: center; justify-content: center;
@@ -157,7 +157,7 @@
   flex-direction: column;
   gap: 11px;
   padding: 13px;
-  border-radius: 0;
+  border-radius: 16px;
   border: 1px solid var(--border);
   margin-bottom: 22px;
 }
@@ -177,7 +177,7 @@
   gap: 8px;
   width: 100%;
   padding: 14px;
-  border-radius: 0;
+  border-radius: 14px;
   background: var(--accent);
   color: #fff;
   font-size: 13.5px;
@@ -214,20 +214,97 @@
   align-items: center;
   gap: 10px;
   padding: 11px;
-  border-radius: 0;
+  border-radius: 14px;
   border: 1px solid var(--border);
   text-decoration: none;
   color: var(--text);
 }
 .rowIcon {
   width: 34px; height: 34px;
-  border-radius: 0;
+  border-radius: 12px;
   background: var(--bg-2);
   display: flex; align-items: center; justify-content: center;
   font-size: 15px;
   color: var(--accent);
   flex-shrink: 0;
+  overflow: hidden;
 }
+.rowIcon img { width: 100%; height: 100%; object-fit: cover; }
 .rowMeta { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .rowName { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rowSub { font-size: 11px; color: var(--text-muted); }
+
+.rowFillTrack {
+  width: 100%;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--border);
+  margin-top: 5px;
+  overflow: hidden;
+}
+.rowFillBar {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+/* ── Activity graph ── */
+.chartCard {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px 14px 12px;
+  margin-bottom: 22px;
+}
+.chartHeaderRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.chartHeaderTitle { font-size: 13px; font-weight: 800; }
+.chartHeaderSub { font-size: 10.5px; color: var(--text-muted); }
+.chartBars {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 84px;
+}
+.chartBarCol {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  gap: 6px;
+  min-width: 0;
+}
+.chartBarWrap {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.chartBar {
+  width: 70%;
+  min-height: 4px;
+  border-radius: 6px 6px 3px 3px;
+  background: var(--accent);
+}
+.chartBarLabel {
+  font-size: 9px;
+  color: var(--text-muted);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.chartEmpty {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 18px 0;
+}
