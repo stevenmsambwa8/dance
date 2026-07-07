@@ -246,6 +246,28 @@ export default function GameChat() {
     setTimeout(() => el.classList.remove(styles.msgHighlight), 1500)
   }
 
+  // Remembers the last message the user had scrolled to, per game chat,
+  // so re-opening the chat resumes there instead of jumping to the bottom.
+  const scrollSaveTimer  = useRef(null)
+  const restoredScrollRef = useRef(false)
+
+  function handleChatScroll() {
+    if (scrollSaveTimer.current) clearTimeout(scrollSaveTimer.current)
+    scrollSaveTimer.current = setTimeout(() => {
+      const container = chatBoxRef.current
+      if (!container) return
+      const containerTop = container.getBoundingClientRect().top
+      const children = container.querySelectorAll('[id^="msg-"]')
+      let anchorId = null
+      for (const child of children) {
+        if (child.getBoundingClientRect().bottom > containerTop + 1) { anchorId = child.id; break }
+      }
+      if (anchorId) {
+        try { localStorage.setItem('chatScroll:' + slug, anchorId) } catch {}
+      }
+    }, 250)
+  }
+
   usePageLoading(loading)
 
   function enrichMsg(msg) {
@@ -296,6 +318,19 @@ export default function GameChat() {
     return () => document.removeEventListener('pointerdown', handler)
   }, [])
 
+  // Restore last read position once, the first time messages come in after mount.
+  useEffect(() => {
+    if (restoredScrollRef.current || !messages.length) return
+    restoredScrollRef.current = true
+    let saved = null
+    try { saved = localStorage.getItem('chatScroll:' + slug) } catch {}
+    if (!saved) return
+    setTimeout(() => {
+      const el = document.getElementById(saved)
+      el?.scrollIntoView({ behavior: 'auto', block: 'start' })
+    }, 50)
+  }, [messages, slug])
+
   async function loadAll() {
     setLoading(true)
     const [{ data: msgs }, { count: subs }, profResult, subResult] = await Promise.all([
@@ -316,7 +351,6 @@ export default function GameChat() {
       setSubscribed(!!subResult.data)
     }
     setLoading(false)
-    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 200)
 
     // Non-critical: who the viewer already follows, used only for the context menu.
     // Fetched after first paint so it never delays showing the chat.
@@ -599,7 +633,7 @@ export default function GameChat() {
         </div>
 
         {/* Messages */}
-        <div className={styles.chatBox}>
+        <div className={styles.chatBox} ref={chatBoxRef} onScroll={handleChatScroll}>
           {messages.length === 0 && (
             <div className={styles.chatEmpty}>
               <i className="ri-chat-3-line" />
