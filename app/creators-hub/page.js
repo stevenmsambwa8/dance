@@ -40,6 +40,9 @@ export default function CreatorsHubPage() {
   const [participantCount, setParticipantCount] = useState(0)
   const [checkingAccess, setCheckingAccess] = useState(true)
   const [isCreator, setIsCreator] = useState(false)
+  const [earningsTotal, setEarningsTotal] = useState(0)
+
+  const MONEY_TYPES = new Set(['prize', 'join_bonus', 'full_bonus', 'shop_payout'])
 
   const activePlan = getActivePlan(profile)
   const hasCreatorPerks = activePlan === 'elite' || activePlan === 'team'
@@ -85,6 +88,16 @@ export default function CreatorsHubPage() {
             .in('tournament_id', ids)
           setParticipantCount(count || 0)
         }
+      })
+  }, [user, isCreator])
+
+  useEffect(() => {
+    if (!user || !isCreator) return
+    supabase.from('earnings_log').select('points, type').eq('user_id', user.id)
+      .then(({ data }) => {
+        if (!data) return
+        const total = data.filter(l => MONEY_TYPES.has(l.type)).reduce((s, l) => s + (l.points ?? 0), 0)
+        setEarningsTotal(total)
       })
   }, [user, isCreator])
 
@@ -164,7 +177,6 @@ export default function CreatorsHubPage() {
   }
 
   const activeCount = myTournaments.filter(t => t.status === 'active').length
-  const totalRevenue = myTournaments.reduce((sum, t) => sum + (t.entrance_fee || 0) * (t.registered_count || 0), 0)
 
   return (
     <div className={styles.page}>
@@ -200,8 +212,8 @@ export default function CreatorsHubPage() {
           <span className={styles.statLabel}>Total Players</span>
         </div>
         <div className={styles.statBox}>
-          <span className={styles.statVal} style={{ fontSize: totalRevenue >= 100000 ? 13 : undefined }}>
-            {totalRevenue > 0 ? fmtAmt(totalRevenue) : '—'}
+          <span className={styles.statVal} style={{ fontSize: earningsTotal >= 100000 ? 13 : undefined }}>
+            {earningsTotal > 0 ? fmtAmt(earningsTotal) : '—'}
           </span>
           <span className={styles.statLabel}>Earnings</span>
         </div>
@@ -210,8 +222,8 @@ export default function CreatorsHubPage() {
       <Link href="/wallet" className={styles.upgradeCard}>
         <div className={styles.upgradeIcon}><i className="ri-money-dollar-circle-fill" /></div>
         <div className={styles.upgradeMeta}>
-          <span className={styles.upgradeTitle}>{totalRevenue > 0 ? `Earned ${fmtAmt(totalRevenue)} from entry fees` : 'No earnings yet'}</span>
-          <span className={styles.upgradeSub}>Gross revenue from entrance fees across all your tournaments. See the full payout history in your Wallet.</span>
+          <span className={styles.upgradeTitle}>{earningsTotal > 0 ? `Earned ${fmtAmt(earningsTotal)} so far` : 'No earnings yet'}</span>
+          <span className={styles.upgradeSub}>Prize money, bonuses &amp; payouts recorded on Nabogaming. See the full breakdown in your Wallet.</span>
         </div>
         <i className="ri-arrow-right-s-line" />
       </Link>
