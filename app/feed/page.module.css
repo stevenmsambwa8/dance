@@ -20,23 +20,23 @@
   flex-shrink: 0;
   overflow: hidden;
 }
-.composePlaceholder { flex: 1; font-size: 15px; color: var(--text-muted); padding-top: 9px; }
+.composePlaceholder { flex: 1; font-size: 13px; color: var(--text-muted); padding-top: 10px; }
 .composeBtn {
   background: var(--accent);
   color: #fff;
   border: none;
   border-radius: 9999px;
-  padding: 8px 18px;
-  font-size: 13px;
+  padding: 7px 16px;
+  font-size: 12px;
   font-weight: 800;
   flex-shrink: 0;
   align-self: center;
 }
 
-.loginPrompt { font-size: 13px; color: var(--text-muted); text-align: center; padding: 16px; border-bottom: 1px solid var(--border); }
+.loginPrompt { font-size: 12px; color: var(--text-muted); text-align: center; padding: 16px; border-bottom: 1px solid var(--border); }
 .loginPrompt a { color: var(--text); font-weight: 700; }
 
-.empty { color: var(--text-muted); text-align: center; padding: 40px 20px; font-size: 13px; }
+.empty { color: var(--text-muted); text-align: center; padding: 40px 20px; font-size: 12px; }
 
 /* ── Feed — flowing timeline, no card boxes, hairline dividers ── */
 .feed { display: flex; flex-direction: column; }
@@ -75,12 +75,12 @@
 
 .postUserRow { display: flex; align-items: center; gap: 4px; min-width: 0; flex-wrap: nowrap; }
 
-.postUser { max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px; font-weight: 800; color: var(--text); }
+.postUser { max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; font-weight: 800; color: var(--text); }
 .postUser:hover { text-decoration: underline; }
 
-.postDot { color: var(--text-muted); font-size: 13px; flex-shrink: 0; }
+.postDot { color: var(--text-muted); font-size: 12px; flex-shrink: 0; }
 
-.postTime { font-size: 13px; color: var(--text-muted); flex-shrink: 0; white-space: nowrap; }
+.postTime { font-size: 12px; color: var(--text-muted); flex-shrink: 0; white-space: nowrap; }
 
 .verifiedTick { width: 14px; height: 14px; flex-shrink: 0; display: inline-block; vertical-align: middle; }
 
@@ -98,7 +98,23 @@
 }
 .deleteBtn:hover { color: #ef4444; background: #ef444418; }
 
-.postContent { font-size: 15px; line-height: 1.4; color: var(--text); word-break: break-word; margin: 2px 0 8px; }
+.postContent {
+  height: 222px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 16px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  word-break: break-word;
+  overflow: hidden;
+  margin: 8px 0;
+}
 
 /* ── Actions — spread evenly like X's reply / like / share row ── */
 .postActions { display: flex; align-items: center; justify-content: space-between; max-width: 320px; margin-left: -8px; }
@@ -111,12 +127,12 @@
   background: none;
   border: none;
   border-radius: 9999px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--text-muted);
   transition: all 0.1s;
 }
-.action i { font-size: 17px; }
+.action i { font-size: 15px; }
 .action:hover { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .liked { color: #ef4444 !important; }
 .liked:hover { background: #ef444418; }
@@ -128,7 +144,7 @@
   border: none;
   padding: 0 8px;
   margin-top: 2px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--text);
   text-align: left;
@@ -157,16 +173,16 @@
   overflow: hidden;
   flex-shrink: 0;
 }
-.likerName { font-size: 14px; font-weight: 700; }
+.likerName { font-size: 13px; font-weight: 700; }
 
 /* Modal internals */
 .commentBody { display: flex; flex-direction: column; gap: 16px; }
-.modalPost { font-size: 14px; line-height: 1.6; padding: 12px; background: var(--surface); border-radius: 8px; border-left: 2px solid var(--border-dark); }
+.modalPost { font-size: 13px; line-height: 1.6; padding: 12px; background: var(--surface); border-radius: 8px; border-left: 2px solid var(--border-dark); }
 .comments { display: flex; flex-direction: column; gap: 10px; }
-.noComments { font-size: 13px; color: var(--text-muted); }
+.noComments { font-size: 12px; color: var(--text-muted); }
 .comment { display: flex; flex-direction: column; gap: 2px; }
 .commentUser { font-size: 12px; font-weight: 700; }
-.commentText { font-size: 13px; color: var(--text-dim); }
+.commentText { font-size: 12px; color: var(--text-dim); }
 
 .commentInput { display: flex; gap: 8px; flex: 1; width: 100%; }
 .commentInput input {
