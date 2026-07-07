@@ -7,6 +7,7 @@ import { useAuthGate } from '../../components/AuthGateModal'
 import { supabase } from '../../lib/supabase'
 import { GAME_META } from '../../lib/constants'
 import { getActivePlan } from '../../lib/plans'
+import { useCurrency } from '../../lib/useCurrency'
 import styles from './page.module.css'
 
 /**
@@ -31,11 +32,13 @@ import styles from './page.module.css'
 export default function CreatorsHubPage() {
   const { user, profile } = useAuth()
   const { openAuthGate } = useAuthGate()
+  const { fmtAmt } = useCurrency(profile?.country_flag)
   const [applying, setApplying] = useState(false)
   const [applied, setApplied] = useState(false)
   const [myTournaments, setMyTournaments] = useState([])
   const [loadingTournaments, setLoadingTournaments] = useState(false)
   const [participantCount, setParticipantCount] = useState(0)
+  const [prizeMoney, setPrizeMoney] = useState(0)
   const [checkingAccess, setCheckingAccess] = useState(true)
   const [isCreator, setIsCreator] = useState(false)
 
@@ -82,6 +85,13 @@ export default function CreatorsHubPage() {
             .select('*', { count: 'exact', head: true })
             .in('tournament_id', ids)
           setParticipantCount(count || 0)
+
+          const { data: prizeRows } = await supabase
+            .from('tournament_leaderboard')
+            .select('prize_amount')
+            .in('tournament_id', ids)
+            .gt('prize_amount', 0)
+          setPrizeMoney((prizeRows || []).reduce((s, r) => s + (r.prize_amount || 0), 0))
         }
       })
   }, [user, isCreator])
@@ -195,6 +205,12 @@ export default function CreatorsHubPage() {
         <div className={styles.statBox}>
           <span className={styles.statVal}>{participantCount}</span>
           <span className={styles.statLabel}>Total Players</span>
+        </div>
+        <div className={styles.statBox}>
+          <span className={styles.statVal} style={{ fontSize: prizeMoney >= 100000 ? 13 : undefined }}>
+            {prizeMoney > 0 ? fmtAmt(prizeMoney) : '—'}
+          </span>
+          <span className={styles.statLabel}>Prize Money Paid</span>
         </div>
       </div>
 

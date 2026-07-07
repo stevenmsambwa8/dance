@@ -133,7 +133,7 @@ export default function Feed() {
             }
           </div>
           <span className={styles.composePlaceholder}>What&apos;s on your mind, {profile?.username || 'Player'}?</span>
-          <button className={styles.composeBtn}><i className="ri-arrow-down-line" /></button>
+          <button className={styles.composeBtn}>Post</button>
         </div>
       ) : (
         <p className={styles.loginPrompt}><button onClick={openAuthGate} style={{background:'none',border:'none',color:'inherit',fontWeight:700,cursor:'pointer',padding:0,textDecoration:'underline',fontFamily:'var(--font)'}}>Log in</button> to post and interact.</p>
@@ -144,7 +144,7 @@ export default function Feed() {
           {posts.length === 0 && <p className={styles.empty}>No posts yet. Be the first!</p>}
           {posts.map(post => (
             <div key={post.id} className={styles.post}>
-              <div className={styles.postHeader}>
+              <div className={styles.postRow}>
                 <a href={`/profile/${post.profiles?.id}`} className={styles.avatarLink}>
                   <div className={styles.avatar}>
                     {post.profiles?.avatar_url
@@ -153,34 +153,37 @@ export default function Feed() {
                     }
                   </div>
                 </a>
-                <div className={styles.postMeta}>
-                  <div className={styles.postUserRow}>
-                    <a href={`/profile/${post.profiles?.id}`} className={styles.postUser}>{post.profiles?.username || 'Player'}</a>
-                    <UserBadges email={post.profiles?.email} plan={post.profiles?.plan} planExpiresAt={post.profiles?.plan_expires_at} countryFlag={post.profiles?.country_flag} isSeasonWinner={post.profiles?.is_season_winner} size={13} gap={2} />
+                <div className={styles.postBody}>
+                  <div className={styles.postHeader}>
+                    <div className={styles.postUserRow}>
+                      <a href={`/profile/${post.profiles?.id}`} className={styles.postUser}>{post.profiles?.username || 'Player'}</a>
+                      <UserBadges email={post.profiles?.email} plan={post.profiles?.plan} planExpiresAt={post.profiles?.plan_expires_at} countryFlag={post.profiles?.country_flag} isSeasonWinner={post.profiles?.is_season_winner} size={13} gap={2} />
+                      {post.profiles?.level ? <span className={styles.postDot}>·</span> : null}
+                      {post.profiles?.level ? <span className={styles.postTime}>Lv.{post.profiles.level}</span> : null}
+                      <span className={styles.postDot}>·</span>
+                      <span className={styles.postTime}>{timeAgo(post.created_at)}</span>
+                    </div>
+                    {user && (user.id === post.user_id || isAdmin) && (
+                      <button className={styles.deleteBtn} onClick={() => deletePost(post)} title="Delete post">
+                        <i className="ri-delete-bin-line" />
+                      </button>
+                    )}
                   </div>
-                  <span className={styles.postRank}>
-                    {post.profiles?.level ? `Lv.${post.profiles.level} · ` : ''}{timeAgo(post.created_at)}
-                  </span>
+                  <p className={styles.postContent}>{post.content}</p>
+                  <div className={styles.postActions}>
+                    <button className={styles.action} onClick={() => openPost(post)}>
+                      <i className="ri-chat-1-line" />
+                      {post.comment_count || 0}
+                    </button>
+                    <button className={`${styles.action} ${liked[post.id] ? styles.liked : ''}`} onClick={() => toggleLike(post)}>
+                      <i className={liked[post.id] ? 'ri-heart-fill' : 'ri-heart-line'} />
+                      {post.likes || 0}
+                    </button>
+                    <button className={styles.action} onClick={() => navigator.share?.({ text: post.content })}>
+                      <i className="ri-share-forward-line" />
+                    </button>
+                  </div>
                 </div>
-                {user && (user.id === post.user_id || isAdmin) && (
-                  <button className={styles.deleteBtn} onClick={() => deletePost(post)} title="Delete post">
-                    <i className="ri-delete-bin-line" />
-                  </button>
-                )}
-              </div>
-              <p className={styles.postContent}>{post.content}</p>
-              <div className={styles.postActions}>
-                <button className={`${styles.action} ${liked[post.id] ? styles.liked : ''}`} onClick={() => toggleLike(post)}>
-                  <i className={liked[post.id] ? 'ri-heart-fill' : 'ri-heart-line'} />
-                  {post.likes || 0}
-                </button>
-                <button className={styles.action} onClick={() => openPost(post)}>
-                  <i className="ri-chat-1-line" />
-                  {post.comment_count || 0}
-                </button>
-                <button className={styles.action} onClick={() => navigator.share?.({ text: post.content })}>
-                  <i className="ri-share-forward-line" />
-                </button>
               </div>
             </div>
           ))}
@@ -232,21 +235,29 @@ export default function Feed() {
         footer={
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
             {postError && <p style={{ color: '#ef4444', fontSize: '0.8rem' }}>{postError}</p>}
-            <button onClick={submitPost} disabled={submitting || !newPost.trim()} style={{ padding: '10px 20px', background: 'var(--accent)', color: 'var(--accent-text)', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, opacity: submitting || !newPost.trim() ? 0.5 : 1 }}>
-              {submitting ? 'Posting…' : 'Post'} <i className="ri-send-plane-line" />
+            <button onClick={submitPost} disabled={submitting || !newPost.trim()} style={{ marginLeft: 'auto', padding: '9px 22px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 9999, cursor: 'pointer', fontWeight: 800, fontSize: 14, opacity: submitting || !newPost.trim() ? 0.5 : 1 }}>
+              {submitting ? 'Posting…' : 'Post'}
             </button>
           </div>
         }
       >
-        <textarea
-          ref={textareaRef}
-          style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 8, padding: 12, fontSize: '0.9rem', resize: 'vertical', fontFamily: 'inherit', outline: 'none', minHeight: 100 }}
-          value={newPost}
-          onChange={e => setNewPost(e.target.value)}
-          placeholder={`What's on your mind, ${profile?.username || 'Player'}?`}
-          rows={5}
-          autoFocus
-        />
+        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+          <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'var(--text)', color: 'var(--bg)', fontSize: 12, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
+            {profile?.avatar_url
+              ? <img src={profile.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <span>{(profile?.username || 'P').slice(0, 2).toUpperCase()}</span>
+            }
+          </div>
+          <textarea
+            ref={textareaRef}
+            style={{ flex: 1, width: '100%', background: 'none', border: 'none', color: 'var(--text)', padding: 0, fontSize: '1rem', lineHeight: 1.4, resize: 'vertical', fontFamily: 'inherit', outline: 'none', minHeight: 100 }}
+            value={newPost}
+            onChange={e => setNewPost(e.target.value)}
+            placeholder={`What's happening, ${profile?.username || 'Player'}?`}
+            rows={5}
+            autoFocus
+          />
+        </div>
       </Modal>
     </div>
   )
