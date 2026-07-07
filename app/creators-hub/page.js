@@ -10,14 +10,23 @@ import { getActivePlan } from '../../lib/plans'
 import styles from './page.module.css'
 
 /**
- * Creators Hub — gated by profiles.is_creator.
- *   - Not logged in  → auth gate.
- *   - Logged in, not yet a creator → application pitch + apply button.
- *     Applying sets creator_applied_at (persists across reloads) and
- *     notifies admins; approval itself is manual (toggle is_creator in
- *     Supabase) — there's no self-serve auto-approve path here on purpose.
- *   - Logged in, is_creator → dashboard: create-tournament shortcut + list
- *     of tournaments they've created (tournaments.created_by = user.id).
+ * Creators Hub — access is granted two ways:
+ *   1. profiles.is_creator = true (manually approved via application), or
+ *   2. the person has already created a tournament before (tournaments.
+ *      created_by = user.id) — e.g. they were Elite previously, or an admin
+ *      made one for them. That history alone qualifies them; they shouldn't
+ *      have to apply and wait for something they already do. When detected,
+ *      we also flip profiles.is_creator to true in the background so future
+ *      loads (and anything else that checks that column directly) see them
+ *      as a creator without re-running this check.
+ *
+ *   - Not logged in           → auth gate.
+ *   - Logged in, no access    → application pitch + apply button. Applying
+ *     sets creator_applied_at (persists across reloads) and notifies admins;
+ *     approval from there is manual — no self-serve auto-approve besides
+ *     the "already created one" bypass above.
+ *   - Logged in, has access   → dashboard: stats, upgrade nudge, hosting
+ *     tips, create-tournament shortcut, and their tournament list.
  */
 export default function CreatorsHubPage() {
   const { user, profile } = useAuth()
@@ -27,12 +36,36 @@ export default function CreatorsHubPage() {
   const [myTournaments, setMyTournaments] = useState([])
   const [loadingTournaments, setLoadingTournaments] = useState(false)
   const [participantCount, setParticipantCount] = useState(0)
+  const [checkingAccess, setCheckingAccess] = useState(true)
+  const [isCreator, setIsCreator] = useState(false)
 
   const activePlan = getActivePlan(profile)
   const hasCreatorPerks = activePlan === 'elite' || activePlan === 'team'
 
+  // Resolve access: explicit is_creator flag, or grandfather in anyone who
+  // already has a tournament under their name.
   useEffect(() => {
-    if (!user || !profile?.is_creator) return
+    if (!user) { setCheckingAccess(false); return }
+    if (profile?.is_creator) { setIsCreator(true); setCheckingAccess(false); return }
+
+    let cancelled = false
+    supabase
+      .from('tournaments')
+      .select('id', { count: 'exact', head: true })
+      .eq('created_by', user.id)
+      .then(async ({ count }) => {
+        if (cancelled) return
+        if (count > 0) {
+          setIsCreator(true)
+          await supabase.from('profiles').update({ is_creator: true }).eq('id', user.id)
+        }
+        setCheckingAccess(false)
+      })
+    return () => { cancelled = true }
+  }, [user, profile?.is_creator])
+
+  useEffect(() => {
+    if (!user || !isCreator) return
     setLoadingTournaments(true)
     supabase
       .from('tournaments')
@@ -51,7 +84,7 @@ export default function CreatorsHubPage() {
           setParticipantCount(count || 0)
         }
       })
-  }, [user, profile?.is_creator])
+  }, [user, isCreator])
 
   useEffect(() => {
     if (profile?.creator_applied_at) setApplied(true)
@@ -94,7 +127,11 @@ export default function CreatorsHubPage() {
     )
   }
 
-  if (!profile?.is_creator) {
+  if (checkingAccess) {
+    return <div className={styles.page} />
+  }
+
+  if (!isCreator) {
     return (
       <div className={styles.page}>
         <div className={styles.hero}>
