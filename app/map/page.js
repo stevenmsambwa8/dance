@@ -13,14 +13,26 @@ const MAX_SCALE = 2.8
 const HOME_ZONE = ZONES.find(z => z.id === 'home')
 const PATH_ZONES = ZONES.filter(z => z.id !== 'home' && z.id !== 'other')
 
-// Loose "districts" — tinted terrain patches grouping nearby zones so the
-// map reads as neighborhoods of a single settlement, not scattered icons.
-const REGIONS = [
-  { id: 'north', left: 50, top: 15, w: 96, h: 30, rot: -2, tone: 'regionCool' },
-  { id: 'west', left: 13, top: 52, w: 40, h: 62, rot: 3, tone: 'regionWarm' },
-  { id: 'east', left: 87, top: 52, w: 40, h: 62, rot: -3, tone: 'regionFresh' },
-  { id: 'south', left: 50, top: 89, w: 96, h: 26, rot: 2, tone: 'regionGold' },
-]
+// Deterministic "randomness" from a zone id so roads curve consistently
+// on every render/reload instead of being perfectly straight spokes.
+function hashOffset(id) {
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 1000
+  return (h / 1000 - 0.5) * 2 // -1..1
+}
+function roadPath(from, to, id) {
+  const mx = (from.x + to.x) / 2
+  const my = (from.y + to.y) / 2
+  const dx = to.x - from.x
+  const dy = to.y - from.y
+  const len = Math.hypot(dx, dy) || 1
+  const nx = -dy / len
+  const ny = dx / len
+  const bend = hashOffset(id) * len * 0.18
+  const cx = mx + nx * bend
+  const cy = my + ny * bend
+  return `M ${from.x} ${from.y} Q ${cx} ${cy} ${to.x} ${to.y}`
+}
 
 function clampScale(s) {
   return Math.min(MAX_SCALE, Math.max(MIN_SCALE, s))
@@ -194,22 +206,11 @@ export default function LobbyMapPage() {
       >
         <div className={styles.map} ref={mapRef}>
           <div className={styles.grassOverlay} aria-hidden="true" />
-
-          {/* Tinted district patches — group nearby zones into neighborhoods */}
-          {REGIONS.map(r => (
-            <div
-              key={r.id}
-              className={`${styles.region} ${styles[r.tone]}`}
-              style={{
-                left: `${r.left}%`,
-                top: `${r.top}%`,
-                width: `${r.w}%`,
-                height: `${r.h}%`,
-                transform: `translate(-50%, -50%) rotate(${r.rot}deg)`,
-              }}
-              aria-hidden="true"
-            />
-          ))}
+          <div className={styles.gridOverlay} aria-hidden="true" />
+          <div className={styles.snowPatch} aria-hidden="true" />
+          <div className={styles.desertPatch} aria-hidden="true" />
+          <div className={styles.waterLeft} aria-hidden="true" />
+          <div className={styles.waterRight} aria-hidden="true" />
 
           <svg className={styles.pathsSvg} viewBox="0 0 100 100" preserveAspectRatio="none">
             <defs>
@@ -217,51 +218,27 @@ export default function LobbyMapPage() {
                 <feDropShadow dx="0" dy="0.3" stdDeviation="0.3" floodColor="#000" floodOpacity="0.25" />
               </filter>
             </defs>
-            {PATH_ZONES.map(zone => (
-              <g key={zone.id} filter="url(#pathShadow)">
-                <line
-                  x1={HOME_ZONE.x} y1={HOME_ZONE.y}
-                  x2={zone.x} y2={zone.y}
-                  className={styles.dirtPathBase}
-                />
-                <line
-                  x1={HOME_ZONE.x} y1={HOME_ZONE.y}
-                  x2={zone.x} y2={zone.y}
-                  className={styles.dirtPath}
-                />
-              </g>
-            ))}
+            {PATH_ZONES.map(zone => {
+              const d = roadPath(HOME_ZONE, zone, zone.id)
+              return (
+                <g key={zone.id} filter="url(#pathShadow)">
+                  <path d={d} className={styles.roadBase} fill="none" />
+                  <path d={d} className={styles.roadLine} fill="none" />
+                </g>
+              )
+            })}
           </svg>
 
-          {/* Scenery — trees, rocks, flowers, a bridge over the pond */}
-          <span className={`${styles.deco} ${styles.decoTree}`} style={{ left: '4%', top: '48%' }} aria-hidden="true">
+          {/* A few quiet scenery accents — kept minimal on purpose */}
+          <span className={`${styles.deco} ${styles.decoTree}`} style={{ left: '5%', top: '48%' }} aria-hidden="true">
             <span className={styles.treeCanopy} /><span className={styles.treeCanopy2} /><span className={styles.treeTrunk} />
           </span>
-          <span className={`${styles.deco} ${styles.decoTree}`} style={{ left: '96%', top: '50%' }} aria-hidden="true">
+          <span className={`${styles.deco} ${styles.decoTree}`} style={{ left: '95%', top: '50%' }} aria-hidden="true">
             <span className={styles.treeCanopy} /><span className={styles.treeCanopy2} /><span className={styles.treeTrunk} />
           </span>
-          <span className={`${styles.deco} ${styles.decoTreeSmall}`} style={{ left: '9%', top: '30%' }} aria-hidden="true">
-            <span className={styles.treeCanopy} /><span className={styles.treeTrunk} />
-          </span>
-          <span className={`${styles.deco} ${styles.decoTreeSmall}`} style={{ left: '91%', top: '30%' }} aria-hidden="true">
-            <span className={styles.treeCanopy} /><span className={styles.treeTrunk} />
-          </span>
-          <span className={`${styles.deco} ${styles.decoTreeSmall}`} style={{ left: '20%', top: '82%' }} aria-hidden="true">
-            <span className={styles.treeCanopy} /><span className={styles.treeTrunk} />
-          </span>
-          <span className={`${styles.deco} ${styles.decoTreeSmall}`} style={{ left: '80%', top: '80%' }} aria-hidden="true">
-            <span className={styles.treeCanopy} /><span className={styles.treeTrunk} />
-          </span>
-          <span className={`${styles.deco} ${styles.decoBushSmall}`} style={{ left: '58%', top: '46%' }} aria-hidden="true" />
-          <span className={`${styles.deco} ${styles.decoBushSmall}`} style={{ left: '42%', top: '62%' }} aria-hidden="true" />
-          <span className={`${styles.deco} ${styles.decoFlowers}`} style={{ left: '30%', top: '40%' }} aria-hidden="true" />
-          <span className={`${styles.deco} ${styles.decoFlowers}`} style={{ left: '70%', top: '62%' }} aria-hidden="true" />
-          <span className={`${styles.deco} ${styles.decoRock}`} style={{ left: '24%', top: '56%' }} aria-hidden="true" />
-          <span className={`${styles.deco} ${styles.decoRock}`} style={{ left: '76%', top: '44%' }} aria-hidden="true" />
 
           <span className={`${styles.deco} ${styles.decoPond}`} style={{ left: '65%', top: '30%' }} aria-hidden="true">
             <span className={styles.decoPondShine} />
-            <span className={styles.decoBridge} />
           </span>
 
           {ZONES.map(zone => {
