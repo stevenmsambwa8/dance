@@ -1,5 +1,21 @@
 .page { max-width: 860px; margin: 0 auto; padding: 20px 14px 100px; }
 
+@media (min-width: 900px) {
+  .page { max-width: 1180px; padding: 28px 24px 100px; }
+  .headline { font-size: 32px; }
+  .list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+  .card:hover { transform: translateY(-3px); }
+}
+
+@media (min-width: 1440px) {
+  .page { max-width: 1440px; }
+  .list { grid-template-columns: repeat(3, 1fr); }
+}
+
 /* ── Header ── */
 .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }

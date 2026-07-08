@@ -1132,6 +1132,20 @@
   .gamesGrid    { grid-template-columns: repeat(4, 1fr); }
 }
 
+@media (min-width: 768px) {
+  .page         { max-width: 760px; }
+  .gamesGrid    { grid-template-columns: repeat(6, 1fr); }
+  .shopGrid     { grid-template-columns: repeat(3, 1fr); }
+  .clanGrid     { grid-template-columns: repeat(3, 1fr); }
+  .tCard        { width: 280px; }
+  .heroName     { font-size: 26px; }
+}
+
+@media (min-width: 1024px) {
+  .page         { max-width: 960px; }
+  .shopGrid     { grid-template-columns: repeat(4, 1fr); }
+}
+
 /* ══════════ GAME MASTER MODAL ══════════ */
 
 @keyframes mmFade {

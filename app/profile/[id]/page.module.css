@@ -15,6 +15,16 @@
   position: relative;
 }
 
+@media (min-width: 768px) {
+  .page {
+    max-width: 680px;
+    margin: 20px auto;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    overflow: hidden;
+  }
+}
+
 /* ─────────────────────────────────────────────────
    HEADER — dots only, overlaid top-right
 ───────────────────────────────────────────────── */

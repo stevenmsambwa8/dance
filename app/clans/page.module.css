@@ -1,5 +1,15 @@
 .page { max-width: 800px; margin: 0 auto; padding: 20px 12px 100px; }
 
+@media (min-width: 768px) {
+  .page { max-width: 1080px; padding: 28px 20px 100px; }
+  .headline { font-size: 34px; }
+  .grid { grid-template-columns: repeat(3, 1fr); gap: 14px; }
+}
+
+@media (min-width: 1280px) {
+  .grid { grid-template-columns: repeat(4, 1fr); }
+}
+
 .header { margin-bottom: 10px; display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 5px; }
 .headline { font-size: 29px; font-weight: 900; letter-spacing: -0.01em; }

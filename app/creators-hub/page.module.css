@@ -4,6 +4,12 @@
   padding: 20px 16px 40px;
   position: relative;
 }
+
+@media (min-width: 768px) {
+  .page { max-width: 640px; padding-top: 32px; }
+  .statBox { padding: 16px 6px; }
+  .statVal { font-size: 20px; }
+}
 .page::before {
   content: '';
   position: absolute;
