@@ -548,6 +548,16 @@
 }
 .btnPrimary:hover { opacity: 0.85; }
 
+.exportVcfBtn {
+  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+  padding: 8px 12px; border-radius: 9px; border: 1px solid var(--border-dark);
+  background: var(--bg-2); color: var(--text); font-size: 12px; font-weight: 700;
+  font-family: var(--font); cursor: pointer; transition: all 0.12s; white-space: nowrap;
+}
+.exportVcfBtn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+.exportVcfBtn i { font-size: 14px; }
+
+
 .btnDanger {
   display: flex; align-items: center; justify-content: center; gap: 4px;
   padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(239,68,68,0.3);

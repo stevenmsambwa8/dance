@@ -217,6 +217,33 @@ export default function Dashboard() {
     })
   }
 
+  function exportUsersVCF() {
+    const withPhone = users.filter(u => u.phone)
+    if (withPhone.length === 0) return
+    const escape = s => String(s).replace(/([,;\\])/g, '\\$1').replace(/\r?\n/g, '\\n')
+    const cards = withPhone.map(u => {
+      const name = escape(u.username || 'Unknown')
+      const phone = String(u.phone).replace(/[^\d+]/g, '')
+      return [
+        'BEGIN:VCARD',
+        'VERSION:3.0',
+        `FN:${name}`,
+        `N:${name};;;;`,
+        `TEL;TYPE=CELL:${phone}`,
+        'END:VCARD',
+      ].join('\r\n')
+    })
+    const blob = new Blob([cards.join('\r\n')], { type: 'text/vcard;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `nabogaming-users-${new Date().toISOString().slice(0, 10)}.vcf`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  }
+
   async function loadAll() {
     setDataLoading(true)
     const [
@@ -1044,6 +1071,9 @@ export default function Dashboard() {
                     </span>
                   </h2>
                 </div>
+                <button className={styles.exportVcfBtn} onClick={exportUsersVCF}>
+                  <i className="ri-contacts-book-line" /> Export VCF
+                </button>
               </div>
               <div className={styles.userSearchBar}>
                 <i className="ri-search-line" />
