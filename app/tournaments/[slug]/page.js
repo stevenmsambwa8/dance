@@ -530,6 +530,7 @@ export default function TournamentDetail() {
   const toastTimer   = useRef(null)
   const testExpireTimer = useRef(null)
   const bracketWrapRef = useRef(null)
+  const reconcileAttempted = useRef(false)
 
   function showToast(text, type = 'error') {
     if (toastTimer.current) clearTimeout(toastTimer.current)
@@ -628,6 +629,24 @@ export default function TournamentDetail() {
   }, [slug, user])
 
   useEffect(() => { if (slug) load() }, [load])
+
+  // ── Reconcile paid-but-unregistered players ────────────────────────────
+  // A push payment can be marked 'approved' (by the client poll or the
+  // SonicPesa webhook) without the player ever landing in
+  // tournament_participants — e.g. they backgrounded the app for the M-Pesa
+  // PIN prompt and the poll never got to fire attemptRegister(). Since the
+  // fee banner's "Pay Now" button only shows when there's NO approved
+  // payment yet, that leaves the player stuck with no visible way to
+  // finish. This runs once real tournament/user state has settled, and
+  // completes the same registration path a fresh successful push would.
+  useEffect(() => {
+    if (reconcileAttempted.current) return
+    if (!user || !tournament) return
+    if (paymentStatus !== 'approved') return
+    if (registered) return
+    reconcileAttempted.current = true
+    attemptRegister()
+  }, [user, tournament, paymentStatus, registered])
   useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current) }, [])
 
   // ── Clan tournament: load clan info + my membership/squad in it ──────────
