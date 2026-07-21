@@ -908,6 +908,30 @@ export default function TournamentDetail() {
     } catch (e) { console.error('sendNotification:', e) }
   }
 
+  // ── Copy phone numbers for every player in a Groups-tab group ───────────
+  async function copyGroupPhones(group) {
+    const userIds = (group.members || []).map(m => m.id ?? m.userId ?? m.teamId).filter(Boolean)
+    if (userIds.length === 0) { showToast('No players in this group.', 'error'); return }
+
+    const { data, error } = await supabase.from('profiles').select('username, phone').in('id', userIds)
+    if (error) { showToast('Failed to load phone numbers.', 'error'); return }
+
+    const withPhone = (data || []).filter(p => p.phone)
+    if (withPhone.length === 0) { showToast('No phone numbers on file for this group.', 'error'); return }
+
+    const text = withPhone.map(p => p.phone).join('\n')
+
+    const fallbackCopy = () => {
+      const ta = document.createElement('textarea')
+      ta.value = text; document.body.appendChild(ta); ta.select()
+      document.execCommand('copy'); document.body.removeChild(ta)
+    }
+
+    navigator.clipboard?.writeText(text)
+      .then(() => showToast(`Copied ${withPhone.length} phone number${withPhone.length !== 1 ? 's' : ''}.`, 'success'))
+      .catch(() => { fallbackCopy(); showToast(`Copied ${withPhone.length} phone number${withPhone.length !== 1 ? 's' : ''}.`, 'success') })
+  }
+
   async function awardBracketPoints(userId, points) {
     if (!userId || !points) return
     // Upsert tournament leaderboard
@@ -3376,12 +3400,22 @@ export default function TournamentDetail() {
                   <div key={group.id} style={{ border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', background: 'var(--surface)' }}>
                     <div style={{ padding: '10px 14px', background: 'var(--bg-2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                       <span style={{ fontSize: 13, fontWeight: 800 }}>{group.name}</span>
-                      <button
-                        onClick={() => { setShareCardMode('standings'); setShareGroupId(group.id); setBracketShareModal(true) }}
-                        style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 9px', fontSize: 10.5, fontWeight: 800, color: 'var(--text-dim)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer' }}
-                      >
-                        <i className="ri-image-line" style={{ fontSize: 12 }} /> {t('common.share')}
-                      </button>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        {canManage && (
+                          <button
+                            onClick={() => copyGroupPhones(group)}
+                            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 9px', fontSize: 10.5, fontWeight: 800, color: 'var(--text-dim)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer' }}
+                          >
+                            <i className="ri-file-copy-line" style={{ fontSize: 12 }} /> Copy Phones
+                          </button>
+                        )}
+                        <button
+                          onClick={() => { setShareCardMode('standings'); setShareGroupId(group.id); setBracketShareModal(true) }}
+                          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 9px', fontSize: 10.5, fontWeight: 800, color: 'var(--text-dim)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer' }}
+                        >
+                          <i className="ri-image-line" style={{ fontSize: 12 }} /> {t('common.share')}
+                        </button>
+                      </div>
                     </div>
                     <div style={{ padding: '4px 14px 8px', overflowX: 'auto' }}>
                       <div style={{ display: 'flex', gap: 6, padding: '6px 0', fontSize: 9, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', minWidth: 320 }}>
