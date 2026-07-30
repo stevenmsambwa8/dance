@@ -32,6 +32,35 @@ const TEAM_SIZE_OPTIONS = [
   { value: 8, label: '8v8',  sub: 'Team Battle' },
 ]
 
+// Stage structure — shown as tappable description cards instead of bare
+// chips, so a first-time host can tell what each option actually does
+// without guessing. `brOnly` entries only appear for Battle Royale games.
+const STAGE_FORMATS = [
+  {
+    key: 'knockout', icon: 'ri-node-tree',
+    title: 'Knockout',
+    desc: 'Single elimination bracket — lose once and you\'re out. Quickest to run.',
+  },
+  {
+    key: 'groups_knockout', icon: 'ri-grid-line',
+    title: 'Groups + Knockout',
+    desc: 'Round-robin groups first, then top finishers move into a knockout bracket.',
+  },
+  {
+    key: 'league', icon: 'ri-trophy-line',
+    title: 'Premier League',
+    desc: 'Like the NBC Premier League — everyone plays everyone home & away. Top 3 on the table win.',
+  },
+  {
+    key: 'br_points', icon: 'ri-skull-line',
+    title: 'Battle Royale Points',
+    desc: 'No bracket — score by placement + kills across a series of matches.',
+    brOnly: true,
+  },
+]
+
+const LEAGUE_PODIUM_OPTIONS = [1, 3, 5]
+
 const FREE_LIMIT_FREE_TOURNEYS = 2
 const FREE_LIMIT_PAID_TOURNEYS = 1
 
@@ -83,13 +112,15 @@ function CreateForm({ user, profile, isAdmin, router }) {
 
   const [form, setForm] = useState({
     name: '', game_slug: (prefillGameSlug && GAME_SLUGS.includes(prefillGameSlug)) ? prefillGameSlug : (GAME_SLUGS[0] || 'pubg'),
-    format: '', prize: '', slots: 32,
+    format: '', prize: '', slots: 16,
     date: '', description: '',
     entrance_fee: '',
     team_size: TEAM_SIZE_OPTIONS.some(o => o.value === prefillTeamSize) ? prefillTeamSize : 1,
     stage_format: 'knockout',
     group_count: 4,
     advance_per_group: 2,
+    league_legs: 2,
+    league_podium: 3,
     br_match_count: 6,
     br_kill_point_value: DEFAULT_KILL_POINT_VALUE,
     br_placement_preset: 'standard',
@@ -189,7 +220,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
   function next() {
     if (!validateStep(step)) return
     setDirection('forward')
-    if (step === 1 && (form.stage_format === 'groups_knockout' || form.stage_format === 'br_points')) {
+    if (step === 1 && ['groups_knockout', 'br_points', 'league'].includes(form.stage_format)) {
       setStep(STEPS.length - 1)
       return
     }
@@ -200,7 +231,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
   }
   function back() {
     setDirection('back')
-    if (step === STEPS.length - 1 && (form.stage_format === 'groups_knockout' || form.stage_format === 'br_points')) {
+    if (step === STEPS.length - 1 && ['groups_knockout', 'br_points', 'league'].includes(form.stage_format)) {
       setStep(1)
       return
     }
@@ -246,18 +277,21 @@ function CreateForm({ user, profile, isAdmin, router }) {
       game_slug:        form.game_slug,
       format:           form.format,
       prize:            form.prize,
-      slots:            (form.stage_format === 'groups_knockout' || form.stage_format === 'br_points') ? Number(form.slots) : (bracketDraft?.slot_count ?? Number(form.slots)),
+      slots:            ['groups_knockout', 'br_points', 'league'].includes(form.stage_format) ? Number(form.slots) : (bracketDraft?.slot_count ?? Number(form.slots)),
       date:             form.date,
       description:      form.description,
       entrance_fee:     fee,
       team_size:        form.team_size || 1,
       stage_format:     form.stage_format || 'knockout',
-      group_count:      form.stage_format === 'groups_knockout' ? Number(form.group_count) : null,
-      advance_per_group: form.stage_format === 'groups_knockout' ? Number(form.advance_per_group) : null,
+      // group_count / advance_per_group are repurposed for 'league' to carry
+      // legs (1 = single round, 2 = home & away) and podium size (top N win),
+      // same pattern groups_knockout already uses for its own two knobs.
+      group_count:      form.stage_format === 'groups_knockout' ? Number(form.group_count) : (form.stage_format === 'league' ? Number(form.league_legs) : null),
+      advance_per_group: form.stage_format === 'groups_knockout' ? Number(form.advance_per_group) : (form.stage_format === 'league' ? Number(form.league_podium) : null),
       bracket_data:     form.stage_format === 'br_points'
         ? buildEmptyBRBracket({ matchCount: Number(form.br_match_count), killPointValue: Number(form.br_kill_point_value), placementTable: form.br_placement_table })
-        : (form.stage_format === 'groups_knockout' ? null : (bracketDraft || null)),
-      round_names:      (form.stage_format === 'groups_knockout' || form.stage_format === 'br_points') ? null : (bracketDraft?.round_names ?? null),
+        : (['groups_knockout', 'league'].includes(form.stage_format) ? null : (bracketDraft || null)),
+      round_names:      ['groups_knockout', 'br_points', 'league'].includes(form.stage_format) ? null : (bracketDraft?.round_names ?? null),
       is_test:          form.is_test,
       pro_only:         form.pro_only,
       clan_id:          form.clan_id || null,
@@ -527,16 +561,49 @@ function CreateForm({ user, profile, isAdmin, router }) {
                 </div>
               </div>
               <div className={styles.sectionBody}>
-                <div className={styles.chipRow}>
-                  <button type="button" className={`${styles.chip} ${form.stage_format === 'knockout' ? styles.chipActive : ''}`}
-                    onClick={() => set('stage_format', 'knockout')}>Knockout</button>
-                  <button type="button" className={`${styles.chip} ${form.stage_format === 'groups_knockout' ? styles.chipActive : ''}`}
-                    onClick={() => set('stage_format', 'groups_knockout')}>Groups + Knockout</button>
-                  {isBRGame && (
-                    <button type="button" className={`${styles.chip} ${form.stage_format === 'br_points' ? styles.chipActive : ''}`}
-                      onClick={() => set('stage_format', 'br_points')}>Battle Royale Points</button>
-                  )}
+                <div className={styles.formatCardList}>
+                  {STAGE_FORMATS.filter(f => !f.brOnly || isBRGame).map(f => {
+                    const active = form.stage_format === f.key
+                    return (
+                      <button key={f.key} type="button"
+                        className={`${styles.formatCard} ${active ? styles.formatCardActive : ''}`}
+                        onClick={() => set('stage_format', f.key)}>
+                        <span className={styles.formatCardIcon}><i className={f.icon} /></span>
+                        <span className={styles.formatCardBody}>
+                          <span className={styles.formatCardTitle}>{f.title}</span>
+                          <span className={styles.formatCardDesc}>{f.desc}</span>
+                        </span>
+                        {active && <span className={styles.formatCardCheck}><i className="ri-check-line" /></span>}
+                      </button>
+                    )
+                  })}
                 </div>
+
+                {form.stage_format === 'league' && (
+                  <>
+                    <span className={styles.feeHint}><i className="ri-trophy-line" /> No bracket — a standings table like a football league. Every player faces every other player twice (home & away); the top of the table when all matches are done wins.</span>
+                    <div className={styles.subRow}>
+                      <div className={styles.subCol}>
+                        <label className={styles.subColLabel}>Legs</label>
+                        <div className={styles.chipRow}>
+                          <button type="button" className={`${styles.chip} ${form.league_legs === 2 ? styles.chipActive : ''}`}
+                            onClick={() => set('league_legs', 2)}>Home &amp; Away</button>
+                          <button type="button" className={`${styles.chip} ${form.league_legs === 1 ? styles.chipActive : ''}`}
+                            onClick={() => set('league_legs', 1)}>Single Round</button>
+                        </div>
+                      </div>
+                      <div className={styles.subCol}>
+                        <label className={styles.subColLabel}>Winners</label>
+                        <div className={styles.chipRow}>
+                          {LEAGUE_PODIUM_OPTIONS.map(n => (
+                            <button key={n} type="button" className={`${styles.chip} ${form.league_podium === n ? styles.chipActive : ''}`}
+                              onClick={() => set('league_podium', n)}>Top {n}</button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 {form.stage_format === 'br_points' && (
                   <>
@@ -780,6 +847,11 @@ function CreateForm({ user, profile, isAdmin, router }) {
                   ? [
                       ['ri-skull-line',       'Matches',          `${form.br_match_count}`],
                       ['ri-crosshair-2-line', 'Points per kill',  `${form.br_kill_point_value}`],
+                    ]
+                  : form.stage_format === 'league'
+                  ? [
+                      ['ri-trophy-line',  'Legs',    form.league_legs === 2 ? 'Home & Away' : 'Single Round'],
+                      ['ri-medal-line',   'Winners', `Top ${form.league_podium}`],
                     ]
                   : [['ri-node-tree', 'Bracket', bracketDraft ? `${bracketDraft.rounds?.length} rounds · ${bracketDraft.rounds?.[0]?.length * 2} slots` : 'Auto-generated on launch']]
                 ),
