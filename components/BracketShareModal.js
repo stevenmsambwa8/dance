@@ -14,14 +14,14 @@ const GAME_META = {
   ufl:          { name: 'UFL',             color: '#06b6d4', img: '/games/ufl.png'         },
 }
 
-// ── White poster theme (was near-black) ─────────────────────────────────────
-const BG        = '#ffffff'
-const INK       = '#0a0a0f'          // primary text
-const INK_75    = 'rgba(10,10,15,0.75)'
-const INK_55    = 'rgba(10,10,15,0.55)'
-const INK_15    = 'rgba(10,10,15,0.15)'
-const INK_08    = 'rgba(10,10,15,0.08)'
-const INK_04    = 'rgba(10,10,15,0.04)'
+// ── Dark poster theme ────────────────────────────────────────────────────
+const BG        = '#0b0c14'
+const INK       = '#f4f5f8'          // primary text
+const INK_75    = 'rgba(244,245,248,0.75)'
+const INK_55    = 'rgba(244,245,248,0.55)'
+const INK_15    = 'rgba(244,245,248,0.15)'
+const INK_08    = 'rgba(244,245,248,0.08)'
+const INK_04    = 'rgba(244,245,248,0.05)'
 
 function rr(ctx, x, y, w, h, r) {
   ctx.beginPath()
@@ -77,24 +77,47 @@ function loadImg(src) {
   })
 }
 
+// Preload every distinct avatar URL that appears in a card up front, so the
+// synchronous draw pass can just look images up instead of awaiting them
+// mid-render. Failed/missing loads are simply absent from the map, and
+// callers fall back to initials.
+async function loadAvatars(urls) {
+  const unique = [...new Set((urls || []).filter(Boolean))]
+  const loaded = await Promise.all(unique.map(async u => [u, await loadImg(u)]))
+  const map = new Map()
+  loaded.forEach(([u, img]) => { if (img) map.set(u, img) })
+  return map
+}
+
+// Draws a circular avatar photo (cover-fit + clipped) if `img` is provided,
+// otherwise draws a colored initials circle as a fallback.
+function drawAvatarCircle(ctx, cx, cy, r, img, initials, bg, textColor) {
+  if (img) {
+    ctx.save()
+    ctx.beginPath()
+    ctx.arc(cx, cy, r, 0, Math.PI * 2)
+    ctx.clip()
+    const scale = Math.max((r * 2) / img.naturalWidth, (r * 2) / img.naturalHeight)
+    const dw = img.naturalWidth * scale, dh = img.naturalHeight * scale
+    ctx.drawImage(img, cx - dw / 2, cy - dh / 2, dw, dh)
+    ctx.restore()
+    return
+  }
+  ctx.beginPath()
+  ctx.arc(cx, cy, r, 0, Math.PI * 2)
+  ctx.fillStyle = bg
+  ctx.fill()
+  ctx.font = `800 ${Math.round(r * 0.8)}px system-ui, sans-serif`
+  ctx.fillStyle = textColor
+  ctx.textAlign = 'center'
+  ctx.fillText(initials, cx, cy + r * 0.3)
+}
+
 // ── Shared header block (logo, kicker, title, game name, stat pills) ────────
 // Returns the new y cursor position after drawing.
 async function drawHeader(ctx, { y, PAD, accent, kicker, tournament, gameMeta, pills, logo }) {
-  // Top accent bar — gives the poster an immediate brand identity even
-  // before anything else renders, and mirrors the accent strip at the foot.
-  ctx.fillStyle = accent
-  ctx.fillRect(0, 0, W, 8)
-
   if (logo?.naturalWidth > 0) {
     const logoR = 24
-    ctx.save()
-    ctx.shadowColor = 'rgba(10,10,15,0.18)'
-    ctx.shadowBlur = 14
-    ctx.shadowOffsetY = 4
-    rr(ctx, PAD, y, logoR * 2, logoR * 2, 14)
-    ctx.fillStyle = '#ffffff'
-    ctx.fill()
-    ctx.restore()
     ctx.save()
     rr(ctx, PAD, y, logoR * 2, logoR * 2, 14)
     ctx.clip()
@@ -122,7 +145,7 @@ async function drawHeader(ctx, { y, PAD, accent, kicker, tournament, gameMeta, p
   rr(ctx, PAD, y - 22, kickerW, 30, 15)
   ctx.fillStyle = accent
   ctx.fill()
-  ctx.fillStyle = '#ffffff'
+  ctx.fillStyle = '#000000'
   ctx.textAlign = 'left'
   ctx.letterSpacing = '0.18em'
   ctx.fillText(kicker, PAD + 14, y - 1)
@@ -133,10 +156,6 @@ async function drawHeader(ctx, { y, PAD, accent, kicker, tournament, gameMeta, p
   ctx.letterSpacing = '-0.01em'
   const titleText = (tournament?.name || 'CHAMPIONSHIP').toUpperCase()
   ctx.fillText(titleText, PAD, y + 58)
-  // Short accent underline beneath the title for a designed, intentional feel
-  const titleW = Math.min(ctx.measureText(titleText).width, W - PAD * 2)
-  ctx.fillStyle = accent
-  ctx.fillRect(PAD, y + 78, Math.min(titleW, 120), 6)
   y += 100
 
   ctx.font = '800 25px system-ui, sans-serif'
@@ -229,7 +248,31 @@ function slotDisplayName(slot) {
   return null
 }
 
-function drawSlot(ctx, x, y, w, h, slot, opponentWon, accentColor) {
+// Resolves a single avatar URL for a slot. Solo slots carry `avatar`
+// directly; a squad only gets a photo shown when it's down to one real
+// member (otherwise there's no single face to represent the team, so the
+// caller falls back to initials).
+function slotAvatarUrl(slot) {
+  if (!slot) return null
+  if (slot.avatar) return slot.avatar
+  const members = (slot.members || []).filter(m => m?.userId)
+  if (members.length === 1) return members[0].avatar || null
+  return null
+}
+
+// Collects every avatar URL referenced anywhere in a bracket's rounds
+// (including the final round, so the champion block can use one too).
+function collectBracketAvatarUrls(bracketData) {
+  const urls = []
+  ;(bracketData?.rounds || []).forEach(round => {
+    (round || []).forEach(pair => {
+      (pair || []).forEach(slot => { const u = slotAvatarUrl(slot); if (u) urls.push(u) })
+    })
+  })
+  return urls
+}
+
+function drawSlot(ctx, x, y, w, h, slot, opponentWon, accentColor, avatarMap) {
   const resolvedName = slotDisplayName(slot)
   const name   = resolvedName || (slot?.status === 'open' ? 'Open' : '?')
   const isBye  = slot?.status === 'bye'
@@ -240,6 +283,8 @@ function drawSlot(ctx, x, y, w, h, slot, opponentWon, accentColor) {
   // team-battle slots never carry.
   const hasOccupant = !!(slot?.userId || slot?.teamName || (slot?.members || []).some(m => m?.userId))
   const isPend = !hasOccupant && !isBye
+  const avatarUrl = !isBye && !isPend ? slotAvatarUrl(slot) : null
+  const avatarImg = avatarUrl ? avatarMap?.get(avatarUrl) : null
 
   if (isWin) {
     ctx.fillStyle = accentColor
@@ -253,20 +298,19 @@ function drawSlot(ctx, x, y, w, h, slot, opponentWon, accentColor) {
   const avCX = x + PAD + avR + (isWin ? 6 : 0)
   const avCY = y + h / 2
 
-  // Avatar Base
-  ctx.beginPath()
-  ctx.arc(avCX, avCY, avR, 0, Math.PI * 2)
-  ctx.fillStyle = isWin ? accentColor : INK_08
-  ctx.fill()
-  ctx.strokeStyle = isWin ? accentColor : INK_15
-  ctx.lineWidth = 1.5
-  ctx.stroke()
-
-  // Avatar Initials
-  ctx.font = '800 12px system-ui, sans-serif'
-  ctx.fillStyle = isWin ? '#ffffff' : '#64748b'
-  ctx.textAlign = 'center'
-  ctx.fillText(isBye ? '—' : isPend ? '?' : name.slice(0, 2).toUpperCase(), avCX, avCY + 4)
+  drawAvatarCircle(
+    ctx, avCX, avCY, avR, avatarImg,
+    isBye ? '—' : isPend ? '?' : name.slice(0, 2).toUpperCase(),
+    isWin ? accentColor : INK_08,
+    isWin ? '#ffffff' : '#94a3b8'
+  )
+  if (isWin || avatarImg) {
+    ctx.beginPath()
+    ctx.arc(avCX, avCY, avR, 0, Math.PI * 2)
+    ctx.strokeStyle = isWin ? accentColor : INK_15
+    ctx.lineWidth = 1.5
+    ctx.stroke()
+  }
 
   // --- DYNAMIC TEXT WRAPPING LOGIC ---
   ctx.font = '800 14px system-ui, sans-serif'
@@ -348,7 +392,7 @@ async function drawCard(canvas, { tournament, bracketData, participants, gameMet
   if (finalRound) {
     const champ = (finalRound[0] || []).find(s => s?.status === 'winner')
     const champName = slotDisplayName(champ)
-    if (champName && champName !== '?' && champName !== 'TBD') champion = { ...champ, name: champName }
+    if (champName && champName !== '?' && champName !== 'TBD') champion = { ...champ, name: champName, avatarUrl: slotAvatarUrl(champ) }
   }
 
   const prize    = tournament?.prize
@@ -365,9 +409,10 @@ async function drawCard(canvas, { tournament, bracketData, participants, gameMet
   const colW = (W - PAD * 2 - colGap * (cols - 1)) / cols
 
   let y = 64 // Starting Y for content
-  const [logo, gameImg] = await Promise.all([
+  const [logo, gameImg, avatarMap] = await Promise.all([
     loadImg('/logo.png'),
     gameMeta?.img ? loadImg(gameMeta.img) : Promise.resolve(null),
+    loadAvatars(collectBracketAvatarUrls(bracketData)),
   ])
 
   // Calculate Header Box Size
@@ -391,7 +436,7 @@ async function drawCard(canvas, { tournament, bracketData, participants, gameMet
   canvas.width  = W
   canvas.height = H
 
-  // ── RENDER PLAIN WHITE BACKGROUND ──
+  // ── RENDER DARK BACKGROUND ──
   ctx.fillStyle = BG
   ctx.fillRect(0, 0, W, H)
   drawGameIcon(ctx, gameImg, PAD, accent)
@@ -416,12 +461,26 @@ async function drawCard(canvas, { tournament, bracketData, participants, gameMet
     ctx.fillStyle = accent
     ctx.fillRect(PAD, y, 10, cH)
 
-    const tx = PAD + 36
+    const avR = 30
+    const avCX = PAD + 36 + avR
     const centerY = y + cH / 2
+    drawAvatarCircle(
+      ctx, avCX, centerY, avR,
+      champion.avatarUrl ? avatarMap.get(champion.avatarUrl) : null,
+      champion.name.slice(0, 2).toUpperCase(), INK_08, INK
+    )
+    ctx.beginPath()
+    ctx.arc(avCX, centerY, avR, 0, Math.PI * 2)
+    ctx.strokeStyle = accent
+    ctx.lineWidth = 2
+    ctx.stroke()
+
+    const tx = avCX + avR + 24
 
     ctx.font = '900 12px system-ui, sans-serif'
     ctx.fillStyle = accent
     ctx.letterSpacing = '0.2em'
+    ctx.textAlign = 'left'
     ctx.fillText('WINNER CHAMPION', tx, centerY - 16)
 
     ctx.font = '900 36px system-ui, sans-serif'
@@ -505,7 +564,7 @@ async function drawCard(canvas, { tournament, bracketData, participants, gameMet
       ctx.letterSpacing = '0.15em'
       ctx.fillText(getRoundLabel(rIdx, totalRounds), colX, my - 10)
 
-      // Subtle card so the white background peeks through
+      // Subtle card so the dark background peeks through
       rr(ctx, colX, my, colW, MATCH_H, 6)
       ctx.fillStyle = INK_04
       ctx.fill()
@@ -520,15 +579,15 @@ async function drawCard(canvas, { tournament, bracketData, participants, gameMet
       ctx.lineTo(colX + colW - 1, my + MATCH_H / 2)
       ctx.stroke()
 
-      drawSlot(ctx, colX, my,               colW, MATCH_H / 2, a, b?.status === 'winner', accent)
-      drawSlot(ctx, colX, my + MATCH_H / 2, colW, MATCH_H / 2, b, a?.status === 'winner', accent)
+      drawSlot(ctx, colX, my,               colW, MATCH_H / 2, a, b?.status === 'winner', accent, avatarMap)
+      drawSlot(ctx, colX, my + MATCH_H / 2, colW, MATCH_H / 2, b, a?.status === 'winner', accent, avatarMap)
     })
   })
 
   drawFooter(ctx, H, PAD, accent)
 }
 
-// ── Standings / group-table poster (white background, same header style) ───
+// ── Standings / group-table poster (dark theme, same header style) ───
 async function drawStandingsCard(canvas, { tournament, groups, participants, gameMeta, computeStandings }) {
   const ctx = canvas.getContext('2d')
   const accent = gameMeta?.color || '#00ff66'
@@ -537,9 +596,10 @@ async function drawStandingsCard(canvas, { tournament, groups, participants, gam
   const allStandings = (groups || []).map(g => ({ group: g, rows: computeStandings(g) }))
 
   let y = 64
-  const [logo, gameImg] = await Promise.all([
+  const [logo, gameImg, avatarMap] = await Promise.all([
     loadImg('/logo.png'),
     gameMeta?.img ? loadImg(gameMeta.img) : Promise.resolve(null),
+    loadAvatars(allStandings.flatMap(({ rows }) => rows.map(r => r.avatar))),
   ])
 
   let headerH = y
@@ -672,14 +732,18 @@ async function drawStandingsCard(canvas, { tournament, groups, participants, gam
           const rawName = (row.name || '?').toUpperCase()
           const avR = 13
           const avCX = cx + avR + 4
-          ctx.beginPath()
-          ctx.arc(avCX, centerY, avR, 0, Math.PI * 2)
-          ctx.fillStyle = isTop3 ? MEDAL[row.position] : INK_08
-          ctx.fill()
-          ctx.font = '800 10px system-ui, sans-serif'
-          ctx.fillStyle = isTop3 ? '#0a0a0f' : '#64748b'
-          ctx.textAlign = 'center'
-          ctx.fillText(rawName.slice(0, 2), avCX, centerY + 4)
+          const avImg = row.avatar ? avatarMap.get(row.avatar) : null
+          drawAvatarCircle(
+            ctx, avCX, centerY, avR, avImg,
+            rawName.slice(0, 2), isTop3 ? MEDAL[row.position] : INK_08, isTop3 ? '#0a0a0f' : '#94a3b8'
+          )
+          if (isTop3) {
+            ctx.beginPath()
+            ctx.arc(avCX, centerY, avR, 0, Math.PI * 2)
+            ctx.strokeStyle = MEDAL[row.position]
+            ctx.lineWidth = 1.5
+            ctx.stroke()
+          }
 
           let val = rawName
           const textX = avCX + avR + 12
