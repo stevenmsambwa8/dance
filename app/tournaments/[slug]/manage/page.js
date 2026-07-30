@@ -848,16 +848,19 @@ export default function TournamentManage() {
     if (!await verifyCanManage()) return
     if (realCount < 2) { showToast(t('tournaments.needAtLeast2Players'), 'error'); return }
     const teamSize = tournament?.team_size || 1
-    const groupCount = tournament?.group_count || 4
-    const groups = buildGroups(participants, groupCount, teamSize)
-    const bd = { stage: 'groups', groups, advancePerGroup: tournament?.advance_per_group || 2 }
+    const isLeague = tournament?.stage_format === 'league'
+    const groupCount = isLeague ? 1 : (tournament?.group_count || 4)
+    const legs = isLeague ? (tournament?.group_count || 2) : 1
+    const advancePerGroup = tournament?.advance_per_group || (isLeague ? 3 : 2)
+    const groups = buildGroups(participants, groupCount, teamSize, legs)
+    const bd = { stage: 'groups', groups, advancePerGroup }
     const { error } = await supabase.from('tournaments').update({ bracket_data: bd }).eq('id', id.current)
     if (error) { showToast(t('tournaments.failedGenerateGroups'), 'error'); return }
     setBracketData(bd)
-    showToast(t('tournaments.groupsGenerated'), 'success')
+    showToast(isLeague ? 'Fixtures generated!' : t('tournaments.groupsGenerated'), 'success')
     const notifs = participants.filter(p => p.user_id).map(p => ({
-      user_id: p.user_id, title: `Groups drawn — ${tournament.name}`,
-      body: 'The group stage is set. Check your group and fixtures!',
+      user_id: p.user_id, title: isLeague ? `League fixtures set — ${tournament.name}` : `Groups drawn — ${tournament.name}`,
+      body: isLeague ? 'The league table is set. Check your fixtures!' : 'The group stage is set. Check your group and fixtures!',
       type: 'tournament', meta: { tournament_id: id.current }, read: false,
     }))
     if (notifs.length) await supabase.from('notifications').insert(notifs)
@@ -903,6 +906,55 @@ export default function TournamentManage() {
       body: 'Groups are done — check the bracket to see if you advanced!',
       type: 'tournament', meta: { tournament_id: id.current }, read: false,
     }))
+    if (notifs.length) await supabase.from('notifications').insert(notifs)
+    return merged
+  }
+
+  // Locks in final standings the moment the last league fixture is scored —
+  // no admin click needed. Awards a modest podium bonus (reusing the same
+  // points plumbing as per-fixture scoring) and marks the tournament
+  // completed. Returns the merged bracket_data on success, or null.
+  async function finalizeLeague(freshBd) {
+    if (!freshBd?.groups?.[0]) return null
+    if (!isGroupStageComplete(freshBd.groups)) return null
+    if (freshBd.stage === 'complete') return null // already finalized
+
+    const table = freshBd.groups[0]
+    const podium = freshBd.advancePerGroup || tournament?.advance_per_group || 3
+    const standings = computeStandings(table)
+    const winners = standings.slice(0, podium).map(row => ({ id: row.id, name: row.name, points: row.points, position: row.position }))
+    if (!winners.length) return null
+
+    const merged = { ...freshBd, stage: 'complete', winners, podium }
+    const { error } = await supabase.from('tournaments').update({ bracket_data: merged, status: 'completed' }).eq('id', id.current)
+    if (error) return null
+    setBracketData(merged)
+    setTournament(tt => ({ ...tt, status: 'completed' }))
+    showToast('League complete — champions decided! 🏆', 'success')
+
+    const BONUS_BY_POSITION = { 1: 30, 2: 20, 3: 10 }
+    await Promise.all(winners.flatMap(w => {
+      const member = table.members.find(m => (m.id ?? m.userId ?? m.teamId) === w.id)
+      const bonus = BONUS_BY_POSITION[w.position] || 5
+      return resolveMemberUserIds(member).map(uid => awardGroupPoints(uid, bonus))
+    }))
+    const champion = winners.find(w => w.position === 1)
+    if (champion) {
+      const champMember = table.members.find(m => (m.id ?? m.userId ?? m.teamId) === champion.id)
+      await Promise.all(resolveMemberUserIds(champMember).map(uid => supabase.from('profiles').update({ is_season_winner: true }).eq('id', uid)))
+    }
+
+    const winnerIds = new Set(winners.flatMap(w => resolveMemberUserIds(table.members.find(m => (m.id ?? m.userId ?? m.teamId) === w.id))))
+    const notifs = participants.filter(p => p.user_id).map(p => {
+      const isWinner = winnerIds.has(p.user_id)
+      const rank = winners.find(w => resolveMemberUserIds(table.members.find(m => (m.id ?? m.userId ?? m.teamId) === w.id)).includes(p.user_id))?.position
+      return {
+        user_id: p.user_id,
+        title: isWinner ? `You finished #${rank} — ${tournament.name}` : `League complete — ${tournament.name}`,
+        body: isWinner ? `Congrats — you finished #${rank} on the table! Check your wallet for bonus pts.` : 'All fixtures are played. Check the final table!',
+        type: isWinner ? 'tournament_champion' : 'tournament', meta: { tournament_id: id.current }, read: false,
+      }
+    })
     if (notifs.length) await supabase.from('notifications').insert(notifs)
     return merged
   }
@@ -976,10 +1028,16 @@ export default function TournamentManage() {
     }
 
     // ── Auto-advance: the instant every fixture across every group has been
-    // played, build the knockout bracket automatically — no button needed. ──
+    // played, either build the knockout bracket (groups_knockout) or lock in
+    // final standings (league) automatically — no button needed. ──
     if (isGroupStageComplete(newGroups)) {
-      const merged = await autoBuildKnockout(newBd)
-      if (merged) newBd = merged
+      if (tournament?.stage_format === 'league') {
+        const finalized = await finalizeLeague(newBd)
+        if (finalized) newBd = finalized
+      } else {
+        const merged = await autoBuildKnockout(newBd)
+        if (merged) newBd = merged
+      }
     }
     setGroupSavingId(null)
   }
@@ -1320,21 +1378,25 @@ export default function TournamentManage() {
         {activeTab === 'overview' && <>
 
           {/* Group Stage card — only for groups_knockout tournaments, before knockout kicks in */}
-          {tournament?.stage_format === 'groups_knockout' && bracketData?.stage !== 'knockout' && (
+          {['groups_knockout', 'league'].includes(tournament?.stage_format) && bracketData?.stage !== 'knockout' && bracketData?.stage !== 'complete' && (
             <div className={styles.card}>
               <div className={styles.cardHead}>
-                <i className="ri-layout-grid-line" style={{ color: '#f59e0b', fontSize: 16 }} />
-                <span className={styles.cardTitle}>{t('tournaments.groupStage')}</span>
+                <i className={tournament?.stage_format === 'league' ? 'ri-trophy-line' : 'ri-layout-grid-line'} style={{ color: '#f59e0b', fontSize: 16 }} />
+                <span className={styles.cardTitle}>{tournament?.stage_format === 'league' ? 'League Table' : t('tournaments.groupStage')}</span>
                 {saving && <span className={styles.cardSaving}><i className="ri-loader-4-line" /> {t('common.saving')}</span>}
               </div>
               {bracketData?.groups ? (
                 <>
                   <div className={styles.statRow}>
-                    {[
+                    {(tournament?.stage_format === 'league' ? [
+                      { val: (tournament?.group_count || 2) >= 2 ? 'Home & Away' : 'Single Round', label: 'Legs', color: '#f59e0b' },
+                      { val: bracketData.groups.reduce((n, g) => n + g.fixtures.filter(f => f.status === 'played').length, 0) + '/' + bracketData.groups.reduce((n, g) => n + g.fixtures.length, 0), label: t('tournaments.playedLabel'), color: '#6366f1' },
+                      { val: `Top ${bracketData.advancePerGroup ?? tournament?.advance_per_group ?? 3}`, label: 'Winners', color: '#22c55e' },
+                    ] : [
                       { val: bracketData.groups.length, label: t('tournaments.groupsTab'), color: '#f59e0b' },
                       { val: bracketData.groups.reduce((n, g) => n + g.fixtures.filter(f => f.status === 'played').length, 0) + '/' + bracketData.groups.reduce((n, g) => n + g.fixtures.length, 0), label: t('tournaments.playedLabel'), color: '#6366f1' },
                       { val: bracketData.advancePerGroup ?? tournament?.advance_per_group ?? 2, label: t('tournaments.advanceEach'), color: '#22c55e' },
-                    ].map(s => (
+                    ]).map(s => (
                       <div key={s.label} className={styles.statBox}>
                         <span className={styles.statBoxVal} style={{ color: s.color }}>{s.val}</span>
                         <span className={styles.statBoxLabel}>{s.label}</span>
@@ -1350,11 +1412,11 @@ export default function TournamentManage() {
                     <i className={isGroupStageComplete(bracketData.groups) ? 'ri-checkbox-circle-fill' : 'ri-information-line'} />
                     {isGroupStageComplete(bracketData.groups)
                       ? t('tournaments.allFixturesPlayed')
-                      : t('tournaments.knockoutBuildsAuto')}
+                      : (tournament?.stage_format === 'league' ? 'Standings lock in automatically once every fixture is played.' : t('tournaments.knockoutBuildsAuto'))}
                   </div>
                   <div className={styles.btnRow}>
                     <button className={styles.btnDanger} onClick={resetGroups}>
-                      <i className="ri-restart-line" /> {t('tournaments.resetGroups')}
+                      <i className="ri-restart-line" /> {tournament?.stage_format === 'league' ? 'Reset Fixtures' : t('tournaments.resetGroups')}
                     </button>
                   </div>
 
@@ -1442,9 +1504,27 @@ export default function TournamentManage() {
             </div>
           )}
 
+          {tournament?.stage_format === 'league' && bracketData?.stage === 'complete' && (
+            <div className={styles.card}>
+              <div className={styles.cardHead}>
+                <i className="ri-trophy-fill" style={{ color: '#f59e0b', fontSize: 16 }} />
+                <span className={styles.cardTitle}>Champions</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {(bracketData.winners || []).map((w, i) => (
+                  <div key={w.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 10, background: 'var(--bg-2)' }}>
+                    <span style={{ fontSize: 16 }}>{['🥇', '🥈', '🥉'][i] || '🏅'}</span>
+                    <span style={{ flex: 1, fontWeight: 800, fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w.name}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace' }}>{w.points} pts</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Quick-action bracket card — hidden for group→knockout tournaments while
               groups are still running, since the bracket there is built automatically. */}
-          {(tournament?.stage_format !== 'groups_knockout' || bracketData?.stage === 'knockout') && (
+          {(tournament?.stage_format !== 'league') && (tournament?.stage_format !== 'groups_knockout' || bracketData?.stage === 'knockout') && (
           <div className={styles.card}>
             <div className={styles.cardHead}>
               <i className="ri-node-tree" style={{ color: '#6366f1', fontSize: 16 }} />

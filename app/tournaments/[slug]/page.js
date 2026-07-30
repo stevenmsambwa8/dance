@@ -555,7 +555,7 @@ export default function TournamentDetail() {
 
     setId(t.id)
     setTournament(t)
-    if (t.stage_format === 'groups_knockout') {
+    if (t.stage_format === 'groups_knockout' || t.stage_format === 'league') {
       setActiveTab(cur => cur === 'bracket' ? 'groups' : cur)
     }
     if (t.stage_format === 'br_points') {
@@ -570,7 +570,7 @@ export default function TournamentDetail() {
       // (format/config/matches) — never run bracket/lobby logic on it.
       _loadFinal = _loadParsed
     } else if (!_loadParsed) {
-      _loadFinal = (t.slots >= 2 && t.stage_format !== 'groups_knockout') ? buildLobbyBracket(t.slots, _loadTeamSize, _loadSquads) : null
+      _loadFinal = (t.slots >= 2 && !['groups_knockout', 'league'].includes(t.stage_format)) ? buildLobbyBracket(t.slots, _loadTeamSize, _loadSquads) : null
     } else {
       const _loadMode     = _loadParsed.isTeamBattle ? (_loadParsed.teamSize || 2) : 1
       const _loadMismatch = _loadMode !== _loadTeamSize
@@ -822,7 +822,7 @@ export default function TournamentDetail() {
           if (t.stage_format === 'br_points') {
             _finalBd2 = _parsedBd2
           } else if (!_parsedBd2) {
-            _finalBd2 = (t.slots >= 2 && t.stage_format !== 'groups_knockout') ? buildLobbyBracket(t.slots, _dbTeamSize2, _dbSquads2) : null
+            _finalBd2 = (t.slots >= 2 && !['groups_knockout', 'league'].includes(t.stage_format)) ? buildLobbyBracket(t.slots, _dbTeamSize2, _dbSquads2) : null
           } else if (_mismatch2 && _parsedBd2.isEmpty) {
             _finalBd2 = buildLobbyBracket(t.slots, _dbTeamSize2, _dbSquads2)
           } else if (_mismatch2 && !_parsedBd2.isEmpty) {
@@ -1342,8 +1342,11 @@ export default function TournamentDetail() {
   // player after that is randomly slotted into the smallest group so the
   // groups stay balanced as registration continues. (Solo mode only — team
   // tournaments are still drawn by the admin once squads are locked in.)
+  // League tournaments reuse the same mechanism but with a single group
+  // containing everyone (group_count is repurposed to store legs: 1 or 2).
   async function autoUpdateGroupsOnJoin() {
-    if (tournament?.stage_format !== 'groups_knockout') return
+    const isLeague = tournament?.stage_format === 'league'
+    if (tournament?.stage_format !== 'groups_knockout' && !isLeague) return
     if ((tournament?.team_size || 1) > 1) return
     try {
       const [{ data: freshT }, { data: freshParts }] = await Promise.all([
@@ -1351,21 +1354,22 @@ export default function TournamentDetail() {
         supabase.from('tournament_participants').select('user_id, profiles(username, avatar_url)').eq('tournament_id', id),
       ])
       const freshBd = parseBracketData(freshT?.bracket_data)
-      const targetGroupCount = freshT?.group_count || tournament?.group_count || 4
-      const advancePerGroup = freshT?.advance_per_group || tournament?.advance_per_group || 2
+      const legs = isLeague ? (freshT?.group_count || tournament?.group_count || 2) : 1
+      const targetGroupCount = isLeague ? 1 : (freshT?.group_count || tournament?.group_count || 4)
+      const advancePerGroup = freshT?.advance_per_group || tournament?.advance_per_group || (isLeague ? 3 : 2)
       const count = freshParts?.length || 0
 
       if (!freshBd?.groups) {
         if (count < 2) return // draw opens once at least 2 players are in
-        const groupsToOpen = Math.max(1, Math.min(targetGroupCount, Math.floor(count / 2)))
-        const groups = buildGroups(freshParts, groupsToOpen, 1)
+        const groupsToOpen = isLeague ? 1 : Math.max(1, Math.min(targetGroupCount, Math.floor(count / 2)))
+        const groups = buildGroups(freshParts, groupsToOpen, 1, legs)
         const newBd = { stage: 'groups', groups, advancePerGroup }
         await supabase.from('tournaments').update({ bracket_data: newBd }).eq('id', id)
         setBracketData(newBd)
         return
       }
 
-      if (freshBd.stage === 'knockout') return // group stage already finished
+      if (freshBd.stage === 'knockout' || freshBd.stage === 'complete') return // stage already finished
 
       const placedIds = new Set(freshBd.groups.flatMap(g => g.members.map(m => m.id ?? m.userId ?? m.teamId)))
       const unplaced = (freshParts || []).filter(p => !placedIds.has(p.user_id))
@@ -1374,6 +1378,11 @@ export default function TournamentDetail() {
       let groups = freshBd.groups
       for (const p of unplaced) {
         const newMember = { id: p.user_id, name: p.profiles?.username || '?', avatar: p.profiles?.avatar_url || null }
+        if (isLeague) {
+          // Everyone lands in the single league table.
+          groups = groups.map((g, i) => i === 0 ? addMemberToGroup(g, newMember, legs) : g)
+          continue
+        }
         const canOpenNewGroup = groups.length < targetGroupCount && groups.every(g => g.members.length >= 2)
         if (canOpenNewGroup) {
           groups = [...groups, {
@@ -1474,7 +1483,7 @@ export default function TournamentDetail() {
 
   async function register(squadIdOverride) {
     if (!user) { openAuthGate(); return }
-    if (!isAdmin && tournament?.created_by === user.id && tournament?.stage_format !== 'groups_knockout') {
+    if (!isAdmin && tournament?.created_by === user.id && !['groups_knockout', 'league'].includes(tournament?.stage_format)) {
       showToast("You can't join your own tournament.", 'error'); return
     }
 
@@ -1538,7 +1547,7 @@ export default function TournamentDetail() {
       await awardJoinBonus(supabase, user.id, id, tournament?.name)
       await maybeAwardFullSlotsBonus(supabase, id, tournament?.name, effectiveCapacity, sendNotification)
 
-      if (tournament?.stage_format === 'groups_knockout') {
+      if (['groups_knockout', 'league'].includes(tournament?.stage_format)) {
         await autoUpdateGroupsOnJoin()
       }
 
@@ -1594,7 +1603,7 @@ export default function TournamentDetail() {
    */
   async function joinViaSlot(targetPIdx, targetSIdx, targetMIdx) {
     if (!user) { openAuthGate(); return }
-    if (!isAdmin && tournament?.created_by === user.id && tournament?.stage_format !== 'groups_knockout') {
+    if (!isAdmin && tournament?.created_by === user.id && !['groups_knockout', 'league'].includes(tournament?.stage_format)) {
       showToast("You can't join your own tournament.", 'error'); return
     }
     if (registered) { showToast('You are already registered.', 'info'); return }
@@ -2963,7 +2972,7 @@ export default function TournamentDetail() {
               {registered && tournament.status !== 'active' && (
                 <span className={styles.heroParticipatedChip}><i className="ri-checkbox-circle-fill" /></span>
               )}
-              {!registered && tournament.status === 'active' && !isFull && (!isOwnTournament || tournament.stage_format === 'groups_knockout') && !isCompleted && (() => {
+              {!registered && tournament.status === 'active' && !isFull && (!isOwnTournament || ['groups_knockout', 'league'].includes(tournament.stage_format)) && !isCompleted && (() => {
                 const hasFee = (tournament.entrance_fee || 0) > 0
                 if (!hasFee) {
                   return (
@@ -2992,7 +3001,7 @@ export default function TournamentDetail() {
                   </button>
                 )
               })()}
-              {isOwnTournament && tournament.status === 'active' && tournament.stage_format !== 'groups_knockout' && (
+              {isOwnTournament && tournament.status === 'active' && !['groups_knockout', 'league'].includes(tournament.stage_format) && (
                 <span className={styles.heroFullChip} style={{ borderColor: 'var(--text-muted)', color: 'var(--text-muted)' }}>
                   <i className="ri-shield-line" /> Your tournament
                 </span>
@@ -3321,8 +3330,13 @@ export default function TournamentDetail() {
           ...(tournament.stage_format === 'groups_knockout'
             ? [{ key: 'groups', icon: 'ri-layout-grid-line', title: t('tournaments.groupsTab') }]
             : []),
+          ...(tournament.stage_format === 'league'
+            ? [{ key: 'groups', icon: 'ri-trophy-line', title: 'Table' }]
+            : []),
           ...(tournament.stage_format === 'br_points'
             ? [{ key: 'standings', icon: 'ri-bar-chart-2-line', title: 'Standings' }]
+            : tournament.stage_format === 'league'
+            ? []
             : [{ key: 'bracket', icon: 'ri-node-tree', title: t('tournaments.bracket') }]),
           { key: 'matches',     icon: 'ri-sword-line',    title: t('matches.matches') },
           { key: 'leaderboard', icon: 'ri-bar-chart-line',title: t('players.leaderboard') },
@@ -3384,6 +3398,21 @@ export default function TournamentDetail() {
                   <span>{t('tournaments.groupStageCompleteCheckBracket')}</span>
                 </div>
               )}
+              {tournament.stage_format === 'league' && bracketData.stage === 'complete' && (
+                <div className={styles.feeBanner} style={{ background: 'rgba(245,158,11,0.1)', borderColor: 'rgba(245,158,11,0.3)', color: '#f59e0b' }}>
+                  <i className="ri-trophy-fill" />
+                  <span>
+                    All fixtures played — final table.{' '}
+                    {(bracketData.winners || []).map(w => w.name).filter(Boolean).join(', ') || `Top ${bracketData.podium || 3}`} {(bracketData.winners?.length || 0) > 1 ? 'are' : 'is'} champion{(bracketData.winners?.length || 0) === 1 ? '' : 's'}!
+                  </span>
+                </div>
+              )}
+              {tournament.stage_format === 'league' && bracketData.stage !== 'complete' && (
+                <div className={styles.feeBanner} style={{ background: 'rgba(99,102,241,0.08)', borderColor: 'rgba(99,102,241,0.25)', color: '#6366f1' }}>
+                  <i className="ri-time-line" />
+                  <span>League in progress — top {bracketData.advancePerGroup ?? tournament?.advance_per_group ?? 3} on the table win when all fixtures are played.</span>
+                </div>
+              )}
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <button
                   className={`${styles.shareBtn} ${bracketShareCopied ? styles.shareBtnCopied : ''}`}
@@ -3427,13 +3456,15 @@ export default function TournamentDetail() {
                         <span style={{ width: 30, textAlign: 'center' }}>Pts</span>
                       </div>
                       {standings.map(row => {
-                        const advances = row.position <= (bracketData.advancePerGroup ?? tournament?.advance_per_group ?? 2)
+                        const cutoff = bracketData.advancePerGroup ?? tournament?.advance_per_group ?? 2
+                        const advances = row.position <= cutoff
+                        const isLeague = tournament.stage_format === 'league'
                         return (
                           <div key={row.id} style={{
                             display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0', fontSize: 12, borderTop: '1px solid var(--border)', minWidth: 320,
-                            borderLeft: advances ? '2px solid var(--accent)' : '2px solid transparent', paddingLeft: 4,
+                            borderLeft: advances ? `2px solid ${isLeague ? '#f59e0b' : 'var(--accent)'}` : '2px solid transparent', paddingLeft: 4,
                           }}>
-                            <span style={{ width: 16, color: 'var(--text-muted)', fontWeight: 700 }}>{row.position}</span>
+                            <span style={{ width: 16, color: advances && isLeague ? '#f59e0b' : 'var(--text-muted)', fontWeight: 700 }}>{row.position}</span>
                             <MarqueeText text={row.name} wrapClassName={styles.groupNameWrap} textClassName={styles.groupNameText} />
                             <span style={{ width: 22, textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace' }}>{row.played}</span>
                             <span style={{ width: 22, textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace' }}>{row.won}</span>
