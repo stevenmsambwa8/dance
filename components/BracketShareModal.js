@@ -207,8 +207,8 @@ function drawFooter(ctx, H, PAD, accent) {
   const footerY = H - 60
 
   const grad = ctx.createLinearGradient(PAD, 0, W - PAD, 0)
-  grad.addColorStop(0, 'rgba(10,10,15,0.18)')
-  grad.addColorStop(1, 'rgba(10,10,15,0.02)')
+  grad.addColorStop(0, 'rgba(244,245,248,0.18)')
+  grad.addColorStop(1, 'rgba(244,245,248,0.02)')
   ctx.strokeStyle = grad
   ctx.lineWidth = 2
   ctx.beginPath(); ctx.moveTo(PAD, footerY - 20); ctx.lineTo(W - PAD, footerY - 20); ctx.stroke()
@@ -224,13 +224,6 @@ function drawFooter(ctx, H, PAD, accent) {
   ctx.textAlign = 'right'
   ctx.letterSpacing = '0.06em'
   ctx.fillText(new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).toUpperCase(), W - PAD, footerY + 20)
-
-  // Gradient accent strip instead of a flat block — softer, more premium
-  const barGrad = ctx.createLinearGradient(0, 0, W, 0)
-  barGrad.addColorStop(0, accent)
-  barGrad.addColorStop(1, 'rgba(10,10,15,0.85)')
-  ctx.fillStyle = barGrad
-  ctx.fillRect(0, H - 10, W, 10)
 }
 
 // Resolve a display name for a bracket slot. Solo slots carry `name`
@@ -656,15 +649,14 @@ async function drawStandingsCard(canvas, { tournament, groups, participants, gam
   const MEDAL = { 1: '#f5b700', 2: '#b0b7c3', 3: '#c67a3e' }
 
   allStandings.forEach(({ group, rows }) => {
-    // Group label as a tinted pill badge — reads like a section chip in a
-    // real app rather than a plain caption.
+    // Group label as a solid accent pill — bold chip, not a faint tint.
     ctx.font = '900 15px system-ui, sans-serif'
     const gLabel = group.name.toUpperCase()
     const gLabelW = ctx.measureText(gLabel).width + 30
-    rr(ctx, PAD, y, gLabelW, 32, 8)
-    ctx.fillStyle = INK_08
+    rr(ctx, PAD, y, gLabelW, 32, 16)
+    ctx.fillStyle = accent
     ctx.fill()
-    ctx.fillStyle = INK
+    ctx.fillStyle = '#000000'
     ctx.textAlign = 'left'
     ctx.fillText(gLabel, PAD + 15, y + 22)
     y += GROUP_LABEL_H
@@ -693,13 +685,14 @@ async function drawStandingsCard(canvas, { tournament, groups, participants, gam
       const isTop3 = row.position <= 3
 
       rr(ctx, PAD, y, colW, rowH, 8)
-      ctx.fillStyle = isTop3 ? 'rgba(10,10,15,0.045)' : (i % 2 === 0 ? INK_04 : 'rgba(10,10,15,0.015)')
+      ctx.fillStyle = isTop3 ? 'rgba(244,245,248,0.055)' : (i % 2 === 0 ? INK_04 : 'rgba(244,245,248,0.02)')
       ctx.fill()
-      if (isTop3) {
-        ctx.strokeStyle = MEDAL[row.position]
-        ctx.lineWidth = 1.5
-        ctx.stroke()
-      }
+      ctx.save()
+      ctx.strokeStyle = isTop3 ? MEDAL[row.position] : accent
+      ctx.lineWidth = 1.5
+      ctx.globalAlpha = isTop3 ? 1 : 0.25
+      ctx.stroke()
+      ctx.restore()
 
       cx = PAD
       cols.forEach(c => {
