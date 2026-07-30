@@ -770,7 +770,7 @@ export default function Home() {
       )}
 
       {/* ══════════ HERO ══════════ */}
-      <div className={styles.hero} style={{ outline: '3px dashed red' }}>
+      <div className={styles.hero}>
         <div className={styles.heroOverlay} />
         <div className={styles.heroContent}>
           <div className={styles.heroTop}>
@@ -836,15 +836,10 @@ export default function Home() {
       {/* Daily Login Rewards now lives in the Nav header (gift icon,
           between the plan icon and the sidebar toggle) — see Nav.js. */}
 
-      {/* TEMP DEBUG MARKER — remove after diagnosing the gap */}
-      <div style={{ height: 4, background: 'blue' }} />
-
       {/* ══════════ HEADLINES ══════════ */}
       {(storiesLoading || stories.length > 0) && (
-        <Section icon="ri-fire-line" title={t('home.headlines') || 'Headlines'} className={styles.section} >
-          <div style={{ outline: '3px dashed lime' }}>
+        <Section icon="ri-fire-line" title={t('home.headlines') || 'Headlines'}>
           <NewsStrip stories={stories} loading={storiesLoading} />
-          </div>
         </Section>
       )}
 

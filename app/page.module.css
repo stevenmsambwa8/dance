@@ -29,7 +29,7 @@
 .heroContent {
   position: relative;
   z-index: 1;
-  padding: 14px 16px 18px;
+  padding: 14px 16px 6px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -291,6 +291,13 @@
 .section {
   padding: 16px 16px 4px;
   border-bottom: 1px solid var(--border);
+}
+
+/* Tighter gap directly under the hero — the JSX comment between them
+   produces no DOM node, so hero and this section are true adjacent
+   siblings and this selector reliably targets just that first gap. */
+.hero + .section {
+  padding-top: 6px;
 }
 
 .sectionHead {
