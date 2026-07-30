@@ -117,65 +117,65 @@ function drawAvatarCircle(ctx, cx, cy, r, img, initials, bg, textColor) {
 // Returns the new y cursor position after drawing.
 async function drawHeader(ctx, { y, PAD, accent, kicker, tournament, gameMeta, pills, logo }) {
   if (logo?.naturalWidth > 0) {
-    const logoR = 24
+    const logoR = 20
     ctx.save()
-    rr(ctx, PAD, y, logoR * 2, logoR * 2, 14)
+    rr(ctx, PAD, y, logoR * 2, logoR * 2, 12)
     ctx.clip()
     ctx.drawImage(logo, PAD, y, logoR * 2, logoR * 2)
     ctx.restore()
 
-    ctx.font = '900 17px system-ui, sans-serif'
+    ctx.font = '900 16px system-ui, sans-serif'
     ctx.fillStyle = INK
     ctx.textAlign = 'left'
     ctx.letterSpacing = '0.01em'
-    ctx.fillText('NABOGAMING', PAD + logoR * 2 + 16, y + logoR - 2)
-    ctx.font = '700 13px system-ui, sans-serif'
+    ctx.fillText('NABOGAMING', PAD + logoR * 2 + 14, y + logoR - 4)
+    ctx.font = '700 12px system-ui, sans-serif'
     ctx.fillStyle = INK_55
     ctx.letterSpacing = '0.08em'
-    ctx.fillText('WWW.NABOGAMING.LIVE', PAD + logoR * 2 + 16, y + logoR + 18)
-    y += logoR * 2 + 44
+    ctx.fillText('WWW.NABOGAMING.LIVE', PAD + logoR * 2 + 14, y + logoR + 14)
+    y += logoR * 2 + 28
   } else {
-    y += 40
+    y += 28
   }
 
   // Kicker rendered as a small pill badge rather than bare letter-spaced
   // text — reads more like a modern app UI, less like a stamped label.
-  ctx.font = '900 13px system-ui, sans-serif'
-  const kickerW = ctx.measureText(kicker).width + 28
-  rr(ctx, PAD, y - 22, kickerW, 30, 15)
+  ctx.font = '900 12px system-ui, sans-serif'
+  const kickerW = ctx.measureText(kicker).width + 24
+  rr(ctx, PAD, y - 20, kickerW, 26, 13)
   ctx.fillStyle = accent
   ctx.fill()
   ctx.fillStyle = '#000000'
   ctx.textAlign = 'left'
   ctx.letterSpacing = '0.18em'
-  ctx.fillText(kicker, PAD + 14, y - 1)
-  y += 46
+  ctx.fillText(kicker, PAD + 12, y - 2)
+  y += 36
 
-  ctx.font = '900 72px system-ui, sans-serif'
+  ctx.font = '900 58px system-ui, sans-serif'
   ctx.fillStyle = INK
   ctx.letterSpacing = '-0.01em'
   const titleText = (tournament?.name || 'CHAMPIONSHIP').toUpperCase()
-  ctx.fillText(titleText, PAD, y + 58)
-  y += 100
+  ctx.fillText(titleText, PAD, y + 46)
+  y += 76
 
-  ctx.font = '800 25px system-ui, sans-serif'
+  ctx.font = '800 20px system-ui, sans-serif'
   ctx.fillStyle = INK_75
   ctx.letterSpacing = '0px'
   ctx.fillText((gameMeta?.name || '').toUpperCase(), PAD, y)
-  y += 44
+  y += 32
 
   let pillX = PAD
   pills.forEach(s => {
-    ctx.font = '900 14px system-ui, sans-serif'
+    ctx.font = '900 13px system-ui, sans-serif'
     const textW = ctx.measureText(s.label).width
-    const pillW = textW + 44
-    const pillH = 48
+    const pillW = textW + 36
+    const pillH = 38
 
     ctx.save()
     ctx.shadowColor = s.bg === accent ? 'rgba(0,0,0,0.16)' : 'rgba(10,10,15,0.06)'
-    ctx.shadowBlur = 10
-    ctx.shadowOffsetY = 3
-    rr(ctx, pillX, y, pillW, pillH, 24)
+    ctx.shadowBlur = 8
+    ctx.shadowOffsetY = 2
+    rr(ctx, pillX, y, pillW, pillH, 19)
     ctx.fillStyle = s.bg
     ctx.fill()
     ctx.restore()
@@ -187,18 +187,18 @@ async function drawHeader(ctx, { y, PAD, accent, kicker, tournament, gameMeta, p
     ctx.fillStyle = s.text
     ctx.textAlign = 'center'
     ctx.fillText(s.label, pillX + pillW / 2, y + pillH / 2 + 5)
-    pillX += pillW + 14
+    pillX += pillW + 12
   })
-  y += 48 + 38
+  y += 38 + 24
 
   // Soft fading divider instead of a flat hard rule
   const grad = ctx.createLinearGradient(PAD, 0, W - PAD, 0)
-  grad.addColorStop(0, 'rgba(10,10,15,0.18)')
-  grad.addColorStop(1, 'rgba(10,10,15,0.02)')
+  grad.addColorStop(0, 'rgba(244,245,248,0.18)')
+  grad.addColorStop(1, 'rgba(244,245,248,0.02)')
   ctx.strokeStyle = grad
   ctx.lineWidth = 2
   ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W - PAD, y); ctx.stroke()
-  y += 40
+  y += 28
 
   return y
 }
@@ -401,7 +401,7 @@ async function drawCard(canvas, { tournament, bracketData, participants, gameMet
   const colGap = 32
   const colW = (W - PAD * 2 - colGap * (cols - 1)) / cols
 
-  let y = 64 // Starting Y for content
+  let y = 48 // Starting Y for content
   const [logo, gameImg, avatarMap] = await Promise.all([
     loadImg('/logo.png'),
     gameMeta?.img ? loadImg(gameMeta.img) : Promise.resolve(null),
@@ -410,12 +410,12 @@ async function drawCard(canvas, { tournament, bracketData, participants, gameMet
 
   // Calculate Header Box Size
   let headerH = y
-  headerH += (logo?.naturalWidth > 0 ? 48 + 44 : 40) // Logo space
-  headerH += 46 // Kicker badge
-  headerH += 100 // Main Title
-  headerH += 44 // Game Name
-  headerH += 86 // Stat Pills
-  headerH += 40 // Divider spacing
+  headerH += (logo?.naturalWidth > 0 ? 40 + 28 : 28) // Logo space
+  headerH += 36 // Kicker badge
+  headerH += 76 // Main Title
+  headerH += 32 // Game Name
+  headerH += 62 // Stat Pills
+  headerH += 28 // Divider spacing
   if (champion) headerH += 170 // Champion Podium space
 
   // Calculate Bracket Space
@@ -588,7 +588,7 @@ async function drawStandingsCard(canvas, { tournament, groups, participants, gam
 
   const allStandings = (groups || []).map(g => ({ group: g, rows: computeStandings(g) }))
 
-  let y = 64
+  let y = 48
   const [logo, gameImg, avatarMap] = await Promise.all([
     loadImg('/logo.png'),
     gameMeta?.img ? loadImg(gameMeta.img) : Promise.resolve(null),
@@ -596,21 +596,31 @@ async function drawStandingsCard(canvas, { tournament, groups, participants, gam
   ])
 
   let headerH = y
-  headerH += (logo?.naturalWidth > 0 ? 48 + 44 : 40)
-  headerH += 46
-  headerH += 100
-  headerH += 44
-  headerH += 86
-  headerH += 40
+  headerH += (logo?.naturalWidth > 0 ? 40 + 28 : 28)
+  headerH += 36
+  headerH += 76
+  headerH += 32
+  headerH += 62
+  headerH += 28
 
   const ROW_H = 44
   const TABLE_HEAD_H = 34
   const GROUP_LABEL_H = 48
   const GROUP_GAP = 34
 
-  const tablesH = allStandings.reduce((sum, { rows }) => {
-    return sum + GROUP_LABEL_H + TABLE_HEAD_H + rows.length * ROW_H + GROUP_GAP
-  }, 0)
+  const isGrid = allStandings.length > 1
+  const groupTotalH = ({ rows }) => GROUP_LABEL_H + TABLE_HEAD_H + rows.length * ROW_H
+
+  let tablesH = 0
+  if (isGrid) {
+    for (let i = 0; i < allStandings.length; i += 2) {
+      const hL = groupTotalH(allStandings[i])
+      const hR = allStandings[i + 1] ? groupTotalH(allStandings[i + 1]) : 0
+      tablesH += Math.max(hL, hR) + GROUP_GAP
+    }
+  } else {
+    tablesH = allStandings.reduce((sum, g) => sum + groupTotalH(g) + GROUP_GAP, 0)
+  }
 
   const footerH = 100
   const H = headerH + tablesH + footerH
@@ -630,81 +640,76 @@ async function drawStandingsCard(canvas, { tournament, groups, participants, gam
 
   y = await drawHeader(ctx, { y, PAD, accent, kicker: 'GROUP STANDINGS', tournament, gameMeta, pills: stats, logo })
 
-  const colW = W - PAD * 2
-  const POS_W = 46 // wider — now holds a medal badge, not just a bare digit
+  const GROUP_COL_GAP = 24
+  const tableW = isGrid ? (W - PAD * 2 - GROUP_COL_GAP) / 2 : (W - PAD * 2)
+
+  // Compact column set (matches a real standings table: rank, player, played,
+  // goal diff, points) — narrow enough that two tables fit side by side.
+  const POS_W = 38, PLAYED_W = 32, GD_W = 44, PTS_W = 56
+  const fixedW = POS_W + PLAYED_W + GD_W + PTS_W
+  const nameW = tableW - fixedW
   const cols = [
-    { key: 'position', label: '#',   w: POS_W,  align: 'left'   },
-    { key: 'name', label: 'PLAYER', w: null, align: 'left' },
-    { key: 'played', label: 'P', w: 36, align: 'center' },
-    { key: 'won',  label: 'W',  w: 36, align: 'center' },
-    { key: 'drawn',label: 'D',  w: 36, align: 'center' },
-    { key: 'lost', label: 'L',  w: 36, align: 'center' },
-    { key: 'goalsFor', label: 'GF', w: 40, align: 'center' },
-    { key: 'goalsAgainst', label: 'GA', w: 40, align: 'center' },
-    { key: 'goalDiff', label: 'GD', w: 46, align: 'center' },
-    { key: 'points', label: 'PTS', w: 60, align: 'center' },
+    { key: 'position', label: '#',    w: POS_W,    align: 'left'   },
+    { key: 'name',     label: 'PLAYER', w: nameW,  align: 'left'   },
+    { key: 'played',   label: 'P',    w: PLAYED_W, align: 'center' },
+    { key: 'goalDiff', label: 'GD',   w: GD_W,     align: 'center' },
+    { key: 'points',   label: 'PTS',  w: PTS_W,    align: 'center' },
   ]
-  const fixedW = cols.reduce((s, c) => s + (c.w || 0), 0)
-  const nameW = colW - fixedW
   const MEDAL = { 1: '#f5b700', 2: '#b0b7c3', 3: '#c67a3e' }
 
-  allStandings.forEach(({ group, rows }) => {
-    // Group label as a solid accent pill — bold chip, not a faint tint.
+  // Draws one group's badge + bordered grid table at (x, yStart) and
+  // returns the height it consumed (excluding the gap after it), so the
+  // caller can place a second table beside it and advance y by the taller
+  // of the two.
+  function drawGroupTable(x, yStart, group, rows) {
+    let gy = yStart
     ctx.font = '900 15px system-ui, sans-serif'
     const gLabel = group.name.toUpperCase()
     const gLabelW = ctx.measureText(gLabel).width + 30
-    rr(ctx, PAD, y, gLabelW, 32, 16)
+    rr(ctx, x, gy, gLabelW, 32, 16)
     ctx.fillStyle = accent
     ctx.fill()
     ctx.fillStyle = '#000000'
     ctx.textAlign = 'left'
-    ctx.fillText(gLabel, PAD + 15, y + 22)
-    y += GROUP_LABEL_H
+    ctx.fillText(gLabel, x + 15, gy + 22)
+    gy += GROUP_LABEL_H
 
-    // Precompute each column's left edge once so the header labels, the
-    // vertical grid lines, and every row's cells all line up exactly.
-    let colX = PAD
+    let colX = x
     const colEdges = cols.map(c => {
-      const w = c.key === 'name' ? nameW : c.w
-      const edge = { key: c.key, x: colX, w }
-      colX += w
+      const edge = { key: c.key, x: colX, w: c.w }
+      colX += c.w
       return edge
     })
 
     const bodyH = rows.length * ROW_H
-    const tableTop = y
+    const tableTop = gy
     const tableH = TABLE_HEAD_H + bodyH
 
-    // One bordered container for the whole table — a real grid instead of
-    // a stack of separately-rounded, differently-stroked boxes.
-    rr(ctx, PAD, tableTop, colW, tableH, 10)
+    rr(ctx, x, tableTop, tableW, tableH, 10)
     ctx.fillStyle = INK_04
     ctx.fill()
     ctx.strokeStyle = INK_15
     ctx.lineWidth = 1.5
     ctx.stroke()
 
-    // Header row labels
     ctx.font = '900 11px system-ui, sans-serif'
     ctx.fillStyle = INK_55
     ctx.letterSpacing = '0.04em'
     cols.forEach((c, ci) => {
       const edge = colEdges[ci]
       ctx.textAlign = c.align
-      const tx = c.align === 'left' ? edge.x + (c.key === 'position' ? 14 : c.key === 'name' ? 44 : 0) : edge.x + edge.w / 2
+      const tx = c.align === 'left' ? edge.x + (c.key === 'position' ? 13 : c.key === 'name' ? 40 : 0) : edge.x + edge.w / 2
       ctx.fillText(c.label, tx, tableTop + TABLE_HEAD_H / 2 + 4)
     })
     ctx.letterSpacing = '0px'
 
-    // Divider under the header
     ctx.strokeStyle = INK_15
     ctx.lineWidth = 1.5
     ctx.beginPath()
-    ctx.moveTo(PAD, tableTop + TABLE_HEAD_H)
-    ctx.lineTo(PAD + colW, tableTop + TABLE_HEAD_H)
+    ctx.moveTo(x, tableTop + TABLE_HEAD_H)
+    ctx.lineTo(x + tableW, tableTop + TABLE_HEAD_H)
     ctx.stroke()
 
-    // Vertical column grid lines running the full height of the table
     ctx.strokeStyle = INK_15
     ctx.lineWidth = 1
     colEdges.slice(1).forEach(edge => {
@@ -714,30 +719,25 @@ async function drawStandingsCard(canvas, { tournament, groups, participants, gam
       ctx.stroke()
     })
 
-    y = tableTop + TABLE_HEAD_H
+    gy = tableTop + TABLE_HEAD_H
 
     rows.forEach((row, i) => {
-      const rowTop = y
+      const rowTop = gy
       const isTop3 = row.position <= 3
       const centerY = rowTop + ROW_H / 2
 
-      // Zebra tint, flush with the shared container (no per-row rounding
-      // or stroke — the grid lines above already do that job).
       if (i % 2 === 1) {
         ctx.fillStyle = 'rgba(244,245,248,0.02)'
-        ctx.fillRect(PAD, rowTop, colW, ROW_H)
+        ctx.fillRect(x, rowTop, tableW, ROW_H)
       }
-      // Row divider
       if (i > 0) {
         ctx.strokeStyle = INK_15
         ctx.lineWidth = 1
-        ctx.beginPath(); ctx.moveTo(PAD, rowTop); ctx.lineTo(PAD + colW, rowTop); ctx.stroke()
+        ctx.beginPath(); ctx.moveTo(x, rowTop); ctx.lineTo(x + tableW, rowTop); ctx.stroke()
       }
-      // Subtle medal-colored tab on the left edge for top 3 — a highlight,
-      // not a box drawn around the whole row.
       if (isTop3) {
         ctx.fillStyle = MEDAL[row.position]
-        ctx.fillRect(PAD, rowTop + 4, 4, ROW_H - 8)
+        ctx.fillRect(x, rowTop + 4, 4, ROW_H - 8)
       }
 
       cols.forEach((c, ci) => {
@@ -745,28 +745,28 @@ async function drawStandingsCard(canvas, { tournament, groups, participants, gam
         const cx2 = edge.x, w = edge.w
 
         if (c.key === 'position') {
-          const bx = cx2 + 22
+          const bx = cx2 + 20
           if (isTop3) {
             ctx.beginPath()
-            ctx.arc(bx, centerY, 13, 0, Math.PI * 2)
+            ctx.arc(bx, centerY, 12, 0, Math.PI * 2)
             ctx.fillStyle = MEDAL[row.position]
             ctx.fill()
-            ctx.font = '900 13px system-ui, sans-serif'
+            ctx.font = '900 12px system-ui, sans-serif'
             ctx.fillStyle = '#0a0a0f'
             ctx.textAlign = 'center'
-            ctx.fillText(String(row.position), bx, centerY + 5)
+            ctx.fillText(String(row.position), bx, centerY + 4)
           } else {
-            ctx.font = '800 13px system-ui, sans-serif'
+            ctx.font = '800 12px system-ui, sans-serif'
             ctx.fillStyle = INK_55
             ctx.textAlign = 'center'
-            ctx.fillText(String(row.position), bx, centerY + 5)
+            ctx.fillText(String(row.position), bx, centerY + 4)
           }
           return
         }
 
         if (c.key === 'name') {
           const rawName = (row.name || '?').toUpperCase()
-          const avR = 13
+          const avR = 12
           const avCX = cx2 + avR + 4
           const avImg = row.avatar ? avatarMap.get(row.avatar) : null
           drawAvatarCircle(
@@ -775,16 +775,16 @@ async function drawStandingsCard(canvas, { tournament, groups, participants, gam
           )
 
           let val = rawName
-          const textX = avCX + avR + 12
+          const textX = avCX + avR + 10
           const maxW = nameW - (textX - cx2) - 8
-          ctx.font = '800 13px system-ui, sans-serif'
+          ctx.font = '800 12px system-ui, sans-serif'
           if (ctx.measureText(val).width > maxW) {
             while (ctx.measureText(val + '…').width > maxW && val.length > 1) val = val.slice(0, -1)
             val += '…'
           }
           ctx.fillStyle = INK
           ctx.textAlign = 'left'
-          ctx.fillText(val, textX, centerY + 5)
+          ctx.fillText(val, textX, centerY + 4)
           return
         }
 
@@ -794,26 +794,38 @@ async function drawStandingsCard(canvas, { tournament, groups, participants, gam
         if (c.key === 'goalDiff') val = val > 0 ? `+${val}` : String(val)
 
         if (c.key === 'points') {
-          // Points get a filled pill instead of plain colored text — the
-          // single number readers scan for should pop off the row.
-          const pillW = 40, pillH = 26
-          rr(ctx, tx - pillW / 2, centerY - pillH / 2, pillW, pillH, 13)
+          const pillW = 36, pillH = 24
+          rr(ctx, tx - pillW / 2, centerY - pillH / 2, pillW, pillH, 12)
           ctx.fillStyle = accent
           ctx.fill()
-          ctx.font = '900 13px system-ui, sans-serif'
+          ctx.font = '900 12px system-ui, sans-serif'
           ctx.fillStyle = '#000000'
-          ctx.fillText(String(val ?? 0), tx, centerY + 5)
+          ctx.fillText(String(val ?? 0), tx, centerY + 4)
         } else {
-          ctx.font = '800 13px system-ui, sans-serif'
+          ctx.font = '800 12px system-ui, sans-serif'
           ctx.fillStyle = INK
-          ctx.fillText(String(val ?? 0), tx, centerY + 5)
+          ctx.fillText(String(val ?? 0), tx, centerY + 4)
         }
       })
-      y += ROW_H
+      gy += ROW_H
     })
 
-    y += GROUP_GAP
-  })
+    return tableH + GROUP_LABEL_H
+  }
+
+  if (isGrid) {
+    for (let i = 0; i < allStandings.length; i += 2) {
+      const left = allStandings[i]
+      const right = allStandings[i + 1]
+      const hL = drawGroupTable(PAD, y, left.group, left.rows)
+      const hR = right ? drawGroupTable(PAD + tableW + GROUP_COL_GAP, y, right.group, right.rows) : 0
+      y += Math.max(hL, hR) + GROUP_GAP
+    }
+  } else {
+    allStandings.forEach(({ group, rows }) => {
+      y += drawGroupTable(PAD, y, group, rows) + GROUP_GAP
+    })
+  }
 
   drawFooter(ctx, fullH, PAD, accent)
 }
