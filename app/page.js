@@ -12,6 +12,7 @@ import { useCurrency } from '../lib/useCurrency'
 import useTranslation from '../lib/useTranslation'
 import { identityColor } from '../lib/clanColors'
 import { getRecentStories } from '../lib/news'
+import PatchNotesModal from '../components/PatchNotesModal'
 
 const CLAN_CAP = 125
 
@@ -760,6 +761,8 @@ export default function Home() {
 
   return (
     <div className={styles.page}>
+
+      <PatchNotesModal />
 
       {/* ── Game Master Modal ── */}
       {showMasterModal && gameMasters.length > 0 && (

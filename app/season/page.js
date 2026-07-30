@@ -56,7 +56,7 @@ function getEncouragement(seasonWins, seasonLosses) {
   if (winRate >= 70) return { msg: `${winRate}% win rate — you're dominating this season. Keep that energy up.`, icon: 'ri-vip-crown-fill', color: '#f59e0b' }
   if (winRate >= 50) return { msg: `Solid ${winRate}% win rate. You're above average — push harder and climb.`, icon: 'ri-bar-chart-fill', color: '#22c55e' }
   if (seasonLosses > seasonWins && total >= 5) return { msg: "Losses build champions. Every player you face is making you sharper. Don't stop.", icon: 'ri-shield-flash-fill', color: '#a78bfa' }
-  if (seasonWins >= 10) return { msg: `${seasonWins} wins this season already. You're building something real.`, icon: 'ri-sword-fill', color: '#22c55e' }
+  if (seasonWins >= 3) return { msg: `${seasonWins} wins this season already. You're building something real.`, icon: 'ri-sword-fill', color: '#22c55e' }
   return { msg: "Stay consistent. Small wins stack into big results. Keep showing up.", icon: 'ri-heart-fill', color: '#f43f5e' }
 }
 
