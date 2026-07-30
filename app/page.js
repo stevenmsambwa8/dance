@@ -830,41 +830,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ══════════ TIER + LEVEL PROGRESS ══════════ */}
-      {profile && (
-        <div className={styles.progressBlock}>
-          <div className={styles.progressRow}>
-            <div className={styles.progressMeta}>
-              <span className={styles.progressLabel} style={{ color: tierMeta.color }}>
-                <i className={tierMeta.icon} /> {tier}
-              </span>
-              {isMaxTier
-                ? <span className={styles.progressMax}>{t('home.maxTier')} </span>
-                : <span className={styles.progressNext}>{winsToTier}W → {nextTier}</span>
-              }
-            </div>
-            <div className={styles.progressTrack}>
-              <div className={styles.progressFill} style={{ width: `${Math.max(tierPct, seasonWins > 0 ? 3 : 0)}%`, background: tierMeta.color }} />
-            </div>
-            <div className={styles.progressSub}>{seasonWins}/{threshold} {t('home.seasonWinsCount')}</div>
-          </div>
-          <div className={styles.progressRow}>
-            <div className={styles.progressMeta}>
-              <span className={styles.progressLabel}>
-                <i className="ri-bar-chart-fill" /> {t('home.level')} {lvl}{lvl < MAX_LEVEL ? ` → ${lvl+1}` : ''}
-              </span>
-              {lvl >= MAX_LEVEL
-                ? <span className={styles.progressMax}>{t('home.maxLevel')} </span>
-                : <span className={styles.progressNext}>{winsToLvl}W {t('home.winsToLevelUp')}</span>
-              }
-            </div>
-            <div className={styles.progressTrack}>
-              <div className={styles.progressFill} style={{ width: `${Math.max(lvlPct, seasonWins > 0 ? 3 : 0)}%`, background: 'var(--accent)' }} />
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Daily Login Rewards now lives in the Nav header (gift icon,
           between the plan icon and the sidebar toggle) — see Nav.js. */}
 
