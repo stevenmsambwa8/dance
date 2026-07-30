@@ -919,7 +919,7 @@ export default function TournamentDetail() {
     const withPhone = (data || []).filter(p => p.phone)
     if (withPhone.length === 0) { showToast('No phone numbers on file for this group.', 'error'); return }
 
-    const text = withPhone.map(p => p.phone).join('\n')
+    const text = withPhone.map(p => `${p.phone} - ${p.username || 'Unknown'}`).join('\n')
 
     const fallbackCopy = () => {
       const ta = document.createElement('textarea')

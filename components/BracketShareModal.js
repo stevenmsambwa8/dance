@@ -80,52 +80,86 @@ function loadImg(src) {
 // ── Shared header block (logo, kicker, title, game name, stat pills) ────────
 // Returns the new y cursor position after drawing.
 async function drawHeader(ctx, { y, PAD, accent, kicker, tournament, gameMeta, pills, logo }) {
+  // Top accent bar — gives the poster an immediate brand identity even
+  // before anything else renders, and mirrors the accent strip at the foot.
+  ctx.fillStyle = accent
+  ctx.fillRect(0, 0, W, 8)
+
   if (logo?.naturalWidth > 0) {
-    const logoR = 22
+    const logoR = 24
     ctx.save()
-    ctx.beginPath()
-    ctx.arc(PAD + logoR, y + logoR, logoR, 0, Math.PI * 2)
+    ctx.shadowColor = 'rgba(10,10,15,0.18)'
+    ctx.shadowBlur = 14
+    ctx.shadowOffsetY = 4
+    rr(ctx, PAD, y, logoR * 2, logoR * 2, 14)
+    ctx.fillStyle = '#ffffff'
+    ctx.fill()
+    ctx.restore()
+    ctx.save()
+    rr(ctx, PAD, y, logoR * 2, logoR * 2, 14)
     ctx.clip()
     ctx.drawImage(logo, PAD, y, logoR * 2, logoR * 2)
     ctx.restore()
 
-    ctx.font = '800 16px system-ui, sans-serif'
+    ctx.font = '900 17px system-ui, sans-serif'
     ctx.fillStyle = INK
     ctx.textAlign = 'left'
-    ctx.fillText('WWW.NABOGAMING.LIVE', PAD + logoR * 2 + 16, y + logoR + 6)
-    y += logoR * 2 + 50
+    ctx.letterSpacing = '0.01em'
+    ctx.fillText('NABOGAMING', PAD + logoR * 2 + 16, y + logoR - 2)
+    ctx.font = '700 13px system-ui, sans-serif'
+    ctx.fillStyle = INK_55
+    ctx.letterSpacing = '0.08em'
+    ctx.fillText('WWW.NABOGAMING.LIVE', PAD + logoR * 2 + 16, y + logoR + 18)
+    y += logoR * 2 + 44
   } else {
     y += 40
   }
 
-  ctx.font = '900 15px system-ui, sans-serif'
+  // Kicker rendered as a small pill badge rather than bare letter-spaced
+  // text — reads more like a modern app UI, less like a stamped label.
+  ctx.font = '900 13px system-ui, sans-serif'
+  const kickerW = ctx.measureText(kicker).width + 28
+  rr(ctx, PAD, y - 22, kickerW, 30, 15)
   ctx.fillStyle = accent
-  ctx.letterSpacing = '0.3em'
-  ctx.fillText(kicker, PAD, y)
-  y += 32
+  ctx.fill()
+  ctx.fillStyle = '#ffffff'
+  ctx.textAlign = 'left'
+  ctx.letterSpacing = '0.18em'
+  ctx.fillText(kicker, PAD + 14, y - 1)
+  y += 46
 
-  ctx.font = '900 76px system-ui, sans-serif'
+  ctx.font = '900 72px system-ui, sans-serif'
   ctx.fillStyle = INK
-  ctx.letterSpacing = '0px'
+  ctx.letterSpacing = '-0.01em'
   const titleText = (tournament?.name || 'CHAMPIONSHIP').toUpperCase()
-  ctx.fillText(titleText, PAD, y + 60)
-  y += 90
+  ctx.fillText(titleText, PAD, y + 58)
+  // Short accent underline beneath the title for a designed, intentional feel
+  const titleW = Math.min(ctx.measureText(titleText).width, W - PAD * 2)
+  ctx.fillStyle = accent
+  ctx.fillRect(PAD, y + 78, Math.min(titleW, 120), 6)
+  y += 100
 
-  ctx.font = '800 26px system-ui, sans-serif'
+  ctx.font = '800 25px system-ui, sans-serif'
   ctx.fillStyle = INK_75
+  ctx.letterSpacing = '0px'
   ctx.fillText((gameMeta?.name || '').toUpperCase(), PAD, y)
-  y += 45
+  y += 44
 
   let pillX = PAD
   pills.forEach(s => {
     ctx.font = '900 14px system-ui, sans-serif'
     const textW = ctx.measureText(s.label).width
-    const pillW = textW + 40
-    const pillH = 46
+    const pillW = textW + 44
+    const pillH = 48
 
-    rr(ctx, pillX, y, pillW, pillH, 6)
+    ctx.save()
+    ctx.shadowColor = s.bg === accent ? 'rgba(0,0,0,0.16)' : 'rgba(10,10,15,0.06)'
+    ctx.shadowBlur = 10
+    ctx.shadowOffsetY = 3
+    rr(ctx, pillX, y, pillW, pillH, 24)
     ctx.fillStyle = s.bg
     ctx.fill()
+    ctx.restore()
     if (s.bg.includes('rgba')) {
       ctx.strokeStyle = INK_15
       ctx.stroke()
@@ -134,11 +168,15 @@ async function drawHeader(ctx, { y, PAD, accent, kicker, tournament, gameMeta, p
     ctx.fillStyle = s.text
     ctx.textAlign = 'center'
     ctx.fillText(s.label, pillX + pillW / 2, y + pillH / 2 + 5)
-    pillX += pillW + 16
+    pillX += pillW + 14
   })
-  y += 46 + 40
+  y += 48 + 38
 
-  ctx.strokeStyle = INK_15
+  // Soft fading divider instead of a flat hard rule
+  const grad = ctx.createLinearGradient(PAD, 0, W - PAD, 0)
+  grad.addColorStop(0, 'rgba(10,10,15,0.18)')
+  grad.addColorStop(1, 'rgba(10,10,15,0.02)')
+  ctx.strokeStyle = grad
   ctx.lineWidth = 2
   ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W - PAD, y); ctx.stroke()
   y += 40
@@ -148,20 +186,31 @@ async function drawHeader(ctx, { y, PAD, accent, kicker, tournament, gameMeta, p
 
 function drawFooter(ctx, H, PAD, accent) {
   const footerY = H - 60
-  ctx.strokeStyle = INK_15
+
+  const grad = ctx.createLinearGradient(PAD, 0, W - PAD, 0)
+  grad.addColorStop(0, 'rgba(10,10,15,0.18)')
+  grad.addColorStop(1, 'rgba(10,10,15,0.02)')
+  ctx.strokeStyle = grad
   ctx.lineWidth = 2
   ctx.beginPath(); ctx.moveTo(PAD, footerY - 20); ctx.lineTo(W - PAD, footerY - 20); ctx.stroke()
 
-  ctx.font = '800 15px system-ui, sans-serif'
-  ctx.fillStyle = INK_55
+  ctx.font = '900 15px system-ui, sans-serif'
+  ctx.fillStyle = INK
   ctx.textAlign = 'left'
-  ctx.letterSpacing = '0px'
-  ctx.fillText('WWW.NABOGAMING.LIVE', PAD, footerY + 20)
+  ctx.letterSpacing = '0.02em'
+  ctx.fillText('NABOGAMING.LIVE', PAD, footerY + 20)
 
+  ctx.font = '700 13px system-ui, sans-serif'
+  ctx.fillStyle = INK_55
   ctx.textAlign = 'right'
+  ctx.letterSpacing = '0.06em'
   ctx.fillText(new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).toUpperCase(), W - PAD, footerY + 20)
 
-  ctx.fillStyle = accent
+  // Gradient accent strip instead of a flat block — softer, more premium
+  const barGrad = ctx.createLinearGradient(0, 0, W, 0)
+  barGrad.addColorStop(0, accent)
+  barGrad.addColorStop(1, 'rgba(10,10,15,0.85)')
+  ctx.fillStyle = barGrad
   ctx.fillRect(0, H - 10, W, 10)
 }
 
@@ -323,10 +372,10 @@ async function drawCard(canvas, { tournament, bracketData, participants, gameMet
 
   // Calculate Header Box Size
   let headerH = y
-  headerH += (logo?.naturalWidth > 0 ? 44 + 50 : 40) // Logo space
-  headerH += 32 // Subtitle
-  headerH += 90 // Main Title
-  headerH += 45 // Game Name
+  headerH += (logo?.naturalWidth > 0 ? 48 + 44 : 40) // Logo space
+  headerH += 46 // Kicker badge
+  headerH += 100 // Main Title
+  headerH += 44 // Game Name
   headerH += 86 // Stat Pills
   headerH += 40 // Divider spacing
   if (champion) headerH += 170 // Champion Podium space
@@ -494,17 +543,17 @@ async function drawStandingsCard(canvas, { tournament, groups, participants, gam
   ])
 
   let headerH = y
-  headerH += (logo?.naturalWidth > 0 ? 44 + 50 : 40)
-  headerH += 32
-  headerH += 90
-  headerH += 45
+  headerH += (logo?.naturalWidth > 0 ? 48 + 44 : 40)
+  headerH += 46
+  headerH += 100
+  headerH += 44
   headerH += 86
   headerH += 40
 
-  const ROW_H = 34
-  const TABLE_HEAD_H = 30
-  const GROUP_LABEL_H = 40
-  const GROUP_GAP = 28
+  const ROW_H = 44
+  const TABLE_HEAD_H = 34
+  const GROUP_LABEL_H = 48
+  const GROUP_GAP = 34
 
   const tablesH = allStandings.reduce((sum, { rows }) => {
     return sum + GROUP_LABEL_H + TABLE_HEAD_H + rows.length * ROW_H + GROUP_GAP
@@ -529,8 +578,9 @@ async function drawStandingsCard(canvas, { tournament, groups, participants, gam
   y = await drawHeader(ctx, { y, PAD, accent, kicker: 'GROUP STANDINGS', tournament, gameMeta, pills: stats, logo })
 
   const colW = W - PAD * 2
+  const POS_W = 46 // wider — now holds a medal badge, not just a bare digit
   const cols = [
-    { key: 'position', label: '#',   w: 34,  align: 'left'   },
+    { key: 'position', label: '#',   w: POS_W,  align: 'left'   },
     { key: 'name', label: 'PLAYER', w: null, align: 'left' },
     { key: 'played', label: 'P', w: 36, align: 'center' },
     { key: 'won',  label: 'W',  w: 36, align: 'center' },
@@ -539,51 +589,133 @@ async function drawStandingsCard(canvas, { tournament, groups, participants, gam
     { key: 'goalsFor', label: 'GF', w: 40, align: 'center' },
     { key: 'goalsAgainst', label: 'GA', w: 40, align: 'center' },
     { key: 'goalDiff', label: 'GD', w: 46, align: 'center' },
-    { key: 'points', label: 'PTS', w: 56, align: 'center' },
+    { key: 'points', label: 'PTS', w: 60, align: 'center' },
   ]
   const fixedW = cols.reduce((s, c) => s + (c.w || 0), 0)
   const nameW = colW - fixedW
+  const MEDAL = { 1: '#f5b700', 2: '#b0b7c3', 3: '#c67a3e' }
 
   allStandings.forEach(({ group, rows }) => {
-    ctx.font = '900 16px system-ui, sans-serif'
+    // Group label as a tinted pill badge — reads like a section chip in a
+    // real app rather than a plain caption.
+    ctx.font = '900 15px system-ui, sans-serif'
+    const gLabel = group.name.toUpperCase()
+    const gLabelW = ctx.measureText(gLabel).width + 30
+    rr(ctx, PAD, y, gLabelW, 32, 8)
+    ctx.fillStyle = INK_08
+    ctx.fill()
     ctx.fillStyle = INK
     ctx.textAlign = 'left'
-    ctx.fillText(group.name.toUpperCase(), PAD, y + 22)
+    ctx.fillText(gLabel, PAD + 15, y + 22)
     y += GROUP_LABEL_H
 
-    // Header row
+    // Header row sits on a faint tinted band so the table reads as one
+    // cohesive card rather than floating column labels.
+    rr(ctx, PAD, y, colW, TABLE_HEAD_H, 8)
+    ctx.fillStyle = INK_04
+    ctx.fill()
     let cx = PAD
-    ctx.font = '800 11px system-ui, sans-serif'
+    ctx.font = '900 11px system-ui, sans-serif'
     ctx.fillStyle = INK_55
+    ctx.letterSpacing = '0.04em'
     cols.forEach(c => {
       const w = c.key === 'name' ? nameW : c.w
       ctx.textAlign = c.align
-      const tx = c.align === 'left' ? cx : cx + w / 2
-      ctx.fillText(c.label, tx, y + TABLE_HEAD_H - 10)
+      const tx = c.align === 'left' ? cx + (c.key === 'position' ? 14 : c.key === 'name' ? 44 : 0) : cx + w / 2
+      ctx.fillText(c.label, tx, y + TABLE_HEAD_H / 2 + 4)
       cx += w
     })
-    y += TABLE_HEAD_H
+    ctx.letterSpacing = '0px'
+    y += TABLE_HEAD_H + 6
 
     rows.forEach((row, i) => {
-      rr(ctx, PAD, y, colW, ROW_H - 4, 4)
-      ctx.fillStyle = i % 2 === 0 ? INK_04 : 'rgba(10,10,15,0.015)'
+      const rowH = ROW_H - 6
+      const isTop3 = row.position <= 3
+
+      rr(ctx, PAD, y, colW, rowH, 8)
+      ctx.fillStyle = isTop3 ? 'rgba(10,10,15,0.045)' : (i % 2 === 0 ? INK_04 : 'rgba(10,10,15,0.015)')
       ctx.fill()
+      if (isTop3) {
+        ctx.strokeStyle = MEDAL[row.position]
+        ctx.lineWidth = 1.5
+        ctx.stroke()
+      }
 
       cx = PAD
-      ctx.font = '800 13px system-ui, sans-serif'
       cols.forEach(c => {
         const w = c.key === 'name' ? nameW : c.w
-        ctx.textAlign = c.align
-        const tx = c.align === 'left' ? cx + 8 : cx + w / 2
-        ctx.fillStyle = c.key === 'points' ? accent : INK
-        let val = row[c.key]
-        if (c.key === 'name') val = (row.name || '?').toUpperCase()
-        if (c.key === 'goalDiff') val = val > 0 ? `+${val}` : String(val)
-        if (c.key === 'name' && ctx.measureText(val).width > nameW - 16) {
-          while (ctx.measureText(val + '…').width > nameW - 16 && val.length > 1) val = val.slice(0, -1)
-          val += '…'
+        const centerY = y + rowH / 2
+
+        if (c.key === 'position') {
+          // Medal-colored circle badge for 1st–3rd, plain numeral otherwise
+          const bx = cx + 22
+          if (isTop3) {
+            ctx.beginPath()
+            ctx.arc(bx, centerY, 13, 0, Math.PI * 2)
+            ctx.fillStyle = MEDAL[row.position]
+            ctx.fill()
+            ctx.font = '900 13px system-ui, sans-serif'
+            ctx.fillStyle = '#0a0a0f'
+            ctx.textAlign = 'center'
+            ctx.fillText(String(row.position), bx, centerY + 5)
+          } else {
+            ctx.font = '800 13px system-ui, sans-serif'
+            ctx.fillStyle = INK_55
+            ctx.textAlign = 'center'
+            ctx.fillText(String(row.position), bx, centerY + 5)
+          }
+          cx += w
+          return
         }
-        ctx.fillText(String(val ?? 0), tx, y + (ROW_H - 4) / 2 + 5)
+
+        if (c.key === 'name') {
+          const rawName = (row.name || '?').toUpperCase()
+          const avR = 13
+          const avCX = cx + avR + 4
+          ctx.beginPath()
+          ctx.arc(avCX, centerY, avR, 0, Math.PI * 2)
+          ctx.fillStyle = isTop3 ? MEDAL[row.position] : INK_08
+          ctx.fill()
+          ctx.font = '800 10px system-ui, sans-serif'
+          ctx.fillStyle = isTop3 ? '#0a0a0f' : '#64748b'
+          ctx.textAlign = 'center'
+          ctx.fillText(rawName.slice(0, 2), avCX, centerY + 4)
+
+          let val = rawName
+          const textX = avCX + avR + 12
+          const maxW = nameW - (textX - cx) - 8
+          ctx.font = '800 13px system-ui, sans-serif'
+          if (ctx.measureText(val).width > maxW) {
+            while (ctx.measureText(val + '…').width > maxW && val.length > 1) val = val.slice(0, -1)
+            val += '…'
+          }
+          ctx.fillStyle = INK
+          ctx.textAlign = 'left'
+          ctx.fillText(val, textX, centerY + 5)
+          cx += w
+          return
+        }
+
+        ctx.textAlign = 'center'
+        const tx = cx + w / 2
+        let val = row[c.key]
+        if (c.key === 'goalDiff') val = val > 0 ? `+${val}` : String(val)
+
+        if (c.key === 'points') {
+          // Points get a filled pill instead of plain colored text — the
+          // single number readers scan for should pop off the row.
+          const pillW = 40, pillH = 26
+          rr(ctx, tx - pillW / 2, centerY - pillH / 2, pillW, pillH, 13)
+          ctx.fillStyle = accent
+          ctx.fill()
+          ctx.font = '900 13px system-ui, sans-serif'
+          ctx.fillStyle = '#000000'
+          ctx.fillText(String(val ?? 0), tx, centerY + 5)
+        } else {
+          ctx.font = '800 13px system-ui, sans-serif'
+          ctx.fillStyle = INK
+          ctx.fillText(String(val ?? 0), tx, centerY + 5)
+        }
         cx += w
       })
       y += ROW_H
