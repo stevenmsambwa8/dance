@@ -661,47 +661,91 @@ async function drawStandingsCard(canvas, { tournament, groups, participants, gam
     ctx.fillText(gLabel, PAD + 15, y + 22)
     y += GROUP_LABEL_H
 
-    // Header row sits on a faint tinted band so the table reads as one
-    // cohesive card rather than floating column labels.
-    rr(ctx, PAD, y, colW, TABLE_HEAD_H, 8)
+    // Precompute each column's left edge once so the header labels, the
+    // vertical grid lines, and every row's cells all line up exactly.
+    let colX = PAD
+    const colEdges = cols.map(c => {
+      const w = c.key === 'name' ? nameW : c.w
+      const edge = { key: c.key, x: colX, w }
+      colX += w
+      return edge
+    })
+
+    const bodyH = rows.length * ROW_H
+    const tableTop = y
+    const tableH = TABLE_HEAD_H + bodyH
+
+    // One bordered container for the whole table — a real grid instead of
+    // a stack of separately-rounded, differently-stroked boxes.
+    rr(ctx, PAD, tableTop, colW, tableH, 10)
     ctx.fillStyle = INK_04
     ctx.fill()
-    let cx = PAD
+    ctx.strokeStyle = INK_15
+    ctx.lineWidth = 1.5
+    ctx.stroke()
+
+    // Header row labels
     ctx.font = '900 11px system-ui, sans-serif'
     ctx.fillStyle = INK_55
     ctx.letterSpacing = '0.04em'
-    cols.forEach(c => {
-      const w = c.key === 'name' ? nameW : c.w
+    cols.forEach((c, ci) => {
+      const edge = colEdges[ci]
       ctx.textAlign = c.align
-      const tx = c.align === 'left' ? cx + (c.key === 'position' ? 14 : c.key === 'name' ? 44 : 0) : cx + w / 2
-      ctx.fillText(c.label, tx, y + TABLE_HEAD_H / 2 + 4)
-      cx += w
+      const tx = c.align === 'left' ? edge.x + (c.key === 'position' ? 14 : c.key === 'name' ? 44 : 0) : edge.x + edge.w / 2
+      ctx.fillText(c.label, tx, tableTop + TABLE_HEAD_H / 2 + 4)
     })
     ctx.letterSpacing = '0px'
-    y += TABLE_HEAD_H + 6
+
+    // Divider under the header
+    ctx.strokeStyle = INK_15
+    ctx.lineWidth = 1.5
+    ctx.beginPath()
+    ctx.moveTo(PAD, tableTop + TABLE_HEAD_H)
+    ctx.lineTo(PAD + colW, tableTop + TABLE_HEAD_H)
+    ctx.stroke()
+
+    // Vertical column grid lines running the full height of the table
+    ctx.strokeStyle = INK_15
+    ctx.lineWidth = 1
+    colEdges.slice(1).forEach(edge => {
+      ctx.beginPath()
+      ctx.moveTo(edge.x, tableTop)
+      ctx.lineTo(edge.x, tableTop + tableH)
+      ctx.stroke()
+    })
+
+    y = tableTop + TABLE_HEAD_H
 
     rows.forEach((row, i) => {
-      const rowH = ROW_H - 6
+      const rowTop = y
       const isTop3 = row.position <= 3
+      const centerY = rowTop + ROW_H / 2
 
-      rr(ctx, PAD, y, colW, rowH, 8)
-      ctx.fillStyle = isTop3 ? 'rgba(244,245,248,0.055)' : (i % 2 === 0 ? INK_04 : 'rgba(244,245,248,0.02)')
-      ctx.fill()
-      ctx.save()
-      ctx.strokeStyle = isTop3 ? MEDAL[row.position] : accent
-      ctx.lineWidth = 1.5
-      ctx.globalAlpha = isTop3 ? 1 : 0.25
-      ctx.stroke()
-      ctx.restore()
+      // Zebra tint, flush with the shared container (no per-row rounding
+      // or stroke — the grid lines above already do that job).
+      if (i % 2 === 1) {
+        ctx.fillStyle = 'rgba(244,245,248,0.02)'
+        ctx.fillRect(PAD, rowTop, colW, ROW_H)
+      }
+      // Row divider
+      if (i > 0) {
+        ctx.strokeStyle = INK_15
+        ctx.lineWidth = 1
+        ctx.beginPath(); ctx.moveTo(PAD, rowTop); ctx.lineTo(PAD + colW, rowTop); ctx.stroke()
+      }
+      // Subtle medal-colored tab on the left edge for top 3 — a highlight,
+      // not a box drawn around the whole row.
+      if (isTop3) {
+        ctx.fillStyle = MEDAL[row.position]
+        ctx.fillRect(PAD, rowTop + 4, 4, ROW_H - 8)
+      }
 
-      cx = PAD
-      cols.forEach(c => {
-        const w = c.key === 'name' ? nameW : c.w
-        const centerY = y + rowH / 2
+      cols.forEach((c, ci) => {
+        const edge = colEdges[ci]
+        const cx2 = edge.x, w = edge.w
 
         if (c.key === 'position') {
-          // Medal-colored circle badge for 1st–3rd, plain numeral otherwise
-          const bx = cx + 22
+          const bx = cx2 + 22
           if (isTop3) {
             ctx.beginPath()
             ctx.arc(bx, centerY, 13, 0, Math.PI * 2)
@@ -717,30 +761,22 @@ async function drawStandingsCard(canvas, { tournament, groups, participants, gam
             ctx.textAlign = 'center'
             ctx.fillText(String(row.position), bx, centerY + 5)
           }
-          cx += w
           return
         }
 
         if (c.key === 'name') {
           const rawName = (row.name || '?').toUpperCase()
           const avR = 13
-          const avCX = cx + avR + 4
+          const avCX = cx2 + avR + 4
           const avImg = row.avatar ? avatarMap.get(row.avatar) : null
           drawAvatarCircle(
             ctx, avCX, centerY, avR, avImg,
             rawName.slice(0, 2), isTop3 ? MEDAL[row.position] : INK_08, isTop3 ? '#0a0a0f' : '#94a3b8'
           )
-          if (isTop3) {
-            ctx.beginPath()
-            ctx.arc(avCX, centerY, avR, 0, Math.PI * 2)
-            ctx.strokeStyle = MEDAL[row.position]
-            ctx.lineWidth = 1.5
-            ctx.stroke()
-          }
 
           let val = rawName
           const textX = avCX + avR + 12
-          const maxW = nameW - (textX - cx) - 8
+          const maxW = nameW - (textX - cx2) - 8
           ctx.font = '800 13px system-ui, sans-serif'
           if (ctx.measureText(val).width > maxW) {
             while (ctx.measureText(val + '…').width > maxW && val.length > 1) val = val.slice(0, -1)
@@ -749,12 +785,11 @@ async function drawStandingsCard(canvas, { tournament, groups, participants, gam
           ctx.fillStyle = INK
           ctx.textAlign = 'left'
           ctx.fillText(val, textX, centerY + 5)
-          cx += w
           return
         }
 
         ctx.textAlign = 'center'
-        const tx = cx + w / 2
+        const tx = cx2 + w / 2
         let val = row[c.key]
         if (c.key === 'goalDiff') val = val > 0 ? `+${val}` : String(val)
 
@@ -773,7 +808,6 @@ async function drawStandingsCard(canvas, { tournament, groups, participants, gam
           ctx.fillStyle = INK
           ctx.fillText(String(val ?? 0), tx, centerY + 5)
         }
-        cx += w
       })
       y += ROW_H
     })
