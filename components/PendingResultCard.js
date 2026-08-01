@@ -5,17 +5,49 @@ import Link from 'next/link'
 import { useAuth } from './AuthProvider'
 import { supabase } from '../lib/supabase'
 import { fetchPendingSubmissions } from '../lib/pendingSubmissions'
+import { submitGroupFixtureResult, submitKnockoutResult } from '../lib/resultSubmission'
 import styles from './PendingResultCard.module.css'
 
 /**
  * A single nudge card for one pending fixture. The user's own avatar is
  * used as the background image — faded and darkened with a bottom-up
  * black gradient overlay so the text on top always stays readable.
+ *
+ * Tapping "Submit Proof" no longer redirects to the tournament — it opens
+ * a compact inline form (your score / opponent's score + optional proof
+ * screenshot) right on the card, and submits straight from here. The
+ * tournament name itself is still a link, for anyone who wants full
+ * bracket context before scoring.
  */
-function Card({ item, avatarUrl, compact }) {
+export function PendingResultCard({ item, avatarUrl, compact, userId, onResolved }) {
   const opponent = item.opponentName || 'your opponent'
+  const [open, setOpen] = useState(false)
+  const [mine, setMine] = useState('')
+  const [opp, setOpp] = useState('')
+  const [file, setFile] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [result, setResult] = useState(null) // { status, message }
+
+  async function handleSubmit() {
+    if (saving || mine === '' || opp === '') return
+    setSaving(true)
+    setResult(null)
+
+    const payload = { tournamentId: item.tournamentId, userId, mine, opp, file }
+    const res = item.kind === 'group'
+      ? await submitGroupFixtureResult({ ...payload, groupId: item.groupId, fixtureId: item.fixtureId })
+      : await submitKnockoutResult({ ...payload, rIdx: item.rIdx, pIdx: item.pIdx, mySlotIdx: item.mySlotIdx })
+
+    setSaving(false)
+    setResult(res)
+
+    if (res.status === 'confirmed' || res.status === 'submitted' || res.status === 'disputed') {
+      setTimeout(() => onResolved?.(item), 1400)
+    }
+  }
+
   return (
-    <Link href={`/tournaments/${item.tournamentSlug}`} className={styles.card}>
+    <div className={styles.card}>
       {avatarUrl ? (
         <div className={styles.bg} style={{ backgroundImage: `url(${avatarUrl})` }} />
       ) : (
@@ -24,16 +56,95 @@ function Card({ item, avatarUrl, compact }) {
       <div className={styles.overlay} />
       <div className={`${styles.content} ${compact ? styles.contentCompact : ''}`}>
         <span className={styles.badge}><i className="ri-time-line" /> Result Needed</span>
-        <div className={`${styles.title} ${compact ? styles.titleCompact : ''}`}>{item.tournamentName}</div>
+        <Link href={`/tournaments/${item.tournamentSlug}`} className={`${styles.title} ${compact ? styles.titleCompact : ''}`}>
+          {item.tournamentName}
+        </Link>
         <div className={`${styles.sub} ${compact ? styles.subCompact : ''}`}>vs {opponent} — submit your score to confirm</div>
-        <div className={styles.row}>
-          <span className={`${styles.cta} ${compact ? styles.ctaCompact : ''}`}>
-            <i className="ri-upload-2-line" /> Submit Proof
-          </span>
-        </div>
+
+        {!open && !result && (
+          <div className={styles.row}>
+            <button type="button" className={`${styles.cta} ${compact ? styles.ctaCompact : ''}`} onClick={() => setOpen(true)}>
+              <i className="ri-upload-2-line" /> Submit Proof
+            </button>
+          </div>
+        )}
+
+        {open && !result && (
+          <div className={styles.form}>
+            <div className={styles.scoreRow}>
+              <span className={styles.scoreLabel}>You</span>
+              <input
+                type="text" inputMode="numeric" value={mine} placeholder="0"
+                onChange={e => setMine(e.target.value.replace(/[^0-9]/g, ''))}
+                className={styles.scoreInput}
+              />
+              <span className={styles.scoreDash}>–</span>
+              <input
+                type="text" inputMode="numeric" value={opp} placeholder="0"
+                onChange={e => setOpp(e.target.value.replace(/[^0-9]/g, ''))}
+                className={styles.scoreInput}
+              />
+              <span className={styles.scoreLabel}>{opponent.length > 10 ? opponent.slice(0, 10) + '…' : opponent}</span>
+            </div>
+            <label className={styles.fileLabel}>
+              <i className="ri-image-add-line" />
+              <span>{file ? file.name : 'Attach proof screenshot (optional)'}</span>
+              <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => setFile(e.target.files?.[0] || null)} />
+            </label>
+            <div className={styles.formActions}>
+              <button type="button" className={styles.cancelBtn} onClick={() => { setOpen(false); setMine(''); setOpp(''); setFile(null) }}>
+                Cancel
+              </button>
+              <button
+                type="button" className={styles.submitBtn}
+                disabled={saving || mine === '' || opp === ''}
+                onClick={handleSubmit}
+              >
+                {saving ? 'Submitting…' : 'Submit'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {result && (
+          <div className={`${styles.resultMsg} ${styles[`resultMsg_${result.status}`] || ''}`}>
+            <i className={result.status === 'error' || result.status === 'tied' ? 'ri-error-warning-line' : 'ri-checkbox-circle-line'} />
+            <span>{result.message}</span>
+            {(result.status === 'error' || result.status === 'tied') && (
+              <button type="button" className={styles.retryBtn} onClick={() => { setResult(null); setOpen(true) }}>Try again</button>
+            )}
+          </div>
+        )}
       </div>
-    </Link>
+    </div>
   )
+}
+
+/**
+ * Loads the logged-in user's pending-result items. Shared by the stack
+ * widget below and by any page (like the tournament listing) that wants
+ * to place individual cards itself instead of stacking them.
+ */
+export function usePendingResultItems(limit = 5, onlyTournamentId = null) {
+  const { user, profile } = useAuth()
+  const [items, setItems] = useState([])
+
+  useEffect(() => {
+    let cancelled = false
+    if (!user) { setItems([]); return }
+    fetchPendingSubmissions(supabase, user.id, onlyTournamentId ? 20 : limit).then(all => {
+      if (cancelled) return
+      const filtered = onlyTournamentId ? all.filter(i => i.tournamentId === onlyTournamentId) : all
+      setItems(filtered.slice(0, limit))
+    })
+    return () => { cancelled = true }
+  }, [user, onlyTournamentId, limit])
+
+  function resolve(resolvedItem) {
+    setItems(prev => prev.filter(i => i !== resolvedItem))
+  }
+
+  return { items, userId: user?.id, avatarUrl: profile?.avatar_url, resolve }
 }
 
 /**
@@ -50,30 +161,20 @@ function Card({ item, avatarUrl, compact }) {
  *                      the card only nudges about THIS tournament)
  */
 export default function PendingResultCards({ limit = 1, compact = false, onlyTournamentId = null, className = '' }) {
-  const { user, profile } = useAuth()
-  const [items, setItems] = useState([])
-
-  useEffect(() => {
-    let cancelled = false
-    if (!user) { setItems([]); return }
-    fetchPendingSubmissions(supabase, user.id, onlyTournamentId ? 20 : limit).then(all => {
-      if (cancelled) return
-      const filtered = onlyTournamentId ? all.filter(i => i.tournamentId === onlyTournamentId) : all
-      setItems(filtered.slice(0, limit))
-    })
-    return () => { cancelled = true }
-  }, [user, onlyTournamentId, limit])
+  const { items, userId, avatarUrl, resolve } = usePendingResultItems(limit, onlyTournamentId)
 
   if (!items.length) return null
 
   return (
     <div className={`${styles.stack} ${className}`}>
       {items.map(item => (
-        <Card
+        <PendingResultCard
           key={`${item.tournamentId}-${item.kind}-${item.fixtureId ?? `${item.rIdx}-${item.pIdx}`}`}
           item={item}
-          avatarUrl={profile?.avatar_url}
+          avatarUrl={avatarUrl}
           compact={compact}
+          userId={userId}
+          onResolved={resolve}
         />
       ))}
     </div>

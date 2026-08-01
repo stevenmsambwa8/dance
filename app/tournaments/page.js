@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '../../components/AuthProvider'
@@ -12,7 +12,7 @@ import { GAME_SLUGS, GAME_META } from '../../lib/constants'
 import { getCurrentSeason } from '../../lib/seasons'
 import { getActivePlan } from '../../lib/plans'
 import useTranslation from '../../lib/useTranslation'
-import PendingResultCards from '../../components/PendingResultCard'
+import { PendingResultCard, usePendingResultItems } from '../../components/PendingResultCard'
 
 function parsePrize(raw) {
   if (!raw) return null
@@ -218,6 +218,26 @@ export default function Tournaments() {
   const [statusModal, setStatusModal] = useState(null)
   const [limitModal,  setLimitModal]  = useState(false)
 
+  // ── Pending "submit your result" nudge cards, sprinkled into the list
+  // (not pinned to the top) — roughly one card per block of 4 tournaments,
+  // landing at a random spot inside each block so it doesn't feel scripted.
+  const { items: pendingItems, userId: pendingUserId, avatarUrl: pendingAvatarUrl, resolve: resolvePending } = usePendingResultItems(6)
+  const pendingInsertMap = useMemo(() => {
+    const map = {}
+    if (!pendingItems.length || tournaments.length < 2) return map
+    let start = 0, pi = 0
+    while (start < tournaments.length && pi < pendingItems.length) {
+      const blockSize = Math.min(4, tournaments.length - start)
+      const idx = start + Math.floor(Math.random() * blockSize)
+      map[idx] = pendingItems[pi]
+      pi += 1
+      start += 4
+    }
+    return map
+    // Only reshuffle when the counts actually change, not on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tournaments.length, pendingItems.length])
+
   useEffect(() => { loadTournaments() }, [filter])
 
   useEffect(() => {
@@ -327,8 +347,6 @@ export default function Tournaments() {
         )}
       </div>
 
-      {user && <PendingResultCards limit={1} compact />}
-
       {showQuota && (
         <div className={styles.quotaBar}>
           <i className="ri-information-line" />
@@ -364,7 +382,7 @@ export default function Tournaments() {
 
       {!loading && tournaments.length > 0 && (
         <div className={styles.list}>
-          {tournaments.map(tour => {
+          {tournaments.map((tour, i) => {
             const pct       = fillPct(tour)
             const isFull    = (tour.registered_count || 0) >= tour.slots
             const isReg     = registered[tour.id]
@@ -374,8 +392,20 @@ export default function Tournaments() {
             const isActive  = tour.status === 'active'
             const isOngoing = tour.status === 'ongoing'
 
+            const pendingItem = pendingInsertMap[i]
+
             return (
-              <div key={tour.id} className={styles.card}
+              <div key={tour.id} style={{ display: 'contents' }}>
+              {pendingItem && (
+                <PendingResultCard
+                  item={pendingItem}
+                  avatarUrl={pendingAvatarUrl}
+                  compact
+                  userId={pendingUserId}
+                  onResolved={resolvePending}
+                />
+              )}
+              <div className={styles.card}
                 onClick={() => router.push(`/tournaments/${tour.slug || tour.id}`)}>
 
                 <div className={styles.cardBanner}>
@@ -450,6 +480,7 @@ export default function Tournaments() {
                     <i className="ri-arrow-right-s-line" style={{ color: 'var(--text-muted)', fontSize: 18 }} />
                   </div>
                 </div>
+              </div>
               </div>
             )
           })}

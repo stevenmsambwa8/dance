@@ -121,3 +121,165 @@
   flex-direction: column;
   gap: 10px;
 }
+
+.title {
+  text-decoration: none;
+  width: fit-content;
+}
+
+/* ── Inline submit form ─────────────────────────────────────────────── */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.scoreRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.scoreLabel {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 10.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scoreLabel:first-child {
+  flex: 1;
+  text-align: right;
+}
+
+.scoreLabel:last-child {
+  flex: 1;
+}
+
+.scoreInput {
+  width: 40px;
+  padding: 6px 4px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.scoreInput:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.scoreDash {
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.fileLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  border: 1px dashed rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.fileLabel span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.formActions {
+  display: flex;
+  gap: 8px;
+}
+
+.cancelBtn {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.submitBtn {
+  flex: 2;
+  padding: 8px 10px;
+  border-radius: 9px;
+  border: none;
+  background: #fff;
+  color: #111;
+  font-size: 11.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.submitBtn:disabled {
+  background: rgba(255, 255, 255, 0.3);
+  color: rgba(0, 0, 0, 0.5);
+  cursor: not-allowed;
+}
+
+/* ── Result message ─────────────────────────────────────────────────── */
+
+.resultMsg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.resultMsg_confirmed {
+  background: rgba(34, 197, 94, 0.18);
+  color: #86efac;
+}
+
+.resultMsg_submitted {
+  background: rgba(59, 130, 246, 0.18);
+  color: #93c5fd;
+}
+
+.resultMsg_disputed,
+.resultMsg_tied,
+.resultMsg_error {
+  background: rgba(239, 68, 68, 0.18);
+  color: #fca5a5;
+}
+
+.retryBtn {
+  margin-left: auto;
+  padding: 4px 9px;
+  border-radius: 7px;
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  font-size: 10.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
