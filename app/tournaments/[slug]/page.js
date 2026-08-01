@@ -16,7 +16,7 @@ import UpgradeModal from '../../../components/UpgradeModal'
 import BracketShareModal from '../../../components/BracketShareModal'
 import Modal from '../../../components/Modal'
 import MarqueeText from '../../../components/MarqueeText'
-import { computeStandings, buildGroups, addMemberToGroup } from '../../../lib/groupStage'
+import { computeStandings, buildGroups, addMemberToGroup, isGroupStageComplete, getQualifiers } from '../../../lib/groupStage'
 import { awardJoinBonus, maybeAwardFullSlotsBonus } from '../../../lib/tournamentBonus'
 import { parseBRData, computeBRStandings, unitizeParticipants, addOrUpdateMatch, removeMatch as removeBRMatch, isBRComplete, buildEmptyBRBracket } from '../../../lib/brPoints'
 import useTranslation from '../../../lib/useTranslation'
@@ -491,6 +491,17 @@ export default function TournamentDetail() {
   // scoreMap[`${rIdx}-${pIdx}`] = { a: string, b: string }
   const [scoreMap, setScoreMap]       = useState({})
   const [scoreSaving, setScoreSaving] = useState(null)  // key being saved
+
+  // ── Player self-reported results ──────────────────────────────────────
+  // Group/league fixtures: which fixture card has its submit form open,
+  // the draft values in it, and which fixture id is currently saving.
+  const [fixtureSubmitOpenId, setFixtureSubmitOpenId] = useState(null)
+  const [fixtureSubmitDraft, setFixtureSubmitDraft]   = useState({}) // { [fixtureId]: { home, away, file } }
+  const [fixtureSubmitSaving, setFixtureSubmitSaving] = useState(null)
+  // Knockout matches: same idea, keyed by `${rIdx}-${pIdx}`.
+  const [koSubmitOpenKey, setKoSubmitOpenKey] = useState(null)
+  const [koSubmitDraft, setKoSubmitDraft]     = useState({}) // { [key]: { mine, opp, file } }
+  const [koSubmitSaving, setKoSubmitSaving]   = useState(null)
 
   // ── Entrance fee payment ──────────────────────────────────────────────────
   const [paymentStatus, setPaymentStatus] = useState(null)
@@ -2095,8 +2106,8 @@ export default function TournamentDetail() {
 
   // ── Admin: set slot status (pass / eliminate / DQ) ────────────────────────
 
-  async function adminSetSlotStatus(rIdx, pIdx, slotIdx, status) {
-    if (!await verifyCanManage()) return
+  async function adminSetSlotStatus(rIdx, pIdx, slotIdx, status, opts = {}) {
+    if (!opts.skipAuth && !await verifyCanManage()) return
     const loserIdx = slotIdx === 0 ? 1 : 0
 
     // Always read fresh from DB to avoid stale-state overwrite bugs
@@ -2855,6 +2866,235 @@ export default function TournamentDetail() {
     setBracketData(newBd)
     setScoreSaving(null)
   }
+  // ── Player self-reported results — group / league fixtures ─────────────
+  // Mirrors the points math in manage/page.js's saveFixtureScore, but is
+  // triggered by a participant confirming a result instead of an admin
+  // typing it in. A fixture only becomes 'played' once BOTH sides' reports
+  // agree; a mismatch is flagged as disputed for the organiser to resolve.
+  function resolveMemberUserIds(member) {
+    if (!member) return []
+    if (member.players?.length) return member.players.map(p => p.userId).filter(Boolean)
+    return member.id ? [member.id] : []
+  }
+
+  function myFixtureSide(group, fx, uid) {
+    if (!uid || !group) return null
+    const home = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.homeId)
+    const away = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.awayId)
+    const inSide = m => m && resolveMemberUserIds(m).includes(uid)
+    if (inSide(home)) return 'home'
+    if (inSide(away)) return 'away'
+    return null
+  }
+
+  async function uploadMatchProof(file, tag) {
+    if (!file) return null
+    const path = `match-proofs/${id}/${tag}_${Date.now()}.${file.name.split('.').pop() || 'jpg'}`
+    const { error: upErr } = await supabase.storage.from('public').upload(path, file)
+    if (upErr) return null
+    const { data: pub } = supabase.storage.from('public').getPublicUrl(path)
+    return pub.publicUrl
+  }
+
+  // Builds the knockout bracket from completed groups — same behaviour as
+  // manage/page.js's autoBuildKnockout, duplicated here so it can fire the
+  // moment a PLAYER's confirmed submission completes the group stage.
+  async function autoBuildKnockout(freshBd) {
+    if (!freshBd?.groups) return null
+    if (!isGroupStageComplete(freshBd.groups)) return null
+    if (freshBd.stage === 'knockout') return null
+
+    const teamSize = tournament?.team_size || 1
+    const advancePerGroup = freshBd.advancePerGroup || tournament?.advance_per_group || 2
+    const qualifiers = getQualifiers(freshBd.groups, advancePerGroup)
+    if (qualifiers.length < 2) return null
+
+    const knockout = buildBracket(qualifiers, teamSize)
+    const merged = { ...freshBd, stage: 'knockout', ...knockout }
+    const { error } = await supabase.from('tournaments').update({ bracket_data: merged }).eq('id', id)
+    if (error) return null
+    setBracketData(merged)
+    showToast(t('tournaments.groupStageCompleteAutoKnockout'), 'success')
+    const notifs = participants.filter(p => p.user_id).map(p => ({
+      user_id: p.user_id, title: `Knockout stage begins — ${tournament.name}`,
+      body: 'Groups are done — check the bracket to see if you advanced!',
+      type: 'tournament', meta: { tournament_id: id }, read: false,
+    }))
+    if (notifs.length) await supabase.from('notifications').insert(notifs)
+    return merged
+  }
+
+  // Locks in final standings once every league fixture is played — same
+  // behaviour as manage/page.js's finalizeLeague.
+  async function finalizeLeague(freshBd) {
+    if (!freshBd?.groups?.[0]) return null
+    if (!isGroupStageComplete(freshBd.groups)) return null
+    if (freshBd.stage === 'complete') return null
+
+    const table = freshBd.groups[0]
+    const podium = freshBd.advancePerGroup || tournament?.advance_per_group || 3
+    const standings = computeStandings(table)
+    const winners = standings.slice(0, podium).map(row => ({ id: row.id, name: row.name, points: row.points, position: row.position }))
+    if (!winners.length) return null
+
+    const merged = { ...freshBd, stage: 'complete', winners, podium }
+    const { error } = await supabase.from('tournaments').update({ bracket_data: merged, status: 'completed' }).eq('id', id)
+    if (error) return null
+    setBracketData(merged)
+    setTournament(tt => ({ ...tt, status: 'completed' }))
+    showToast('League complete — champions decided! 🏆', 'success')
+
+    const BONUS_BY_POSITION = { 1: 30, 2: 20, 3: 10 }
+    await Promise.all(winners.flatMap(w => {
+      const member = table.members.find(m => (m.id ?? m.userId ?? m.teamId) === w.id)
+      const bonus = BONUS_BY_POSITION[w.position] || 5
+      return resolveMemberUserIds(member).map(uid => awardBracketPoints(uid, bonus))
+    }))
+    const champion = winners.find(w => w.position === 1)
+    if (champion) {
+      const champMember = table.members.find(m => (m.id ?? m.userId ?? m.teamId) === champion.id)
+      await Promise.all(resolveMemberUserIds(champMember).map(uid => supabase.from('profiles').update({ is_season_winner: true }).eq('id', uid)))
+    }
+
+    const winnerIds = new Set(winners.flatMap(w => resolveMemberUserIds(table.members.find(m => (m.id ?? m.userId ?? m.teamId) === w.id))))
+    const notifs = participants.filter(p => p.user_id).map(p => {
+      const isWinner = winnerIds.has(p.user_id)
+      const rank = winners.find(w => resolveMemberUserIds(table.members.find(m => (m.id ?? m.userId ?? m.teamId) === w.id)).includes(p.user_id))?.position
+      return {
+        user_id: p.user_id,
+        title: isWinner ? `You finished #${rank} — ${tournament.name}` : `League complete — ${tournament.name}`,
+        body: isWinner ? `Congrats — you finished #${rank} on the table! Check your wallet for bonus pts.` : 'All fixtures are played. Check the final table!',
+        type: isWinner ? 'tournament_champion' : 'tournament', meta: { tournament_id: id }, read: false,
+      }
+    })
+    if (notifs.length) await supabase.from('notifications').insert(notifs)
+    return merged
+  }
+
+  // Called when a participant taps "Submit Result" on a fixture they're in.
+  async function submitFixtureResult(groupId, fixtureId) {
+    if (!user) { openAuthGate?.(); return }
+    const draft = fixtureSubmitDraft[fixtureId]
+    if (!draft || draft.home === '' || draft.away === '') return
+    setFixtureSubmitSaving(fixtureId)
+
+    const proofUrl = await uploadMatchProof(draft.file, `${fixtureId}_${user.id}`)
+
+    const { data: freshT } = await supabase.from('tournaments').select('bracket_data').eq('id', id).single()
+    const freshBd = parseBracketData(freshT?.bracket_data) ?? bracketData
+    const group = freshBd?.groups?.find(g => g.id === groupId)
+    const fixture = group?.fixtures.find(fx => fx.id === fixtureId)
+    if (!group || !fixture) { setFixtureSubmitSaving(null); return }
+
+    const side = myFixtureSide(group, fixture, user.id)
+    if (!side) { setFixtureSubmitSaving(null); showToast('You are not in this fixture.', 'error'); return }
+    if (fixture.status === 'played') { setFixtureSubmitSaving(null); showToast('This fixture is already scored.', 'error'); return }
+
+    const mine = { home: Number(draft.home), away: Number(draft.away), by: user.id, at: new Date().toISOString(), proofUrl }
+    const otherSide = side === 'home' ? 'away' : 'home'
+    const existingSubs = fixture.submissions || {}
+    const other = existingSubs[otherSide]
+    const newSubs = { ...existingSubs, [side]: mine }
+
+    const agree = other && other.home === mine.home && other.away === mine.away
+    const updatedFixture = agree
+      ? { ...fixture, scoreHome: mine.home, scoreAway: mine.away, status: 'played', submissions: newSubs, disputed: false }
+      : { ...fixture, submissions: newSubs, disputed: !!other }
+
+    const newGroups = freshBd.groups.map(g => g.id !== groupId ? g : { ...g, fixtures: g.fixtures.map(fx => fx.id !== fixtureId ? fx : updatedFixture) })
+    let newBd = { ...freshBd, groups: newGroups }
+    await supabase.from('tournaments').update({ bracket_data: newBd }).eq('id', id)
+    setBracketData(newBd)
+
+    if (agree) {
+      const homeMember = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fixture.homeId)
+      const awayMember = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fixture.awayId)
+      const homePts = mine.home > mine.away ? 3 : mine.home === mine.away ? 1 : 0
+      const awayPts = mine.away > mine.home ? 3 : mine.away === mine.home ? 1 : 0
+      await Promise.all([
+        ...resolveMemberUserIds(homeMember).map(uid => awardBracketPoints(uid, homePts)),
+        ...resolveMemberUserIds(awayMember).map(uid => awardBracketPoints(uid, awayPts)),
+      ])
+      if (isGroupStageComplete(newGroups)) {
+        if (tournament?.stage_format === 'league') {
+          const finalized = await finalizeLeague(newBd)
+          if (finalized) newBd = finalized
+        } else {
+          const merged = await autoBuildKnockout(newBd)
+          if (merged) newBd = merged
+        }
+      }
+      showToast('Result confirmed — both sides matched!', 'success')
+    } else if (other) {
+      showToast("Scores don't match your opponent's submission — flagged for the organiser to review.", 'error')
+    } else {
+      showToast('Result submitted — waiting for your opponent to confirm.', 'success')
+    }
+    setFixtureSubmitDraft(d => ({ ...d, [fixtureId]: undefined }))
+    setFixtureSubmitOpenId(null)
+    setFixtureSubmitSaving(null)
+    refreshLeaderboard()
+  }
+
+  // ── Player self-reported results — knockout matches ─────────────────────
+  // Each side's proposed score is stored on their own slot as
+  // `pendingSubmission: { a, b, at, proofUrl }` (a = slot0's score, b =
+  // slot1's score, from that submitter's perspective). Once both slots'
+  // pendingSubmission values agree, the higher score's slot is advanced
+  // exactly the way an admin tapping "wins" would (adminSetSlotStatus,
+  // called with skipAuth so a plain participant can trigger it here).
+  async function submitKnockoutResult(rIdx, pIdx, mySlotIdx) {
+    if (!user) { openAuthGate?.(); return }
+    const key = `${rIdx}-${pIdx}`
+    const draft = koSubmitDraft[key]
+    if (!draft || draft.mine === '' || draft.opp === '') return
+    setKoSubmitSaving(key)
+
+    const proofUrl = await uploadMatchProof(draft.file, `${key}_${user.id}`)
+
+    const { data: freshT } = await supabase.from('tournaments').select('bracket_data').eq('id', id).single()
+    const freshBd = parseBracketData(freshT?.bracket_data) ?? bracketData
+    const pair = freshBd?.rounds?.[rIdx]?.[pIdx]
+    if (!pair) { setKoSubmitSaving(null); return }
+    const mySlot = pair[mySlotIdx]
+    const oppSlotIdx = mySlotIdx === 0 ? 1 : 0
+    const oppSlot = pair[oppSlotIdx]
+    if (mySlot?.userId !== user.id) { setKoSubmitSaving(null); showToast('You are not in this match.', 'error'); return }
+    if (mySlot?.status === 'winner' || oppSlot?.status === 'winner') { setKoSubmitSaving(null); showToast('This match is already decided.', 'error'); return }
+
+    // Normalise to slot-0/slot-1 perspective regardless of which side "I" am.
+    const a = mySlotIdx === 0 ? Number(draft.mine) : Number(draft.opp)
+    const b = mySlotIdx === 0 ? Number(draft.opp) : Number(draft.mine)
+    const mine = { a, b, by: user.id, at: new Date().toISOString(), proofUrl }
+    const oppSubmission = oppSlot?.pendingSubmission
+
+    const newPair = pair.map((s, si) => si === mySlotIdx ? { ...s, pendingSubmission: mine } : s)
+    const agree = oppSubmission && oppSubmission.a === mine.a && oppSubmission.b === mine.b
+    const disputed = !!oppSubmission && !agree
+
+    const newRounds = freshBd.rounds.map((r, ri) => ri !== rIdx ? r : r.map((p, pi) => pi !== pIdx ? p : newPair.map(s => ({ ...s, disputed }))))
+    const newBd = { ...freshBd, rounds: newRounds }
+    await supabase.from('tournaments').update({ bracket_data: newBd }).eq('id', id)
+    setBracketData(newBd)
+
+    if (agree) {
+      if (a === b) {
+        showToast('Scores are tied — the organiser needs to resolve this one.', 'error')
+      } else {
+        const winnerSlotIdx = a > b ? 0 : 1
+        await adminSetSlotStatus(rIdx, pIdx, winnerSlotIdx, 'winner', { skipAuth: true })
+        showToast('Result confirmed — both sides matched!', 'success')
+      }
+    } else if (oppSubmission) {
+      showToast("Scores don't match your opponent's submission — flagged for the organiser to review.", 'error')
+    } else {
+      showToast('Result submitted — waiting for your opponent to confirm.', 'success')
+    }
+    setKoSubmitDraft(d => ({ ...d, [key]: undefined }))
+    setKoSubmitOpenKey(null)
+    setKoSubmitSaving(null)
+  }
+
   const canManage = isAdmin || (user && tournament?.created_by === user.id)
   const isOwnTournament = !isAdmin && !!(user && tournament?.created_by === user.id)
 
@@ -3497,17 +3737,73 @@ export default function TournamentDetail() {
                           const home = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.homeId)
                           const away = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.awayId)
                           const played = fx.status === 'played'
+                          const mySide = user ? myFixtureSide(group, fx, user.id) : null
+                          const mySubmission = mySide ? fx.submissions?.[mySide] : null
+                          const oppSubmission = mySide ? fx.submissions?.[mySide === 'home' ? 'away' : 'home'] : null
+                          const formOpen = fixtureSubmitOpenId === fx.id
+                          const draft = fixtureSubmitDraft[fx.id] || { home: '', away: '', file: null }
+                          const saving = fixtureSubmitSaving === fx.id
                           return (
-                            <div key={fx.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', fontSize: 12, borderBottom: '1px solid var(--border)' }}>
-                              <span style={{ flex: 1, minWidth: 0, textAlign: 'right', fontWeight: played ? 400 : 700, color: played ? 'var(--text)' : 'var(--text-muted)' }}>
-                                <MarqueeText text={home?.name || '?'} wrapClassName={styles.fixtureNameWrapRight} textClassName={styles.fixtureNameText} />
-                              </span>
-                              <span style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 800, minWidth: 42, textAlign: 'center', flexShrink: 0 }}>
-                                {played ? `${fx.scoreHome} – ${fx.scoreAway}` : 'vs'}
-                              </span>
-                              <span style={{ flex: 1, minWidth: 0, fontWeight: played ? 400 : 700, color: played ? 'var(--text)' : 'var(--text-muted)' }}>
-                                <MarqueeText text={away?.name || '?'} wrapClassName={styles.fixtureNameWrapLeft} textClassName={styles.fixtureNameText} />
-                              </span>
+                            <div key={fx.id} style={{ padding: '8px 14px', borderBottom: '1px solid var(--border)' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                                <span style={{ flex: 1, minWidth: 0, textAlign: 'right', fontWeight: played ? 400 : 700, color: played ? 'var(--text)' : 'var(--text-muted)' }}>
+                                  <MarqueeText text={home?.name || '?'} wrapClassName={styles.fixtureNameWrapRight} textClassName={styles.fixtureNameText} />
+                                </span>
+                                <span style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 800, minWidth: 42, textAlign: 'center', flexShrink: 0 }}>
+                                  {played ? `${fx.scoreHome} – ${fx.scoreAway}` : 'vs'}
+                                </span>
+                                <span style={{ flex: 1, minWidth: 0, fontWeight: played ? 400 : 700, color: played ? 'var(--text)' : 'var(--text-muted)' }}>
+                                  <MarqueeText text={away?.name || '?'} wrapClassName={styles.fixtureNameWrapLeft} textClassName={styles.fixtureNameText} />
+                                </span>
+                              </div>
+
+                              {/* ── Player self-submission ── */}
+                              {!played && mySide && (
+                                <div style={{ marginTop: 6 }}>
+                                  {fx.disputed && (
+                                    <div style={{ fontSize: 10.5, fontWeight: 700, color: '#ef4444', marginBottom: 6 }}>
+                                      <i className="ri-error-warning-line" /> Scores don't match — organiser will review.
+                                    </div>
+                                  )}
+                                  {!formOpen ? (
+                                    <button
+                                      onClick={() => { setFixtureSubmitOpenId(fx.id); setFixtureSubmitDraft(d => ({ ...d, [fx.id]: { home: mySubmission?.home ?? '', away: mySubmission?.away ?? '', file: null } })) }}
+                                      style={{ width: '100%', padding: '6px 8px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-dim)', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
+                                    >
+                                      <i className="ri-edit-2-line" style={{ fontSize: 12 }} />
+                                      {mySubmission ? 'Update Your Submission' : oppSubmission ? 'Confirm Result' : 'Submit Result'}
+                                      {mySubmission && !fx.disputed && <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>&nbsp;(waiting on opponent)</span>}
+                                    </button>
+                                  ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 8, borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+                                        <span style={{ fontSize: 10, color: 'var(--text-muted)', width: 60, textAlign: 'right' }}>{home?.name || 'Home'}</span>
+                                        <input type="text" inputMode="numeric" value={draft.home} onChange={e => setFixtureSubmitDraft(d => ({ ...d, [fx.id]: { ...draft, home: e.target.value } }))}
+                                          style={{ width: 44, padding: '5px 6px', borderRadius: 6, border: '1px solid var(--border-dark)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13, fontWeight: 700, textAlign: 'center' }} />
+                                        <span style={{ color: 'var(--text-muted)' }}>–</span>
+                                        <input type="text" inputMode="numeric" value={draft.away} onChange={e => setFixtureSubmitDraft(d => ({ ...d, [fx.id]: { ...draft, away: e.target.value } }))}
+                                          style={{ width: 44, padding: '5px 6px', borderRadius: 6, border: '1px solid var(--border-dark)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13, fontWeight: 700, textAlign: 'center' }} />
+                                        <span style={{ fontSize: 10, color: 'var(--text-muted)', width: 60 }}>{away?.name || 'Away'}</span>
+                                      </div>
+                                      <label style={{ fontSize: 10.5, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}>
+                                        <i className="ri-image-add-line" />
+                                        {draft.file ? draft.file.name : 'Attach proof screenshot (optional)'}
+                                        <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => setFixtureSubmitDraft(d => ({ ...d, [fx.id]: { ...draft, file: e.target.files?.[0] || null } }))} />
+                                      </label>
+                                      <div style={{ display: 'flex', gap: 6 }}>
+                                        <button onClick={() => { setFixtureSubmitOpenId(null) }} style={{ flex: 1, padding: '6px 8px', borderRadius: 7, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Cancel</button>
+                                        <button
+                                          onClick={() => submitFixtureResult(group.id, fx.id)}
+                                          disabled={saving || draft.home === '' || draft.away === ''}
+                                          style={{ flex: 2, padding: '6px 8px', borderRadius: 7, border: 'none', background: saving ? 'var(--surface)' : 'var(--text)', color: saving ? 'var(--text-muted)' : 'var(--bg)', fontSize: 11, fontWeight: 800, cursor: saving ? 'not-allowed' : 'pointer' }}
+                                        >
+                                          {saving ? 'Submitting…' : 'Submit'}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           )
                         })}
@@ -4116,7 +4412,64 @@ export default function TournamentDetail() {
                                   <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>–</span>
                                   <span style={{ fontSize: 20, fontWeight: 900, color: bWon ? '#f59e0b' : 'var(--text)' }}>{sc.b}</span>
                                 </div>
-                              ) : null
+                              ) : (() => {
+                                // ── Participant self-submission ──
+                                const mySlotIdx = a?.userId === user?.id ? 0 : b?.userId === user?.id ? 1 : null
+                                if (mySlotIdx == null || done) return null
+                                const mySlot = mySlotIdx === 0 ? a : b
+                                const oppSlot = mySlotIdx === 0 ? b : a
+                                const mySubmission = mySlot?.pendingSubmission
+                                const disputed = !!mySlot?.disputed
+                                const formOpen = koSubmitOpenKey === key
+                                const kdraft = koSubmitDraft[key] || { mine: '', opp: '', file: null }
+                                const ksaving = koSubmitSaving === key
+                                return (
+                                  <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+                                    {disputed && (
+                                      <div style={{ fontSize: 10.5, fontWeight: 700, color: '#ef4444', marginBottom: 6 }}>
+                                        <i className="ri-error-warning-line" /> Scores don't match — organiser will review.
+                                      </div>
+                                    )}
+                                    {!formOpen ? (
+                                      <button
+                                        onClick={() => { setKoSubmitOpenKey(key); setKoSubmitDraft(d => ({ ...d, [key]: { mine: mySubmission ? (mySlotIdx === 0 ? mySubmission.a : mySubmission.b) : '', opp: mySubmission ? (mySlotIdx === 0 ? mySubmission.b : mySubmission.a) : '', file: null } })) }}
+                                        style={{ width: '100%', padding: '6px 8px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-dim)', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
+                                      >
+                                        <i className="ri-edit-2-line" style={{ fontSize: 12 }} />
+                                        {mySubmission ? 'Update Your Submission' : oppSlot?.pendingSubmission ? 'Confirm Result' : 'Submit Result'}
+                                        {mySubmission && !disputed && <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>&nbsp;(waiting on opponent)</span>}
+                                      </button>
+                                    ) : (
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 8, borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+                                          <span style={{ fontSize: 10, color: 'var(--text-muted)', width: 50, textAlign: 'right' }}>You</span>
+                                          <input type="text" inputMode="numeric" value={kdraft.mine} onChange={e => setKoSubmitDraft(d => ({ ...d, [key]: { ...kdraft, mine: e.target.value } }))}
+                                            style={{ width: 44, padding: '5px 6px', borderRadius: 6, border: '1px solid var(--border-dark)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13, fontWeight: 700, textAlign: 'center' }} />
+                                          <span style={{ color: 'var(--text-muted)' }}>–</span>
+                                          <input type="text" inputMode="numeric" value={kdraft.opp} onChange={e => setKoSubmitDraft(d => ({ ...d, [key]: { ...kdraft, opp: e.target.value } }))}
+                                            style={{ width: 44, padding: '5px 6px', borderRadius: 6, border: '1px solid var(--border-dark)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13, fontWeight: 700, textAlign: 'center' }} />
+                                          <span style={{ fontSize: 10, color: 'var(--text-muted)', width: 50 }}>Opponent</span>
+                                        </div>
+                                        <label style={{ fontSize: 10.5, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}>
+                                          <i className="ri-image-add-line" />
+                                          {kdraft.file ? kdraft.file.name : 'Attach proof screenshot (optional)'}
+                                          <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => setKoSubmitDraft(d => ({ ...d, [key]: { ...kdraft, file: e.target.files?.[0] || null } }))} />
+                                        </label>
+                                        <div style={{ display: 'flex', gap: 6 }}>
+                                          <button onClick={() => setKoSubmitOpenKey(null)} style={{ flex: 1, padding: '6px 8px', borderRadius: 7, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Cancel</button>
+                                          <button
+                                            onClick={() => submitKnockoutResult(rIdx, pIdx, mySlotIdx)}
+                                            disabled={ksaving || kdraft.mine === '' || kdraft.opp === ''}
+                                            style={{ flex: 2, padding: '6px 8px', borderRadius: 7, border: 'none', background: ksaving ? 'var(--surface)' : 'var(--text)', color: ksaving ? 'var(--text-muted)' : 'var(--bg)', fontSize: 11, fontWeight: 800, cursor: ksaving ? 'not-allowed' : 'pointer' }}
+                                          >
+                                            {ksaving ? 'Submitting…' : 'Submit'}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )
+                              })()
                             })()}
                           </div>
                         )
