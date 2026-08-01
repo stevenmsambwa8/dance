@@ -13,6 +13,7 @@ import useTranslation from '../lib/useTranslation'
 import { identityColor } from '../lib/clanColors'
 import { getRecentStories } from '../lib/news'
 import PatchNotesModal from '../components/PatchNotesModal'
+import PendingResultCards from '../components/PendingResultCard'
 
 const CLAN_CAP = 125
 
@@ -835,6 +836,9 @@ export default function Home() {
 
       {/* Daily Login Rewards now lives in the Nav header (gift icon,
           between the plan icon and the sidebar toggle) — see Nav.js. */}
+
+      {/* ══════════ PENDING MATCH RESULTS ══════════ */}
+      {user && <div style={{ padding: '0 16px', marginTop: 14 }}><PendingResultCards limit={1} /></div>}
 
       {/* ══════════ HEADLINES ══════════ */}
       {(storiesLoading || stories.length > 0) && (

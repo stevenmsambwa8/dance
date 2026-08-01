@@ -12,6 +12,7 @@ import { GAME_SLUGS, GAME_META } from '../../lib/constants'
 import { getCurrentSeason } from '../../lib/seasons'
 import { getActivePlan } from '../../lib/plans'
 import useTranslation from '../../lib/useTranslation'
+import PendingResultCards from '../../components/PendingResultCard'
 
 function parsePrize(raw) {
   if (!raw) return null
@@ -325,6 +326,8 @@ export default function Tournaments() {
           </button>
         )}
       </div>
+
+      {user && <PendingResultCards limit={1} compact />}
 
       {showQuota && (
         <div className={styles.quotaBar}>

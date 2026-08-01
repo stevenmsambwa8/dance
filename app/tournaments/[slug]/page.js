@@ -17,7 +17,7 @@ import BracketShareModal from '../../../components/BracketShareModal'
 import Modal from '../../../components/Modal'
 import MarqueeText from '../../../components/MarqueeText'
 import { computeStandings, buildGroups, addMemberToGroup, isGroupStageComplete, getQualifiers } from '../../../lib/groupStage'
-import { awardJoinBonus, maybeAwardFullSlotsBonus } from '../../../lib/tournamentBonus'
+import PendingResultCards from '../../../components/PendingResultCard'
 import { parseBRData, computeBRStandings, unitizeParticipants, addOrUpdateMatch, removeMatch as removeBRMatch, isBRComplete, buildEmptyBRBracket } from '../../../lib/brPoints'
 import useTranslation from '../../../lib/useTranslation'
 
@@ -1555,9 +1555,6 @@ export default function TournamentDetail() {
       setRegistered(true)
       setTournament(t => ({ ...t, registered_count: count }))
 
-      await awardJoinBonus(supabase, user.id, id, tournament?.name)
-      await maybeAwardFullSlotsBonus(supabase, id, tournament?.name, effectiveCapacity, sendNotification)
-
       if (['groups_knockout', 'league'].includes(tournament?.stage_format)) {
         await autoUpdateGroupsOnJoin()
       }
@@ -1668,8 +1665,6 @@ export default function TournamentDetail() {
     setRegistered(true)
     setTournament(t => ({ ...t, registered_count: count }))
     await sendNotification(user.id, `Joined — ${tournament?.name}`, `You've joined and claimed a bracket slot!`, 'tournament', { tournament_id: id })
-    await awardJoinBonus(supabase, user.id, id, tournament?.name)
-    await maybeAwardFullSlotsBonus(supabase, id, tournament?.name, effectiveCapacity, sendNotification)
     setRegistering(false)
     await refreshParticipants()
   }
@@ -1787,8 +1782,6 @@ export default function TournamentDetail() {
     setTournament(t => ({ ...t, registered_count: count }))
     await sendNotification(user.id, `Joined ${squadRow.name} — ${tournament?.name}`,
       `You've joined ${squadRow.name} for this tournament, and are now a squad member.`, 'tournament', { tournament_id: id })
-    await awardJoinBonus(supabase, user.id, id, tournament?.name)
-    await maybeAwardFullSlotsBonus(supabase, id, tournament?.name, effectiveCapacity, sendNotification)
     setRegistering(false)
     await refreshParticipants()
   }
@@ -1978,8 +1971,6 @@ export default function TournamentDetail() {
       r.user_id, `Squad registered — ${tournament?.name}`,
       `${effSquad.name} has been entered into the bracket!`, 'tournament', { tournament_id: id }
     )))
-    await Promise.all(roster.map(r => awardJoinBonus(supabase, r.user_id, id, tournament?.name)))
-    await maybeAwardFullSlotsBonus(supabase, id, tournament?.name, effectiveCapacity, sendNotification)
     awardAchievement(user.id, 'ri-group-line', 'Tournament Player', 'Registered a squad for a tournament')
 
     setRegistering(false)
@@ -3177,6 +3168,12 @@ export default function TournamentDetail() {
           </button>
         )}
       </div>
+
+      {registered && tournament && (
+        <div style={{ padding: '0 16px', marginBottom: 4 }}>
+          <PendingResultCards limit={1} onlyTournamentId={id} />
+        </div>
+      )}
 
       {/* Hero — "match ticket" card */}
       <div className={styles.hero}>
