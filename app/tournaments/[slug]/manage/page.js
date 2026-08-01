@@ -681,6 +681,7 @@ export default function TournamentManage() {
   usePageLoading(loading)
   const [saving,       setSaving]       = useState(false)
   const [activeTab,    setActiveTab]    = useState('overview')
+  const [nowTick,      setNowTick]      = useState(() => Date.now())
   const [confirm,      setConfirm]      = useState(null)
   const [groupScoreDraft, setGroupScoreDraft] = useState({}) // { [fixtureId]: { home, away } }
   const [groupSavingId,   setGroupSavingId]   = useState(null)
@@ -768,6 +769,10 @@ export default function TournamentManage() {
   }, [slug])
 
   useEffect(() => { load() }, [load])
+  useEffect(() => {
+    const iv = setInterval(() => setNowTick(Date.now()), 15000)
+    return () => clearInterval(iv)
+  }, [])
   useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current) }, [])
 
   // ── Auth guard ────────────────────────────────────────────────────────────
@@ -1229,6 +1234,12 @@ export default function TournamentManage() {
   }))
   const unplaced = participants.filter(p => !inBracketSet.has(p.user_id))
 
+  // Rounds whose timer has run out — creator still needs to decide the winner.
+  const expiredRoundTimers = Object.entries(bracketData?.round_times || {})
+    .filter(([, rt]) => rt?.end && new Date(rt.end).getTime() <= nowTick)
+    .map(([rIdx]) => Number(rIdx))
+  const expiredRoundNames = expiredRoundTimers.map(rIdx => bracketData?.round_names?.[rIdx] || `Round ${rIdx + 1}`)
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className={styles.page}>
@@ -1670,6 +1681,19 @@ export default function TournamentManage() {
                       <div className={styles.mismatchTitle}>{t('tournaments.matchTypeChangedTo')} {bracketData.currentTeamSize}v{bracketData.currentTeamSize}</div>
                       <div className={styles.mismatchSub}>{t('tournaments.resetBracketToApply')}</div>
                     </div>
+                  </div>
+                )}
+                {expiredRoundNames.length > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 12, background: '#ef444412', border: '1.5px solid #ef444440' }}>
+                    <i className="ri-alarm-warning-fill" style={{ color: '#ef4444', fontSize: 18, flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 800, color: '#ef4444' }}>Time's up on {expiredRoundNames.join(', ')}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>Open the bracket and tap the matches to decide the winner.</div>
+                    </div>
+                    <button onClick={() => router.push(`/tournaments/${tournament.slug || tournament.id}`)}
+                      style={{ flexShrink: 0, padding: '7px 12px', borderRadius: 8, background: '#ef4444', color: '#fff', border: 'none', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
+                      Decide
+                    </button>
                   </div>
                 )}
                 <div className={styles.btnRow}>

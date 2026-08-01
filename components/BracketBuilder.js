@@ -15,7 +15,29 @@
  *   buildEmptyBracket    (roundMatchCounts[], teamSize) → bracketData
  */
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
+
+// ── time helpers ────────────────────────────────────────────────────────────
+// Convert an ISO string to the "YYYY-MM-DDTHH:mm" format <input type="datetime-local"> expects.
+function toLocalInputValue(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return ''
+  const off = d.getTimezoneOffset()
+  const local = new Date(d.getTime() - off * 60000)
+  return local.toISOString().slice(0, 16)
+}
+function formatDuration(ms) {
+  if (ms == null) return ''
+  if (ms < 0) ms = 0
+  const totalSec = Math.floor(ms / 1000)
+  const days = Math.floor(totalSec / 86400)
+  const hours = Math.floor((totalSec % 86400) / 3600)
+  const mins = Math.floor((totalSec % 3600) / 60)
+  const secs = totalSec % 60
+  const pad = n => String(n).padStart(2, '0')
+  return days > 0 ? `${days}d ${pad(hours)}:${pad(mins)}:${pad(secs)}` : `${pad(hours)}:${pad(mins)}:${pad(secs)}`
+}
 
 // ── public helper ──────────────────────────────────────────────────────────────
 export function buildEmptyBracket(roundMatchCounts = [8, 4, 2, 1], teamSize = 1) {
@@ -94,6 +116,17 @@ export default function BracketBuilder({
   const [dirty, setDirty]         = useState(false)
   const [phase, setPhase]         = useState(bracketData ? 'edit' : 'shape')  // 'shape' | 'edit'
 
+  // per-round start/end timers — { [rIdx]: { start: isoString|null, end: isoString|null } }
+  const [times, setTimes]         = useState(() => bracketData?.round_times || {})
+  const [editTimer, setEditTimer] = useState(null)   // rIdx whose timer panel is open
+  const [now, setNow]             = useState(() => Date.now())
+
+  // tick every second so countdowns stay live
+  useEffect(() => {
+    const iv = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(iv)
+  }, [])
+
   // custom round builder (shape picker)
   const [customRounds, setCustomRounds]   = useState([])        // array of { name, matches }
   const [newRoundName, setNewRoundName]   = useState('')
@@ -121,10 +154,12 @@ export default function BracketBuilder({
   // ── commit ───────────────────────────────────────────────────────────────
   // Always embeds round_names and slot_count into bracketData so they persist
   // to the DB with the bracket and don't need a separate column read path.
-  function commit(newBd, newNames) {
+  function commit(newBd, newNames, newTimes) {
     const resolvedNames = newNames ?? names
+    const resolvedTimes = newTimes ?? times
     setBd(newBd)
     if (newNames) setNames(newNames)
+    if (newTimes) setTimes(newTimes)
     setDirty(true)
     // Count real open slots from round 0 (non-BYE, non-pending)
     const slotCount = (() => {
@@ -139,8 +174,40 @@ export default function BracketBuilder({
         return acc + pair.filter(s => s && s.status !== 'bye').length
       }, 0)
     })()
-    const enriched = { ...newBd, round_names: resolvedNames, slot_count: slotCount }
+    const enriched = { ...newBd, round_names: resolvedNames, round_times: resolvedTimes, slot_count: slotCount }
     onChange?.(enriched)
+  }
+
+  // ── round timers ─────────────────────────────────────────────────────────
+  function setRoundTime(rIdx, field, value) {
+    if (!bd) return
+    const cur = times[rIdx] || {}
+    const iso = value ? new Date(value).toISOString() : null
+    const nextRound = { ...cur, [field]: iso }
+    const next = { ...times }
+    if (!nextRound.start && !nextRound.end) delete next[rIdx]
+    else next[rIdx] = nextRound
+    commit(bd, names, next)
+  }
+
+  function clearRoundTime(rIdx) {
+    if (!bd) return
+    const next = { ...times }
+    delete next[rIdx]
+    commit(bd, names, next)
+  }
+
+  // Returns null (no timer set) or { phase: 'upcoming'|'live'|'live-noend'|'over', ms }
+  function getRoundTimeStatus(rIdx) {
+    const rt = times[rIdx]
+    if (!rt || (!rt.start && !rt.end)) return null
+    const startMs = rt.start ? new Date(rt.start).getTime() : null
+    const endMs   = rt.end   ? new Date(rt.end).getTime()   : null
+    if (startMs && now < startMs) return { phase: 'upcoming', ms: startMs - now }
+    if (endMs && now < endMs)     return { phase: 'live', ms: endMs - now }
+    if (endMs && now >= endMs)    return { phase: 'over', ms: 0 }
+    if (startMs && now >= startMs && !endMs) return { phase: 'live-noend', ms: null }
+    return null
   }
 
   // ── shape picker helpers ──────────────────────────────────────────────────
@@ -148,7 +215,7 @@ export default function BracketBuilder({
     const n = counts.length
     const fresh = buildEmptyBracket(counts, teamSize)
     const ns = Array.from({ length: n }, (_, i) => defaultRoundName(i, n))
-    commit(fresh, ns)
+    commit(fresh, ns, {})
     setPhase('edit')
   }
 
@@ -168,7 +235,7 @@ export default function BracketBuilder({
     const counts = customRounds.map(r => r.matches)
     const fresh = buildEmptyBracket(counts, teamSize)
     const ns = customRounds.map(r => r.name)
-    commit(fresh, ns)
+    commit(fresh, ns, {})
     setPhase('edit')
   }
 
@@ -183,7 +250,10 @@ export default function BracketBuilder({
     const newRounds = [pairs, ...bd.rounds]
     const total = newRounds.length
     const newNames = [defaultRoundName(0, total), ...names]
-    commit({ ...bd, rounds: newRounds }, newNames)
+    // shift every existing timer's round index up by one to match the new round order
+    const newTimes = {}
+    Object.entries(times).forEach(([k, v]) => { newTimes[Number(k) + 1] = v })
+    commit({ ...bd, rounds: newRounds }, newNames, newTimes)
   }
 
   function addRoundAtEnd() {
@@ -200,7 +270,13 @@ export default function BracketBuilder({
     if (!bd || bd.rounds.length <= 1) return
     const newRounds = bd.rounds.filter((_, i) => i !== rIdx)
     const newNames  = names.filter((_, i) => i !== rIdx)
-    commit({ ...bd, rounds: newRounds }, newNames)
+    const newTimes = {}
+    Object.entries(times).forEach(([k, v]) => {
+      const ki = Number(k)
+      if (ki === rIdx) return
+      newTimes[ki > rIdx ? ki - 1 : ki] = v
+    })
+    commit({ ...bd, rounds: newRounds }, newNames, newTimes)
   }
 
   function addMatch(rIdx) {
@@ -397,6 +473,7 @@ export default function BracketBuilder({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+      <style>{`@keyframes bbTimeUpPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } } .bb-timeup { animation: bbTimeUpPulse 1.3s ease-in-out infinite; }`}</style>
 
       {/* Toolbar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 0 12px', flexWrap: 'wrap' }}>
@@ -438,9 +515,65 @@ export default function BracketBuilder({
                     {names[rIdx] || `Round ${rIdx + 1}`}
                   </span>
                 )}
+                <button onClick={() => setEditTimer(editTimer === rIdx ? null : rIdx)} title="Set round start/end time"
+                  style={{ background: 'none', border: 'none', color: times[rIdx] ? ACC : MUT, cursor: 'pointer', fontSize: 14, padding: '0 2px', lineHeight: 1 }}>
+                  <i className="ri-time-line" />
+                </button>
                 <button onClick={() => addMatch(rIdx)} title="Add match" style={{ background: 'none', border: 'none', color: GRN, cursor: 'pointer', fontSize: 15, padding: '0 2px', lineHeight: 1 }}><i className="ri-add-circle-line" /></button>
                 <button onClick={() => removeRound(rIdx)} title="Remove round" style={{ background: 'none', border: 'none', color: RED, cursor: 'pointer', fontSize: 13, padding: '0 2px', lineHeight: 1, opacity: 0.5 }}><i className="ri-close-circle-line" /></button>
               </div>
+
+              {/* Countdown badge */}
+              {(() => {
+                const st = getRoundTimeStatus(rIdx)
+                if (!st) return null
+                if (st.phase === 'over') return (
+                  <div className="bb-timeup" style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 8px', borderRadius: 7, background: RED + '15', border: `1px solid ${RED}55`, fontSize: 10, fontWeight: 800, color: RED }}>
+                    <i className="ri-alarm-warning-fill" /> Time's up — pick the winner
+                  </div>
+                )
+                if (st.phase === 'upcoming') return (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 8px', borderRadius: 7, background: '#f59e0b15', border: '1px solid #f59e0b40', fontSize: 10, fontWeight: 800, color: '#f59e0b' }}>
+                    <i className="ri-hourglass-line" /> Starts in {formatDuration(st.ms)}
+                  </div>
+                )
+                if (st.phase === 'live') return (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 8px', borderRadius: 7, background: GRN + '15', border: `1px solid ${GRN}40`, fontSize: 10, fontWeight: 800, color: GRN }}>
+                    <i className="ri-timer-flash-line" /> Ends in {formatDuration(st.ms)}
+                  </div>
+                )
+                return (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 8px', borderRadius: 7, background: ACC + '15', border: `1px solid ${ACC}40`, fontSize: 10, fontWeight: 800, color: ACC }}>
+                    <i className="ri-play-circle-line" /> Round live
+                  </div>
+                )
+              })()}
+
+              {/* Timer editor panel */}
+              {editTimer === rIdx && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 8, borderRadius: 8, border: `1.5px dashed ${BRD}`, background: SURF }}>
+                  <label style={{ fontSize: 10, fontWeight: 700, color: MUT }}>
+                    Start time
+                    <input type="datetime-local" value={toLocalInputValue(times[rIdx]?.start)} onChange={e => setRoundTime(rIdx, 'start', e.target.value)}
+                      style={{ display: 'block', width: '100%', marginTop: 3, padding: '6px 8px', borderRadius: 6, border: `1px solid ${BRD}`, fontSize: 11, background: BG, color: TXT }} />
+                  </label>
+                  <label style={{ fontSize: 10, fontWeight: 700, color: MUT }}>
+                    End time
+                    <input type="datetime-local" value={toLocalInputValue(times[rIdx]?.end)} onChange={e => setRoundTime(rIdx, 'end', e.target.value)}
+                      style={{ display: 'block', width: '100%', marginTop: 3, padding: '6px 8px', borderRadius: 6, border: `1px solid ${BRD}`, fontSize: 11, background: BG, color: TXT }} />
+                  </label>
+                  <div style={{ display: 'flex', gap: 10, marginTop: 2 }}>
+                    {times[rIdx] && (
+                      <button onClick={() => clearRoundTime(rIdx)} style={{ background: 'none', border: 'none', color: RED, fontSize: 10, fontWeight: 700, cursor: 'pointer', padding: 0 }}>
+                        <i className="ri-close-circle-line" /> Clear timer
+                      </button>
+                    )}
+                    <button onClick={() => setEditTimer(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: ACC, fontSize: 10, fontWeight: 700, cursor: 'pointer', padding: 0 }}>
+                      Done
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Match pairs */}
               {pairs.map((pair, pIdx) => (
