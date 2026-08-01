@@ -8,6 +8,7 @@ import BracketBuilder from '../../../../components/BracketBuilder'
 import { buildGroups, computeStandings, isGroupStageComplete, getQualifiers } from '../../../../lib/groupStage'
 import usePageLoading from '../../../../components/usePageLoading'
 import useTranslation from '../../../../lib/useTranslation'
+import { getTimeStatus, toLocalInputValue, formatDuration } from '../../../../lib/roundTimers'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function getPlayerBracketStatus(userId, bracketData) {
@@ -684,6 +685,7 @@ export default function TournamentManage() {
   const [nowTick,      setNowTick]      = useState(() => Date.now())
   const [confirm,      setConfirm]      = useState(null)
   const [groupScoreDraft, setGroupScoreDraft] = useState({}) // { [fixtureId]: { home, away } }
+  const [matchTimerOpen, setMatchTimerOpen] = useState(null) // round number whose timer editor is open
   const [groupSavingId,   setGroupSavingId]   = useState(null)
   const [showTutorial, setShowTutorial] = useState(false)
   // ── Edit form state ───────────────────────────────────────────────────────
@@ -985,6 +987,32 @@ export default function TournamentManage() {
     }
   }
 
+  // ── Matchday timers (group stage / league fixtures) ─────────────────────
+  // Stored at bracket_data.match_times[roundNumber] = { start, end }, mirroring
+  // the knockout bracket's round_times so players see the same countdown UX.
+  async function setMatchTime(roundNum, field, value) {
+    if (!bracketData) return
+    const cur = bracketData.match_times || {}
+    const curRound = cur[roundNum] || {}
+    const iso = value ? new Date(value).toISOString() : null
+    const nextRound = { ...curRound, [field]: iso }
+    const nextTimes = { ...cur }
+    if (!nextRound.start && !nextRound.end) delete nextTimes[roundNum]
+    else nextTimes[roundNum] = nextRound
+    const newBd = { ...bracketData, match_times: nextTimes }
+    setBracketData(newBd)
+    await supabase.from('tournaments').update({ bracket_data: newBd }).eq('id', id.current)
+  }
+
+  async function clearMatchTime(roundNum) {
+    if (!bracketData) return
+    const nextTimes = { ...(bracketData.match_times || {}) }
+    delete nextTimes[roundNum]
+    const newBd = { ...bracketData, match_times: nextTimes }
+    setBracketData(newBd)
+    await supabase.from('tournaments').update({ bracket_data: newBd }).eq('id', id.current)
+  }
+
   async function saveFixtureScore(groupId, fixtureId) {
     const draft = groupScoreDraft[fixtureId]
     if (!draft || draft.home === '' || draft.away === '') return
@@ -1239,6 +1267,9 @@ export default function TournamentManage() {
     .filter(([, rt]) => rt?.end && new Date(rt.end).getTime() <= nowTick)
     .map(([rIdx]) => Number(rIdx))
   const expiredRoundNames = expiredRoundTimers.map(rIdx => bracketData?.round_names?.[rIdx] || `Round ${rIdx + 1}`)
+  const expiredMatchdays = Object.entries(bracketData?.match_times || {})
+    .filter(([, rt]) => rt?.end && new Date(rt.end).getTime() <= nowTick)
+    .map(([rn]) => `Matchday ${Number(rn) + 1}`)
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -1431,8 +1462,77 @@ export default function TournamentManage() {
                     </button>
                   </div>
 
+                  {/* Matchday timers — visible to players; locks self-submission once expired */}
+                  {(() => {
+                    const roundNums = Array.from(new Set(bracketData.groups.flatMap(g => g.fixtures.map(f => f.round)))).sort((a, b) => a - b)
+                    if (!roundNums.length) return null
+                    return (
+                      <div style={{ marginTop: 14, border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
+                          <i className="ri-time-line" style={{ color: '#6366f1', fontSize: 16 }} />
+                          <span style={{ fontSize: 13, fontWeight: 800 }}>Matchday Timers</span>
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>Visible to players · locks submissions when time's up</span>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {roundNums.map(rn => {
+                            const rt = bracketData.match_times?.[rn] || {}
+                            const st = getTimeStatus(bracketData.match_times, rn, nowTick)
+                            const open = matchTimerOpen === rn
+                            return (
+                              <div key={rn} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: '8px 10px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <span style={{ flex: 1, fontSize: 12.5, fontWeight: 800 }}>Matchday {rn + 1}</span>
+                                  {st && (
+                                    <span style={{
+                                      fontSize: 10, fontWeight: 800, padding: '3px 7px', borderRadius: 6,
+                                      color: st.phase === 'over' ? '#ef4444' : st.phase === 'live' ? '#22c55e' : '#f59e0b',
+                                      background: st.phase === 'over' ? '#ef444415' : st.phase === 'live' ? '#22c55e15' : '#f59e0b15',
+                                    }}>
+                                      {st.phase === 'over' ? "Time's up" : st.phase === 'live' ? `Ends in ${formatDuration(st.ms)}` : st.phase === 'upcoming' ? `Starts in ${formatDuration(st.ms)}` : 'Live'}
+                                    </span>
+                                  )}
+                                  <button onClick={() => setMatchTimerOpen(open ? null : rn)} style={{ background: 'none', border: 'none', color: rt.start || rt.end ? '#6366f1' : 'var(--text-muted)', cursor: 'pointer', fontSize: 15 }}>
+                                    <i className={open ? 'ri-arrow-up-s-line' : 'ri-pencil-line'} />
+                                  </button>
+                                </div>
+                                {open && (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+                                    <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)' }}>
+                                      Start time
+                                      <input type="datetime-local" value={toLocalInputValue(rt.start)} onChange={e => setMatchTime(rn, 'start', e.target.value)}
+                                        style={{ display: 'block', width: '100%', marginTop: 3, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', fontSize: 11, background: 'var(--bg)', color: 'var(--text)' }} />
+                                    </label>
+                                    <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)' }}>
+                                      End time
+                                      <input type="datetime-local" value={toLocalInputValue(rt.end)} onChange={e => setMatchTime(rn, 'end', e.target.value)}
+                                        style={{ display: 'block', width: '100%', marginTop: 3, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', fontSize: 11, background: 'var(--bg)', color: 'var(--text)' }} />
+                                    </label>
+                                    {(rt.start || rt.end) && (
+                                      <button onClick={() => clearMatchTime(rn)} style={{ alignSelf: 'flex-start', background: 'none', border: 'none', color: '#ef4444', fontSize: 10, fontWeight: 700, cursor: 'pointer', padding: 0 }}>
+                                        <i className="ri-close-circle-line" /> Clear timer
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })()}
+
                   {/* Per-group standings + fixture score entry */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 14 }}>
+                    {expiredMatchdays.length > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 12, background: '#ef444412', border: '1.5px solid #ef444440' }}>
+                        <i className="ri-alarm-warning-fill" style={{ color: '#ef4444', fontSize: 18, flexShrink: 0 }} />
+                        <div>
+                          <div style={{ fontSize: 12.5, fontWeight: 800, color: '#ef4444' }}>Time's up on {expiredMatchdays.join(', ')}</div>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>Enter the results below for fixtures still missing a score.</div>
+                        </div>
+                      </div>
+                    )}
                     {bracketData.groups.map(group => {
                       const standings = computeStandings(group)
                       return (
