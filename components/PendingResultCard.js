@@ -6,6 +6,7 @@ import { useAuth } from './AuthProvider'
 import { supabase } from '../lib/supabase'
 import { fetchPendingSubmissions } from '../lib/pendingSubmissions'
 import { submitGroupFixtureResult, submitKnockoutResult } from '../lib/resultSubmission'
+import { getTimeStatus, formatDuration } from '../lib/roundTimers'
 import styles from './PendingResultCard.module.css'
 
 /**
@@ -15,8 +16,10 @@ import styles from './PendingResultCard.module.css'
  *
  * The score-submission form (your score / opponent's score + optional
  * proof screenshot) is shown directly on the card — no extra tap to
- * reveal it. The tournament name itself is still a link, for anyone who
- * wants full bracket context before scoring.
+ * reveal it. If the organiser assigned this specific match its own time
+ * slot, a personal countdown shows here too, and the form locks once
+ * that match's window has passed. The tournament name itself is still a
+ * link, for anyone who wants full bracket context before scoring.
  */
 export function PendingResultCard({ item, avatarUrl, compact, userId, onResolved }) {
   const opponent = item.opponentName || 'your opponent'
@@ -26,8 +29,19 @@ export function PendingResultCard({ item, avatarUrl, compact, userId, onResolved
   const [saving, setSaving] = useState(false)
   const [result, setResult] = useState(null) // { status, message }
 
+  // This match's own personal schedule slot (if the organiser assigned one)
+  const hasSchedule = !!(item.scheduleStart || item.scheduleEnd)
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    if (!hasSchedule) return
+    const iv = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(iv)
+  }, [hasSchedule])
+  const schedStatus = hasSchedule ? getTimeStatus({ m: { start: item.scheduleStart, end: item.scheduleEnd } }, 'm', now) : null
+  const locked = schedStatus?.phase === 'over'
+
   async function handleSubmit() {
-    if (saving || mine === '' || opp === '') return
+    if (saving || mine === '' || opp === '' || locked) return
     setSaving(true)
     setResult(null)
 
@@ -59,7 +73,25 @@ export function PendingResultCard({ item, avatarUrl, compact, userId, onResolved
         </Link>
         <div className={`${styles.sub} ${compact ? styles.subCompact : ''}`}>vs {opponent} — submit your score to confirm</div>
 
-        {!result && (
+        {schedStatus && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 5, padding: '3px 8px', margin: '2px 0 8px', borderRadius: 6, width: 'fit-content',
+            fontSize: 10.5, fontWeight: 800,
+            color: schedStatus.phase === 'over' ? '#ef4444' : schedStatus.phase === 'live' ? '#22c55e' : '#f59e0b',
+            background: schedStatus.phase === 'over' ? 'rgba(239,68,68,0.15)' : schedStatus.phase === 'live' ? 'rgba(34,197,94,0.15)' : 'rgba(245,158,11,0.15)',
+          }}>
+            <i className={schedStatus.phase === 'over' ? 'ri-alarm-warning-fill' : schedStatus.phase === 'live' ? 'ri-timer-flash-line' : 'ri-hourglass-line'} />
+            {schedStatus.phase === 'over' ? "Time's up for this match" : schedStatus.phase === 'live' ? `Ends in ${formatDuration(schedStatus.ms)}` : `Starts in ${formatDuration(schedStatus.ms)}`}
+          </div>
+        )}
+
+        {!result && locked && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center', padding: '8px 10px', borderRadius: 8, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', fontSize: 11, fontWeight: 700, color: '#ef4444' }}>
+            <i className="ri-lock-line" /> Submissions closed for this match
+          </div>
+        )}
+
+        {!result && !locked && (
           <div className={styles.form}>
             <div className={styles.scoreRow}>
               <span className={styles.scoreLabel}>You</span>

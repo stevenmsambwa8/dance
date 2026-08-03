@@ -8,7 +8,8 @@ import BracketBuilder from '../../../../components/BracketBuilder'
 import { buildGroups, computeStandings, isGroupStageComplete, getQualifiers } from '../../../../lib/groupStage'
 import usePageLoading from '../../../../components/usePageLoading'
 import useTranslation from '../../../../lib/useTranslation'
-import { isTimeUp, assignRandomMatchTimes, clearMatchTimes, formatClockTime, todayLocalDate } from '../../../../lib/roundTimers'
+import { getTimeStatus, toLocalInputValue, formatDuration, isTimeUp } from '../../../../lib/roundTimers'
+import { randomizeMatchSchedule, knockoutKey, fixtureKey } from '../../../../lib/matchScheduler'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function getPlayerBracketStatus(userId, bracketData) {
@@ -685,8 +686,9 @@ export default function TournamentManage() {
   const [nowTick,      setNowTick]      = useState(() => Date.now())
   const [confirm,      setConfirm]      = useState(null)
   const [groupScoreDraft, setGroupScoreDraft] = useState({}) // { [fixtureId]: { home, away } }
-  const [matchTimerOpen, setMatchTimerOpen] = useState(null) // round number whose timer editor is open
-  const [matchdayDate, setMatchdayDate] = useState({}) // { [roundNum]: "YYYY-MM-DD" } — date picked before randomizing
+  const todayLocal = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
+  const [fxScheduleForm, setFxScheduleForm] = useState({ date: todayLocal(), startHour: 14, endHour: 23, duration: 30 })
+  const [koScheduleForm, setKoScheduleForm] = useState({ date: todayLocal(), startHour: 14, endHour: 23, duration: 30 })
   const [groupSavingId,   setGroupSavingId]   = useState(null)
   const [showTutorial, setShowTutorial] = useState(false)
   // ── Edit form state ───────────────────────────────────────────────────────
@@ -988,52 +990,64 @@ export default function TournamentManage() {
     }
   }
 
-  // ── Per-match kickoff times (group stage / league fixtures) ─────────────
-  // Each fixture gets its OWN randomly-assigned kickoff time between 14:00
-  // and 23:00 on the chosen matchday date — not one shared timer for the
-  // whole matchday. Stored at bracket_data.match_deadlines[fixtureId].
-  async function randomizeMatchdayTimes(roundNum, dateStr) {
-    if (!bracketData) return
-    const { data: freshT } = await supabase.from('tournaments').select('bracket_data').eq('id', id.current).single()
-    const freshBd = parseBracketData(freshT?.bracket_data) ?? bracketData
-    const fixtures = []
-    ;(freshBd.groups || []).forEach(g => (g.fixtures || []).forEach(fx => {
-      if (fx.round === roundNum && fx.status !== 'played') fixtures.push({ ...fx, group: g })
-    }))
-    if (!fixtures.length) { showToast('No open fixtures in this matchday.', 'error'); return }
-
-    const day = dateStr || todayLocalDate()
-    const nextDeadlines = assignRandomMatchTimes(freshBd.match_deadlines, fixtures.map(fx => fx.id), day)
-    const newBd = { ...freshBd, match_deadlines: nextDeadlines }
-    setBracketData(newBd)
-    const { error } = await supabase.from('tournaments').update({ bracket_data: newBd }).eq('id', id.current)
-    if (error) { showToast('Could not save kickoff times — try again.', 'error'); return }
-
-    const notifRows = []
-    fixtures.forEach(fx => {
-      const home = fx.group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.homeId)
-      const away = fx.group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.awayId)
-      const clock = formatClockTime(nextDeadlines[fx.id]?.start)
-      const uids = [...resolveMemberUserIds(home), ...resolveMemberUserIds(away)]
-      uids.forEach(uid => notifRows.push({
-        user_id: uid,
-        title: `Your match time — ${tournament?.name || 'Tournament'}`,
-        body: `Your Matchday ${roundNum + 1} fixture kicks off at ${clock}. Submit your result before it locks.`,
-        type: 'match_time_assigned', meta: { tournament_id: id.current, fixture_id: fx.id }, read: false,
-      }))
-    })
-    if (notifRows.length) await supabase.from('notifications').insert(notifRows)
-    showToast(`Assigned ${fixtures.length} kickoff time${fixtures.length !== 1 ? 's' : ''}.`, 'success')
-  }
-
-  async function clearMatchdayTimes(roundNum) {
-    if (!bracketData) return
-    const fixtureIds = []
-    ;(bracketData.groups || []).forEach(g => (g.fixtures || []).forEach(fx => { if (fx.round === roundNum) fixtureIds.push(fx.id) }))
-    const nextDeadlines = clearMatchTimes(bracketData.match_deadlines, fixtureIds)
-    const newBd = { ...bracketData, match_deadlines: nextDeadlines }
+  // ── Per-match schedule (group/league fixtures + knockout matches) ───────
+  // Each individual match gets its OWN random start/end slot inside the play
+  // window — stored at bracket_data.match_schedule[matchKey] = { start, end }.
+  // Keys: 'fx:<fixtureId>' for group/league fixtures, 'ko:<rIdx>-<pIdx>' for
+  // knockout bracket pairings. Shared with the public page and the pending-
+  // submissions feed so the lock applies everywhere consistently.
+  async function saveMatchSchedule(nextSchedule) {
+    const newBd = { ...bracketData, match_schedule: nextSchedule }
     setBracketData(newBd)
     await supabase.from('tournaments').update({ bracket_data: newBd }).eq('id', id.current)
+  }
+
+  async function randomizeFixtureSchedule() {
+    if (!bracketData?.groups) return
+    const keys = bracketData.groups.flatMap(g => g.fixtures.filter(f => f.status !== 'played').map(f => fixtureKey(f.id)))
+    if (!keys.length) { showToast('No unplayed fixtures to schedule.', 'error'); return }
+    const fresh = randomizeMatchSchedule(keys, {
+      date: fxScheduleForm.date, windowStartHour: Number(fxScheduleForm.startHour),
+      windowEndHour: Number(fxScheduleForm.endHour), durationMinutes: Number(fxScheduleForm.duration),
+    })
+    await saveMatchSchedule({ ...(bracketData.match_schedule || {}), ...fresh })
+    showToast(`Scheduled ${keys.length} fixture${keys.length !== 1 ? 's' : ''} between ${fxScheduleForm.startHour}:00–${fxScheduleForm.endHour}:00.`)
+  }
+
+  async function randomizeKnockoutSchedule() {
+    if (!bracketData?.rounds) return
+    const keys = []
+    bracketData.rounds.forEach((pairs, rIdx) => {
+      pairs.forEach((pair, pIdx) => {
+        const [a, b] = pair || []
+        if (!a || !b) return
+        if (['bye', 'winner', 'eliminated', 'open', 'pending'].includes(a.status) || ['bye', 'winner', 'eliminated', 'open', 'pending'].includes(b.status)) return
+        if (!(a.userId || a.teamId) || !(b.userId || b.teamId)) return
+        keys.push(knockoutKey(rIdx, pIdx))
+      })
+    })
+    if (!keys.length) { showToast('No live matches with two real players yet.', 'error'); return }
+    const fresh = randomizeMatchSchedule(keys, {
+      date: koScheduleForm.date, windowStartHour: Number(koScheduleForm.startHour),
+      windowEndHour: Number(koScheduleForm.endHour), durationMinutes: Number(koScheduleForm.duration),
+    })
+    await saveMatchSchedule({ ...(bracketData.match_schedule || {}), ...fresh })
+    showToast(`Scheduled ${keys.length} match${keys.length !== 1 ? 'es' : ''} between ${koScheduleForm.startHour}:00–${koScheduleForm.endHour}:00.`)
+  }
+
+  async function shuffleOneMatch(key, form) {
+    if (!bracketData) return
+    const fresh = randomizeMatchSchedule([key], {
+      date: form.date, windowStartHour: Number(form.startHour), windowEndHour: Number(form.endHour), durationMinutes: Number(form.duration),
+    })
+    await saveMatchSchedule({ ...(bracketData.match_schedule || {}), ...fresh })
+  }
+
+  async function clearOneMatchSchedule(key) {
+    if (!bracketData) return
+    const next = { ...(bracketData.match_schedule || {}) }
+    delete next[key]
+    await saveMatchSchedule(next)
   }
 
   async function saveFixtureScore(groupId, fixtureId) {
@@ -1285,24 +1299,20 @@ export default function TournamentManage() {
   }))
   const unplaced = participants.filter(p => !inBracketSet.has(p.user_id))
 
-  // Matches whose kickoff deadline has passed and are still undecided —
-  // creator still needs to step in (decide a winner / resolve a fixture).
-  const expiredRoundTimers = []
-  ;(bracketData?.rounds || []).forEach((pairs, rIdx) => {
-    if (rIdx === (bracketData.rounds.length - 1)) return // champion round has no match to time
-    pairs.forEach((pair, pIdx) => {
-      const decided = pair.some(s => s?.status === 'winner')
-      if (!decided && isTimeUp(bracketData?.match_deadlines, `${rIdx}-${pIdx}`, nowTick) && !expiredRoundTimers.includes(rIdx)) {
-        expiredRoundTimers.push(rIdx)
-      }
-    })
-  })
-  const expiredRoundNames = expiredRoundTimers.map(rIdx => bracketData?.round_names?.[rIdx] || `Round ${rIdx + 1}`)
-  const expiredMatchdays = Array.from(new Set(
-    (bracketData?.groups || []).flatMap(g => g.fixtures || [])
-      .filter(fx => fx.status !== 'played' && isTimeUp(bracketData?.match_deadlines, fx.id, nowTick))
-      .map(fx => fx.round)
-  )).sort((a, b) => a - b).map(rn => `Matchday ${rn + 1}`)
+  // Individual matches whose personal timer has run out and still need a decision/score.
+  const matchSchedule = bracketData?.match_schedule || {}
+  const expiredKoCount = Object.entries(matchSchedule).filter(([k, rt]) => {
+    if (!k.startsWith('ko:') || !rt?.end || new Date(rt.end).getTime() > nowTick) return false
+    const [rIdxStr, pIdxStr] = k.slice(3).split('-')
+    const pair = bracketData?.rounds?.[Number(rIdxStr)]?.[Number(pIdxStr)]
+    const [a, b] = pair || []
+    return a && b && a.status !== 'winner' && b.status !== 'winner'
+  }).length
+  const expiredFxCount = Object.entries(matchSchedule).filter(([k, rt]) => {
+    if (!k.startsWith('fx:') || !rt?.end || new Date(rt.end).getTime() > nowTick) return false
+    const fid = k.slice(3)
+    return (bracketData?.groups || []).some(g => g.fixtures.some(f => String(f.id) === fid && f.status !== 'played'))
+  }).length
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -1495,92 +1505,52 @@ export default function TournamentManage() {
                     </button>
                   </div>
 
-                  {/* Per-match kickoff times — visible to players; locks self-submission once expired */}
-                  {(() => {
-                    const roundNums = Array.from(new Set(bracketData.groups.flatMap(g => g.fixtures.map(f => f.round)))).sort((a, b) => a - b)
-                    if (!roundNums.length) return null
-                    return (
-                      <div style={{ marginTop: 14, border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
-                          <i className="ri-time-line" style={{ color: '#6366f1', fontSize: 16 }} />
-                          <span style={{ fontSize: 13, fontWeight: 800 }}>Match Kickoff Times</span>
-                          <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>Each player gets their own random time · locks submissions when time's up</span>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                          {roundNums.map(rn => {
-                            const fixturesInRound = bracketData.groups.flatMap(g => g.fixtures.filter(f => f.round === rn).map(fx => ({ ...fx, group: g })))
-                            const openFixtures = fixturesInRound.filter(fx => fx.status !== 'played')
-                            const assigned = fixturesInRound.filter(fx => bracketData.match_deadlines?.[fx.id]).length
-                            const anyOver = fixturesInRound.some(fx => isTimeUp(bracketData.match_deadlines, fx.id, nowTick) && fx.status !== 'played')
-                            const open = matchTimerOpen === rn
-                            return (
-                              <div key={rn} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: '8px 10px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                  <span style={{ flex: 1, fontSize: 12.5, fontWeight: 800 }}>Matchday {rn + 1}</span>
-                                  {fixturesInRound.length > 0 && (
-                                    <span style={{
-                                      fontSize: 10, fontWeight: 800, padding: '3px 7px', borderRadius: 6,
-                                      color: anyOver ? '#ef4444' : assigned ? '#22c55e' : 'var(--text-muted)',
-                                      background: anyOver ? '#ef444415' : assigned ? '#22c55e15' : 'var(--surface)',
-                                    }}>
-                                      {assigned}/{fixturesInRound.length} times set{anyOver ? ' · some expired' : ''}
-                                    </span>
-                                  )}
-                                  <button onClick={() => setMatchTimerOpen(open ? null : rn)} style={{ background: 'none', border: 'none', color: assigned ? '#6366f1' : 'var(--text-muted)', cursor: 'pointer', fontSize: 15 }}>
-                                    <i className={open ? 'ri-arrow-up-s-line' : 'ri-pencil-line'} />
-                                  </button>
-                                </div>
-                                {open && (
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
-                                    <div style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                                      Every open fixture below gets its own random kickoff time between 14:00–23:00 on the date you pick — players are notified individually.
-                                    </div>
-                                    <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)' }}>
-                                      Matchday date
-                                      <input type="date" value={matchdayDate[rn] || todayLocalDate()} onChange={e => setMatchdayDate(m => ({ ...m, [rn]: e.target.value }))}
-                                        style={{ display: 'block', width: '100%', marginTop: 3, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', fontSize: 11, background: 'var(--bg)', color: 'var(--text)' }} />
-                                    </label>
-                                    <div style={{ display: 'flex', gap: 10, marginTop: 2, alignItems: 'center' }}>
-                                      <button onClick={() => randomizeMatchdayTimes(rn, matchdayDate[rn] || todayLocalDate())} disabled={!openFixtures.length}
-                                        style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', background: openFixtures.length ? '#6366f1' : 'var(--border)', color: '#fff', fontSize: 11, fontWeight: 800, cursor: openFixtures.length ? 'pointer' : 'default' }}>
-                                        <i className="ri-shuffle-line" /> Randomize kickoff times
-                                      </button>
-                                      {assigned > 0 && (
-                                        <button onClick={() => clearMatchdayTimes(rn)} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: 10, fontWeight: 700, cursor: 'pointer', padding: 0 }}>
-                                          <i className="ri-close-circle-line" /> Clear
-                                        </button>
-                                      )}
-                                    </div>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 4 }}>
-                                      {fixturesInRound.map(fx => {
-                                        const home = fx.group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.homeId)
-                                        const away = fx.group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.awayId)
-                                        const rt = bracketData.match_deadlines?.[fx.id]
-                                        return (
-                                          <div key={fx.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: rt ? 'var(--text)' : 'var(--text-muted)' }}>
-                                            <span>{home?.name || '?'} vs {away?.name || '?'}</span>
-                                            <span style={{ fontWeight: 700 }}>{fx.status === 'played' ? 'Played' : rt ? `Kicks off ${formatClockTime(rt.start)}` : 'Not set'}</span>
-                                          </div>
-                                        )
-                                      })}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )
-                  })()}
+                  {/* Match schedule — randomly assigns each individual fixture its own
+                      start/end slot inside a play window; visible to players, locks
+                      self-submission once THAT match's own window closes. */}
+                  <div style={{ marginTop: 14, border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
+                      <i className="ri-shuffle-line" style={{ color: '#6366f1', fontSize: 16 }} />
+                      <span style={{ fontSize: 13, fontWeight: 800 }}>Match Schedule</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>Each fixture gets its own random time</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                      <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', flex: '1 1 120px' }}>
+                        Date
+                        <input type="date" value={fxScheduleForm.date} onChange={e => setFxScheduleForm(f => ({ ...f, date: e.target.value }))}
+                          style={{ display: 'block', width: '100%', marginTop: 3, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', fontSize: 11, background: 'var(--bg)', color: 'var(--text)' }} />
+                      </label>
+                      <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', flex: '1 1 80px' }}>
+                        From (hr)
+                        <input type="number" min={0} max={23} value={fxScheduleForm.startHour} onChange={e => setFxScheduleForm(f => ({ ...f, startHour: e.target.value }))}
+                          style={{ display: 'block', width: '100%', marginTop: 3, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', fontSize: 11, background: 'var(--bg)', color: 'var(--text)' }} />
+                      </label>
+                      <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', flex: '1 1 80px' }}>
+                        To (hr)
+                        <input type="number" min={0} max={23} value={fxScheduleForm.endHour} onChange={e => setFxScheduleForm(f => ({ ...f, endHour: e.target.value }))}
+                          style={{ display: 'block', width: '100%', marginTop: 3, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', fontSize: 11, background: 'var(--bg)', color: 'var(--text)' }} />
+                      </label>
+                      <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', flex: '1 1 100px' }}>
+                        Duration (min)
+                        <input type="number" min={5} value={fxScheduleForm.duration} onChange={e => setFxScheduleForm(f => ({ ...f, duration: e.target.value }))}
+                          style={{ display: 'block', width: '100%', marginTop: 3, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', fontSize: 11, background: 'var(--bg)', color: 'var(--text)' }} />
+                      </label>
+                    </div>
+                    <button onClick={randomizeFixtureSchedule} style={{ width: '100%', padding: '9px 10px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 12, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                      <i className="ri-dice-line" /> Randomly Schedule All Fixtures
+                    </button>
+                    <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 6 }}>
+                      Every unplayed fixture gets its own random slot between {fxScheduleForm.startHour}:00 and {fxScheduleForm.endHour}:00 — players see a personal countdown and can't submit once their match's window closes.
+                    </div>
+                  </div>
 
                   {/* Per-group standings + fixture score entry */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 14 }}>
-                    {expiredMatchdays.length > 0 && (
+                    {expiredFxCount > 0 && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 12, background: '#ef444412', border: '1.5px solid #ef444440' }}>
                         <i className="ri-alarm-warning-fill" style={{ color: '#ef4444', fontSize: 18, flexShrink: 0 }} />
                         <div>
-                          <div style={{ fontSize: 12.5, fontWeight: 800, color: '#ef4444' }}>Time's up on {expiredMatchdays.join(', ')}</div>
+                          <div style={{ fontSize: 12.5, fontWeight: 800, color: '#ef4444' }}>{expiredFxCount} fixture{expiredFxCount !== 1 ? 's' : ''} past their scheduled time</div>
                           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>Enter the results below for fixtures still missing a score.</div>
                         </div>
                       </div>
@@ -1631,22 +1601,49 @@ export default function TournamentManage() {
                               const home = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.homeId)
                               const away = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.awayId)
                               const draft = groupScoreDraft[fx.id] ?? { home: fx.scoreHome ?? '', away: fx.scoreAway ?? '' }
+                              const fk = fixtureKey(fx.id)
+                              const st = getTimeStatus(bracketData.match_schedule, fk, nowTick)
                               return (
-                                <div key={fx.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderBottom: '1px solid var(--border)', fontSize: 11.5 }}>
-                                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: fx.status === 'played' ? 400 : 700 }}>{home?.name || '?'}</span>
-                                  <input type="number" value={draft.home} placeholder="-" style={{ width: 34, textAlign: 'center', padding: '4px 2px', borderRadius: 6, border: '1px solid var(--border-dark)', background: 'var(--bg)', color: 'var(--text)', fontSize: 12 }}
-                                    onChange={e => setGroupScoreDraft(d => ({ ...d, [fx.id]: { ...draft, home: e.target.value } }))} />
-                                  <span style={{ color: 'var(--text-muted)' }}>–</span>
-                                  <input type="number" value={draft.away} placeholder="-" style={{ width: 34, textAlign: 'center', padding: '4px 2px', borderRadius: 6, border: '1px solid var(--border-dark)', background: 'var(--bg)', color: 'var(--text)', fontSize: 12 }}
-                                    onChange={e => setGroupScoreDraft(d => ({ ...d, [fx.id]: { ...draft, away: e.target.value } }))} />
-                                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: fx.status === 'played' ? 400 : 700 }}>{away?.name || '?'}</span>
-                                  <button
-                                    onClick={() => saveFixtureScore(group.id, fx.id)}
-                                    disabled={groupSavingId === fx.id}
-                                    style={{ width: 26, height: 26, borderRadius: 7, border: 'none', background: fx.status === 'played' ? 'var(--bg-2)' : 'var(--accent)', color: fx.status === 'played' ? 'var(--text-muted)' : '#fff', flexShrink: 0, cursor: 'pointer' }}
-                                  >
-                                    <i className={groupSavingId === fx.id ? 'ri-loader-4-line' : 'ri-check-line'} />
-                                  </button>
+                                <div key={fx.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', fontSize: 11.5 }}>
+                                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: fx.status === 'played' ? 400 : 700 }}>{home?.name || '?'}</span>
+                                    <input type="number" value={draft.home} placeholder="-" style={{ width: 34, textAlign: 'center', padding: '4px 2px', borderRadius: 6, border: '1px solid var(--border-dark)', background: 'var(--bg)', color: 'var(--text)', fontSize: 12 }}
+                                      onChange={e => setGroupScoreDraft(d => ({ ...d, [fx.id]: { ...draft, home: e.target.value } }))} />
+                                    <span style={{ color: 'var(--text-muted)' }}>–</span>
+                                    <input type="number" value={draft.away} placeholder="-" style={{ width: 34, textAlign: 'center', padding: '4px 2px', borderRadius: 6, border: '1px solid var(--border-dark)', background: 'var(--bg)', color: 'var(--text)', fontSize: 12 }}
+                                      onChange={e => setGroupScoreDraft(d => ({ ...d, [fx.id]: { ...draft, away: e.target.value } }))} />
+                                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: fx.status === 'played' ? 400 : 700 }}>{away?.name || '?'}</span>
+                                    <button
+                                      onClick={() => saveFixtureScore(group.id, fx.id)}
+                                      disabled={groupSavingId === fx.id}
+                                      style={{ width: 26, height: 26, borderRadius: 7, border: 'none', background: fx.status === 'played' ? 'var(--bg-2)' : 'var(--accent)', color: fx.status === 'played' ? 'var(--text-muted)' : '#fff', flexShrink: 0, cursor: 'pointer' }}
+                                    >
+                                      <i className={groupSavingId === fx.id ? 'ri-loader-4-line' : 'ri-check-line'} />
+                                    </button>
+                                  </div>
+                                  {fx.status !== 'played' && (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px 7px' }}>
+                                      {st ? (
+                                        <span style={{
+                                          fontSize: 9.5, fontWeight: 800, padding: '2px 7px', borderRadius: 5,
+                                          color: st.phase === 'over' ? '#ef4444' : st.phase === 'live' ? '#22c55e' : '#f59e0b',
+                                          background: st.phase === 'over' ? '#ef444415' : st.phase === 'live' ? '#22c55e15' : '#f59e0b15',
+                                        }}>
+                                          <i className="ri-time-line" /> {st.phase === 'over' ? "Time's up" : st.phase === 'live' ? `Ends in ${formatDuration(st.ms)}` : st.phase === 'upcoming' ? `Plays in ${formatDuration(st.ms)}` : 'Live'}
+                                        </span>
+                                      ) : (
+                                        <span style={{ fontSize: 9.5, color: 'var(--text-muted)' }}>No time assigned yet</span>
+                                      )}
+                                      <button onClick={() => shuffleOneMatch(fk, fxScheduleForm)} title="Re-roll this match's time" style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12 }}>
+                                        <i className="ri-shuffle-line" />
+                                      </button>
+                                      {st && (
+                                        <button onClick={() => clearOneMatchSchedule(fk)} title="Clear this match's time" style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 12 }}>
+                                          <i className="ri-close-circle-line" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               )
                             })}
@@ -1835,17 +1832,105 @@ export default function TournamentManage() {
                     </div>
                   </div>
                 )}
-                {expiredRoundNames.length > 0 && (
+                {expiredKoCount > 0 && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 12, background: '#ef444412', border: '1.5px solid #ef444440' }}>
                     <i className="ri-alarm-warning-fill" style={{ color: '#ef4444', fontSize: 18, flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12.5, fontWeight: 800, color: '#ef4444' }}>Time's up on {expiredRoundNames.join(', ')}</div>
+                      <div style={{ fontSize: 12.5, fontWeight: 800, color: '#ef4444' }}>{expiredKoCount} match{expiredKoCount !== 1 ? 'es' : ''} past their scheduled time</div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>Open the bracket and tap the matches to decide the winner.</div>
                     </div>
                     <button onClick={() => router.push(`/tournaments/${tournament.slug || tournament.id}`)}
                       style={{ flexShrink: 0, padding: '7px 12px', borderRadius: 8, background: '#ef4444', color: '#fff', border: 'none', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
                       Decide
                     </button>
+                  </div>
+                )}
+                {bracketData?.rounds && (
+                  <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
+                      <i className="ri-shuffle-line" style={{ color: '#6366f1', fontSize: 16 }} />
+                      <span style={{ fontSize: 13, fontWeight: 800 }}>Match Schedule</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>Each match gets its own random time</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                      <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', flex: '1 1 120px' }}>
+                        Date
+                        <input type="date" value={koScheduleForm.date} onChange={e => setKoScheduleForm(f => ({ ...f, date: e.target.value }))}
+                          style={{ display: 'block', width: '100%', marginTop: 3, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', fontSize: 11, background: 'var(--bg)', color: 'var(--text)' }} />
+                      </label>
+                      <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', flex: '1 1 80px' }}>
+                        From (hr)
+                        <input type="number" min={0} max={23} value={koScheduleForm.startHour} onChange={e => setKoScheduleForm(f => ({ ...f, startHour: e.target.value }))}
+                          style={{ display: 'block', width: '100%', marginTop: 3, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', fontSize: 11, background: 'var(--bg)', color: 'var(--text)' }} />
+                      </label>
+                      <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', flex: '1 1 80px' }}>
+                        To (hr)
+                        <input type="number" min={0} max={23} value={koScheduleForm.endHour} onChange={e => setKoScheduleForm(f => ({ ...f, endHour: e.target.value }))}
+                          style={{ display: 'block', width: '100%', marginTop: 3, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', fontSize: 11, background: 'var(--bg)', color: 'var(--text)' }} />
+                      </label>
+                      <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', flex: '1 1 100px' }}>
+                        Duration (min)
+                        <input type="number" min={5} value={koScheduleForm.duration} onChange={e => setKoScheduleForm(f => ({ ...f, duration: e.target.value }))}
+                          style={{ display: 'block', width: '100%', marginTop: 3, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', fontSize: 11, background: 'var(--bg)', color: 'var(--text)' }} />
+                      </label>
+                    </div>
+                    <button onClick={randomizeKnockoutSchedule} style={{ width: '100%', padding: '9px 10px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 12, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                      <i className="ri-dice-line" /> Randomly Schedule Live Matches
+                    </button>
+                    <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 6 }}>
+                      Only applies to matches with two real, undecided players. Each one gets its own random slot between {koScheduleForm.startHour}:00 and {koScheduleForm.endHour}:00.
+                    </div>
+
+                    {/* Live matches with their assigned time */}
+                    {(() => {
+                      const rows = []
+                      bracketData.rounds.forEach((pairs, rIdx) => pairs.forEach((pair, pIdx) => {
+                        const [a, b] = pair || []
+                        if (!a || !b) return
+                        if (['bye', 'open', 'pending'].includes(a.status) || ['bye', 'open', 'pending'].includes(b.status)) return
+                        if (!(a.userId || a.teamId) || !(b.userId || b.teamId)) return
+                        rows.push({ rIdx, pIdx, a, b, decided: a.status === 'winner' || b.status === 'winner' })
+                      }))
+                      if (!rows.length) return null
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+                          {rows.map(({ rIdx, pIdx, a, b, decided }) => {
+                            const kk = knockoutKey(rIdx, pIdx)
+                            const st = getTimeStatus(bracketData.match_schedule, kk, nowTick)
+                            return (
+                              <div key={kk} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 11, opacity: decided ? 0.55 : 1 }}>
+                                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 700 }}>
+                                  {(a.name || a.teamName || 'TBD')} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>vs</span> {(b.name || b.teamName || 'TBD')}
+                                </span>
+                                {st ? (
+                                  <span style={{
+                                    fontSize: 9.5, fontWeight: 800, padding: '2px 7px', borderRadius: 5, flexShrink: 0,
+                                    color: st.phase === 'over' ? '#ef4444' : st.phase === 'live' ? '#22c55e' : '#f59e0b',
+                                    background: st.phase === 'over' ? '#ef444415' : st.phase === 'live' ? '#22c55e15' : '#f59e0b15',
+                                  }}>
+                                    {st.phase === 'over' ? "Time's up" : st.phase === 'live' ? `Ends in ${formatDuration(st.ms)}` : st.phase === 'upcoming' ? `Plays in ${formatDuration(st.ms)}` : 'Live'}
+                                  </span>
+                                ) : (
+                                  <span style={{ fontSize: 9.5, color: 'var(--text-muted)', flexShrink: 0 }}>No time assigned</span>
+                                )}
+                                {!decided && (
+                                  <>
+                                    <button onClick={() => shuffleOneMatch(kk, koScheduleForm)} title="Re-roll this match's time" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>
+                                      <i className="ri-shuffle-line" />
+                                    </button>
+                                    {st && (
+                                      <button onClick={() => clearOneMatchSchedule(kk)} title="Clear this match's time" style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>
+                                        <i className="ri-close-circle-line" />
+                                      </button>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )
+                    })()}
                   </div>
                 )}
                 <div className={styles.btnRow}>
