@@ -4427,7 +4427,10 @@ export default function TournamentDetail() {
                               const key = `${rIdx}-${pIdx}`
                               const saving = scoreSaving === key
                               const hasScore = sc.a !== '' || sc.b !== ''
-                              return canManage ? (
+                              const mySlotIdx = a?.userId === user?.id ? 0 : b?.userId === user?.id ? 1 : null
+                              const iAmPlaying = mySlotIdx != null
+
+                              const adminRow = (
                                 <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
                                   <i className="ri-bar-chart-2-line" style={{ fontSize: 13, color: 'var(--text-muted)', flexShrink: 0 }} />
                                   <input
@@ -4451,15 +4454,19 @@ export default function TournamentDetail() {
                                     {saving ? <><i className="ri-loader-4-line" /> {t('common.saving')}</> : <><i className="ri-save-line" /> {t('common.save')}</>}
                                   </button>
                                 </div>
-                              ) : hasScore ? (
+                              )
+
+                              const readOnlyRow = (
                                 <div style={{ borderTop: '1px solid var(--border)', paddingTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
                                   <span style={{ fontSize: 20, fontWeight: 900, color: aWon ? '#f59e0b' : 'var(--text)' }}>{sc.a}</span>
                                   <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>–</span>
                                   <span style={{ fontSize: 20, fontWeight: 900, color: bWon ? '#f59e0b' : 'var(--text)' }}>{sc.b}</span>
                                 </div>
-                              ) : (() => {
-                                // ── Participant self-submission ──
-                                const mySlotIdx = a?.userId === user?.id ? 0 : b?.userId === user?.id ? 1 : null
+                              )
+
+                              // ── Participant self-submission — shown to any player in this match,
+                              // including admins/creators who joined their own tournament. ──
+                              const selfSubmitBlock = (() => {
                                 if (mySlotIdx == null || done) return null
                                 const mySlot = mySlotIdx === 0 ? a : b
                                 const oppSlot = mySlotIdx === 0 ? b : a
@@ -4478,6 +4485,11 @@ export default function TournamentDetail() {
                                 )
                                 return (
                                   <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+                                    {canManage && (
+                                      <div style={{ fontSize: 9.5, fontWeight: 800, color: 'var(--text-muted)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                                        <i className="ri-user-line" /> Your submission (as a player)
+                                      </div>
+                                    )}
                                     {disputed && (
                                       <div style={{ fontSize: 10.5, fontWeight: 700, color: '#ef4444', marginBottom: 6 }}>
                                         <i className="ri-error-warning-line" /> Scores don't match — organiser will review.
@@ -4523,6 +4535,14 @@ export default function TournamentDetail() {
                                   </div>
                                 )
                               })()
+
+                              return (
+                                <>
+                                  {canManage && adminRow}
+                                  {!canManage && (hasScore ? readOnlyRow : selfSubmitBlock)}
+                                  {canManage && iAmPlaying && selfSubmitBlock}
+                                </>
+                              )
                             })()}
                           </div>
                         )
