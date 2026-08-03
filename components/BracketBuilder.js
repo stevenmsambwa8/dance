@@ -39,6 +39,37 @@ function formatDuration(ms) {
   return days > 0 ? `${days}d ${pad(hours)}:${pad(mins)}:${pad(secs)}` : `${pad(hours)}:${pad(mins)}:${pad(secs)}`
 }
 
+// Each match gets its own random kickoff time between 14:00–23:00 local
+// time on the chosen day (not one shared timer for the whole round).
+const MATCH_WINDOW_START_HOUR = 14
+const MATCH_WINDOW_END_HOUR   = 23
+const MATCH_DURATION_MIN      = 30 // minutes a player has, after kickoff, to submit their result
+
+function randomMatchTime(dateStr) {
+  const base = dateStr ? new Date(`${dateStr}T00:00:00`) : new Date()
+  base.setHours(0, 0, 0, 0)
+  const windowStartMin = MATCH_WINDOW_START_HOUR * 60
+  const windowEndMin = Math.max(MATCH_WINDOW_END_HOUR * 60 - MATCH_DURATION_MIN, windowStartMin)
+  const span = windowEndMin - windowStartMin
+  const offsetMin = windowStartMin + Math.floor(Math.random() * (span + 1))
+  const start = new Date(base.getTime() + offsetMin * 60000)
+  const end = new Date(start.getTime() + MATCH_DURATION_MIN * 60000)
+  return { start: start.toISOString(), end: end.toISOString() }
+}
+
+function formatClockTime(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return ''
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+function todayLocalDate() {
+  const d = new Date()
+  const off = d.getTimezoneOffset()
+  return new Date(d.getTime() - off * 60000).toISOString().slice(0, 10)
+}
+
 // ── public helper ──────────────────────────────────────────────────────────────
 export function buildEmptyBracket(roundMatchCounts = [8, 4, 2, 1], teamSize = 1) {
   const mkOpen = (idx) =>
@@ -116,9 +147,12 @@ export default function BracketBuilder({
   const [dirty, setDirty]         = useState(false)
   const [phase, setPhase]         = useState(bracketData ? 'edit' : 'shape')  // 'shape' | 'edit'
 
-  // per-round start/end timers — { [rIdx]: { start: isoString|null, end: isoString|null } }
-  const [times, setTimes]         = useState(() => bracketData?.round_times || {})
+  // per-match kickoff deadlines — { [`${rIdx}-${pIdx}`]: { start: isoString, end: isoString } }
+  // Each match is randomly assigned its own time between 14:00–23:00 on a
+  // chosen matchday date — not one shared timer for the whole round.
+  const [deadlines, setDeadlines] = useState(() => bracketData?.match_deadlines || {})
   const [editTimer, setEditTimer] = useState(null)   // rIdx whose timer panel is open
+  const [matchDate, setMatchDate] = useState({})     // { [rIdx]: "YYYY-MM-DD" } — date picked before randomizing
   const [now, setNow]             = useState(() => Date.now())
 
   // tick every second so countdowns stay live
@@ -154,12 +188,12 @@ export default function BracketBuilder({
   // ── commit ───────────────────────────────────────────────────────────────
   // Always embeds round_names and slot_count into bracketData so they persist
   // to the DB with the bracket and don't need a separate column read path.
-  function commit(newBd, newNames, newTimes) {
+  function commit(newBd, newNames, newDeadlines) {
     const resolvedNames = newNames ?? names
-    const resolvedTimes = newTimes ?? times
+    const resolvedDeadlines = newDeadlines ?? deadlines
     setBd(newBd)
     if (newNames) setNames(newNames)
-    if (newTimes) setTimes(newTimes)
+    if (newDeadlines) setDeadlines(newDeadlines)
     setDirty(true)
     // Count real open slots from round 0 (non-BYE, non-pending)
     const slotCount = (() => {
@@ -174,32 +208,44 @@ export default function BracketBuilder({
         return acc + pair.filter(s => s && s.status !== 'bye').length
       }, 0)
     })()
-    const enriched = { ...newBd, round_names: resolvedNames, round_times: resolvedTimes, slot_count: slotCount }
+    const enriched = { ...newBd, round_names: resolvedNames, match_deadlines: resolvedDeadlines, slot_count: slotCount }
     onChange?.(enriched)
   }
 
-  // ── round timers ─────────────────────────────────────────────────────────
-  function setRoundTime(rIdx, field, value) {
+  // ── per-match kickoff times ─────────────────────────────────────────────
+  // Real (non-BYE, non-champion) match pairs in a round — the ones that
+  // actually need an assigned kickoff time.
+  function realMatchPairIdxs(rIdx) {
+    const roundPairs = bd?.rounds?.[rIdx] || []
+    return roundPairs
+      .map((pair, pIdx) => ({ pair, pIdx }))
+      .filter(({ pair }) => pair.length === 2 && pair[0] && pair[1] && pair[0].status !== 'bye' && pair[1].status !== 'bye')
+      .map(({ pIdx }) => pIdx)
+  }
+
+  function randomizeRoundTimes(rIdx) {
     if (!bd) return
-    const cur = times[rIdx] || {}
-    const iso = value ? new Date(value).toISOString() : null
-    const nextRound = { ...cur, [field]: iso }
-    const next = { ...times }
-    if (!nextRound.start && !nextRound.end) delete next[rIdx]
-    else next[rIdx] = nextRound
+    const isChampionRound = rIdx === bd.rounds.length - 1
+    if (isChampionRound) return
+    const pIdxs = realMatchPairIdxs(rIdx)
+    if (!pIdxs.length) return
+    const dateStr = matchDate[rIdx] || todayLocalDate()
+    const next = { ...deadlines }
+    pIdxs.forEach(pIdx => { next[`${rIdx}-${pIdx}`] = randomMatchTime(dateStr) })
     commit(bd, names, next)
   }
 
-  function clearRoundTime(rIdx) {
+  function clearRoundTimes(rIdx) {
     if (!bd) return
-    const next = { ...times }
-    delete next[rIdx]
+    const roundPairs = bd.rounds[rIdx] || []
+    const next = { ...deadlines }
+    roundPairs.forEach((_, pIdx) => delete next[`${rIdx}-${pIdx}`])
     commit(bd, names, next)
   }
 
   // Returns null (no timer set) or { phase: 'upcoming'|'live'|'live-noend'|'over', ms }
-  function getRoundTimeStatus(rIdx) {
-    const rt = times[rIdx]
+  function getMatchTimeStatus(rIdx, pIdx) {
+    const rt = deadlines[`${rIdx}-${pIdx}`]
     if (!rt || (!rt.start && !rt.end)) return null
     const startMs = rt.start ? new Date(rt.start).getTime() : null
     const endMs   = rt.end   ? new Date(rt.end).getTime()   : null
@@ -250,10 +296,13 @@ export default function BracketBuilder({
     const newRounds = [pairs, ...bd.rounds]
     const total = newRounds.length
     const newNames = [defaultRoundName(0, total), ...names]
-    // shift every existing timer's round index up by one to match the new round order
-    const newTimes = {}
-    Object.entries(times).forEach(([k, v]) => { newTimes[Number(k) + 1] = v })
-    commit({ ...bd, rounds: newRounds }, newNames, newTimes)
+    // shift every existing match's deadline round-index up by one to match the new round order
+    const newDeadlines = {}
+    Object.entries(deadlines).forEach(([k, v]) => {
+      const [ri, pi] = k.split('-')
+      newDeadlines[`${Number(ri) + 1}-${pi}`] = v
+    })
+    commit({ ...bd, rounds: newRounds }, newNames, newDeadlines)
   }
 
   function addRoundAtEnd() {
@@ -270,13 +319,14 @@ export default function BracketBuilder({
     if (!bd || bd.rounds.length <= 1) return
     const newRounds = bd.rounds.filter((_, i) => i !== rIdx)
     const newNames  = names.filter((_, i) => i !== rIdx)
-    const newTimes = {}
-    Object.entries(times).forEach(([k, v]) => {
-      const ki = Number(k)
-      if (ki === rIdx) return
-      newTimes[ki > rIdx ? ki - 1 : ki] = v
+    const newDeadlines = {}
+    Object.entries(deadlines).forEach(([k, v]) => {
+      const [ri, pi] = k.split('-')
+      const kri = Number(ri)
+      if (kri === rIdx) return
+      newDeadlines[`${kri > rIdx ? kri - 1 : kri}-${pi}`] = v
     })
-    commit({ ...bd, rounds: newRounds }, newNames, newTimes)
+    commit({ ...bd, rounds: newRounds }, newNames, newDeadlines)
   }
 
   function addMatch(rIdx) {
@@ -291,7 +341,15 @@ export default function BracketBuilder({
   function removeMatch(rIdx, pIdx) {
     if (!bd) return
     const newRounds = bd.rounds.map((r, i) => i !== rIdx ? r : r.filter((_, pi) => pi !== pIdx))
-    commit({ ...bd, rounds: newRounds })
+    const newDeadlines = {}
+    Object.entries(deadlines).forEach(([k, v]) => {
+      const [ri, pi] = k.split('-')
+      const kri = Number(ri), kpi = Number(pi)
+      if (kri !== rIdx) { newDeadlines[k] = v; return }
+      if (kpi === pIdx) return
+      newDeadlines[`${kri}-${kpi > pIdx ? kpi - 1 : kpi}`] = v
+    })
+    commit({ ...bd, rounds: newRounds }, names, newDeadlines)
   }
 
   // ── slot rename ───────────────────────────────────────────────────────────
@@ -515,36 +573,29 @@ export default function BracketBuilder({
                     {names[rIdx] || `Round ${rIdx + 1}`}
                   </span>
                 )}
-                <button onClick={() => setEditTimer(editTimer === rIdx ? null : rIdx)} title="Set round start/end time"
-                  style={{ background: 'none', border: 'none', color: times[rIdx] ? ACC : MUT, cursor: 'pointer', fontSize: 14, padding: '0 2px', lineHeight: 1 }}>
+                <button onClick={() => setEditTimer(editTimer === rIdx ? null : rIdx)} title="Assign per-player kickoff times"
+                  style={{ background: 'none', border: 'none', color: realMatchPairIdxs(rIdx).some(pIdx => deadlines[`${rIdx}-${pIdx}`]) ? ACC : MUT, cursor: 'pointer', fontSize: 14, padding: '0 2px', lineHeight: 1 }}>
                   <i className="ri-time-line" />
                 </button>
                 <button onClick={() => addMatch(rIdx)} title="Add match" style={{ background: 'none', border: 'none', color: GRN, cursor: 'pointer', fontSize: 15, padding: '0 2px', lineHeight: 1 }}><i className="ri-add-circle-line" /></button>
                 <button onClick={() => removeRound(rIdx)} title="Remove round" style={{ background: 'none', border: 'none', color: RED, cursor: 'pointer', fontSize: 13, padding: '0 2px', lineHeight: 1, opacity: 0.5 }}><i className="ri-close-circle-line" /></button>
               </div>
 
-              {/* Countdown badge */}
+              {/* Kickoff-time summary badge */}
               {(() => {
-                const st = getRoundTimeStatus(rIdx)
-                if (!st) return null
-                if (st.phase === 'over') return (
-                  <div className="bb-timeup" style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 8px', borderRadius: 7, background: RED + '15', border: `1px solid ${RED}55`, fontSize: 10, fontWeight: 800, color: RED }}>
-                    <i className="ri-alarm-warning-fill" /> Time's up — pick the winner
+                if (rIdx === bd?.rounds?.length - 1) return null // champion round has no match to time
+                const pIdxs = realMatchPairIdxs(rIdx)
+                if (!pIdxs.length) return null
+                const assigned = pIdxs.filter(pIdx => deadlines[`${rIdx}-${pIdx}`]).length
+                if (assigned === 0) return (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 8px', borderRadius: 7, background: SURF, border: `1px dashed ${BRD}`, fontSize: 10, fontWeight: 800, color: MUT }}>
+                    <i className="ri-time-line" /> No kickoff times set
                   </div>
                 )
-                if (st.phase === 'upcoming') return (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 8px', borderRadius: 7, background: '#f59e0b15', border: '1px solid #f59e0b40', fontSize: 10, fontWeight: 800, color: '#f59e0b' }}>
-                    <i className="ri-hourglass-line" /> Starts in {formatDuration(st.ms)}
-                  </div>
-                )
-                if (st.phase === 'live') return (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 8px', borderRadius: 7, background: GRN + '15', border: `1px solid ${GRN}40`, fontSize: 10, fontWeight: 800, color: GRN }}>
-                    <i className="ri-timer-flash-line" /> Ends in {formatDuration(st.ms)}
-                  </div>
-                )
+                const anyOver = pIdxs.some(pIdx => getMatchTimeStatus(rIdx, pIdx)?.phase === 'over')
                 return (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 8px', borderRadius: 7, background: ACC + '15', border: `1px solid ${ACC}40`, fontSize: 10, fontWeight: 800, color: ACC }}>
-                    <i className="ri-play-circle-line" /> Round live
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 8px', borderRadius: 7, background: (anyOver ? RED : ACC) + '15', border: `1px solid ${(anyOver ? RED : ACC)}40`, fontSize: 10, fontWeight: 800, color: anyOver ? RED : ACC }}>
+                    <i className={anyOver ? 'ri-alarm-warning-fill' : 'ri-timer-flash-line'} /> {assigned}/{pIdxs.length} kickoff times set{anyOver ? ' · some expired' : ''}
                   </div>
                 )
               })()}
@@ -552,26 +603,41 @@ export default function BracketBuilder({
               {/* Timer editor panel */}
               {editTimer === rIdx && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 8, borderRadius: 8, border: `1.5px dashed ${BRD}`, background: SURF }}>
+                  <div style={{ fontSize: 10, color: MUT, lineHeight: 1.4 }}>
+                    Each match gets its own random kickoff time between 14:00–23:00 on the day below — not one shared timer for the round.
+                  </div>
                   <label style={{ fontSize: 10, fontWeight: 700, color: MUT }}>
-                    Start time
-                    <input type="datetime-local" value={toLocalInputValue(times[rIdx]?.start)} onChange={e => setRoundTime(rIdx, 'start', e.target.value)}
+                    Matchday date
+                    <input type="date" value={matchDate[rIdx] || todayLocalDate()} onChange={e => setMatchDate(m => ({ ...m, [rIdx]: e.target.value }))}
                       style={{ display: 'block', width: '100%', marginTop: 3, padding: '6px 8px', borderRadius: 6, border: `1px solid ${BRD}`, fontSize: 11, background: BG, color: TXT }} />
                   </label>
-                  <label style={{ fontSize: 10, fontWeight: 700, color: MUT }}>
-                    End time
-                    <input type="datetime-local" value={toLocalInputValue(times[rIdx]?.end)} onChange={e => setRoundTime(rIdx, 'end', e.target.value)}
-                      style={{ display: 'block', width: '100%', marginTop: 3, padding: '6px 8px', borderRadius: 6, border: `1px solid ${BRD}`, fontSize: 11, background: BG, color: TXT }} />
-                  </label>
-                  <div style={{ display: 'flex', gap: 10, marginTop: 2 }}>
-                    {times[rIdx] && (
-                      <button onClick={() => clearRoundTime(rIdx)} style={{ background: 'none', border: 'none', color: RED, fontSize: 10, fontWeight: 700, cursor: 'pointer', padding: 0 }}>
-                        <i className="ri-close-circle-line" /> Clear timer
+                  <div style={{ display: 'flex', gap: 10, marginTop: 2, alignItems: 'center' }}>
+                    <button onClick={() => randomizeRoundTimes(rIdx)} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', background: ACC, color: '#fff', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>
+                      <i className="ri-shuffle-line" /> Randomize kickoff times
+                    </button>
+                    {realMatchPairIdxs(rIdx).some(pIdx => deadlines[`${rIdx}-${pIdx}`]) && (
+                      <button onClick={() => clearRoundTimes(rIdx)} style={{ background: 'none', border: 'none', color: RED, fontSize: 10, fontWeight: 700, cursor: 'pointer', padding: 0 }}>
+                        <i className="ri-close-circle-line" /> Clear
                       </button>
                     )}
                     <button onClick={() => setEditTimer(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: ACC, fontSize: 10, fontWeight: 700, cursor: 'pointer', padding: 0 }}>
                       Done
                     </button>
                   </div>
+                  {/* Assigned times, one per match */}
+                  {realMatchPairIdxs(rIdx).length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 4 }}>
+                      {realMatchPairIdxs(rIdx).map(pIdx => {
+                        const rt = deadlines[`${rIdx}-${pIdx}`]
+                        return (
+                          <div key={pIdx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: rt ? TXT : MUT }}>
+                            <span>Match {pIdx + 1}</span>
+                            <span style={{ fontWeight: 700 }}>{rt ? `Kicks off ${formatClockTime(rt.start)}` : 'Not set'}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -582,6 +648,12 @@ export default function BracketBuilder({
                     <button onClick={() => removeMatch(rIdx, pIdx)} style={{ position: 'absolute', top: -7, right: -7, width: 18, height: 18, borderRadius: '50%', background: RED, border: 'none', color: '#fff', cursor: 'pointer', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3 }}>
                       <i className="ri-close-line" />
                     </button>
+                  )}
+
+                  {deadlines[`${rIdx}-${pIdx}`] && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px', fontSize: 9.5, fontWeight: 800, color: getMatchTimeStatus(rIdx, pIdx)?.phase === 'over' ? RED : ACC, borderBottom: `1px solid ${BRD}` }}>
+                      <i className="ri-time-line" /> Kicks off {formatClockTime(deadlines[`${rIdx}-${pIdx}`].start)}
+                    </div>
                   )}
 
                   {pair.map((slot, sIdx) => {

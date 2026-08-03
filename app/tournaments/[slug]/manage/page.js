@@ -8,7 +8,7 @@ import BracketBuilder from '../../../../components/BracketBuilder'
 import { buildGroups, computeStandings, isGroupStageComplete, getQualifiers } from '../../../../lib/groupStage'
 import usePageLoading from '../../../../components/usePageLoading'
 import useTranslation from '../../../../lib/useTranslation'
-import { getTimeStatus, toLocalInputValue, formatDuration } from '../../../../lib/roundTimers'
+import { isTimeUp, assignRandomMatchTimes, clearMatchTimes, formatClockTime, todayLocalDate } from '../../../../lib/roundTimers'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function getPlayerBracketStatus(userId, bracketData) {
@@ -686,6 +686,7 @@ export default function TournamentManage() {
   const [confirm,      setConfirm]      = useState(null)
   const [groupScoreDraft, setGroupScoreDraft] = useState({}) // { [fixtureId]: { home, away } }
   const [matchTimerOpen, setMatchTimerOpen] = useState(null) // round number whose timer editor is open
+  const [matchdayDate, setMatchdayDate] = useState({}) // { [roundNum]: "YYYY-MM-DD" } — date picked before randomizing
   const [groupSavingId,   setGroupSavingId]   = useState(null)
   const [showTutorial, setShowTutorial] = useState(false)
   // ── Edit form state ───────────────────────────────────────────────────────
@@ -987,28 +988,50 @@ export default function TournamentManage() {
     }
   }
 
-  // ── Matchday timers (group stage / league fixtures) ─────────────────────
-  // Stored at bracket_data.match_times[roundNumber] = { start, end }, mirroring
-  // the knockout bracket's round_times so players see the same countdown UX.
-  async function setMatchTime(roundNum, field, value) {
+  // ── Per-match kickoff times (group stage / league fixtures) ─────────────
+  // Each fixture gets its OWN randomly-assigned kickoff time between 14:00
+  // and 23:00 on the chosen matchday date — not one shared timer for the
+  // whole matchday. Stored at bracket_data.match_deadlines[fixtureId].
+  async function randomizeMatchdayTimes(roundNum, dateStr) {
     if (!bracketData) return
-    const cur = bracketData.match_times || {}
-    const curRound = cur[roundNum] || {}
-    const iso = value ? new Date(value).toISOString() : null
-    const nextRound = { ...curRound, [field]: iso }
-    const nextTimes = { ...cur }
-    if (!nextRound.start && !nextRound.end) delete nextTimes[roundNum]
-    else nextTimes[roundNum] = nextRound
-    const newBd = { ...bracketData, match_times: nextTimes }
+    const { data: freshT } = await supabase.from('tournaments').select('bracket_data').eq('id', id.current).single()
+    const freshBd = parseBracketData(freshT?.bracket_data) ?? bracketData
+    const fixtures = []
+    ;(freshBd.groups || []).forEach(g => (g.fixtures || []).forEach(fx => {
+      if (fx.round === roundNum && fx.status !== 'played') fixtures.push({ ...fx, group: g })
+    }))
+    if (!fixtures.length) { showToast('No open fixtures in this matchday.', 'error'); return }
+
+    const day = dateStr || todayLocalDate()
+    const nextDeadlines = assignRandomMatchTimes(freshBd.match_deadlines, fixtures.map(fx => fx.id), day)
+    const newBd = { ...freshBd, match_deadlines: nextDeadlines }
     setBracketData(newBd)
-    await supabase.from('tournaments').update({ bracket_data: newBd }).eq('id', id.current)
+    const { error } = await supabase.from('tournaments').update({ bracket_data: newBd }).eq('id', id.current)
+    if (error) { showToast('Could not save kickoff times — try again.', 'error'); return }
+
+    const notifRows = []
+    fixtures.forEach(fx => {
+      const home = fx.group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.homeId)
+      const away = fx.group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.awayId)
+      const clock = formatClockTime(nextDeadlines[fx.id]?.start)
+      const uids = [...resolveMemberUserIds(home), ...resolveMemberUserIds(away)]
+      uids.forEach(uid => notifRows.push({
+        user_id: uid,
+        title: `Your match time — ${tournament?.name || 'Tournament'}`,
+        body: `Your Matchday ${roundNum + 1} fixture kicks off at ${clock}. Submit your result before it locks.`,
+        type: 'match_time_assigned', meta: { tournament_id: id.current, fixture_id: fx.id }, read: false,
+      }))
+    })
+    if (notifRows.length) await supabase.from('notifications').insert(notifRows)
+    showToast(`Assigned ${fixtures.length} kickoff time${fixtures.length !== 1 ? 's' : ''}.`, 'success')
   }
 
-  async function clearMatchTime(roundNum) {
+  async function clearMatchdayTimes(roundNum) {
     if (!bracketData) return
-    const nextTimes = { ...(bracketData.match_times || {}) }
-    delete nextTimes[roundNum]
-    const newBd = { ...bracketData, match_times: nextTimes }
+    const fixtureIds = []
+    ;(bracketData.groups || []).forEach(g => (g.fixtures || []).forEach(fx => { if (fx.round === roundNum) fixtureIds.push(fx.id) }))
+    const nextDeadlines = clearMatchTimes(bracketData.match_deadlines, fixtureIds)
+    const newBd = { ...bracketData, match_deadlines: nextDeadlines }
     setBracketData(newBd)
     await supabase.from('tournaments').update({ bracket_data: newBd }).eq('id', id.current)
   }
@@ -1262,14 +1285,24 @@ export default function TournamentManage() {
   }))
   const unplaced = participants.filter(p => !inBracketSet.has(p.user_id))
 
-  // Rounds whose timer has run out — creator still needs to decide the winner.
-  const expiredRoundTimers = Object.entries(bracketData?.round_times || {})
-    .filter(([, rt]) => rt?.end && new Date(rt.end).getTime() <= nowTick)
-    .map(([rIdx]) => Number(rIdx))
+  // Matches whose kickoff deadline has passed and are still undecided —
+  // creator still needs to step in (decide a winner / resolve a fixture).
+  const expiredRoundTimers = []
+  ;(bracketData?.rounds || []).forEach((pairs, rIdx) => {
+    if (rIdx === (bracketData.rounds.length - 1)) return // champion round has no match to time
+    pairs.forEach((pair, pIdx) => {
+      const decided = pair.some(s => s?.status === 'winner')
+      if (!decided && isTimeUp(bracketData?.match_deadlines, `${rIdx}-${pIdx}`, nowTick) && !expiredRoundTimers.includes(rIdx)) {
+        expiredRoundTimers.push(rIdx)
+      }
+    })
+  })
   const expiredRoundNames = expiredRoundTimers.map(rIdx => bracketData?.round_names?.[rIdx] || `Round ${rIdx + 1}`)
-  const expiredMatchdays = Object.entries(bracketData?.match_times || {})
-    .filter(([, rt]) => rt?.end && new Date(rt.end).getTime() <= nowTick)
-    .map(([rn]) => `Matchday ${Number(rn) + 1}`)
+  const expiredMatchdays = Array.from(new Set(
+    (bracketData?.groups || []).flatMap(g => g.fixtures || [])
+      .filter(fx => fx.status !== 'played' && isTimeUp(bracketData?.match_deadlines, fx.id, nowTick))
+      .map(fx => fx.round)
+  )).sort((a, b) => a - b).map(rn => `Matchday ${rn + 1}`)
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -1462,7 +1495,7 @@ export default function TournamentManage() {
                     </button>
                   </div>
 
-                  {/* Matchday timers — visible to players; locks self-submission once expired */}
+                  {/* Per-match kickoff times — visible to players; locks self-submission once expired */}
                   {(() => {
                     const roundNums = Array.from(new Set(bracketData.groups.flatMap(g => g.fixtures.map(f => f.round)))).sort((a, b) => a - b)
                     if (!roundNums.length) return null
@@ -1470,48 +1503,67 @@ export default function TournamentManage() {
                       <div style={{ marginTop: 14, border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
                           <i className="ri-time-line" style={{ color: '#6366f1', fontSize: 16 }} />
-                          <span style={{ fontSize: 13, fontWeight: 800 }}>Matchday Timers</span>
-                          <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>Visible to players · locks submissions when time's up</span>
+                          <span style={{ fontSize: 13, fontWeight: 800 }}>Match Kickoff Times</span>
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>Each player gets their own random time · locks submissions when time's up</span>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                           {roundNums.map(rn => {
-                            const rt = bracketData.match_times?.[rn] || {}
-                            const st = getTimeStatus(bracketData.match_times, rn, nowTick)
+                            const fixturesInRound = bracketData.groups.flatMap(g => g.fixtures.filter(f => f.round === rn).map(fx => ({ ...fx, group: g })))
+                            const openFixtures = fixturesInRound.filter(fx => fx.status !== 'played')
+                            const assigned = fixturesInRound.filter(fx => bracketData.match_deadlines?.[fx.id]).length
+                            const anyOver = fixturesInRound.some(fx => isTimeUp(bracketData.match_deadlines, fx.id, nowTick) && fx.status !== 'played')
                             const open = matchTimerOpen === rn
                             return (
                               <div key={rn} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: '8px 10px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                   <span style={{ flex: 1, fontSize: 12.5, fontWeight: 800 }}>Matchday {rn + 1}</span>
-                                  {st && (
+                                  {fixturesInRound.length > 0 && (
                                     <span style={{
                                       fontSize: 10, fontWeight: 800, padding: '3px 7px', borderRadius: 6,
-                                      color: st.phase === 'over' ? '#ef4444' : st.phase === 'live' ? '#22c55e' : '#f59e0b',
-                                      background: st.phase === 'over' ? '#ef444415' : st.phase === 'live' ? '#22c55e15' : '#f59e0b15',
+                                      color: anyOver ? '#ef4444' : assigned ? '#22c55e' : 'var(--text-muted)',
+                                      background: anyOver ? '#ef444415' : assigned ? '#22c55e15' : 'var(--surface)',
                                     }}>
-                                      {st.phase === 'over' ? "Time's up" : st.phase === 'live' ? `Ends in ${formatDuration(st.ms)}` : st.phase === 'upcoming' ? `Starts in ${formatDuration(st.ms)}` : 'Live'}
+                                      {assigned}/{fixturesInRound.length} times set{anyOver ? ' · some expired' : ''}
                                     </span>
                                   )}
-                                  <button onClick={() => setMatchTimerOpen(open ? null : rn)} style={{ background: 'none', border: 'none', color: rt.start || rt.end ? '#6366f1' : 'var(--text-muted)', cursor: 'pointer', fontSize: 15 }}>
+                                  <button onClick={() => setMatchTimerOpen(open ? null : rn)} style={{ background: 'none', border: 'none', color: assigned ? '#6366f1' : 'var(--text-muted)', cursor: 'pointer', fontSize: 15 }}>
                                     <i className={open ? 'ri-arrow-up-s-line' : 'ri-pencil-line'} />
                                   </button>
                                 </div>
                                 {open && (
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+                                    <div style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                                      Every open fixture below gets its own random kickoff time between 14:00–23:00 on the date you pick — players are notified individually.
+                                    </div>
                                     <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)' }}>
-                                      Start time
-                                      <input type="datetime-local" value={toLocalInputValue(rt.start)} onChange={e => setMatchTime(rn, 'start', e.target.value)}
+                                      Matchday date
+                                      <input type="date" value={matchdayDate[rn] || todayLocalDate()} onChange={e => setMatchdayDate(m => ({ ...m, [rn]: e.target.value }))}
                                         style={{ display: 'block', width: '100%', marginTop: 3, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', fontSize: 11, background: 'var(--bg)', color: 'var(--text)' }} />
                                     </label>
-                                    <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)' }}>
-                                      End time
-                                      <input type="datetime-local" value={toLocalInputValue(rt.end)} onChange={e => setMatchTime(rn, 'end', e.target.value)}
-                                        style={{ display: 'block', width: '100%', marginTop: 3, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', fontSize: 11, background: 'var(--bg)', color: 'var(--text)' }} />
-                                    </label>
-                                    {(rt.start || rt.end) && (
-                                      <button onClick={() => clearMatchTime(rn)} style={{ alignSelf: 'flex-start', background: 'none', border: 'none', color: '#ef4444', fontSize: 10, fontWeight: 700, cursor: 'pointer', padding: 0 }}>
-                                        <i className="ri-close-circle-line" /> Clear timer
+                                    <div style={{ display: 'flex', gap: 10, marginTop: 2, alignItems: 'center' }}>
+                                      <button onClick={() => randomizeMatchdayTimes(rn, matchdayDate[rn] || todayLocalDate())} disabled={!openFixtures.length}
+                                        style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 7, border: 'none', background: openFixtures.length ? '#6366f1' : 'var(--border)', color: '#fff', fontSize: 11, fontWeight: 800, cursor: openFixtures.length ? 'pointer' : 'default' }}>
+                                        <i className="ri-shuffle-line" /> Randomize kickoff times
                                       </button>
-                                    )}
+                                      {assigned > 0 && (
+                                        <button onClick={() => clearMatchdayTimes(rn)} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: 10, fontWeight: 700, cursor: 'pointer', padding: 0 }}>
+                                          <i className="ri-close-circle-line" /> Clear
+                                        </button>
+                                      )}
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 4 }}>
+                                      {fixturesInRound.map(fx => {
+                                        const home = fx.group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.homeId)
+                                        const away = fx.group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.awayId)
+                                        const rt = bracketData.match_deadlines?.[fx.id]
+                                        return (
+                                          <div key={fx.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: rt ? 'var(--text)' : 'var(--text-muted)' }}>
+                                            <span>{home?.name || '?'} vs {away?.name || '?'}</span>
+                                            <span style={{ fontWeight: 700 }}>{fx.status === 'played' ? 'Played' : rt ? `Kicks off ${formatClockTime(rt.start)}` : 'Not set'}</span>
+                                          </div>
+                                        )
+                                      })}
+                                    </div>
                                   </div>
                                 )}
                               </div>

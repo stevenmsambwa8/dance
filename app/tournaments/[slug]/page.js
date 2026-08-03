@@ -2988,7 +2988,7 @@ export default function TournamentDetail() {
     const side = myFixtureSide(group, fixture, user.id)
     if (!side) { setFixtureSubmitSaving(null); showToast('You are not in this fixture.', 'error'); return }
     if (fixture.status === 'played') { setFixtureSubmitSaving(null); showToast('This fixture is already scored.', 'error'); return }
-    if (isTimeUp(freshBd?.match_times, fixture.round)) { setFixtureSubmitSaving(null); showToast('Time is up for this matchday — submissions are closed.', 'error'); return }
+    if (isTimeUp(freshBd?.match_deadlines, fixture.id)) { setFixtureSubmitSaving(null); showToast('Time is up for your match — submissions are closed.', 'error'); return }
 
     const mine = { home: Number(draft.home), away: Number(draft.away), by: user.id, at: new Date().toISOString(), proofUrl }
     const otherSide = side === 'home' ? 'away' : 'home'
@@ -3061,7 +3061,7 @@ export default function TournamentDetail() {
     const oppSlot = pair[oppSlotIdx]
     if (mySlot?.userId !== user.id) { setKoSubmitSaving(null); showToast('You are not in this match.', 'error'); return }
     if (mySlot?.status === 'winner' || oppSlot?.status === 'winner') { setKoSubmitSaving(null); showToast('This match is already decided.', 'error'); return }
-    if (isTimeUp(freshBd?.round_times, rIdx)) { setKoSubmitSaving(null); showToast('Time is up for this round — submissions are closed.', 'error'); return }
+    if (isTimeUp(freshBd?.match_deadlines, key)) { setKoSubmitSaving(null); showToast('Time is up for your match — submissions are closed.', 'error'); return }
 
     // Normalise to slot-0/slot-1 perspective regardless of which side "I" am.
     const a = mySlotIdx === 0 ? Number(draft.mine) : Number(draft.opp)
@@ -3750,16 +3750,16 @@ export default function TournamentDetail() {
                           const formOpen = fixtureSubmitOpenId === fx.id
                           const draft = fixtureSubmitDraft[fx.id] || { home: '', away: '', file: null }
                           const saving = fixtureSubmitSaving === fx.id
-                          const mdStatus = getTimeStatus(bracketData?.match_times, fx.round, nowTick)
+                          const mdStatus = getTimeStatus(bracketData?.match_deadlines, fx.id, nowTick)
                           const mdLocked = mdStatus?.phase === 'over'
                           return (
                             <div key={fx.id} style={{ padding: '8px 14px', borderBottom: '1px solid var(--border)' }}>
                               {mdStatus && (() => {
                                 const map = {
-                                  upcoming:     { icon: 'ri-hourglass-line',      bg: '#f59e0b15', border: '#f59e0b40', color: '#f59e0b', label: `Matchday starts in ${formatDuration(mdStatus.ms)}` },
-                                  live:         { icon: 'ri-timer-flash-line',    bg: '#22c55e15', border: '#22c55e40', color: '#22c55e', label: `Matchday ends in ${formatDuration(mdStatus.ms)}` },
-                                  'live-noend': { icon: 'ri-play-circle-line',   bg: '#6366f115', border: '#6366f140', color: '#6366f1', label: 'Matchday live' },
-                                  over:         { icon: 'ri-alarm-warning-fill', bg: '#ef444415', border: '#ef444455', color: '#ef4444', label: "Matchday time's up" },
+                                  upcoming:     { icon: 'ri-hourglass-line',      bg: '#f59e0b15', border: '#f59e0b40', color: '#f59e0b', label: `Your match starts in ${formatDuration(mdStatus.ms)}` },
+                                  live:         { icon: 'ri-timer-flash-line',    bg: '#22c55e15', border: '#22c55e40', color: '#22c55e', label: `Time left to submit: ${formatDuration(mdStatus.ms)}` },
+                                  'live-noend': { icon: 'ri-play-circle-line',   bg: '#6366f115', border: '#6366f140', color: '#6366f1', label: 'Your match is live' },
+                                  over:         { icon: 'ri-alarm-warning-fill', bg: '#ef444415', border: '#ef444455', color: '#ef4444', label: "Time's up for your match" },
                                 }
                                 const cfg = map[mdStatus.phase]
                                 if (!cfg || played) return null
@@ -3791,7 +3791,7 @@ export default function TournamentDetail() {
                                   )}
                                   {mdLocked && !mySubmission ? (
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center', padding: '6px 8px', borderRadius: 8, background: '#ef444412', border: '1px solid #ef444440', fontSize: 10.5, fontWeight: 700, color: '#ef4444' }}>
-                                      <i className="ri-lock-line" /> Time's up — submissions closed for this matchday
+                                      <i className="ri-lock-line" /> Time's up — submissions closed for your match
                                     </div>
                                   ) : !formOpen ? (
                                     <button
@@ -4085,25 +4085,26 @@ export default function TournamentDetail() {
                             {isChampion && <i className="ri-vip-crown-fill" style={{ marginRight: 4 }} />}
                             {getRoundLabel(rIdx, bracketData.rounds.length, bracketData.bracketSize, bracketData?.round_names)}
                           </div>
-                          {(() => {
-                            const st = getTimeStatus(bracketData?.round_times, rIdx, nowTick)
-                            if (!st) return null
-                            const map = {
-                              upcoming:      { icon: 'ri-hourglass-line',      bg: '#f59e0b15', border: '#f59e0b40', color: '#f59e0b', label: `Starts in ${formatDuration(st.ms)}` },
-                              live:          { icon: 'ri-timer-flash-line',    bg: '#22c55e15', border: '#22c55e40', color: '#22c55e', label: `Ends in ${formatDuration(st.ms)}` },
-                              'live-noend':  { icon: 'ri-play-circle-line',   bg: '#6366f115', border: '#6366f140', color: '#6366f1', label: 'Round live' },
-                              over:          { icon: 'ri-alarm-warning-fill', bg: '#ef444415', border: '#ef444455', color: '#ef4444', label: "Time's up" },
-                            }
-                            const cfg = map[st.phase]
-                            if (!cfg) return null
-                            return (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 7px', margin: '2px 0 6px', borderRadius: 6, background: cfg.bg, border: `1px solid ${cfg.border}`, fontSize: 10, fontWeight: 800, color: cfg.color, width: 'fit-content' }}>
-                                <i className={cfg.icon} style={{ fontSize: 11 }} /> {cfg.label}
-                              </div>
-                            )
-                          })()}
                           <div className={styles.matchList}>
-                            {pairs.map((pair, pIdx) => isChampion
+                            {pairs.map((pair, pIdx) => {
+                            const matchKey = `${rIdx}-${pIdx}`
+                            const mStatus = !isChampion ? getTimeStatus(bracketData?.match_deadlines, matchKey, nowTick) : null
+                            const mBadge = mStatus && (() => {
+                              const map = {
+                                upcoming:     { icon: 'ri-hourglass-line',      bg: '#f59e0b15', border: '#f59e0b40', color: '#f59e0b', label: `Kicks off in ${formatDuration(mStatus.ms)}` },
+                                live:         { icon: 'ri-timer-flash-line',    bg: '#22c55e15', border: '#22c55e40', color: '#22c55e', label: `Time left: ${formatDuration(mStatus.ms)}` },
+                                'live-noend': { icon: 'ri-play-circle-line',   bg: '#6366f115', border: '#6366f140', color: '#6366f1', label: 'Match live' },
+                                over:         { icon: 'ri-alarm-warning-fill', bg: '#ef444415', border: '#ef444455', color: '#ef4444', label: "Time's up" },
+                              }
+                              const cfg = map[mStatus.phase]
+                              if (!cfg) return null
+                              return (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 6px', margin: '0 0 4px', borderRadius: 6, background: cfg.bg, border: `1px solid ${cfg.border}`, fontSize: 9.5, fontWeight: 800, color: cfg.color, width: 'fit-content' }}>
+                                  <i className={cfg.icon} style={{ fontSize: 10 }} /> {cfg.label}
+                                </div>
+                              )
+                            })()
+                            return isChampion
                               ? <div key={pIdx}><ChampDisplay
                                   entry={pair[0]}
                                   styles={styles}
@@ -4116,6 +4117,7 @@ export default function TournamentDetail() {
                               : bracketData.isTeamBattle
                                 ? (
                                   <div key={pIdx} className={styles.matchPairWrap} data-bround={rIdx} data-bpair={pIdx}>
+                                    {mBadge}
                                     <TeamMatchCard
                                       pair={pair}
                                       styles={styles}
@@ -4148,6 +4150,7 @@ export default function TournamentDetail() {
                                 )
                                 : (
                                 <div key={pIdx} className={styles.matchPairWrap} data-bround={rIdx} data-bpair={pIdx}>
+                                  {mBadge}
                                   <MatchCard
                                     pair={pair}
                                     styles={styles}
@@ -4177,7 +4180,7 @@ export default function TournamentDetail() {
                                   />
                                 </div>
                               )
-                            )}
+                            })}
                           </div>
                         </div>
                       )
@@ -4475,11 +4478,11 @@ export default function TournamentDetail() {
                                 const formOpen = koSubmitOpenKey === key
                                 const kdraft = koSubmitDraft[key] || { mine: '', opp: '', file: null }
                                 const ksaving = koSubmitSaving === key
-                                const roundLocked = isTimeUp(bracketData?.round_times, rIdx, nowTick)
+                                const roundLocked = isTimeUp(bracketData?.match_deadlines, key, nowTick)
                                 if (roundLocked && !mySubmission) return (
                                   <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center', padding: '6px 8px', borderRadius: 8, background: '#ef444412', border: '1px solid #ef444440', fontSize: 10.5, fontWeight: 700, color: '#ef4444' }}>
-                                      <i className="ri-lock-line" /> Time's up — submissions closed for this round
+                                      <i className="ri-lock-line" /> Time's up — submissions closed for your match
                                     </div>
                                   </div>
                                 )
