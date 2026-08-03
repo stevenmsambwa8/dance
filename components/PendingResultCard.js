@@ -13,15 +13,13 @@ import styles from './PendingResultCard.module.css'
  * used as the background image — faded and darkened with a bottom-up
  * black gradient overlay so the text on top always stays readable.
  *
- * Tapping "Submit Proof" no longer redirects to the tournament — it opens
- * a compact inline form (your score / opponent's score + optional proof
- * screenshot) right on the card, and submits straight from here. The
- * tournament name itself is still a link, for anyone who wants full
- * bracket context before scoring.
+ * The score-submission form (your score / opponent's score + optional
+ * proof screenshot) is shown directly on the card — no extra tap to
+ * reveal it. The tournament name itself is still a link, for anyone who
+ * wants full bracket context before scoring.
  */
 export function PendingResultCard({ item, avatarUrl, compact, userId, onResolved }) {
   const opponent = item.opponentName || 'your opponent'
-  const [open, setOpen] = useState(false)
   const [mine, setMine] = useState('')
   const [opp, setOpp] = useState('')
   const [file, setFile] = useState(null)
@@ -61,15 +59,7 @@ export function PendingResultCard({ item, avatarUrl, compact, userId, onResolved
         </Link>
         <div className={`${styles.sub} ${compact ? styles.subCompact : ''}`}>vs {opponent} — submit your score to confirm</div>
 
-        {!open && !result && (
-          <div className={styles.row}>
-            <button type="button" className={`${styles.cta} ${compact ? styles.ctaCompact : ''}`} onClick={() => setOpen(true)}>
-              <i className="ri-upload-2-line" /> Submit Proof
-            </button>
-          </div>
-        )}
-
-        {open && !result && (
+        {!result && (
           <div className={styles.form}>
             <div className={styles.scoreRow}>
               <span className={styles.scoreLabel}>You</span>
@@ -92,7 +82,7 @@ export function PendingResultCard({ item, avatarUrl, compact, userId, onResolved
               <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => setFile(e.target.files?.[0] || null)} />
             </label>
             <div className={styles.formActions}>
-              <button type="button" className={styles.cancelBtn} onClick={() => { setOpen(false); setMine(''); setOpp(''); setFile(null) }}>
+              <button type="button" className={styles.cancelBtn} onClick={() => { setMine(''); setOpp(''); setFile(null) }}>
                 Cancel
               </button>
               <button
@@ -111,7 +101,7 @@ export function PendingResultCard({ item, avatarUrl, compact, userId, onResolved
             <i className={result.status === 'error' || result.status === 'tied' ? 'ri-error-warning-line' : 'ri-checkbox-circle-line'} />
             <span>{result.message}</span>
             {(result.status === 'error' || result.status === 'tied') && (
-              <button type="button" className={styles.retryBtn} onClick={() => { setResult(null); setOpen(true) }}>Try again</button>
+              <button type="button" className={styles.retryBtn} onClick={() => setResult(null)}>Try again</button>
             )}
           </div>
         )}
