@@ -22,8 +22,8 @@ export default function MatchupResolverPage() {
     async function resolve() {
       const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug)
       const { data: t } = await (isUUID
-        ? supabase.from('tournaments').select('slug, bracket_data').eq('id', slug).single()
-        : supabase.from('tournaments').select('slug, bracket_data').eq('slug', slug).single()
+        ? supabase.from('tournaments').select('*').eq('id', slug).single()
+        : supabase.from('tournaments').select('*').eq('slug', slug).single()
       )
       if (cancelled) return
       if (!t) { setNotFound(true); return }
