@@ -6,6 +6,7 @@ import { useAuth } from './AuthProvider'
 import { supabase } from '../lib/supabase'
 import { fetchPendingSubmissions } from '../lib/pendingSubmissions'
 import { submitGroupFixtureResult, submitKnockoutResult } from '../lib/resultSubmission'
+import { buildMatchupSlug } from '../lib/matchSlug'
 import { getTimeStatus, formatDuration } from '../lib/roundTimers'
 import styles from './PendingResultCard.module.css'
 
@@ -58,12 +59,10 @@ export function PendingResultCard({ item, avatarUrl, compact, userId, onResolved
     }
   }
 
-  // Deep link straight to this exact match's card — the hash tells the
-  // tournament page which tab to open (Matches for knockout, Groups for
-  // group/league fixtures) and which card to scroll to & highlight.
-  const matchHref = item.kind === 'knockout'
-    ? `/tournaments/${item.tournamentSlug}#ko-${item.rIdx}-${item.pIdx}`
-    : `/tournaments/${item.tournamentSlug}#fx-${item.fixtureId}`
+  // Deep link straight to this exact match — a readable "/matches/name-vs-name"
+  // path (e.g. /tournaments/summer-clash/matches/abi-vs-seti) that resolves
+  // to the right tab and scrolls/highlights the specific card once there.
+  const matchHref = `/tournaments/${item.tournamentSlug}/matches/${buildMatchupSlug(item.myName, item.opponentName)}`
 
   return (
     <div className={styles.card}>
