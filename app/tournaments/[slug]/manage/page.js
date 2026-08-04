@@ -1725,7 +1725,7 @@ export default function TournamentManage() {
               <button className={styles.btnGhost} onClick={() => setActiveTab('bracket')}>
                 <i className="ri-edit-line" /> {t('common.edit')}
               </button>
-              <button className={styles.btnGhost} onClick={() => router.push(`/tournaments/${tournament.slug || tournament.id}?tab=matches`)}>
+              <button className={styles.btnGhost} onClick={() => router.push(`/tournaments/${tournament.slug || tournament.id}#matches`)}>
                 <i className="ri-eye-line" />
               </button>
             </div>
@@ -1839,7 +1839,7 @@ export default function TournamentManage() {
                       <div style={{ fontSize: 12.5, fontWeight: 800, color: '#ef4444' }}>{expiredKoCount} match{expiredKoCount !== 1 ? 'es' : ''} past their scheduled time</div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>Open the bracket and tap the matches to decide the winner.</div>
                     </div>
-                    <button onClick={() => router.push(`/tournaments/${tournament.slug || tournament.id}?tab=matches`)}
+                    <button onClick={() => router.push(`/tournaments/${tournament.slug || tournament.id}#matches`)}
                       style={{ flexShrink: 0, padding: '7px 12px', borderRadius: 8, background: '#ef4444', color: '#fff', border: 'none', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
                       Decide
                     </button>
@@ -1943,7 +1943,7 @@ export default function TournamentManage() {
                         <i className="ri-restart-line" /> {t('tournaments.resetBracketBtn')}
                       </button>
                   }
-                  <button className={styles.btnGhost} onClick={() => router.push(`/tournaments/${tournament.slug || tournament.id}?tab=matches`)}>
+                  <button className={styles.btnGhost} onClick={() => router.push(`/tournaments/${tournament.slug || tournament.id}#matches`)}>
                     <i className="ri-eye-line" /> {t('common.view')}
                   </button>
                 </div>

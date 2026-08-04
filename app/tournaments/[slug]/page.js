@@ -1,7 +1,7 @@
 'use client'
 import { getCurrentSeason, computeLevelAfterWin } from '@/lib/seasons'
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '../../../components/AuthProvider'
 import { useAuthGate } from '../../../components/AuthGateModal'
@@ -465,15 +465,37 @@ export default function TournamentDetail() {
   const [registering, setRegistering] = useState(false)
   const [leaving, setLeaving] = useState(false)
   const [bracketSaving, setBracketSaving] = useState(false)
-  const searchParams = useSearchParams()
-  const VALID_TABS = ['bracket', 'matches', 'groups', 'standings', 'leaderboard', 'players']
-  const [activeTab, setActiveTab] = useState(() => {
-    const t = searchParams?.get('tab')
-    return VALID_TABS.includes(t) ? t : 'bracket'
-  })
-  // A specific match to scroll to & briefly highlight once its tab renders —
-  // e.g. arriving from a "Submit Result" nudge card for one exact match.
-  const matchAnchor = searchParams?.get('match') || null
+  const [activeTab, setActiveTab] = useState('bracket')
+
+  // Switch tabs AND scroll so the tab bar/content sits at the top of the
+  // viewport, like the page had already been scrolled there — rather than
+  // leaving the newly-picked tab's content wherever the page happened to be.
+  function changeTab(key) {
+    setActiveTab(key)
+    requestAnimationFrame(() => {
+      document.getElementById('tournament-tabs')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }
+
+  // ── Hash-based deep links ──────────────────────────────────────────────
+  // #matches / #groups        → just open that tab
+  // #ko-<rIdx>-<pIdx>         → open Matches tab, scroll to & highlight that match
+  // #fx-<fixtureId>           → open Groups tab, scroll to & highlight that fixture
+  // Shorter than query params and works as a normal anchor link too.
+  const [matchAnchor, setMatchAnchor] = useState(null)
+  useEffect(() => {
+    const hash = typeof window !== 'undefined' ? window.location.hash.replace(/^#/, '') : ''
+    if (!hash) return
+    if (hash === 'matches' || hash === 'groups' || hash === 'bracket' || hash === 'standings' || hash === 'leaderboard' || hash === 'players') {
+      changeTab(hash)
+    } else if (hash.startsWith('ko-')) {
+      setActiveTab('matches') // the match-specific scroll below targets the card directly
+      setMatchAnchor(hash)
+    } else if (hash.startsWith('fx-')) {
+      setActiveTab('groups')
+      setMatchAnchor(hash)
+    }
+  }, [])
   const [saving, setSaving] = useState(false)
   const [historyModal, setHistoryModal] = useState(null)
   const [shareCopied, setShareCopied] = useState(false)
@@ -805,7 +827,7 @@ export default function TournamentDetail() {
   useEffect(() => {
     if (!matchAnchor || loadingTournament || loadingParticipants) return
     const t = setTimeout(() => {
-      const el = document.getElementById(`match-${matchAnchor}`)
+      const el = document.getElementById(matchAnchor)
       if (!el) return
       el.scrollIntoView({ behavior: 'smooth', block: 'center' })
       el.classList.add(styles.matchHighlight)
@@ -3595,7 +3617,7 @@ export default function TournamentDetail() {
       })()}
 
       {/* Tabs */}
-      <div className={styles.tabs}>
+      <div className={styles.tabs} id="tournament-tabs">
         {[
           ...(tournament.stage_format === 'groups_knockout'
             ? [{ key: 'groups', icon: 'ri-layout-grid-line', title: t('tournaments.groupsTab') }]
@@ -3615,7 +3637,7 @@ export default function TournamentDetail() {
           <button
             key={tab.key}
             className={`${styles.tab} ${activeTab === tab.key ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => changeTab(tab.key)}
             title={tab.title}
             aria-label={tab.title}
           >
@@ -3776,7 +3798,7 @@ export default function TournamentDetail() {
                           const mdStatus = getTimeStatus(bracketData?.match_schedule, fixtureKey(fx.id), nowTick)
                           const mdLocked = mdStatus?.phase === 'over'
                           return (
-                            <div key={fx.id} id={`match-fx-${fx.id}`} style={{ padding: '8px 14px', borderBottom: '1px solid var(--border)' }}>
+                            <div key={fx.id} id={`fx-${fx.id}`} style={{ padding: '8px 14px', borderBottom: '1px solid var(--border)' }}>
                               {mdStatus && (() => {
                                 const map = {
                                   upcoming:     { icon: 'ri-hourglass-line',      bg: '#f59e0b15', border: '#f59e0b40', color: '#f59e0b', label: `Your match plays in ${formatDuration(mdStatus.ms)}` },
@@ -4337,7 +4359,7 @@ export default function TournamentDetail() {
                         const pending = !done && !isBye
 
                         return (
-                          <div key={`${rIdx}-${pIdx}`} id={`match-ko-${rIdx}-${pIdx}`} style={{
+                          <div key={`${rIdx}-${pIdx}`} id={`ko-${rIdx}-${pIdx}`} style={{
                             background: 'var(--surface)',
                             border: `1px solid ${done ? 'rgba(245,158,11,0.2)' : 'var(--border)'}`,
                             borderRadius: 14,

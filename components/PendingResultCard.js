@@ -58,12 +58,12 @@ export function PendingResultCard({ item, avatarUrl, compact, userId, onResolved
     }
   }
 
-  // Deep link straight to this exact match's card — jumps to the tab where
-  // scoring actually happens (Matches for knockout, Groups for group/league
-  // fixtures) and scrolls/highlights the specific card once there.
+  // Deep link straight to this exact match's card — the hash tells the
+  // tournament page which tab to open (Matches for knockout, Groups for
+  // group/league fixtures) and which card to scroll to & highlight.
   const matchHref = item.kind === 'knockout'
-    ? `/tournaments/${item.tournamentSlug}?tab=matches&match=ko-${item.rIdx}-${item.pIdx}`
-    : `/tournaments/${item.tournamentSlug}?tab=groups&match=fx-${item.fixtureId}`
+    ? `/tournaments/${item.tournamentSlug}#ko-${item.rIdx}-${item.pIdx}`
+    : `/tournaments/${item.tournamentSlug}#fx-${item.fixtureId}`
 
   return (
     <div className={styles.card}>
