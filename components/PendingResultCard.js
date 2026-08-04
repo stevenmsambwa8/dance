@@ -58,6 +58,13 @@ export function PendingResultCard({ item, avatarUrl, compact, userId, onResolved
     }
   }
 
+  // Deep link straight to this exact match's card — jumps to the tab where
+  // scoring actually happens (Matches for knockout, Groups for group/league
+  // fixtures) and scrolls/highlights the specific card once there.
+  const matchHref = item.kind === 'knockout'
+    ? `/tournaments/${item.tournamentSlug}?tab=matches&match=ko-${item.rIdx}-${item.pIdx}`
+    : `/tournaments/${item.tournamentSlug}?tab=groups&match=fx-${item.fixtureId}`
+
   return (
     <div className={styles.card}>
       {avatarUrl ? (
@@ -68,10 +75,15 @@ export function PendingResultCard({ item, avatarUrl, compact, userId, onResolved
       <div className={styles.overlay} />
       <div className={`${styles.content} ${compact ? styles.contentCompact : ''}`}>
         <span className={styles.badge}><i className="ri-time-line" /> Result Needed</span>
-        <Link href={`/tournaments/${item.tournamentSlug}`} className={`${styles.title} ${compact ? styles.titleCompact : ''}`}>
+        <Link href={matchHref} className={`${styles.title} ${compact ? styles.titleCompact : ''}`}>
           {item.tournamentName}
         </Link>
-        <div className={`${styles.sub} ${compact ? styles.subCompact : ''}`}>vs {opponent} — submit your score to confirm</div>
+        <div className={`${styles.sub} ${compact ? styles.subCompact : ''}`} style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <span>vs {opponent} — submit your score to confirm</span>
+          <Link href={matchHref} style={{ fontSize: 11, fontWeight: 800, color: 'inherit', opacity: 0.85, whiteSpace: 'nowrap' }}>
+            <i className="ri-external-link-line" /> Open match
+          </Link>
+        </div>
 
         {schedStatus && (
           <div style={{

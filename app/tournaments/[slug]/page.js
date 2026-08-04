@@ -1,7 +1,7 @@
 'use client'
 import { getCurrentSeason, computeLevelAfterWin } from '@/lib/seasons'
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '../../../components/AuthProvider'
 import { useAuthGate } from '../../../components/AuthGateModal'
@@ -465,7 +465,15 @@ export default function TournamentDetail() {
   const [registering, setRegistering] = useState(false)
   const [leaving, setLeaving] = useState(false)
   const [bracketSaving, setBracketSaving] = useState(false)
-  const [activeTab, setActiveTab] = useState('bracket')
+  const searchParams = useSearchParams()
+  const VALID_TABS = ['bracket', 'matches', 'groups', 'standings', 'leaderboard', 'players']
+  const [activeTab, setActiveTab] = useState(() => {
+    const t = searchParams?.get('tab')
+    return VALID_TABS.includes(t) ? t : 'bracket'
+  })
+  // A specific match to scroll to & briefly highlight once its tab renders —
+  // e.g. arriving from a "Submit Result" nudge card for one exact match.
+  const matchAnchor = searchParams?.get('match') || null
   const [saving, setSaving] = useState(false)
   const [historyModal, setHistoryModal] = useState(null)
   const [shareCopied, setShareCopied] = useState(false)
@@ -791,6 +799,20 @@ export default function TournamentDetail() {
     const iv = setInterval(() => setNowTick(Date.now()), 1000)
     return () => clearInterval(iv)
   }, [])
+
+  // ── Deep-link scroll: jump straight to one specific match (e.g. from a
+  // "Submit Result" nudge card) and briefly highlight its card ───────────
+  useEffect(() => {
+    if (!matchAnchor || loadingTournament || loadingParticipants) return
+    const t = setTimeout(() => {
+      const el = document.getElementById(`match-${matchAnchor}`)
+      if (!el) return
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      el.classList.add(styles.matchHighlight)
+      setTimeout(() => el.classList.remove(styles.matchHighlight), 2200)
+    }, 350) // let the tab's content finish rendering first
+    return () => clearTimeout(t)
+  }, [matchAnchor, activeTab, loadingTournament, loadingParticipants, bracketData])
 
   // ── Auto-delete test tournaments after 3 hours ─────────────────────────────
   useEffect(() => {
@@ -3754,7 +3776,7 @@ export default function TournamentDetail() {
                           const mdStatus = getTimeStatus(bracketData?.match_schedule, fixtureKey(fx.id), nowTick)
                           const mdLocked = mdStatus?.phase === 'over'
                           return (
-                            <div key={fx.id} style={{ padding: '8px 14px', borderBottom: '1px solid var(--border)' }}>
+                            <div key={fx.id} id={`match-fx-${fx.id}`} style={{ padding: '8px 14px', borderBottom: '1px solid var(--border)' }}>
                               {mdStatus && (() => {
                                 const map = {
                                   upcoming:     { icon: 'ri-hourglass-line',      bg: '#f59e0b15', border: '#f59e0b40', color: '#f59e0b', label: `Your match plays in ${formatDuration(mdStatus.ms)}` },
@@ -4315,7 +4337,7 @@ export default function TournamentDetail() {
                         const pending = !done && !isBye
 
                         return (
-                          <div key={`${rIdx}-${pIdx}`} style={{
+                          <div key={`${rIdx}-${pIdx}`} id={`match-ko-${rIdx}-${pIdx}`} style={{
                             background: 'var(--surface)',
                             border: `1px solid ${done ? 'rgba(245,158,11,0.2)' : 'var(--border)'}`,
                             borderRadius: 14,
