@@ -11,7 +11,7 @@ export default function MatchesTabRedirectPage() {
   const router = useRouter()
 
   useEffect(() => {
-    if (slug) router.replace(`/tournaments/${slug}#matches`)
+    if (slug) router.replace(`/tournaments/${slug}#matches`, { scroll: false })
   }, [slug, router])
 
   return null

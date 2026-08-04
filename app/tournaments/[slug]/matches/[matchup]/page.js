@@ -31,7 +31,7 @@ export default function MatchupResolverPage() {
       const tournamentPath = `/tournaments/${t.slug || slug}`
       let bd = t.bracket_data
       try { bd = typeof bd === 'string' ? JSON.parse(bd) : bd } catch { bd = null }
-      if (!bd) { router.replace(tournamentPath); return }
+      if (!bd) { router.replace(tournamentPath, { scroll: false }); return }
 
       // ── Search group/league fixtures ──
       for (const group of bd.groups || []) {
@@ -39,7 +39,7 @@ export default function MatchupResolverPage() {
           const home = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.homeId)
           const away = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.awayId)
           if (matchupSlugMatches(matchup, home?.name, away?.name)) {
-            router.replace(`${tournamentPath}#${fixtureKey(fx.id).replace(':', '-')}`)
+            router.replace(`${tournamentPath}#${fixtureKey(fx.id).replace(':', '-')}`, { scroll: false })
             return
           }
         }
@@ -54,7 +54,7 @@ export default function MatchupResolverPage() {
           const nameA = a.name || a.teamName
           const nameB = b.name || b.teamName
           if (matchupSlugMatches(matchup, nameA, nameB)) {
-            router.replace(`${tournamentPath}#${knockoutKey(rIdx, pIdx).replace(':', '-')}`)
+            router.replace(`${tournamentPath}#${knockoutKey(rIdx, pIdx).replace(':', '-')}`, { scroll: false })
             return
           }
         }
@@ -62,7 +62,7 @@ export default function MatchupResolverPage() {
 
       // Not found (score already changed hands, name changed, etc.) — just
       // send them to the tournament so they can find it themselves.
-      router.replace(tournamentPath)
+      router.replace(tournamentPath, { scroll: false })
     }
 
     if (slug && matchup) resolve()

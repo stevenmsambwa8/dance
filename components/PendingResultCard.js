@@ -74,12 +74,12 @@ export function PendingResultCard({ item, avatarUrl, compact, userId, onResolved
       <div className={styles.overlay} />
       <div className={`${styles.content} ${compact ? styles.contentCompact : ''}`}>
         <span className={styles.badge}><i className="ri-time-line" /> Result Needed</span>
-        <Link href={matchHref} className={`${styles.title} ${compact ? styles.titleCompact : ''}`}>
+        <Link href={matchHref} scroll={false} className={`${styles.title} ${compact ? styles.titleCompact : ''}`}>
           {item.tournamentName}
         </Link>
         <div className={`${styles.sub} ${compact ? styles.subCompact : ''}`} style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           <span>vs {opponent} — submit your score to confirm</span>
-          <Link href={matchHref} style={{ fontSize: 11, fontWeight: 800, color: 'inherit', opacity: 0.85, whiteSpace: 'nowrap' }}>
+          <Link href={matchHref} scroll={false} style={{ fontSize: 11, fontWeight: 800, color: 'inherit', opacity: 0.85, whiteSpace: 'nowrap' }}>
             <i className="ri-external-link-line" /> Open match
           </Link>
         </div>

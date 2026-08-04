@@ -489,10 +489,10 @@ export default function TournamentDetail() {
     if (hash === 'matches' || hash === 'groups' || hash === 'bracket' || hash === 'standings' || hash === 'leaderboard' || hash === 'players') {
       changeTab(hash)
     } else if (hash.startsWith('ko-')) {
-      setActiveTab('matches') // the match-specific scroll below targets the card directly
+      changeTab('matches') // same scroll-to-top a normal tab click gets; match-centering effect refines it further
       setMatchAnchor(hash)
     } else if (hash.startsWith('fx-')) {
-      setActiveTab('groups')
+      changeTab('groups')
       setMatchAnchor(hash)
     }
   }, [])
@@ -826,13 +826,18 @@ export default function TournamentDetail() {
   // "Submit Result" nudge card) and briefly highlight its card ───────────
   useEffect(() => {
     if (!matchAnchor || loadingTournament || loadingParticipants) return
-    const t = setTimeout(() => {
+    let retried = false
+    const run = () => {
       const el = document.getElementById(matchAnchor)
-      if (!el) return
+      if (!el) {
+        if (!retried) { retried = true; setTimeout(run, 500) } // content/images may still be settling
+        return
+      }
       el.scrollIntoView({ behavior: 'smooth', block: 'center' })
       el.classList.add(styles.matchHighlight)
       setTimeout(() => el.classList.remove(styles.matchHighlight), 2200)
-    }, 350) // let the tab's content finish rendering first
+    }
+    const t = setTimeout(run, 500) // let the tab's content finish rendering first
     return () => clearTimeout(t)
   }, [matchAnchor, activeTab, loadingTournament, loadingParticipants, bracketData])
 
