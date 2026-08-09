@@ -681,6 +681,8 @@ export default function TournamentManage() {
   const [pointsEditorId, setPointsEditorId] = useState(null) // user_id of player whose points editor is open
   const [pointsDraft, setPointsDraft] = useState('')
   const [pointsEditMode, setPointsEditMode] = useState('delta') // 'delta' (Adjust by) or 'set' (overwrite exact value)
+  const [standingsEditorKey, setStandingsEditorKey] = useState(null) // `${groupId}:${memberId}` of the group-table Pts cell being edited
+  const [standingsDraft, setStandingsDraft] = useState('')
   const [bracketData,  setBracketData]  = useState(null)
   const [loading,      setLoading]      = useState(true)
   usePageLoading(loading)
@@ -1031,6 +1033,30 @@ export default function TournamentManage() {
     if (!userId || !delta) return
     const newPoints = await awardGroupPoints(userId, delta)
     showToast(`${delta > 0 ? '+' : ''}${delta} pts ${delta > 0 ? 'awarded to' : 'deducted from'} ${username || 'player'}${newPoints != null ? ` (now ${newPoints})` : ''}`)
+  }
+
+  // Group-stage standings adjustment: writes a persistent per-member delta
+  // into bracket_data.groups[].adjustments so it's layered into
+  // computeStandings() and actually shows up in the Pts column of the group
+  // table (no-show penalties/manual edits previously only touched
+  // tournament_leaderboard, which the standings table never reads from).
+  // Mirrors the same delta into the per-user tournament leaderboard / global
+  // profile points via awardGroupPoints so both views stay in sync.
+  async function applyGroupPenalty(groupId, member, delta) {
+    if (!member || !delta) return
+    const memberId = member.id ?? member.userId ?? member.teamId
+    const { data: freshT } = await supabase.from('tournaments').select('bracket_data').eq('id', id.current).single()
+    const freshBd = parseBracketData(freshT?.bracket_data) ?? bracketData
+    const newGroups = freshBd.groups.map(g => g.id !== groupId ? g : {
+      ...g,
+      adjustments: { ...(g.adjustments || {}), [memberId]: ((g.adjustments || {})[memberId] || 0) + delta },
+    })
+    const newBd = { ...freshBd, groups: newGroups }
+    await supabase.from('tournaments').update({ bracket_data: newBd }).eq('id', id.current)
+    setBracketData(newBd)
+    const uids = resolveMemberUserIds(member)
+    await Promise.all(uids.map(uid => awardGroupPoints(uid, delta)))
+    showToast(`${delta > 0 ? '+' : ''}${delta} pts ${delta > 0 ? 'awarded to' : 'deducted from'} ${member.name || 'player'} on the table`)
   }
 
   // Admin-facing wrapper: OVERWRITES a player's tournament points to an exact
@@ -1654,9 +1680,13 @@ export default function TournamentManage() {
                             </div>
                             {standings.map(row => {
                               const advances = row.position <= (bracketData.advancePerGroup ?? tournament?.advance_per_group ?? 2)
+                              const member = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === row.id)
+                              const sKey = `${group.id}:${row.id}`
+                              const editingStandings = standingsEditorKey === sKey
                               return (
-                                <div key={row.id} style={{
-                                  display: 'flex', alignItems: 'center', gap: 6, padding: '5px 0', fontSize: 11.5, minWidth: 320,
+                                <div key={row.id} style={{ display: 'flex', flexDirection: 'column', minWidth: 320 }}>
+                                <div style={{
+                                  display: 'flex', alignItems: 'center', gap: 6, padding: '5px 0', fontSize: 11.5,
                                   borderLeft: advances ? '2px solid var(--accent)' : '2px solid transparent', paddingLeft: 4,
                                 }}>
                                   <span style={{ width: 14, color: 'var(--text-muted)', fontWeight: 700 }}>{row.position}</span>
@@ -1670,7 +1700,47 @@ export default function TournamentManage() {
                                   <span style={{ width: 22, textAlign: 'center', fontFamily: 'ui-monospace, monospace', fontWeight: 700, color: row.goalDiff > 0 ? 'var(--accent)' : row.goalDiff < 0 ? '#ef4444' : 'var(--text-muted)' }}>
                                     {row.goalDiff > 0 ? `+${row.goalDiff}` : row.goalDiff}
                                   </span>
-                                  <span style={{ width: 30, textAlign: 'center', fontWeight: 800, fontFamily: 'ui-monospace, monospace', color: 'var(--accent)' }}>{row.points}</span>
+                                  <button
+                                    onClick={() => { setStandingsEditorKey(editingStandings ? null : sKey); setStandingsDraft(String(row.points)) }}
+                                    title="Edit points"
+                                    style={{
+                                      width: 30, textAlign: 'center', fontWeight: 800, fontFamily: 'ui-monospace, monospace', color: 'var(--accent)',
+                                      background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                                      textDecoration: row.adjustment ? 'underline dotted' : 'none',
+                                    }}
+                                  >
+                                    {row.points}
+                                  </button>
+                                </div>
+                                {editingStandings && (
+                                  <div style={{
+                                    display: 'flex', alignItems: 'center', gap: 6, margin: '2px 0 8px', padding: '7px 9px',
+                                    borderRadius: 9, background: 'var(--bg)', border: '1px solid var(--border)',
+                                  }}>
+                                    <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 700, flexShrink: 0 }}>Set Pts to</span>
+                                    <input
+                                      type="number" value={standingsDraft} autoFocus
+                                      onChange={e => setStandingsDraft(e.target.value)}
+                                      style={{ flex: 1, minWidth: 0, padding: '6px 8px', borderRadius: 7, border: '1px solid var(--border-dark)', background: 'var(--surface)', color: 'var(--text)', fontSize: 12, fontWeight: 700, fontFamily: 'ui-monospace, monospace' }}
+                                    />
+                                    <button
+                                      onClick={async () => {
+                                        if (standingsDraft === '') return
+                                        const target = Number(standingsDraft)
+                                        const delta = target - row.points
+                                        if (delta) await applyGroupPenalty(group.id, member, delta)
+                                        setStandingsEditorKey(null); setStandingsDraft('')
+                                      }}
+                                      disabled={standingsDraft === ''}
+                                      style={{ padding: '6px 12px', borderRadius: 7, border: 'none', background: 'var(--accent)', color: '#fff', fontSize: 11, fontWeight: 800, cursor: 'pointer', flexShrink: 0 }}
+                                    >
+                                      Apply
+                                    </button>
+                                    <button onClick={() => setStandingsEditorKey(null)} style={{ padding: '6px 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontSize: 11, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+                                      Cancel
+                                    </button>
+                                  </div>
+                                )}
                                 </div>
                               )
                             })}
@@ -1752,14 +1822,14 @@ export default function TournamentManage() {
                                         <i className="ri-user-unfollow-line" /> No-show — neither side submitted
                                       </span>
                                       <button
-                                        onClick={() => resolveMemberUserIds(home).forEach(uid => adjustPointsManually(uid, home?.name, -3))}
+                                        onClick={() => applyGroupPenalty(group.id, home, -3)}
                                         disabled={!home}
                                         style={{ padding: '4px 9px', borderRadius: 6, border: '1px solid #ef444440', background: '#ef444412', color: '#ef4444', fontSize: 10, fontWeight: 800, cursor: home ? 'pointer' : 'not-allowed' }}
                                       >
                                         −3 {home?.name || 'Home'}
                                       </button>
                                       <button
-                                        onClick={() => resolveMemberUserIds(away).forEach(uid => adjustPointsManually(uid, away?.name, -3))}
+                                        onClick={() => applyGroupPenalty(group.id, away, -3)}
                                         disabled={!away}
                                         style={{ padding: '4px 9px', borderRadius: 6, border: '1px solid #ef444440', background: '#ef444412', color: '#ef4444', fontSize: 10, fontWeight: 800, cursor: away ? 'pointer' : 'not-allowed' }}
                                       >
