@@ -678,6 +678,8 @@ export default function TournamentManage() {
   const [tournament,   setTournament]   = useState(null)
   const [participants, setParticipants] = useState([])
   const [leaderboard,  setLeaderboard]  = useState([])
+  const [pointsEditorId, setPointsEditorId] = useState(null) // user_id of player whose points editor is open
+  const [pointsDraft, setPointsDraft] = useState('')
   const [bracketData,  setBracketData]  = useState(null)
   const [loading,      setLoading]      = useState(true)
   usePageLoading(loading)
@@ -975,19 +977,45 @@ export default function TournamentManage() {
     return member.id ? [member.id] : [] // solo unit — id IS the userId
   }
 
+  // ── Points adjustment — shared by (1) automatic group-stage win/draw/loss
+  // scoring and (2) manual admin adjustments (no-show penalties, corrections,
+  // bonuses). Deltas can be negative and are NOT floored at 0 — a penalized
+  // player's tournament points can legitimately go negative, same as their
+  // global profile points, so organisers can dock a no-show without it
+  // silently getting clamped back up. ──────────────────────────────────────
   async function awardGroupPoints(userId, delta) {
     if (!userId || !delta) return
     const { data: ex } = await supabase.from('tournament_leaderboard').select('id, points').eq('tournament_id', id.current).eq('user_id', userId).maybeSingle()
+    let newPoints
     if (ex) {
-      await supabase.from('tournament_leaderboard').update({ points: Math.max(0, (ex.points || 0) + delta) }).eq('id', ex.id)
+      newPoints = (ex.points || 0) + delta
+      await supabase.from('tournament_leaderboard').update({ points: newPoints }).eq('id', ex.id)
     } else {
-      await supabase.from('tournament_leaderboard').insert({ tournament_id: id.current, user_id: userId, points: Math.max(0, delta), position: 99 })
+      newPoints = delta
+      await supabase.from('tournament_leaderboard').insert({ tournament_id: id.current, user_id: userId, points: newPoints, position: 99 })
     }
     const { error: rpcErr } = await supabase.rpc('increment_points', { uid: userId, amount: delta })
     if (rpcErr) {
       const { data: p } = await supabase.from('profiles').select('points').eq('id', userId).maybeSingle()
-      if (p) await supabase.from('profiles').update({ points: Math.max(0, (p.points || 0) + delta) }).eq('id', userId)
+      if (p) await supabase.from('profiles').update({ points: (p.points || 0) + delta }).eq('id', userId)
     }
+    setLeaderboard(prev => {
+      const idx = prev.findIndex(e => e.user_id === userId)
+      if (idx === -1) return prev
+      const next = [...prev]
+      next[idx] = { ...next[idx], points: newPoints }
+      return next
+    })
+    return newPoints
+  }
+
+  // Admin-facing wrapper: applies a manual delta (positive or negative) to a
+  // player's tournament points and surfaces a toast, used for the "Adjust
+  // Points" control and no-show penalty shortcuts.
+  async function adjustPointsManually(userId, username, delta) {
+    if (!userId || !delta) return
+    const newPoints = await awardGroupPoints(userId, delta)
+    showToast(`${delta > 0 ? '+' : ''}${delta} pts ${delta > 0 ? 'awarded to' : 'deducted from'} ${username || 'player'}${newPoints != null ? ` (now ${newPoints})` : ''}`)
   }
 
   // ── Per-match schedule (group/league fixtures + knockout matches) ───────
@@ -1644,6 +1672,30 @@ export default function TournamentManage() {
                                       )}
                                     </div>
                                   )}
+                                  {/* ── No-show penalty: neither side submitted anything and the match
+                                      window has closed. Lets the organiser dock points from either or
+                                      both sides directly, instead of leaving the fixture unscored. ── */}
+                                  {fx.status !== 'played' && st?.phase === 'over' && !fx.submissions?.home && !fx.submissions?.away && (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px 9px', flexWrap: 'wrap' }}>
+                                      <span style={{ fontSize: 9.5, fontWeight: 800, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 3 }}>
+                                        <i className="ri-user-unfollow-line" /> No-show — neither side submitted
+                                      </span>
+                                      <button
+                                        onClick={() => resolveMemberUserIds(home).forEach(uid => adjustPointsManually(uid, home?.name, -3))}
+                                        disabled={!home}
+                                        style={{ padding: '4px 9px', borderRadius: 6, border: '1px solid #ef444440', background: '#ef444412', color: '#ef4444', fontSize: 10, fontWeight: 800, cursor: home ? 'pointer' : 'not-allowed' }}
+                                      >
+                                        −3 {home?.name || 'Home'}
+                                      </button>
+                                      <button
+                                        onClick={() => resolveMemberUserIds(away).forEach(uid => adjustPointsManually(uid, away?.name, -3))}
+                                        disabled={!away}
+                                        style={{ padding: '4px 9px', borderRadius: 6, border: '1px solid #ef444440', background: '#ef444412', color: '#ef4444', fontSize: 10, fontWeight: 800, cursor: away ? 'pointer' : 'not-allowed' }}
+                                      >
+                                        −3 {away?.name || 'Away'}
+                                      </button>
+                                    </div>
+                                  )}
                                 </div>
                               )
                             })}
@@ -1776,7 +1828,7 @@ export default function TournamentManage() {
                 const dotColor = bStatus==='champion'?'#f59e0b':bStatus==='out'?'#dc2626':'#22c55e'
                 const payStatus = p.payment_status
                 return (
-                  <div key={p.id} className={styles.playerRow}>
+                  <div key={p.id} className={styles.playerRow} style={{ flexWrap: 'wrap' }}>
                     <div className={styles.playerAvatar}>
                       <Avatar src={p.profiles?.avatar_url} name={p.profiles?.username} size={36} radius={10} />
                       <span className={styles.playerDot} style={{ background: dotColor }} />
@@ -1800,10 +1852,50 @@ export default function TournamentManage() {
                       {payStatus === 'payment_submitted' && (
                         <button className={styles.btnAmber} onClick={() => approvePayment(p.user_id)}>{t('tournaments.approveBtn')}</button>
                       )}
+                      <button
+                        onClick={() => { setPointsEditorId(pointsEditorId === p.user_id ? null : p.user_id); setPointsDraft('') }}
+                        title="Adjust points"
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 3, padding: '4px 8px', borderRadius: 7,
+                          border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--accent)',
+                          fontSize: 10.5, fontWeight: 800, fontFamily: 'ui-monospace, monospace', cursor: 'pointer',
+                        }}
+                      >
+                        <i className="ri-coins-line" style={{ fontSize: 11 }} />
+                        {leaderboard.find(e => e.user_id === p.user_id)?.points ?? 0}
+                      </button>
                       <button className={styles.btnRemove} onClick={() => removeParticipant(p.user_id, p.profiles?.username)}>
                         <i className="ri-user-unfollow-line" />
                       </button>
                     </div>
+                    {pointsEditorId === p.user_id && (
+                      <div style={{
+                        width: '100%', display: 'flex', alignItems: 'center', gap: 6, marginTop: 8,
+                        padding: '8px 10px', borderRadius: 10, background: 'var(--bg)', border: '1px solid var(--border)',
+                      }}>
+                        <span style={{ fontSize: 10.5, color: 'var(--text-muted)', fontWeight: 700, flexShrink: 0 }}>Adjust by</span>
+                        <input
+                          type="number" value={pointsDraft} placeholder="e.g. -5 or 10" autoFocus
+                          onChange={e => setPointsDraft(e.target.value)}
+                          style={{ flex: 1, minWidth: 0, padding: '6px 8px', borderRadius: 7, border: '1px solid var(--border-dark)', background: 'var(--surface)', color: 'var(--text)', fontSize: 12, fontWeight: 700, fontFamily: 'ui-monospace, monospace' }}
+                        />
+                        <button
+                          onClick={async () => {
+                            const delta = Number(pointsDraft)
+                            if (!delta) return
+                            await adjustPointsManually(p.user_id, p.profiles?.username, delta)
+                            setPointsEditorId(null); setPointsDraft('')
+                          }}
+                          disabled={!pointsDraft || Number(pointsDraft) === 0}
+                          style={{ padding: '6px 12px', borderRadius: 7, border: 'none', background: 'var(--accent)', color: '#fff', fontSize: 11, fontWeight: 800, cursor: 'pointer', flexShrink: 0 }}
+                        >
+                          Apply
+                        </button>
+                        <button onClick={() => setPointsEditorId(null)} style={{ padding: '6px 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontSize: 11, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+                          Cancel
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )
               })
@@ -1897,8 +1989,11 @@ export default function TournamentManage() {
                           {rows.map(({ rIdx, pIdx, a, b, decided }) => {
                             const kk = knockoutKey(rIdx, pIdx)
                             const st = getTimeStatus(bracketData.match_schedule, kk, nowTick)
+                            const koSlotUserIds = slot => slot?.members?.length ? slot.members.map(m => m.userId).filter(Boolean) : (slot?.userId ? [slot.userId] : [])
+                            const noShow = !decided && st?.phase === 'over' && !a?.pendingSubmission && !b?.pendingSubmission
                             return (
-                              <div key={kk} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 11, opacity: decided ? 0.55 : 1 }}>
+                              <div key={kk} style={{ display: 'flex', flexDirection: 'column', gap: 0, borderRadius: 8, border: '1px solid var(--border)', opacity: decided ? 0.55 : 1, overflow: 'hidden' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', fontSize: 11 }}>
                                 <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 700 }}>
                                   {(a.name || a.teamName || 'TBD')} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>vs</span> {(b.name || b.teamName || 'TBD')}
                                 </span>
@@ -1925,6 +2020,26 @@ export default function TournamentManage() {
                                     )}
                                   </>
                                 )}
+                              </div>
+                              {noShow && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 8px 8px', flexWrap: 'wrap', background: '#ef444408' }}>
+                                  <span style={{ fontSize: 9.5, fontWeight: 800, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 3 }}>
+                                    <i className="ri-user-unfollow-line" /> No-show — neither side submitted
+                                  </span>
+                                  <button
+                                    onClick={() => koSlotUserIds(a).forEach(uid => adjustPointsManually(uid, a.name || a.teamName, -3))}
+                                    style={{ padding: '4px 9px', borderRadius: 6, border: '1px solid #ef444440', background: '#ef444412', color: '#ef4444', fontSize: 10, fontWeight: 800, cursor: 'pointer' }}
+                                  >
+                                    −3 {a.name || a.teamName || 'P1'}
+                                  </button>
+                                  <button
+                                    onClick={() => koSlotUserIds(b).forEach(uid => adjustPointsManually(uid, b.name || b.teamName, -3))}
+                                    style={{ padding: '4px 9px', borderRadius: 6, border: '1px solid #ef444440', background: '#ef444412', color: '#ef4444', fontSize: 10, fontWeight: 800, cursor: 'pointer' }}
+                                  >
+                                    −3 {b.name || b.teamName || 'P2'}
+                                  </button>
+                                </div>
+                              )}
                               </div>
                             )
                           })}
