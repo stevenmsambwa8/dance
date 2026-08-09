@@ -3993,14 +3993,33 @@ export default function TournamentDetail() {
                                     </button>
                                   ) : (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 8, borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)' }}>
+                                      <div style={{ fontSize: 9.5, color: 'var(--text-muted)', textAlign: 'center', fontWeight: 700 }}>
+                                        <i className="ri-information-line" /> Enter your score first — it's labeled below
+                                      </div>
                                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
-                                        <span style={{ fontSize: 10, color: 'var(--text-muted)', width: 60, textAlign: 'right' }}>{home?.name || 'Home'}</span>
-                                        <input type="text" inputMode="numeric" value={draft.home} onChange={e => setFixtureSubmitDraft(d => ({ ...d, [fx.id]: { ...draft, home: e.target.value } }))}
-                                          style={{ width: 44, padding: '5px 6px', borderRadius: 6, border: '1px solid var(--border-dark)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13, fontWeight: 700, textAlign: 'center' }} />
-                                        <span style={{ color: 'var(--text-muted)' }}>–</span>
-                                        <input type="text" inputMode="numeric" value={draft.away} onChange={e => setFixtureSubmitDraft(d => ({ ...d, [fx.id]: { ...draft, away: e.target.value } }))}
-                                          style={{ width: 44, padding: '5px 6px', borderRadius: 6, border: '1px solid var(--border-dark)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13, fontWeight: 700, textAlign: 'center' }} />
-                                        <span style={{ fontSize: 10, color: 'var(--text-muted)', width: 60 }}>{away?.name || 'Away'}</span>
+                                        {/* ── Your box always comes first, regardless of home/away,
+                                            so "type mine first" habit can't land in the wrong field. ── */}
+                                        {mySide === 'away' ? (
+                                          <>
+                                            <span style={{ fontSize: 10, color: 'var(--accent)', width: 60, textAlign: 'right', fontWeight: 800 }}>{away?.name || 'You'}</span>
+                                            <input type="text" inputMode="numeric" value={draft.away} onChange={e => setFixtureSubmitDraft(d => ({ ...d, [fx.id]: { ...draft, away: e.target.value } }))}
+                                              style={{ width: 44, padding: '5px 6px', borderRadius: 6, border: '1.5px solid var(--accent)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13, fontWeight: 700, textAlign: 'center' }} />
+                                            <span style={{ color: 'var(--text-muted)' }}>–</span>
+                                            <input type="text" inputMode="numeric" value={draft.home} onChange={e => setFixtureSubmitDraft(d => ({ ...d, [fx.id]: { ...draft, home: e.target.value } }))}
+                                              style={{ width: 44, padding: '5px 6px', borderRadius: 6, border: '1px solid var(--border-dark)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13, fontWeight: 700, textAlign: 'center' }} />
+                                            <span style={{ fontSize: 10, color: 'var(--text-muted)', width: 60 }}>{home?.name || 'Opponent'}</span>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <span style={{ fontSize: 10, color: 'var(--accent)', width: 60, textAlign: 'right', fontWeight: 800 }}>{home?.name || 'You'}</span>
+                                            <input type="text" inputMode="numeric" value={draft.home} onChange={e => setFixtureSubmitDraft(d => ({ ...d, [fx.id]: { ...draft, home: e.target.value } }))}
+                                              style={{ width: 44, padding: '5px 6px', borderRadius: 6, border: '1.5px solid var(--accent)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13, fontWeight: 700, textAlign: 'center' }} />
+                                            <span style={{ color: 'var(--text-muted)' }}>–</span>
+                                            <input type="text" inputMode="numeric" value={draft.away} onChange={e => setFixtureSubmitDraft(d => ({ ...d, [fx.id]: { ...draft, away: e.target.value } }))}
+                                              style={{ width: 44, padding: '5px 6px', borderRadius: 6, border: '1px solid var(--border-dark)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13, fontWeight: 700, textAlign: 'center' }} />
+                                            <span style={{ fontSize: 10, color: 'var(--text-muted)', width: 60 }}>{away?.name || 'Opponent'}</span>
+                                          </>
+                                        )}
                                       </div>
                                       <label style={{ fontSize: 10.5, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}>
                                         <i className="ri-image-add-line" />
