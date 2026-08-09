@@ -680,6 +680,7 @@ export default function TournamentManage() {
   const [leaderboard,  setLeaderboard]  = useState([])
   const [pointsEditorId, setPointsEditorId] = useState(null) // user_id of player whose points editor is open
   const [pointsDraft, setPointsDraft] = useState('')
+  const [pointsEditMode, setPointsEditMode] = useState('delta') // 'delta' (Adjust by) or 'set' (overwrite exact value)
   const [bracketData,  setBracketData]  = useState(null)
   const [loading,      setLoading]      = useState(true)
   usePageLoading(loading)
@@ -986,13 +987,20 @@ export default function TournamentManage() {
   async function awardGroupPoints(userId, delta) {
     if (!userId || !delta) return
     const { data: ex } = await supabase.from('tournament_leaderboard').select('id, points').eq('tournament_id', id.current).eq('user_id', userId).maybeSingle()
-    let newPoints
+    let newPoints, entryId
     if (ex) {
       newPoints = (ex.points || 0) + delta
       await supabase.from('tournament_leaderboard').update({ points: newPoints }).eq('id', ex.id)
+      entryId = ex.id
     } else {
+      // No row yet == the player is sitting at 0 pts (never scored/adjusted
+      // before). Insert fresh and keep the returned id so the local state
+      // patch below can add a real entry for them.
       newPoints = delta
-      await supabase.from('tournament_leaderboard').insert({ tournament_id: id.current, user_id: userId, points: newPoints, position: 99 })
+      const { data: ins } = await supabase.from('tournament_leaderboard')
+        .insert({ tournament_id: id.current, user_id: userId, points: newPoints, position: 99 })
+        .select('id').single()
+      entryId = ins?.id
     }
     const { error: rpcErr } = await supabase.rpc('increment_points', { uid: userId, amount: delta })
     if (rpcErr) {
@@ -1001,7 +1009,14 @@ export default function TournamentManage() {
     }
     setLeaderboard(prev => {
       const idx = prev.findIndex(e => e.user_id === userId)
-      if (idx === -1) return prev
+      if (idx === -1) {
+        // BUG FIX: a player with no existing leaderboard row (still on 0 pts)
+        // was silently dropped here — the DB write above went through fine,
+        // but the UI kept showing 0 until a full reload. Add them locally so
+        // a -3 no-show penalty on a never-scored player shows up immediately.
+        const profile = participants.find(p => p.user_id === userId)?.profiles || null
+        return [...prev, { id: entryId, tournament_id: id.current, user_id: userId, points: newPoints, position: 99, profiles: profile }]
+      }
       const next = [...prev]
       next[idx] = { ...next[idx], points: newPoints }
       return next
@@ -1016,6 +1031,44 @@ export default function TournamentManage() {
     if (!userId || !delta) return
     const newPoints = await awardGroupPoints(userId, delta)
     showToast(`${delta > 0 ? '+' : ''}${delta} pts ${delta > 0 ? 'awarded to' : 'deducted from'} ${username || 'player'}${newPoints != null ? ` (now ${newPoints})` : ''}`)
+  }
+
+  // Admin-facing wrapper: OVERWRITES a player's tournament points to an exact
+  // value, instead of adding a delta — lets the organiser directly correct an
+  // already-applied score on the table (e.g. a no-show penalty typed wrong,
+  // or a stray manual adjustment) without having to back-calculate the delta.
+  async function setPointsExactly(userId, username, targetPoints) {
+    if (!userId || targetPoints == null || Number.isNaN(targetPoints)) return
+    const { data: ex } = await supabase.from('tournament_leaderboard').select('id, points').eq('tournament_id', id.current).eq('user_id', userId).maybeSingle()
+    const oldPoints = ex?.points || 0
+    const delta = targetPoints - oldPoints
+    let entryId = ex?.id
+    if (ex) {
+      await supabase.from('tournament_leaderboard').update({ points: targetPoints }).eq('id', ex.id)
+    } else {
+      const { data: ins } = await supabase.from('tournament_leaderboard')
+        .insert({ tournament_id: id.current, user_id: userId, points: targetPoints, position: 99 })
+        .select('id').single()
+      entryId = ins?.id
+    }
+    if (delta) {
+      const { error: rpcErr } = await supabase.rpc('increment_points', { uid: userId, amount: delta })
+      if (rpcErr) {
+        const { data: p } = await supabase.from('profiles').select('points').eq('id', userId).maybeSingle()
+        if (p) await supabase.from('profiles').update({ points: (p.points || 0) + delta }).eq('id', userId)
+      }
+    }
+    setLeaderboard(prev => {
+      const idx = prev.findIndex(e => e.user_id === userId)
+      if (idx === -1) {
+        const profile = participants.find(p => p.user_id === userId)?.profiles || null
+        return [...prev, { id: entryId, tournament_id: id.current, user_id: userId, points: targetPoints, position: 99, profiles: profile }]
+      }
+      const next = [...prev]
+      next[idx] = { ...next[idx], points: targetPoints }
+      return next
+    })
+    showToast(`Points for ${username || 'player'} set to ${targetPoints}`)
   }
 
   // ── Per-match schedule (group/league fixtures + knockout matches) ───────
@@ -1579,7 +1632,7 @@ export default function TournamentManage() {
                         <i className="ri-alarm-warning-fill" style={{ color: '#ef4444', fontSize: 18, flexShrink: 0 }} />
                         <div>
                           <div style={{ fontSize: 12.5, fontWeight: 800, color: '#ef4444' }}>{expiredFxCount} fixture{expiredFxCount !== 1 ? 's' : ''} past their scheduled time</div>
-                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>Enter the results below for fixtures still missing a score.</div>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>Dock -3 for a clean no-show, or review flagged fixtures below — scores can no longer be typed in blind once time's up.</div>
                         </div>
                       </div>
                     )}
@@ -1631,8 +1684,19 @@ export default function TournamentManage() {
                               const draft = groupScoreDraft[fx.id] ?? { home: fx.scoreHome ?? '', away: fx.scoreAway ?? '' }
                               const fk = fixtureKey(fx.id)
                               const st = getTimeStatus(bracketData.match_schedule, fk, nowTick)
+                              // Once a fixture's play window has closed with no admin decision yet,
+                              // stop inviting the admin to type in a fresh score out of thin air —
+                              // the only defined outcomes past the deadline are: dock -3 from both
+                              // sides if NEITHER submitted anything (below), or leave it for the
+                              // admin to decide by hand if one side DID submit (no automatic action).
+                              // Editing an already-played fixture's score is still allowed — that's
+                              // a correction to a real result, not fabricating one from nothing.
+                              const expiredUnplayed = fx.status !== 'played' && st?.phase === 'over'
+                              const neitherSubmitted = !fx.submissions?.home && !fx.submissions?.away
+                              const canEnterScore = fx.status === 'played' || !expiredUnplayed
                               return (
                                 <div key={fx.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                                  {canEnterScore ? (
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', fontSize: 11.5 }}>
                                     <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: fx.status === 'played' ? 400 : 700 }}>{home?.name || '?'}</span>
                                     <input type="number" value={draft.home} placeholder="-" style={{ width: 34, textAlign: 'center', padding: '4px 2px', borderRadius: 6, border: '1px solid var(--border-dark)', background: 'var(--bg)', color: 'var(--text)', fontSize: 12 }}
@@ -1649,6 +1713,13 @@ export default function TournamentManage() {
                                       <i className={groupSavingId === fx.id ? 'ri-loader-4-line' : 'ri-check-line'} />
                                     </button>
                                   </div>
+                                  ) : (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', fontSize: 11.5 }}>
+                                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 700 }}>{home?.name || '?'}</span>
+                                      <span style={{ fontSize: 9.5, color: 'var(--text-muted)', fontWeight: 700 }}>vs</span>
+                                      <span style={{ flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 700 }}>{away?.name || '?'}</span>
+                                    </div>
+                                  )}
                                   {fx.status !== 'played' && (
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px 7px' }}>
                                       {st ? (
@@ -1675,7 +1746,7 @@ export default function TournamentManage() {
                                   {/* ── No-show penalty: neither side submitted anything and the match
                                       window has closed. Lets the organiser dock points from either or
                                       both sides directly, instead of leaving the fixture unscored. ── */}
-                                  {fx.status !== 'played' && st?.phase === 'over' && !fx.submissions?.home && !fx.submissions?.away && (
+                                  {expiredUnplayed && neitherSubmitted && (
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px 9px', flexWrap: 'wrap' }}>
                                       <span style={{ fontSize: 9.5, fontWeight: 800, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 3 }}>
                                         <i className="ri-user-unfollow-line" /> No-show — neither side submitted
@@ -1694,6 +1765,17 @@ export default function TournamentManage() {
                                       >
                                         −3 {away?.name || 'Away'}
                                       </button>
+                                    </div>
+                                  )}
+                                  {/* ── Partial submission: one side submitted, the other didn't, and time
+                                      is up. No automatic action — just flag it so the organiser can look
+                                      at the submission and decide by hand (adjust points, chase the other
+                                      player, etc). ── */}
+                                  {expiredUnplayed && !neitherSubmitted && (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px 9px', flexWrap: 'wrap' }}>
+                                      <span style={{ fontSize: 9.5, fontWeight: 800, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: 3 }}>
+                                        <i className="ri-error-warning-line" /> Only {fx.submissions?.home && !fx.submissions?.away ? (home?.name || 'Home') : (away?.name || 'Away')} submitted — needs your review
+                                      </span>
                                     </div>
                                   )}
                                 </div>
@@ -1853,7 +1935,7 @@ export default function TournamentManage() {
                         <button className={styles.btnAmber} onClick={() => approvePayment(p.user_id)}>{t('tournaments.approveBtn')}</button>
                       )}
                       <button
-                        onClick={() => { setPointsEditorId(pointsEditorId === p.user_id ? null : p.user_id); setPointsDraft('') }}
+                        onClick={() => { setPointsEditorId(pointsEditorId === p.user_id ? null : p.user_id); setPointsDraft(''); setPointsEditMode('delta') }}
                         title="Adjust points"
                         style={{
                           display: 'flex', alignItems: 'center', gap: 3, padding: '4px 8px', borderRadius: 7,
@@ -1870,30 +1952,61 @@ export default function TournamentManage() {
                     </div>
                     {pointsEditorId === p.user_id && (
                       <div style={{
-                        width: '100%', display: 'flex', alignItems: 'center', gap: 6, marginTop: 8,
+                        width: '100%', display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8,
                         padding: '8px 10px', borderRadius: 10, background: 'var(--bg)', border: '1px solid var(--border)',
                       }}>
-                        <span style={{ fontSize: 10.5, color: 'var(--text-muted)', fontWeight: 700, flexShrink: 0 }}>Adjust by</span>
-                        <input
-                          type="number" value={pointsDraft} placeholder="e.g. -5 or 10" autoFocus
-                          onChange={e => setPointsDraft(e.target.value)}
-                          style={{ flex: 1, minWidth: 0, padding: '6px 8px', borderRadius: 7, border: '1px solid var(--border-dark)', background: 'var(--surface)', color: 'var(--text)', fontSize: 12, fontWeight: 700, fontFamily: 'ui-monospace, monospace' }}
-                        />
-                        <button
-                          onClick={async () => {
-                            const delta = Number(pointsDraft)
-                            if (!delta) return
-                            await adjustPointsManually(p.user_id, p.profiles?.username, delta)
-                            setPointsEditorId(null); setPointsDraft('')
-                          }}
-                          disabled={!pointsDraft || Number(pointsDraft) === 0}
-                          style={{ padding: '6px 12px', borderRadius: 7, border: 'none', background: 'var(--accent)', color: '#fff', fontSize: 11, fontWeight: 800, cursor: 'pointer', flexShrink: 0 }}
-                        >
-                          Apply
-                        </button>
-                        <button onClick={() => setPointsEditorId(null)} style={{ padding: '6px 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontSize: 11, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
-                          Cancel
-                        </button>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button
+                            onClick={() => { setPointsEditMode('delta'); setPointsDraft('') }}
+                            style={{
+                              flex: 1, padding: '4px 6px', borderRadius: 6, border: '1px solid var(--border)', cursor: 'pointer',
+                              background: pointsEditMode === 'delta' ? 'var(--accent)' : 'transparent',
+                              color: pointsEditMode === 'delta' ? '#fff' : 'var(--text-muted)', fontSize: 9.5, fontWeight: 800,
+                            }}
+                          >
+                            Adjust by
+                          </button>
+                          <button
+                            onClick={() => { setPointsEditMode('set'); setPointsDraft('') }}
+                            style={{
+                              flex: 1, padding: '4px 6px', borderRadius: 6, border: '1px solid var(--border)', cursor: 'pointer',
+                              background: pointsEditMode === 'set' ? 'var(--accent)' : 'transparent',
+                              color: pointsEditMode === 'set' ? '#fff' : 'var(--text-muted)', fontSize: 9.5, fontWeight: 800,
+                            }}
+                          >
+                            Set exact points
+                          </button>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <input
+                            type="number"
+                            value={pointsDraft}
+                            placeholder={pointsEditMode === 'delta' ? 'e.g. -5 or 10' : 'e.g. 12'}
+                            autoFocus
+                            onChange={e => setPointsDraft(e.target.value)}
+                            style={{ flex: 1, minWidth: 0, padding: '6px 8px', borderRadius: 7, border: '1px solid var(--border-dark)', background: 'var(--surface)', color: 'var(--text)', fontSize: 12, fontWeight: 700, fontFamily: 'ui-monospace, monospace' }}
+                          />
+                          <button
+                            onClick={async () => {
+                              if (pointsDraft === '') return
+                              if (pointsEditMode === 'set') {
+                                await setPointsExactly(p.user_id, p.profiles?.username, Number(pointsDraft))
+                              } else {
+                                const delta = Number(pointsDraft)
+                                if (!delta) return
+                                await adjustPointsManually(p.user_id, p.profiles?.username, delta)
+                              }
+                              setPointsEditorId(null); setPointsDraft('')
+                            }}
+                            disabled={pointsDraft === '' || (pointsEditMode === 'delta' && Number(pointsDraft) === 0)}
+                            style={{ padding: '6px 12px', borderRadius: 7, border: 'none', background: 'var(--accent)', color: '#fff', fontSize: 11, fontWeight: 800, cursor: 'pointer', flexShrink: 0 }}
+                          >
+                            Apply
+                          </button>
+                          <button onClick={() => setPointsEditorId(null)} style={{ padding: '6px 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontSize: 11, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+                            Cancel
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
