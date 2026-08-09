@@ -822,6 +822,97 @@ export default function TournamentDetail() {
     return () => clearInterval(iv)
   }, [])
 
+  // ── Auto-accept lone submissions ─────────────────────────────────────────
+  // If only one side of a match ever submits a result, and 40 minutes have
+  // passed since that submission with no reply from the other side, treat it
+  // as accepted rather than leaving it stuck waiting forever. Runs as a
+  // periodic client-side sweep (checked by whoever has the page open) since
+  // there's no server-side cron — the fresh-read-before-write pattern makes
+  // it safe if two visitors' sweeps overlap.
+  // NOTE: must stay above any early `return` below (Rules of Hooks) — don't
+  // move this down without moving it above the `if (loadingTournament)` /
+  // `if (!tournament)` returns too.
+  const AUTO_ACCEPT_MS = 40 * 60 * 1000
+  const autoAcceptRunning = useRef(false)
+  useEffect(() => {
+    if (!id) return
+    const sweep = async () => {
+      if (autoAcceptRunning.current) return
+      autoAcceptRunning.current = true
+      try {
+        const { data: freshT } = await supabase.from('tournaments').select('bracket_data').eq('id', id).single()
+        const freshBd = parseBracketData(freshT?.bracket_data)
+        if (!freshBd) return
+        const now = Date.now()
+
+        // Group / league fixtures — one submission, 40+ min, no reply.
+        if (freshBd.groups) {
+          for (const group of freshBd.groups) {
+            for (const fx of group.fixtures) {
+              if (fx.status === 'played') continue
+              const subs = fx.submissions || {}
+              const lone = subs.home && !subs.away ? subs.home : (!subs.home && subs.away ? subs.away : null)
+              if (!lone || !lone.at) continue
+              if (now - new Date(lone.at).getTime() < AUTO_ACCEPT_MS) continue
+              const scoreHome = subs.home ? subs.home.home : subs.away.home
+              const scoreAway = subs.home ? subs.home.away : subs.away.away
+              const homeMember = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.homeId)
+              const awayMember = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.awayId)
+              const homePts = scoreHome > scoreAway ? 3 : scoreHome === scoreAway ? 1 : 0
+              const awayPts = scoreAway > scoreHome ? 3 : scoreAway === scoreHome ? 1 : 0
+              await Promise.all([
+                ...resolveMemberUserIds(homeMember).map(uid => awardBracketPoints(uid, homePts)),
+                ...resolveMemberUserIds(awayMember).map(uid => awardBracketPoints(uid, awayPts)),
+              ])
+              const { data: t2 } = await supabase.from('tournaments').select('bracket_data').eq('id', id).single()
+              let bd2 = parseBracketData(t2?.bracket_data) ?? freshBd
+              const newGroups = bd2.groups.map(g => g.id !== group.id ? g : {
+                ...g, fixtures: g.fixtures.map(f => f.id !== fx.id ? f : { ...f, scoreHome, scoreAway, status: 'played', disputed: false, autoAccepted: true }),
+              })
+              let newBd = { ...bd2, groups: newGroups }
+              await supabase.from('tournaments').update({ bracket_data: newBd }).eq('id', id)
+              setBracketData(newBd)
+              if (isGroupStageComplete(newGroups)) {
+                if (tournament?.stage_format === 'league') {
+                  const finalized = await finalizeLeague(newBd)
+                  if (finalized) newBd = finalized
+                } else {
+                  const merged = await autoBuildKnockout(newBd)
+                  if (merged) newBd = merged
+                }
+              }
+              refreshLeaderboard()
+            }
+          }
+        }
+
+        // Knockout matches — one side's pendingSubmission, 40+ min, no reply.
+        if (freshBd.rounds) {
+          const totalRounds = freshBd.rounds.length
+          for (let rIdx = 0; rIdx < totalRounds - 1; rIdx++) {
+            for (let pIdx = 0; pIdx < freshBd.rounds[rIdx].length; pIdx++) {
+              const [a, b] = freshBd.rounds[rIdx][pIdx] || []
+              if (!a || !b) continue
+              if (a.status === 'winner' || b.status === 'winner') continue
+              const lone = a.pendingSubmission && !b.pendingSubmission ? a.pendingSubmission
+                : (!a.pendingSubmission && b.pendingSubmission ? b.pendingSubmission : null)
+              if (!lone || !lone.at) continue
+              if (now - new Date(lone.at).getTime() < AUTO_ACCEPT_MS) continue
+              if (lone.a === lone.b) continue // tie — needs a human to resolve
+              const winnerIdx = lone.a > lone.b ? 0 : 1
+              await adminSetSlotStatus(rIdx, pIdx, winnerIdx, 'winner', { skipAuth: true })
+            }
+          }
+        }
+      } finally {
+        autoAcceptRunning.current = false
+      }
+    }
+    sweep()
+    const iv = setInterval(sweep, 60 * 1000)
+    return () => clearInterval(iv)
+  }, [id])
+
   // ── Matches-tab schedule summary: every match that has a time slot
   // assigned, in one place, soonest first — whichever stage (group fixtures
   // or knockout) is currently active. Recomputes each tick so phases/labels
@@ -3193,94 +3284,6 @@ export default function TournamentDetail() {
     setKoSubmitOpenKey(null)
     setKoSubmitSaving(null)
   }
-
-  // ── Auto-accept lone submissions ─────────────────────────────────────────
-  // If only one side of a match ever submits a result, and 40 minutes have
-  // passed since that submission with no reply from the other side, treat it
-  // as accepted rather than leaving it stuck waiting forever. Runs as a
-  // periodic client-side sweep (checked by whoever has the page open) since
-  // there's no server-side cron — the fresh-read-before-write pattern makes
-  // it safe if two visitors' sweeps overlap.
-  const AUTO_ACCEPT_MS = 40 * 60 * 1000
-  const autoAcceptRunning = useRef(false)
-  useEffect(() => {
-    if (!id) return
-    const sweep = async () => {
-      if (autoAcceptRunning.current) return
-      autoAcceptRunning.current = true
-      try {
-        const { data: freshT } = await supabase.from('tournaments').select('bracket_data').eq('id', id).single()
-        const freshBd = parseBracketData(freshT?.bracket_data)
-        if (!freshBd) return
-        const now = Date.now()
-
-        // Group / league fixtures — one submission, 40+ min, no reply.
-        if (freshBd.groups) {
-          for (const group of freshBd.groups) {
-            for (const fx of group.fixtures) {
-              if (fx.status === 'played') continue
-              const subs = fx.submissions || {}
-              const lone = subs.home && !subs.away ? subs.home : (!subs.home && subs.away ? subs.away : null)
-              if (!lone || !lone.at) continue
-              if (now - new Date(lone.at).getTime() < AUTO_ACCEPT_MS) continue
-              const scoreHome = subs.home ? subs.home.home : subs.away.home
-              const scoreAway = subs.home ? subs.home.away : subs.away.away
-              const homeMember = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.homeId)
-              const awayMember = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.awayId)
-              const homePts = scoreHome > scoreAway ? 3 : scoreHome === scoreAway ? 1 : 0
-              const awayPts = scoreAway > scoreHome ? 3 : scoreAway === scoreHome ? 1 : 0
-              await Promise.all([
-                ...resolveMemberUserIds(homeMember).map(uid => awardBracketPoints(uid, homePts)),
-                ...resolveMemberUserIds(awayMember).map(uid => awardBracketPoints(uid, awayPts)),
-              ])
-              const { data: t2 } = await supabase.from('tournaments').select('bracket_data').eq('id', id).single()
-              let bd2 = parseBracketData(t2?.bracket_data) ?? freshBd
-              const newGroups = bd2.groups.map(g => g.id !== group.id ? g : {
-                ...g, fixtures: g.fixtures.map(f => f.id !== fx.id ? f : { ...f, scoreHome, scoreAway, status: 'played', disputed: false, autoAccepted: true }),
-              })
-              let newBd = { ...bd2, groups: newGroups }
-              await supabase.from('tournaments').update({ bracket_data: newBd }).eq('id', id)
-              setBracketData(newBd)
-              if (isGroupStageComplete(newGroups)) {
-                if (tournament?.stage_format === 'league') {
-                  const finalized = await finalizeLeague(newBd)
-                  if (finalized) newBd = finalized
-                } else {
-                  const merged = await autoBuildKnockout(newBd)
-                  if (merged) newBd = merged
-                }
-              }
-              refreshLeaderboard()
-            }
-          }
-        }
-
-        // Knockout matches — one side's pendingSubmission, 40+ min, no reply.
-        if (freshBd.rounds) {
-          const totalRounds = freshBd.rounds.length
-          for (let rIdx = 0; rIdx < totalRounds - 1; rIdx++) {
-            for (let pIdx = 0; pIdx < freshBd.rounds[rIdx].length; pIdx++) {
-              const [a, b] = freshBd.rounds[rIdx][pIdx] || []
-              if (!a || !b) continue
-              if (a.status === 'winner' || b.status === 'winner') continue
-              const lone = a.pendingSubmission && !b.pendingSubmission ? a.pendingSubmission
-                : (!a.pendingSubmission && b.pendingSubmission ? b.pendingSubmission : null)
-              if (!lone || !lone.at) continue
-              if (now - new Date(lone.at).getTime() < AUTO_ACCEPT_MS) continue
-              if (lone.a === lone.b) continue // tie — needs a human to resolve
-              const winnerIdx = lone.a > lone.b ? 0 : 1
-              await adminSetSlotStatus(rIdx, pIdx, winnerIdx, 'winner', { skipAuth: true })
-            }
-          }
-        }
-      } finally {
-        autoAcceptRunning.current = false
-      }
-    }
-    sweep()
-    const iv = setInterval(sweep, 60 * 1000)
-    return () => clearInterval(iv)
-  }, [id])
 
   const canManage = isAdmin || (user && tournament?.created_by === user.id)
   const isOwnTournament = !isAdmin && !!(user && tournament?.created_by === user.id)
