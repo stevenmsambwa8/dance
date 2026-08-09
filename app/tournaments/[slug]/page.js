@@ -20,7 +20,7 @@ import { computeStandings, buildGroups, addMemberToGroup, isGroupStageComplete, 
 import PendingResultCards from '../../../components/PendingResultCard'
 import { parseBRData, computeBRStandings, unitizeParticipants, addOrUpdateMatch, removeMatch as removeBRMatch, isBRComplete, buildEmptyBRBracket } from '../../../lib/brPoints'
 import useTranslation from '../../../lib/useTranslation'
-import { getTimeStatus, isTimeUp, formatDuration } from '../../../lib/roundTimers'
+import { getTimeStatus, isTimeUp, formatDuration, formatTimeOfDay } from '../../../lib/roundTimers'
 import { knockoutKey, fixtureKey } from '../../../lib/matchScheduler'
 
 const ADMIN_EMAIL = 'stevenmsambwa8@gmail.com'
@@ -3806,7 +3806,7 @@ export default function TournamentDetail() {
                             <div key={fx.id} id={`fx-${fx.id}`} style={{ padding: '8px 14px', borderBottom: '1px solid var(--border)' }}>
                               {mdStatus && (() => {
                                 const map = {
-                                  upcoming:     { icon: 'ri-hourglass-line',      bg: '#f59e0b15', border: '#f59e0b40', color: '#f59e0b', label: `Your match plays in ${formatDuration(mdStatus.ms)}` },
+                                  upcoming:     { icon: 'ri-hourglass-line',      bg: '#f59e0b15', border: '#f59e0b40', color: '#f59e0b', label: `Your match plays at ${formatTimeOfDay(mdStatus.start)}` },
                                   live:         { icon: 'ri-timer-flash-line',    bg: '#22c55e15', border: '#22c55e40', color: '#22c55e', label: `Your match ends in ${formatDuration(mdStatus.ms)}` },
                                   'live-noend': { icon: 'ri-play-circle-line',   bg: '#6366f115', border: '#6366f140', color: '#6366f1', label: 'Your match is live' },
                                   over:         { icon: 'ri-alarm-warning-fill', bg: '#ef444415', border: '#ef444455', color: '#ef4444', label: "Time's up for this match" },
@@ -4378,7 +4378,7 @@ export default function TournamentDetail() {
                               const st = getTimeStatus(bracketData?.match_schedule, knockoutKey(rIdx, pIdx), nowTick)
                               if (!st) return null
                               const map = {
-                                upcoming:      { icon: 'ri-hourglass-line',      bg: '#f59e0b15', border: '#f59e0b40', color: '#f59e0b', label: `Your match plays in ${formatDuration(st.ms)}` },
+                                upcoming:      { icon: 'ri-hourglass-line',      bg: '#f59e0b15', border: '#f59e0b40', color: '#f59e0b', label: `Your match plays at ${formatTimeOfDay(st.start)}` },
                                 live:          { icon: 'ri-timer-flash-line',    bg: '#22c55e15', border: '#22c55e40', color: '#22c55e', label: `Your match ends in ${formatDuration(st.ms)}` },
                                 'live-noend':  { icon: 'ri-play-circle-line',   bg: '#6366f115', border: '#6366f140', color: '#6366f1', label: 'Your match is live' },
                                 over:          { icon: 'ri-alarm-warning-fill', bg: '#ef444415', border: '#ef444455', color: '#ef4444', label: "Time's up for this match" },

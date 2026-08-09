@@ -8,7 +8,7 @@ import BracketBuilder from '../../../../components/BracketBuilder'
 import { buildGroups, computeStandings, isGroupStageComplete, getQualifiers } from '../../../../lib/groupStage'
 import usePageLoading from '../../../../components/usePageLoading'
 import useTranslation from '../../../../lib/useTranslation'
-import { getTimeStatus, toLocalInputValue, formatDuration, isTimeUp } from '../../../../lib/roundTimers'
+import { getTimeStatus, toLocalInputValue, formatDuration, formatTimeOfDay, isTimeUp } from '../../../../lib/roundTimers'
 import { randomizeMatchSchedule, knockoutKey, fixtureKey } from '../../../../lib/matchScheduler'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -1629,7 +1629,7 @@ export default function TournamentManage() {
                                           color: st.phase === 'over' ? '#ef4444' : st.phase === 'live' ? '#22c55e' : '#f59e0b',
                                           background: st.phase === 'over' ? '#ef444415' : st.phase === 'live' ? '#22c55e15' : '#f59e0b15',
                                         }}>
-                                          <i className="ri-time-line" /> {st.phase === 'over' ? "Time's up" : st.phase === 'live' ? `Ends in ${formatDuration(st.ms)}` : st.phase === 'upcoming' ? `Plays in ${formatDuration(st.ms)}` : 'Live'}
+                                          <i className="ri-time-line" /> {st.phase === 'over' ? "Time's up" : st.phase === 'live' ? `Ends in ${formatDuration(st.ms)}` : st.phase === 'upcoming' ? `Plays at ${formatTimeOfDay(st.start)}` : 'Live'}
                                         </span>
                                       ) : (
                                         <span style={{ fontSize: 9.5, color: 'var(--text-muted)' }}>No time assigned yet</span>
@@ -1908,7 +1908,7 @@ export default function TournamentManage() {
                                     color: st.phase === 'over' ? '#ef4444' : st.phase === 'live' ? '#22c55e' : '#f59e0b',
                                     background: st.phase === 'over' ? '#ef444415' : st.phase === 'live' ? '#22c55e15' : '#f59e0b15',
                                   }}>
-                                    {st.phase === 'over' ? "Time's up" : st.phase === 'live' ? `Ends in ${formatDuration(st.ms)}` : st.phase === 'upcoming' ? `Plays in ${formatDuration(st.ms)}` : 'Live'}
+                                    {st.phase === 'over' ? "Time's up" : st.phase === 'live' ? `Ends in ${formatDuration(st.ms)}` : st.phase === 'upcoming' ? `Plays at ${formatTimeOfDay(st.start)}` : 'Live'}
                                   </span>
                                 ) : (
                                   <span style={{ fontSize: 9.5, color: 'var(--text-muted)', flexShrink: 0 }}>No time assigned</span>

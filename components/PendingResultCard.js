@@ -7,7 +7,7 @@ import { supabase } from '../lib/supabase'
 import { fetchPendingSubmissions } from '../lib/pendingSubmissions'
 import { submitGroupFixtureResult, submitKnockoutResult } from '../lib/resultSubmission'
 import { buildMatchupSlug } from '../lib/matchSlug'
-import { getTimeStatus, formatDuration } from '../lib/roundTimers'
+import { getTimeStatus, formatDuration, formatTimeOfDay } from '../lib/roundTimers'
 import styles from './PendingResultCard.module.css'
 
 /**
@@ -92,7 +92,7 @@ export function PendingResultCard({ item, avatarUrl, compact, userId, onResolved
             background: schedStatus.phase === 'over' ? 'rgba(239,68,68,0.15)' : schedStatus.phase === 'live' ? 'rgba(34,197,94,0.15)' : 'rgba(245,158,11,0.15)',
           }}>
             <i className={schedStatus.phase === 'over' ? 'ri-alarm-warning-fill' : schedStatus.phase === 'live' ? 'ri-timer-flash-line' : 'ri-hourglass-line'} />
-            {schedStatus.phase === 'over' ? "Time's up for this match" : schedStatus.phase === 'live' ? `Ends in ${formatDuration(schedStatus.ms)}` : `Starts in ${formatDuration(schedStatus.ms)}`}
+            {schedStatus.phase === 'over' ? "Time's up for this match" : schedStatus.phase === 'live' ? `Ends in ${formatDuration(schedStatus.ms)}` : `Plays at ${formatTimeOfDay(schedStatus.start)}`}
           </div>
         )}
 
