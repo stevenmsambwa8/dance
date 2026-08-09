@@ -822,6 +822,47 @@ export default function TournamentDetail() {
     return () => clearInterval(iv)
   }, [])
 
+  // ── Matches-tab schedule summary: every match that has a time slot
+  // assigned, in one place, soonest first — whichever stage (group fixtures
+  // or knockout) is currently active. Recomputes each tick so phases/labels
+  // stay live without needing a page refresh. ──────────────────────────────
+  const matchScheduleList = useMemo(() => {
+    if (!bracketData?.match_schedule) return []
+    const rows = []
+    if (bracketData?.groups && bracketData?.stage !== 'knockout') {
+      bracketData.groups.forEach(group => {
+        group.fixtures?.forEach(fx => {
+          if (fx.status === 'played') return
+          const st = getTimeStatus(bracketData.match_schedule, fixtureKey(fx.id), nowTick)
+          if (!st) return
+          const home = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.homeId)
+          const away = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.awayId)
+          rows.push({ id: `fx-${fx.id}`, home: home?.name || '?', away: away?.name || '?', st })
+        })
+      })
+    } else if (bracketData?.rounds) {
+      const totalRounds = bracketData.rounds.length
+      bracketData.rounds.slice(0, totalRounds - 1).forEach((pairs, rIdx) => {
+        pairs.forEach((pair, pIdx) => {
+          const [a, b] = pair || []
+          const done = a?.status === 'winner' || b?.status === 'winner'
+          const isBye = a?.status === 'bye' || b?.status === 'bye' || (!a?.userId && !b?.userId)
+          if (done || isBye) return
+          const st = getTimeStatus(bracketData.match_schedule, knockoutKey(rIdx, pIdx), nowTick)
+          if (!st) return
+          const aProfile = participants.find(x => x.user_id === a?.userId)?.profiles
+          const bProfile = participants.find(x => x.user_id === b?.userId)?.profiles
+          rows.push({ id: `ko-${rIdx}-${pIdx}`, home: a?.teamName || aProfile?.username || 'TBD', away: b?.teamName || bProfile?.username || 'TBD', st })
+        })
+      })
+    }
+    return rows.sort((x, y) => {
+      const xStart = x.st.start ? new Date(x.st.start).getTime() : Infinity
+      const yStart = y.st.start ? new Date(y.st.start).getTime() : Infinity
+      return xStart - yStart
+    })
+  }, [bracketData, nowTick, participants])
+
   // ── Deep-link scroll: jump straight to one specific match (e.g. from a
   // "Submit Result" nudge card) and briefly highlight its card ───────────
   useEffect(() => {
@@ -4245,6 +4286,43 @@ export default function TournamentDetail() {
       {/* ── MATCHES TAB ── */}
       {activeTab === 'matches' && (
         <section className={styles.section}>
+          {!(loadingTournament || loadingParticipants) && matchScheduleList.length > 0 && (
+            <div style={{
+              background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14,
+              padding: '12px 14px', marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 8,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 800, letterSpacing: '0.04em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                <i className="ri-calendar-schedule-line" /> Match Schedule
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {matchScheduleList.map(row => {
+                  const map = {
+                    upcoming:     { color: '#f59e0b', label: `Plays at ${formatTimeOfDay(row.st.start)}` },
+                    live:         { color: '#22c55e', label: `Ends in ${formatDuration(row.st.ms)}` },
+                    'live-noend': { color: '#6366f1', label: 'Live now' },
+                    over:         { color: '#ef4444', label: "Time's up" },
+                  }
+                  const cfg = map[row.st.phase]
+                  if (!cfg) return null
+                  return (
+                    <button
+                      key={row.id}
+                      onClick={() => setMatchAnchor(row.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 8, padding: '8px 4px', fontSize: 12,
+                        background: 'none', border: 'none', borderTop: '1px solid var(--border)', cursor: 'pointer', textAlign: 'left', color: 'var(--text)',
+                      }}
+                    >
+                      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>
+                        {row.home} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>vs</span> {row.away}
+                      </span>
+                      <span style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 800, color: cfg.color }}>{cfg.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
           {(loadingTournament || loadingParticipants) ? (
             <div className={styles.skeletonList}>
               {[1, 2, 3, 4].map(i => (
@@ -4274,13 +4352,30 @@ export default function TournamentDetail() {
                       const home = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.homeId)
                       const away = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.awayId)
                       const played = fx.status === 'played'
+                      const mdStatus = !played ? getTimeStatus(bracketData?.match_schedule, fixtureKey(fx.id), nowTick) : null
                       return (
-                        <div key={fx.id} style={{
+                        <div key={fx.id} id={`fx-${fx.id}`} style={{
                           background: 'var(--surface)',
                           border: `1px solid ${played ? 'rgba(245,158,11,0.2)' : 'var(--border)'}`,
                           borderRadius: 14, padding: '12px 16px',
-                          display: 'flex', alignItems: 'center', gap: 10,
+                          display: 'flex', flexDirection: 'column', gap: 8,
                         }}>
+                          {mdStatus && (() => {
+                            const map = {
+                              upcoming:     { icon: 'ri-hourglass-line',      bg: '#f59e0b15', border: '#f59e0b40', color: '#f59e0b', label: `Plays at ${formatTimeOfDay(mdStatus.start)}` },
+                              live:         { icon: 'ri-timer-flash-line',    bg: '#22c55e15', border: '#22c55e40', color: '#22c55e', label: `Ends in ${formatDuration(mdStatus.ms)}` },
+                              'live-noend': { icon: 'ri-play-circle-line',   bg: '#6366f115', border: '#6366f140', color: '#6366f1', label: 'Live now' },
+                              over:         { icon: 'ri-alarm-warning-fill', bg: '#ef444415', border: '#ef444455', color: '#ef4444', label: "Time's up for this match" },
+                            }
+                            const cfg = map[mdStatus.phase]
+                            if (!cfg) return null
+                            return (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 7px', borderRadius: 6, background: cfg.bg, border: `1px solid ${cfg.border}`, fontSize: 9.5, fontWeight: 800, color: cfg.color, width: 'fit-content' }}>
+                                <i className={cfg.icon} style={{ fontSize: 10 }} /> {cfg.label}
+                              </div>
+                            )
+                          })()}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, justifyContent: 'flex-end', textAlign: 'right' }}>
                             <span style={{ fontWeight: played ? 500 : 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{home?.name || '?'}</span>
                             <div style={{ width: 26, height: 26, borderRadius: '50%', overflow: 'hidden', background: 'var(--bg-2)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800 }}>
@@ -4302,6 +4397,7 @@ export default function TournamentDetail() {
                               {away?.avatar ? <img src={away.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (away?.name || '?').slice(0, 2).toUpperCase()}
                             </div>
                             <span style={{ fontWeight: played ? 500 : 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{away?.name || '?'}</span>
+                          </div>
                           </div>
                         </div>
                       )
