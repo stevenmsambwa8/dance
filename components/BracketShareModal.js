@@ -830,7 +830,107 @@ async function drawStandingsCard(canvas, { tournament, groups, participants, gam
   drawFooter(ctx, fullH, PAD, accent)
 }
 
-export default function BracketShareModal({ open, onClose, mode = 'bracket', tournament, bracketData, groups, participants }) {
+async function drawScheduleCard(canvas, { tournament, gameMeta, scheduleList }) {
+  const ctx = canvas.getContext('2d')
+  const accent = gameMeta?.color || '#00ff66'
+  const PAD = 56
+  const ROW_H = 64
+
+  let y = 48
+  const [logo, gameImg] = await Promise.all([
+    loadImg('/logo.png'),
+    gameMeta?.img ? loadImg(gameMeta.img) : Promise.resolve(null),
+  ])
+
+  let headerH = y
+  headerH += (logo?.naturalWidth > 0 ? 40 + 28 : 28)
+  headerH += 36
+  headerH += 76
+  headerH += 32
+  headerH += 62
+  headerH += 28
+
+  const rows = scheduleList || []
+  const tableH = rows.length * ROW_H
+  const footerH = 100
+  const H = headerH + tableH + footerH
+
+  canvas.width  = W
+  canvas.height = Math.max(H, 400)
+  const fullH = canvas.height
+
+  ctx.fillStyle = BG
+  ctx.fillRect(0, 0, W, fullH)
+  drawGameIcon(ctx, gameImg, PAD, accent)
+
+  const stats = [
+    { label: `${rows.length} MATCH${rows.length === 1 ? '' : 'ES'}`, bg: accent, text: '#000000' },
+  ]
+
+  y = await drawHeader(ctx, { y, PAD, accent, kicker: 'MATCH SCHEDULE', tournament, gameMeta, pills: stats, logo })
+
+  const tableX = PAD
+  const tableW = W - PAD * 2
+  const tableTop = y
+
+  rr(ctx, tableX, tableTop, tableW, tableH, 14)
+  ctx.fillStyle = INK_04
+  ctx.fill()
+  ctx.strokeStyle = INK_15
+  ctx.lineWidth = 1.5
+  ctx.stroke()
+
+  const STATUS_COLORS = { upcoming: '#f59e0b', live: '#22c55e', 'live-noend': '#6366f1', over: '#ef4444' }
+
+  rows.forEach((row, i) => {
+    const rowTop = tableTop + i * ROW_H
+    const centerY = rowTop + ROW_H / 2
+
+    if (i % 2 === 1) {
+      ctx.fillStyle = 'rgba(244,245,248,0.02)'
+      ctx.fillRect(tableX, rowTop, tableW, ROW_H)
+    }
+    if (i > 0) {
+      ctx.strokeStyle = INK_15
+      ctx.lineWidth = 1
+      ctx.beginPath(); ctx.moveTo(tableX, rowTop); ctx.lineTo(tableX + tableW, rowTop); ctx.stroke()
+    }
+
+    const dotColor = STATUS_COLORS[row.phase] || INK_55
+    ctx.beginPath()
+    ctx.arc(tableX + 26, centerY, 5, 0, Math.PI * 2)
+    ctx.fillStyle = dotColor
+    ctx.fill()
+
+    ctx.font = '800 17px system-ui, sans-serif'
+    ctx.fillStyle = INK
+    ctx.textAlign = 'left'
+    const matchup = `${row.home}  vs  ${row.away}`
+    const maxNameW = tableW - 240
+    let val = matchup
+    if (ctx.measureText(val).width > maxNameW) {
+      while (ctx.measureText(val + '…').width > maxNameW && val.length > 1) val = val.slice(0, -1)
+      val += '…'
+    }
+    ctx.fillText(val, tableX + 44, centerY + 6)
+
+    ctx.font = '900 14px system-ui, sans-serif'
+    const labelW = ctx.measureText(row.label).width + 26
+    const pillH = 30
+    rr(ctx, tableX + tableW - 24 - labelW, centerY - pillH / 2, labelW, pillH, 15)
+    ctx.fillStyle = `${dotColor}22`
+    ctx.fill()
+    ctx.strokeStyle = `${dotColor}55`
+    ctx.stroke()
+    ctx.fillStyle = dotColor
+    ctx.textAlign = 'center'
+    ctx.fillText(row.label, tableX + tableW - 24 - labelW / 2, centerY + 5)
+  })
+
+  drawFooter(ctx, fullH, PAD, accent)
+}
+
+export default function BracketShareModal({ open, onClose, mode = 'bracket', tournament, bracketData, groups, participants, scheduleList }) {
   const canvasRef               = useRef(null)
   const [ready, setReady]       = useState(false)
   const [downloaded, setDownloaded] = useState(false)
@@ -863,6 +963,8 @@ export default function BracketShareModal({ open, onClose, mode = 'bracket', tou
           await drawStandingsCard(canvasRef.current, {
             tournament, groups: resolvedGroups, participants: participants || [], gameMeta, computeStandings,
           })
+        } else if (mode === 'schedule') {
+          await drawScheduleCard(canvasRef.current, { tournament, gameMeta, scheduleList: scheduleList || [] })
         } else {
           await drawCard(canvasRef.current, { tournament, bracketData, participants: participants || [], gameMeta })
         }
@@ -876,7 +978,7 @@ export default function BracketShareModal({ open, onClose, mode = 'bracket', tou
       }
     }, 80)
     return () => { clearTimeout(t); clearTimeout(watchdog) }
-  }, [open, mode, tournament, bracketData, resolvedGroups, participants])
+  }, [open, mode, tournament, bracketData, resolvedGroups, participants, scheduleList])
 
   if (!open) return null
 
@@ -923,7 +1025,7 @@ export default function BracketShareModal({ open, onClose, mode = 'bracket', tou
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
             <i className="ri-image-line" style={{ fontSize:16, color: gameMeta?.color || '#00ff66' }} />
             <span style={{ fontWeight:900, fontSize:14, color:'#ffffff', letterSpacing:'0.05em' }}>
-              {mode === 'standings' ? 'SHARE STANDINGS TABLE' : 'SHARE BRACKET POSTER'}
+              {mode === 'standings' ? 'SHARE STANDINGS TABLE' : mode === 'schedule' ? 'DOWNLOAD MATCH SCHEDULE' : 'SHARE BRACKET POSTER'}
             </span>
           </div>
           <button onClick={onClose} style={{ background:'none', border:'none', color:'#64748b', cursor:'pointer', fontSize:20, padding:4, lineHeight:1 }}>

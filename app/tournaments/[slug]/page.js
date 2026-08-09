@@ -829,6 +829,13 @@ export default function TournamentDetail() {
   const matchScheduleList = useMemo(() => {
     if (!bracketData?.match_schedule) return []
     const rows = []
+    const pushRow = (id, home, away, st) => {
+      const label = st.phase === 'upcoming' ? `Plays at ${formatTimeOfDay(st.start)}`
+        : st.phase === 'live' ? `Ends in ${formatDuration(st.ms)}`
+        : st.phase === 'live-noend' ? 'Live now'
+        : "Time's up"
+      rows.push({ id, home, away, phase: st.phase, label, start: st.start })
+    }
     if (bracketData?.groups && bracketData?.stage !== 'knockout') {
       bracketData.groups.forEach(group => {
         group.fixtures?.forEach(fx => {
@@ -837,7 +844,7 @@ export default function TournamentDetail() {
           if (!st) return
           const home = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.homeId)
           const away = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.awayId)
-          rows.push({ id: `fx-${fx.id}`, home: home?.name || '?', away: away?.name || '?', st })
+          pushRow(`fx-${fx.id}`, home?.name || '?', away?.name || '?', st)
         })
       })
     } else if (bracketData?.rounds) {
@@ -852,13 +859,13 @@ export default function TournamentDetail() {
           if (!st) return
           const aProfile = participants.find(x => x.user_id === a?.userId)?.profiles
           const bProfile = participants.find(x => x.user_id === b?.userId)?.profiles
-          rows.push({ id: `ko-${rIdx}-${pIdx}`, home: a?.teamName || aProfile?.username || 'TBD', away: b?.teamName || bProfile?.username || 'TBD', st })
+          pushRow(`ko-${rIdx}-${pIdx}`, a?.teamName || aProfile?.username || 'TBD', b?.teamName || bProfile?.username || 'TBD', st)
         })
       })
     }
     return rows.sort((x, y) => {
-      const xStart = x.st.start ? new Date(x.st.start).getTime() : Infinity
-      const yStart = y.st.start ? new Date(y.st.start).getTime() : Infinity
+      const xStart = x.start ? new Date(x.start).getTime() : Infinity
+      const yStart = y.start ? new Date(y.start).getTime() : Infinity
       return xStart - yStart
     })
   }, [bracketData, nowTick, participants])
@@ -4287,41 +4294,17 @@ export default function TournamentDetail() {
       {activeTab === 'matches' && (
         <section className={styles.section}>
           {!(loadingTournament || loadingParticipants) && matchScheduleList.length > 0 && (
-            <div style={{
-              background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14,
-              padding: '12px 14px', marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 8,
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 800, letterSpacing: '0.04em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                <i className="ri-calendar-schedule-line" /> Match Schedule
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                {matchScheduleList.map(row => {
-                  const map = {
-                    upcoming:     { color: '#f59e0b', label: `Plays at ${formatTimeOfDay(row.st.start)}` },
-                    live:         { color: '#22c55e', label: `Ends in ${formatDuration(row.st.ms)}` },
-                    'live-noend': { color: '#6366f1', label: 'Live now' },
-                    over:         { color: '#ef4444', label: "Time's up" },
-                  }
-                  const cfg = map[row.st.phase]
-                  if (!cfg) return null
-                  return (
-                    <button
-                      key={row.id}
-                      onClick={() => setMatchAnchor(row.id)}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 8, padding: '8px 4px', fontSize: 12,
-                        background: 'none', border: 'none', borderTop: '1px solid var(--border)', cursor: 'pointer', textAlign: 'left', color: 'var(--text)',
-                      }}
-                    >
-                      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>
-                        {row.home} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>vs</span> {row.away}
-                      </span>
-                      <span style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 800, color: cfg.color }}>{cfg.label}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
+            <button
+              onClick={() => { setShareCardMode('schedule'); setBracketShareModal(true) }}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                width: '100%', padding: '11px 14px', marginBottom: 20, borderRadius: 12,
+                background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)',
+                fontSize: 12.5, fontWeight: 800, cursor: 'pointer',
+              }}
+            >
+              <i className="ri-calendar-schedule-line" /> Download Match Schedule
+            </button>
           )}
           {(loadingTournament || loadingParticipants) ? (
             <div className={styles.skeletonList}>
@@ -5104,6 +5087,7 @@ export default function TournamentDetail() {
         bracketData={bracketData}
         groups={shareGroupId ? bracketData?.groups?.filter(g => g.id === shareGroupId) : bracketData?.groups}
         participants={shareGroupId ? (bracketData?.groups?.find(g => g.id === shareGroupId)?.members || []) : participants}
+        scheduleList={matchScheduleList}
       />
 
       {/* ── Battle Royale: Log Match Result modal ── */}
