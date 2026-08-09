@@ -1157,8 +1157,8 @@ export default function TournamentManage() {
     await saveMatchSchedule(next)
   }
 
-  async function saveFixtureScore(groupId, fixtureId) {
-    const draft = groupScoreDraft[fixtureId]
+  async function saveFixtureScore(groupId, fixtureId, override) {
+    const draft = override || groupScoreDraft[fixtureId]
     if (!draft || draft.home === '' || draft.away === '') return
     setGroupSavingId(fixtureId)
     const { data: freshT } = await supabase.from('tournaments').select('bracket_data').eq('id', id.current).single()
@@ -1874,6 +1874,13 @@ export default function TournamentManage() {
                                                 <i className="ri-image-line" /> proof
                                               </a>
                                             )}
+                                            <button
+                                              onClick={() => saveFixtureScore(group.id, fx.id, { home: String(sub.home), away: String(sub.away) })}
+                                              disabled={groupSavingId === fx.id}
+                                              style={{ marginLeft: 'auto', padding: '3px 9px', borderRadius: 6, border: 'none', background: '#22c55e', color: '#fff', fontSize: 10, fontWeight: 800, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 3 }}
+                                            >
+                                              <i className={groupSavingId === fx.id ? 'ri-loader-4-line' : 'ri-check-line'} /> Accept {sub.home}–{sub.away}
+                                            </button>
                                           </div>
                                         )
                                       })}

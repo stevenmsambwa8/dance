@@ -4519,6 +4519,15 @@ export default function TournamentDetail() {
                                           <i className="ri-image-line" /> proof
                                         </a>
                                       )}
+                                      {sub.a !== sub.b && (
+                                        <button
+                                          onClick={() => adminSetSlotStatus(rIdx, pIdx, sub.a > sub.b ? 0 : 1, 'winner')}
+                                          disabled={bracketSaving}
+                                          style={{ marginLeft: 'auto', padding: '3px 9px', borderRadius: 6, border: 'none', background: '#22c55e', color: '#fff', fontSize: 10, fontWeight: 800, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 3 }}
+                                        >
+                                          <i className="ri-check-line" /> Accept {sub.a}–{sub.b}
+                                        </button>
+                                      )}
                                     </div>
                                   )
                                 })}
