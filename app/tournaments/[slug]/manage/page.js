@@ -1848,6 +1848,37 @@ export default function TournamentManage() {
                                       </span>
                                     </div>
                                   )}
+                                  {/* ── What was actually submitted — the admin previously had no way to
+                                      see the numbers/proof a player sent in, only a boolean "submitted or
+                                      not". Show both sides' claimed scores (and proof screenshot, if any)
+                                      any time a submission exists and the fixture isn't finalized yet. ── */}
+                                  {fx.status !== 'played' && (fx.submissions?.home || fx.submissions?.away) && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '0 12px 9px' }}>
+                                      {fx.disputed && (
+                                        <span style={{ fontSize: 9.5, fontWeight: 800, color: '#ef4444' }}>
+                                          <i className="ri-error-warning-line" /> Scores don't match
+                                        </span>
+                                      )}
+                                      {['home', 'away'].map(side => {
+                                        const sub = fx.submissions?.[side]
+                                        if (!sub) return null
+                                        const submitter = side === 'home' ? home : away
+                                        return (
+                                          <div key={side} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, color: 'var(--text-dim)' }}>
+                                            <i className="ri-file-list-3-line" style={{ color: 'var(--text-muted)' }} />
+                                            <span style={{ fontWeight: 700 }}>{submitter?.name || side}</span> submitted
+                                            <span style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 800 }}>{sub.home}–{sub.away}</span>
+                                            {sub.at && <span style={{ color: 'var(--text-muted)' }}>· {new Date(sub.at).toLocaleString()}</span>}
+                                            {sub.proofUrl && (
+                                              <a href={sub.proofUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', fontWeight: 700 }}>
+                                                <i className="ri-image-line" /> proof
+                                              </a>
+                                            )}
+                                          </div>
+                                        )
+                                      })}
+                                    </div>
+                                  )}
                                 </div>
                               )
                             })}
@@ -2221,6 +2252,35 @@ export default function TournamentManage() {
                                   >
                                     −3 {b.name || b.teamName || 'P2'}
                                   </button>
+                                </div>
+                              )}
+                              {/* ── What was actually submitted — same visibility fix as group
+                                  fixtures: show each side's claimed score + proof, not just whether
+                                  they submitted. ── */}
+                              {!decided && (a?.pendingSubmission || b?.pendingSubmission) && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '0 8px 8px' }}>
+                                  {a?.disputed && (
+                                    <span style={{ fontSize: 9.5, fontWeight: 800, color: '#ef4444' }}>
+                                      <i className="ri-error-warning-line" /> Scores don't match
+                                    </span>
+                                  )}
+                                  {[['a', a], ['b', b]].map(([slotKey, slot]) => {
+                                    const sub = slot?.pendingSubmission
+                                    if (!sub) return null
+                                    return (
+                                      <div key={slotKey} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, color: 'var(--text-dim)' }}>
+                                        <i className="ri-file-list-3-line" style={{ color: 'var(--text-muted)' }} />
+                                        <span style={{ fontWeight: 700 }}>{slot.name || slot.teamName || slotKey}</span> submitted
+                                        <span style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 800 }}>{sub.a}–{sub.b}</span>
+                                        {sub.at && <span style={{ color: 'var(--text-muted)' }}>· {new Date(sub.at).toLocaleString()}</span>}
+                                        {sub.proofUrl && (
+                                          <a href={sub.proofUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', fontWeight: 700 }}>
+                                            <i className="ri-image-line" /> proof
+                                          </a>
+                                        )}
+                                      </div>
+                                    )
+                                  })}
                                 </div>
                               )}
                               </div>

@@ -4496,6 +4496,35 @@ export default function TournamentDetail() {
                               <PlayerSide entry={b} profile={bProfile} won={bWon} lost={bOut} side="right" isBye={isBye} />
                             </div>
 
+                            {/* Submitted results — show what each side self-reported before the
+                                admin picks a winner, so they're not deciding blind. */}
+                            {canManage && !isBye && !done && (a?.pendingSubmission || b?.pendingSubmission) && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 10px', borderRadius: 8, background: 'var(--bg)' }}>
+                                {(a?.disputed || b?.disputed) && (
+                                  <span style={{ fontSize: 10, fontWeight: 800, color: '#ef4444' }}>
+                                    <i className="ri-error-warning-line" /> Scores don't match
+                                  </span>
+                                )}
+                                {[['a', a, aProfile], ['b', b, bProfile]].map(([key, slot, profile]) => {
+                                  const sub = slot?.pendingSubmission
+                                  if (!sub) return null
+                                  return (
+                                    <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-dim)', flexWrap: 'wrap' }}>
+                                      <i className="ri-file-list-3-line" style={{ color: 'var(--text-muted)' }} />
+                                      <span style={{ fontWeight: 700 }}>{profile?.username || slot?.name || (key === 'a' ? 'P1' : 'P2')}</span> submitted
+                                      <span style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 800 }}>{sub.a}–{sub.b}</span>
+                                      {sub.at && <span style={{ color: 'var(--text-muted)' }}>· {new Date(sub.at).toLocaleString()}</span>}
+                                      {sub.proofUrl && (
+                                        <a href={sub.proofUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', fontWeight: 700 }}>
+                                          <i className="ri-image-line" /> proof
+                                        </a>
+                                      )}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            )}
+
                             {/* Admin action row */}
                             {canManage && !isBye && (
                               <div style={{
