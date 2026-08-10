@@ -205,6 +205,11 @@ export default function MatchupPage() {
         <i className="ri-arrow-left-line" /> {tournament.name}
       </Link>
 
+      <div className={styles.brandLogo}>
+        <img src="/logo.png" alt="Nabogaming" className={styles.logoLight} />
+        <img src="/logo-black.png" alt="Nabogaming" className={styles.logoDark} />
+      </div>
+
       <div className={styles.hero}>
         {gameArt && <img src={gameArt} alt="" className={styles.heroArt} />}
         <div className={styles.heroScrim} />
@@ -239,25 +244,14 @@ export default function MatchupPage() {
         </div>
       </div>
 
-      <div className={styles.section}>
-        <div className={styles.sectionTitle}>Submitted Results</div>
-        {disputed && (
+      {disputed && (
+        <div className={styles.section}>
           <div className={styles.disputeBanner}>
             <i className="ri-error-warning-line" style={{ marginTop: 1 }} />
             <span>Both sides submitted different scores for this match. An organiser needs to review it before it's final.</span>
           </div>
-        )}
-        {hasAnySubmission ? (
-          sides.filter(s => s.submission).map(s => (
-            <SubmissionCard key={s.key} side={s} kind={kind} />
-          ))
-        ) : (
-          <div className={styles.emptyCard}>
-            <i className="ri-file-list-3-line" />
-            <span>{played ? 'Result recorded — no self-reported submissions on file.' : 'Neither side has submitted a result yet.'}</span>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className={styles.actions}>
         <Link href={`/tournaments/${tournament.slug || slug}`} className={`${styles.actionBtn} ${styles.primary}`}>
@@ -291,27 +285,4 @@ function Side({ side, played, won }) {
   )
 }
 
-function SubmissionCard({ side, kind }) {
-  const sub = side.submission
-  const scoreText = kind === 'knockout' ? `${sub.a}–${sub.b}` : `${sub.home}–${sub.away}`
-  return (
-    <div className={styles.subCard}>
-      <div className={styles.subAvatar}>
-        {side.avatar ? <img src={side.avatar} alt="" /> : <span>{initials(side.name)}</span>}
-      </div>
-      <div className={styles.subBody}>
-        <div className={styles.subTop}>
-          <span className={styles.subName}>{side.name}</span>
-          <span className={styles.subScore}>{scoreText}</span>
-        </div>
-        {sub.at && <div className={styles.subTime}>{new Date(sub.at).toLocaleString()}</div>}
-      </div>
-      {sub.proofUrl && (
-        <a href={sub.proofUrl} target="_blank" rel="noopener noreferrer" className={styles.proofThumb}>
-          <img src={sub.proofUrl} alt="Proof" />
-          <i className="ri-zoom-in-line" />
-        </a>
-      )}
-    </div>
-  )
-}
+
