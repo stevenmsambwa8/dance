@@ -185,8 +185,10 @@ export default function MatchupPage() {
     if (anySub) { leftScore = anySub.a; rightScore = anySub.b }
   }
   const showScoreStrip = leftScore != null && rightScore != null
+  const leftWon = kind === 'knockout' ? left.won : (played && leftScore > rightScore)
+  const rightWon = kind === 'knockout' ? right.won : (played && rightScore > leftScore)
 
-  const statusLabel = disputed ? 'Disputed' : played ? 'Final' : hasAnySubmission ? 'Awaiting review' : (scheduleStatus?.phase === 'live' || scheduleStatus?.phase === 'live-noend') ? 'Live' : 'Upcoming'
+  const statusLabel = disputed ? 'Disputed' : played ? 'Completed' : hasAnySubmission ? 'Awaiting review' : (scheduleStatus?.phase === 'live' || scheduleStatus?.phase === 'live-noend') ? 'Live' : 'Upcoming'
   const statusClass = disputed ? 'disputed' : played ? 'final' : (hasAnySubmission || scheduleStatus?.phase === 'live') ? 'live' : 'waiting'
   const statusIcon = disputed ? 'ri-error-warning-line' : played ? 'ri-trophy-line' : hasAnySubmission ? 'ri-time-line' : 'ri-hourglass-line'
 
@@ -218,9 +220,9 @@ export default function MatchupPage() {
           </div>
 
           <div className={styles.duel}>
-            <Side side={left} />
+            <Side side={left} played={played} won={leftWon} />
             <div className={styles.seam}>VS</div>
-            <Side side={right} />
+            <Side side={right} played={played} won={rightWon} />
           </div>
 
           {showScoreStrip ? (
@@ -269,15 +271,17 @@ export default function MatchupPage() {
   )
 }
 
-function Side({ side }) {
+function Side({ side, played, won }) {
   return (
     <div className={styles.side}>
-      <div className={`${styles.avatarRing} ${side.won ? styles.winner : ''}`}>
+      <div className={`${styles.avatarRing} ${won ? styles.winner : ''}`}>
         {side.avatar ? <img src={side.avatar} alt="" /> : <span>{initials(side.name)}</span>}
       </div>
       <div className={styles.sideName}>{side.name}</div>
-      <div className={`${styles.sideSub} ${side.submission ? styles.submitted : ''}`}>
-        {side.submission ? <><i className="ri-check-line" /> Submitted</> : <><i className="ri-time-line" /> Awaiting</>}
+      <div className={`${styles.sideSub} ${(won || side.submission) ? styles.submitted : ''}`}>
+        {played
+          ? (won ? <><i className="ri-trophy-line" /> Winner</> : side.submission ? <><i className="ri-check-line" /> Submitted</> : null)
+          : (side.submission ? <><i className="ri-check-line" /> Submitted</> : <><i className="ri-time-line" /> Awaiting</>)}
       </div>
     </div>
   )
