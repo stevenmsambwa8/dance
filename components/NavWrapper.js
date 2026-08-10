@@ -18,7 +18,6 @@ const HIDDEN_NAV_PATTERNS = [
   /^\/shop\/[^/]+\/request\/[^/]+/,
   /^\/games\/[^/]+\/chat/,
   /^\/dm\//,
-  /^\/tournaments\/[^/]+\/matches\/[^/]+/,
 ]
 
 export default function NavWrapper() {
