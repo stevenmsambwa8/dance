@@ -5,6 +5,7 @@
   margin: 0 auto;
   padding: 10px 12px 32px;
   min-height: 100vh;
+  text-align: center;
 }
 
 .backLink {
@@ -19,59 +20,152 @@
 }
 .backLink:active { opacity: 0.6; }
 
-/* ── Hero: game art + diagonal duel split ── */
-.hero {
+/* ══════════════════════════════════════════════════════════════════════
+   Card — a dark stadium "fight card" poster. Always forced dark, matching
+   the shareable brand look, independent of the app's active theme.
+   ══════════════════════════════════════════════════════════════════════ */
+.card {
   position: relative;
-  border-radius: 18px;
+  border-radius: 22px;
   overflow: hidden;
-  background: #0b0e0f;
+  background:
+    radial-gradient(120% 60% at 50% 0%, rgba(34,197,94,0.16) 0%, rgba(34,197,94,0) 55%),
+    radial-gradient(90% 50% at 50% 100%, rgba(34,197,94,0.10) 0%, rgba(34,197,94,0) 60%),
+    linear-gradient(180deg, #0a0d0b 0%, #060706 55%, #050605 100%);
   isolation: isolate;
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.45);
 }
+
+/* Diagonal arena light rays */
+.arenaGlow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(115deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 12%),
+    linear-gradient(245deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0) 14%),
+    linear-gradient(160deg, rgba(34,197,94,0.10) 0%, rgba(34,197,94,0) 30%),
+    linear-gradient(20deg, rgba(34,197,94,0.08) 0%, rgba(34,197,94,0) 28%);
+}
+
+/* Faint stadium dot/grid texture */
+.arenaDots {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  background-image: radial-gradient(rgba(255,255,255,0.08) 1px, transparent 1px);
+  background-size: 14px 14px;
+  mask-image: radial-gradient(80% 60% at 50% 15%, black 0%, transparent 75%);
+  -webkit-mask-image: radial-gradient(80% 60% at 50% 15%, black 0%, transparent 75%);
+}
+
+/* Scattered confetti flecks */
+.confetti {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.confettiPiece {
+  position: absolute;
+  width: 6px;
+  height: 10px;
+  opacity: 0.55;
+  background: var(--accent);
+  border-radius: 1px;
+}
+.confettiPiece:nth-child(1)  { top: 6%;  left: 8%;  transform: rotate(24deg); background: #4ade80; }
+.confettiPiece:nth-child(2)  { top: 14%; left: 88%; transform: rotate(-18deg); background: #e5e7eb; }
+.confettiPiece:nth-child(3)  { top: 30%; left: 4%;  transform: rotate(-30deg); background: #22c55e; }
+.confettiPiece:nth-child(4)  { top: 4%;  left: 46%; transform: rotate(10deg); background: #e5e7eb; }
+.confettiPiece:nth-child(5)  { top: 22%; left: 94%; transform: rotate(40deg); background: #4ade80; }
+.confettiPiece:nth-child(6)  { top: 46%; left: 90%; transform: rotate(-12deg); background: #e5e7eb; }
+.confettiPiece:nth-child(7)  { top: 60%; left: 6%;  transform: rotate(16deg); background: #22c55e; }
+.confettiPiece:nth-child(8)  { top: 80%; left: 92%; transform: rotate(-24deg); background: #4ade80; }
+.confettiPiece:nth-child(9)  { top: 90%; left: 10%; transform: rotate(30deg); background: #e5e7eb; }
+.confettiPiece:nth-child(10) { top: 68%; left: 3%;  transform: rotate(-40deg); background: #22c55e; }
+
 .heroArt {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  filter: brightness(0.4) saturate(1.15) blur(1px);
-  transform: scale(1.08);
-}
-.heroScrim {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.55) 60%, rgba(0,0,0,0.82) 100%),
-    radial-gradient(ellipse at 50% 35%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.35) 100%);
+  opacity: 0.10;
+  filter: saturate(1.2) blur(1px);
+  transform: scale(1.1);
 }
 
-.heroInner {
+.cardInner {
   position: relative;
-  padding: 16px 14px 20px;
+  padding: 22px 16px 20px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
 }
 
-.eyebrow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-.eyebrowLeft {
+/* ── Brand row ── */
+.brandRow {
   display: flex;
   align-items: center;
   gap: 6px;
+  margin-bottom: 2px;
+}
+.brandMark {
+  height: 20px;
+  width: auto;
+  filter: drop-shadow(0 0 10px rgba(34,197,94,0.45)) brightness(0) invert(1);
+}
+.brandWord {
   font-size: 11px;
-  font-weight: 700;
-  color: rgba(255,255,255,0.7);
-  min-width: 0;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.85);
 }
-.eyebrowLeft span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+
+/* ── Headline ── */
+.headline {
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+  line-height: 1.12;
+  text-transform: uppercase;
+  color: #fff;
+  background: linear-gradient(180deg, #ffffff 0%, #c7c7cc 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  text-shadow: 0 2px 20px rgba(0,0,0,0.4);
 }
+.roundRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 300px;
+  margin: 2px 0 4px;
+}
+.roundLine {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(74,222,128,0.55), transparent);
+}
+.roundLabel {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #4ade80;
+}
+
 .statusChip {
   flex-shrink: 0;
   font-size: 10px;
@@ -83,18 +177,32 @@
   display: flex;
   align-items: center;
   gap: 4px;
+  margin-bottom: 4px;
 }
 .statusChip.final    { background: rgba(34,197,94,0.18); color: #4ade80; border: 1px solid rgba(74,222,128,0.4); }
 .statusChip.live     { background: rgba(245,158,11,0.18); color: #fbbf24; border: 1px solid rgba(251,191,36,0.4); }
 .statusChip.disputed { background: rgba(239,68,68,0.2);  color: #f87171; border: 1px solid rgba(248,113,113,0.45); }
 .statusChip.waiting  { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.75); border: 1px solid rgba(255,255,255,0.2); }
 
-/* ── Duel row: two portraits meeting at a jagged VS seam ── */
+/* ── Duel row: two portraits either side of a trophy + VS seam ── */
 .duel {
   display: flex;
   align-items: center;
-  gap: 0;
+  justify-content: center;
+  gap: 4px;
   position: relative;
+  width: 100%;
+  padding: 10px 0 4px;
+}
+.trophyWatermark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -58%);
+  font-size: 140px;
+  color: rgba(74,222,128,0.08);
+  pointer-events: none;
+  z-index: 0;
 }
 .side {
   flex: 1;
@@ -104,32 +212,54 @@
   align-items: center;
   gap: 8px;
   text-align: center;
-  padding: 4px 6px;
+  padding: 4px 4px;
+  position: relative;
+  z-index: 1;
 }
 .avatarRing {
-  width: 72px;
-  height: 72px;
+  position: relative;
+  width: 78px;
+  height: 78px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   background: rgba(255,255,255,0.08);
-  border: 2.5px solid rgba(255,255,255,0.22);
+  border: 3px solid rgba(255,255,255,0.5);
   font-size: 22px;
   font-weight: 800;
   color: rgba(255,255,255,0.85);
   flex-shrink: 0;
   transition: border-color 0.2s, box-shadow 0.2s;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.5);
 }
 .avatarRing img { width: 100%; height: 100%; object-fit: cover; }
 .avatarRing.winner {
   border-color: #4ade80;
-  box-shadow: 0 0 0 4px rgba(74,222,128,0.16), 0 0 20px rgba(74,222,128,0.35);
+  box-shadow: 0 0 0 4px rgba(74,222,128,0.18), 0 0 24px rgba(74,222,128,0.55);
+}
+.avatarBadge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4ade80, #16a34a);
+  border: 2px solid #060706;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #06240f;
+  font-size: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
 }
 .sideName {
   font-size: 13.5px;
   font-weight: 800;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
   color: #fff;
   max-width: 100%;
   overflow: hidden;
@@ -137,9 +267,9 @@
   white-space: nowrap;
 }
 .sideSub {
-  font-size: 10px;
-  font-weight: 600;
-  color: rgba(255,255,255,0.55);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.5);
   display: flex;
   align-items: center;
   gap: 3px;
@@ -148,10 +278,11 @@
 
 .seam {
   flex-shrink: 0;
-  width: 46px;
-  height: 46px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), #16a34a);
+  background: rgba(6,7,6,0.85);
+  border: 2px solid #4ade80;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -159,9 +290,9 @@
   font-weight: 900;
   letter-spacing: 0.02em;
   color: #fff;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.4), 0 0 0 4px rgba(0,0,0,0.25);
+  box-shadow: 0 0 0 4px rgba(6,7,6,0.85), 0 0 16px rgba(74,222,128,0.35);
   z-index: 2;
-  transform: rotate(-6deg);
+  position: relative;
 }
 
 /* ── Score strip ── */
@@ -169,25 +300,105 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 14px;
-  padding-top: 2px;
+  gap: 18px;
+  padding-top: 6px;
 }
 .scoreNum {
-  font-size: 34px;
+  font-size: 46px;
   font-weight: 900;
   font-style: italic;
-  color: rgba(255,255,255,0.4);
+  color: rgba(255,255,255,0.45);
   line-height: 1;
   transition: color 0.2s;
 }
-.scoreNum.winner { color: #fff; text-shadow: 0 0 18px rgba(74,222,128,0.55); }
-.scoreDash { font-size: 20px; font-weight: 800; color: rgba(255,255,255,0.35); }
+.scoreNum.winner { color: #4ade80; text-shadow: 0 0 24px rgba(74,222,128,0.5); }
+.scoreDash { font-size: 24px; font-weight: 800; color: rgba(255,255,255,0.3); }
 .awaitingLabel {
   font-size: 12px;
   font-weight: 700;
   color: rgba(255,255,255,0.55);
   text-align: center;
   padding-top: 2px;
+}
+
+/* ── Winner banner ── */
+.winnerBanner {
+  margin-top: 8px;
+  width: 100%;
+  border: 1px solid rgba(74,222,128,0.4);
+  background: linear-gradient(180deg, rgba(34,197,94,0.12), rgba(34,197,94,0.04));
+  border-radius: 14px;
+  padding: 14px 16px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.winnerBanner i.ri-trophy-fill {
+  color: #4ade80;
+  font-size: 16px;
+  margin-bottom: 2px;
+}
+.winnerLabel {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #4ade80;
+}
+.winnerName {
+  font-size: 19px;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: #fff;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.advancesPill {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #06240f;
+  background: linear-gradient(135deg, #4ade80, #22c55e);
+  padding: 6px 14px;
+  border-radius: 999px;
+}
+
+/* ── Footer ── */
+.footer {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.footerMark {
+  height: 16px;
+  width: auto;
+  filter: brightness(0) invert(1);
+  opacity: 0.9;
+  margin-bottom: 2px;
+}
+.footerSite {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.7);
+}
+.footerTag {
+  font-size: 11px;
+  font-weight: 700;
+  color: #4ade80;
 }
 
 /* ── Sections below the hero ── */
@@ -305,7 +516,7 @@
   cursor: pointer;
   text-decoration: none;
 }
-.actionBtn.primary { background: var(--accent); color: var(--accent-text); }
+.actionBtn.primary { background: linear-gradient(135deg, #4ade80, #22c55e); color: #06240f; }
 .actionBtn.ghost { background: var(--surface); color: var(--text); border: 1px solid var(--border-dark); }
 
 .centerState {
@@ -322,6 +533,8 @@
 .centerState span { font-size: 13px; font-weight: 700; color: var(--text-muted); }
 
 @media (min-width: 480px) {
-  .avatarRing { width: 84px; height: 84px; font-size: 26px; }
-  .scoreNum { font-size: 40px; }
+  .avatarRing { width: 92px; height: 92px; font-size: 26px; }
+  .scoreNum { font-size: 52px; }
+  .headline { font-size: 30px; }
+  .trophyWatermark { font-size: 170px; }
 }

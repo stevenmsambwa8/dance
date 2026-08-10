@@ -33,6 +33,15 @@ function slotDisplay(entry) {
   return { name: entry.name || (entry.status === 'open' ? 'Open Slot' : '?'), avatar: entry.avatar || null }
 }
 
+function hashtagify(name) {
+  return String(name || 'Nabogaming')
+    .replace(/[^a-zA-Z0-9 ]/g, '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(w => w[0].toUpperCase() + w.slice(1))
+    .join('')
+}
+
 function getRoundLabelSimple(rIdx, totalRounds, bracketSize, customNames) {
   if (customNames?.[rIdx]) return customNames[rIdx]
   const fromEnd = (totalRounds - 2) - rIdx
@@ -112,10 +121,13 @@ export default function MatchupPage() {
           if (!matchupSlugMatches(matchup, dispA.name, dispB.name)) continue
 
           const decided = a.status === 'winner' || b.status === 'winner'
+          const isFinal = rIdx === totalRounds - 1
           setTournament(t)
           setMatch({
             kind: 'knockout',
             groupName: getRoundLabelSimple(rIdx, totalRounds, bd.bracketSize, bd.round_names),
+            nextRoundLabel: decided ? (isFinal ? null : getRoundLabelSimple(rIdx + 1, totalRounds, bd.bracketSize, bd.round_names)) : null,
+            isFinal,
             played: decided,
             disputed: !!(a.disputed || b.disputed),
             scheduleStatus: getTimeStatus(bd.match_schedule, `ko:${rIdx}-${pIdx}`),
@@ -168,7 +180,7 @@ export default function MatchupPage() {
     )
   }
 
-  const { sides, played, disputed, groupName, scheduleStatus, kind } = match
+  const { sides, played, disputed, groupName, scheduleStatus, kind, nextRoundLabel, isFinal } = match
   const [left, right] = sides
   const gameArt = GAME_META[tournament.game_slug]?.image
   const hasAnySubmission = sides.some(s => s.submission)
@@ -185,10 +197,13 @@ export default function MatchupPage() {
     if (anySub) { leftScore = anySub.a; rightScore = anySub.b }
   }
   const showScoreStrip = leftScore != null && rightScore != null
+  const leftWon = kind === 'knockout' ? left.won : (played && leftScore > rightScore)
+  const rightWon = kind === 'knockout' ? right.won : (played && rightScore > leftScore)
 
-  const statusLabel = disputed ? 'Disputed' : played ? 'Final' : hasAnySubmission ? 'Awaiting review' : (scheduleStatus?.phase === 'live' || scheduleStatus?.phase === 'live-noend') ? 'Live' : 'Upcoming'
+  const statusLabel = disputed ? 'Disputed' : played ? 'Completed' : hasAnySubmission ? 'Awaiting review' : (scheduleStatus?.phase === 'live' || scheduleStatus?.phase === 'live-noend') ? 'Live' : 'Upcoming'
   const statusClass = disputed ? 'disputed' : played ? 'final' : (hasAnySubmission || scheduleStatus?.phase === 'live') ? 'live' : 'waiting'
   const statusIcon = disputed ? 'ri-error-warning-line' : played ? 'ri-trophy-line' : hasAnySubmission ? 'ri-time-line' : 'ri-hourglass-line'
+  const winnerSide = leftWon ? left : rightWon ? right : null
 
   function shareLink() {
     const url = typeof window !== 'undefined' ? window.location.href : ''
@@ -203,24 +218,40 @@ export default function MatchupPage() {
         <i className="ri-arrow-left-line" /> {tournament.name}
       </Link>
 
-      <div className={styles.hero}>
+      <div className={styles.card}>
+        {/* Arena backdrop: light rays, dot texture, confetti flecks */}
+        <div className={styles.arenaGlow} />
+        <div className={styles.arenaDots} />
+        <div className={styles.confetti} aria-hidden="true">
+          {Array.from({ length: 10 }).map((_, i) => <span key={i} className={styles.confettiPiece} />)}
+        </div>
         {gameArt && <img src={gameArt} alt="" className={styles.heroArt} />}
-        <div className={styles.heroScrim} />
-        <div className={styles.heroInner}>
-          <div className={styles.eyebrow}>
-            <div className={styles.eyebrowLeft}>
-              <i className="ri-trophy-line" />
-              <span>{groupName || tournament.name}</span>
-            </div>
-            <span className={`${styles.statusChip} ${styles[statusClass]}`}>
-              <i className={statusIcon} /> {statusLabel}
-            </span>
+
+        <div className={styles.cardInner}>
+          {/* Brand mark */}
+          <div className={styles.brandRow}>
+            <img src="/logo.png" alt="" className={styles.brandMark} />
+            <span className={styles.brandWord}>Nabogaming</span>
           </div>
 
+          {/* Headline */}
+          <h1 className={styles.headline}>{tournament.name}</h1>
+          <div className={styles.roundRow}>
+            <span className={styles.roundLine} />
+            <span className={styles.roundLabel}>{groupName || 'Matchup'}</span>
+            <span className={styles.roundLine} />
+          </div>
+
+          <span className={`${styles.statusChip} ${styles[statusClass]}`}>
+            <i className={statusIcon} /> {statusLabel}
+          </span>
+
+          {/* Duel */}
           <div className={styles.duel}>
-            <Side side={left} />
+            <i className={`ri-trophy-fill ${styles.trophyWatermark}`} aria-hidden="true" />
+            <Side side={left} played={played} won={leftWon} />
             <div className={styles.seam}>VS</div>
-            <Side side={right} />
+            <Side side={right} played={played} won={rightWon} />
           </div>
 
           {showScoreStrip ? (
@@ -234,28 +265,37 @@ export default function MatchupPage() {
               {disputed ? "Scores don't match — awaiting review" : played ? `${left.won ? left.name : right.name} won` : hasAnySubmission ? 'One side has submitted a result' : (scheduleStatus?.phase === 'upcoming' && scheduleStatus.start) ? `Plays at ${new Date(scheduleStatus.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Result not yet submitted'}
             </div>
           )}
+
+          {/* Winner banner */}
+          {winnerSide && (
+            <div className={styles.winnerBanner}>
+              <i className="ri-trophy-fill" />
+              <div className={styles.winnerLabel}>Winner</div>
+              <div className={styles.winnerName}>{winnerSide.name}</div>
+              <div className={styles.advancesPill}>
+                <i className="ri-arrow-right-double-line" />
+                {isFinal ? 'Tournament Champion' : nextRoundLabel ? `Advances to ${nextRoundLabel}` : 'Advances to next round'}
+                <i className="ri-arrow-left-double-line" />
+              </div>
+            </div>
+          )}
+
+          <div className={styles.footer}>
+            <img src="/logo.png" alt="" className={styles.footerMark} />
+            <span className={styles.footerSite}>nabogaming.live</span>
+            <span className={styles.footerTag}>#{hashtagify(tournament.name)}</span>
+          </div>
         </div>
       </div>
 
-      <div className={styles.section}>
-        <div className={styles.sectionTitle}>Submitted Results</div>
-        {disputed && (
+      {disputed && (
+        <div className={styles.section}>
           <div className={styles.disputeBanner}>
             <i className="ri-error-warning-line" style={{ marginTop: 1 }} />
             <span>Both sides submitted different scores for this match. An organiser needs to review it before it's final.</span>
           </div>
-        )}
-        {hasAnySubmission ? (
-          sides.filter(s => s.submission).map(s => (
-            <SubmissionCard key={s.key} side={s} kind={kind} />
-          ))
-        ) : (
-          <div className={styles.emptyCard}>
-            <i className="ri-file-list-3-line" />
-            <span>{played ? 'Result recorded — no self-reported submissions on file.' : 'Neither side has submitted a result yet.'}</span>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className={styles.actions}>
         <Link href={`/tournaments/${tournament.slug || slug}`} className={`${styles.actionBtn} ${styles.primary}`}>
@@ -269,41 +309,24 @@ export default function MatchupPage() {
   )
 }
 
-function Side({ side }) {
+function Side({ side, played, won }) {
+  const label = played
+    ? (won ? <><i className="ri-trophy-line" /> Winner</> : side.submission ? <><i className="ri-check-line" /> Submitted</> : null)
+    : (side.submission ? <><i className="ri-check-line" /> Submitted</> : null)
   return (
     <div className={styles.side}>
-      <div className={`${styles.avatarRing} ${side.won ? styles.winner : ''}`}>
+      <div className={`${styles.avatarRing} ${won ? styles.winner : ''}`}>
         {side.avatar ? <img src={side.avatar} alt="" /> : <span>{initials(side.name)}</span>}
+        {won && <span className={styles.avatarBadge}><i className="ri-trophy-fill" /></span>}
       </div>
       <div className={styles.sideName}>{side.name}</div>
-      <div className={`${styles.sideSub} ${side.submission ? styles.submitted : ''}`}>
-        {side.submission ? <><i className="ri-check-line" /> Submitted</> : <><i className="ri-time-line" /> Awaiting</>}
-      </div>
-    </div>
-  )
-}
-
-function SubmissionCard({ side, kind }) {
-  const sub = side.submission
-  const scoreText = kind === 'knockout' ? `${sub.a}–${sub.b}` : `${sub.home}–${sub.away}`
-  return (
-    <div className={styles.subCard}>
-      <div className={styles.subAvatar}>
-        {side.avatar ? <img src={side.avatar} alt="" /> : <span>{initials(side.name)}</span>}
-      </div>
-      <div className={styles.subBody}>
-        <div className={styles.subTop}>
-          <span className={styles.subName}>{side.name}</span>
-          <span className={styles.subScore}>{scoreText}</span>
+      {label && (
+        <div className={`${styles.sideSub} ${(won || side.submission) ? styles.submitted : ''}`}>
+          {label}
         </div>
-        {sub.at && <div className={styles.subTime}>{new Date(sub.at).toLocaleString()}</div>}
-      </div>
-      {sub.proofUrl && (
-        <a href={sub.proofUrl} target="_blank" rel="noopener noreferrer" className={styles.proofThumb}>
-          <img src={sub.proofUrl} alt="Proof" />
-          <i className="ri-zoom-in-line" />
-        </a>
       )}
     </div>
   )
 }
+
+
