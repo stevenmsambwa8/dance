@@ -1,12 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '../../../../../lib/supabase'
 import { matchupSlugMatches } from '../../../../../lib/matchSlug'
 import { GAME_META } from '../../../../../lib/constants'
 import { getTimeStatus } from '../../../../../lib/roundTimers'
+import { useAuth } from '../../../../../components/AuthProvider'
+import { useAuthGate } from '../../../../../components/AuthGateModal'
 import styles from './page.module.css'
 
 // This is the branded, shareable landing page for one specific matchup —
@@ -56,9 +58,15 @@ function getRoundLabelSimple(rIdx, totalRounds, bracketSize, customNames) {
 
 export default function MatchupPage() {
   const { slug, matchup } = useParams()
+  const router = useRouter()
+  const { user } = useAuth()
+  const { openAuthGate } = useAuthGate()
   const [state, setState] = useState('loading') // loading | notfound | ready
   const [tournament, setTournament] = useState(null)
   const [match, setMatch] = useState(null) // normalized match object, see below
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [following, setFollowing] = useState(false)
+  const [followLoading, setFollowLoading] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -156,6 +164,34 @@ export default function MatchupPage() {
     return () => { cancelled = true }
   }, [slug, matchup])
 
+  // ── Follow-creator status ──
+  useEffect(() => {
+    let cancelled = false
+    async function checkFollow() {
+      if (!user || !tournament?.created_by || tournament.created_by === user.id) return
+      const { data } = await supabase.from('follows').select('id').eq('follower_id', user.id).eq('following_id', tournament.created_by).maybeSingle()
+      if (!cancelled) setFollowing(!!data)
+    }
+    checkFollow()
+    return () => { cancelled = true }
+  }, [user, tournament?.created_by])
+
+  async function toggleFollow() {
+    if (!user) { openAuthGate(); return }
+    if (!tournament?.created_by || followLoading) return
+    setFollowLoading(true)
+    try {
+      if (following) {
+        await supabase.from('follows').delete().eq('follower_id', user.id).eq('following_id', tournament.created_by)
+        setFollowing(false)
+      } else {
+        await supabase.from('follows').insert({ follower_id: user.id, following_id: tournament.created_by })
+        setFollowing(true)
+      }
+    } catch (e) { console.error('toggleFollow:', e) }
+    setFollowLoading(false)
+  }
+
   if (state === 'loading') {
     return (
       <div className={styles.centerState}>
@@ -172,7 +208,7 @@ export default function MatchupPage() {
         <i className="ri-error-warning-line" style={{ color: '#ef4444' }} />
         <span>We couldn't find that match</span>
         {slug && (
-          <Link href={`/tournaments/${slug}`} className={`${styles.actionBtn} ${styles.primary}`} style={{ marginTop: 6, padding: '10px 18px' }}>
+          <Link href={`/tournaments/${slug}`} className={styles.notfoundBtn}>
             View tournament
           </Link>
         )}
@@ -214,10 +250,14 @@ export default function MatchupPage() {
 
   return (
     <div className={styles.wrap}>
-      <div className={styles.inner}>
-        <Link href={`/tournaments/${tournament.slug || slug}`} className={styles.backLink}>
-          <i className="ri-arrow-left-line" /> {tournament.name}
-        </Link>
+      {/* ── Custom header: back button + overflow menu trigger ── */}
+      <div className={styles.headerBar}>
+        <button className={styles.iconBtn} onClick={() => router.push(`/tournaments/${tournament.slug || slug}`)} aria-label="Back to tournament">
+          <i className="ri-arrow-left-line" />
+        </button>
+        <button className={styles.iconBtn} onClick={() => setMenuOpen(true)} aria-label="More options">
+          <i className="ri-more-2-fill" />
+        </button>
       </div>
 
       <div className={styles.card}>
@@ -287,25 +327,39 @@ export default function MatchupPage() {
         </div>
       </div>
 
-      <div className={styles.inner}>
-        {disputed && (
-          <div className={styles.section}>
-            <div className={styles.disputeBanner}>
-              <i className="ri-error-warning-line" style={{ marginTop: 1 }} />
-              <span>Both sides submitted different scores for this match. An organiser needs to review it before it's final.</span>
-            </div>
-          </div>
-        )}
-
-        <div className={styles.actions}>
-          <Link href={`/tournaments/${tournament.slug || slug}`} className={`${styles.actionBtn} ${styles.primary}`}>
-            <i className="ri-trophy-line" /> View Tournament
-          </Link>
-          <button className={`${styles.actionBtn} ${styles.ghost}`} onClick={shareLink}>
-            <i className="ri-share-line" /> Share
-          </button>
+      {disputed && (
+        <div className={styles.disputeBanner}>
+          <i className="ri-error-warning-line" style={{ marginTop: 1 }} />
+          <span>Both sides submitted different scores for this match. An organiser needs to review it before it's final.</span>
         </div>
-      </div>
+      )}
+
+      {/* ── Overflow menu: sidebar sliding in from the right ── */}
+      {menuOpen && (
+        <>
+          <div className={styles.menuOverlay} onClick={() => setMenuOpen(false)} />
+          <div className={styles.menuSheet}>
+            <div className={styles.menuHeader}>
+              <span>Options</span>
+              <button className={styles.menuClose} onClick={() => setMenuOpen(false)} aria-label="Close">
+                <i className="ri-close-line" />
+              </button>
+            </div>
+            <button className={styles.menuItem} onClick={() => { shareLink(); setMenuOpen(false) }}>
+              <i className="ri-share-line" /> Share
+            </button>
+            <Link href={`/tournaments/${tournament.slug || slug}`} className={styles.menuItem} onClick={() => setMenuOpen(false)}>
+              <i className="ri-trophy-line" /> View Tournament
+            </Link>
+            <button className={styles.menuItem} onClick={toggleFollow} disabled={followLoading}>
+              <i className={following ? 'ri-user-follow-fill' : 'ri-user-add-line'} /> {following ? 'Following Creator' : 'Follow Creator'}
+            </button>
+            <Link href="/tournaments/create" className={styles.menuItem} onClick={() => setMenuOpen(false)}>
+              <i className="ri-add-circle-line" /> Create Your Tournament
+            </Link>
+          </div>
+        </>
+      )}
     </div>
   )
 }
