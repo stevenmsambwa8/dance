@@ -266,7 +266,6 @@ export default function MatchupPage() {
 }
 
 function Side({ side, played, won }) {
-function Side({ side, played, won }) {
   const label = played
     ? (won ? <><i className="ri-trophy-line" /> Winner</> : side.submission ? <><i className="ri-check-line" /> Submitted</> : null)
     : (side.submission ? <><i className="ri-check-line" /> Submitted</> : null)
