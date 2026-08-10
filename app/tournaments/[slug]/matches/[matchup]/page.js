@@ -272,17 +272,21 @@ export default function MatchupPage() {
 }
 
 function Side({ side, played, won }) {
+function Side({ side, played, won }) {
+  const label = played
+    ? (won ? <><i className="ri-trophy-line" /> Winner</> : side.submission ? <><i className="ri-check-line" /> Submitted</> : null)
+    : (side.submission ? <><i className="ri-check-line" /> Submitted</> : null)
   return (
     <div className={styles.side}>
       <div className={`${styles.avatarRing} ${won ? styles.winner : ''}`}>
         {side.avatar ? <img src={side.avatar} alt="" /> : <span>{initials(side.name)}</span>}
       </div>
       <div className={styles.sideName}>{side.name}</div>
-      <div className={`${styles.sideSub} ${(won || side.submission) ? styles.submitted : ''}`}>
-        {played
-          ? (won ? <><i className="ri-trophy-line" /> Winner</> : side.submission ? <><i className="ri-check-line" /> Submitted</> : null)
-          : (side.submission ? <><i className="ri-check-line" /> Submitted</> : <><i className="ri-time-line" /> Awaiting</>)}
-      </div>
+      {label && (
+        <div className={`${styles.sideSub} ${(won || side.submission) ? styles.submitted : ''}`}>
+          {label}
+        </div>
+      )}
     </div>
   )
 }
