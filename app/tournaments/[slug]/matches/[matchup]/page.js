@@ -214,23 +214,22 @@ export default function MatchupPage() {
 
   return (
     <div className={styles.wrap}>
-      <Link href={`/tournaments/${tournament.slug || slug}`} className={styles.backLink}>
-        <i className="ri-arrow-left-line" /> {tournament.name}
-      </Link>
+      <div className={styles.inner}>
+        <Link href={`/tournaments/${tournament.slug || slug}`} className={styles.backLink}>
+          <i className="ri-arrow-left-line" /> {tournament.name}
+        </Link>
+      </div>
 
       <div className={styles.card}>
-        {/* Arena backdrop: light rays, dot texture, confetti flecks */}
+        {/* Arena backdrop: light rays + dot texture */}
         <div className={styles.arenaGlow} />
         <div className={styles.arenaDots} />
-        <div className={styles.confetti} aria-hidden="true">
-          {Array.from({ length: 10 }).map((_, i) => <span key={i} className={styles.confettiPiece} />)}
-        </div>
         {gameArt && <img src={gameArt} alt="" className={styles.heroArt} />}
 
         <div className={styles.cardInner}>
           {/* Brand mark */}
           <div className={styles.brandRow}>
-            <img src="/logo.png" alt="" className={styles.brandMark} />
+            <img src="/logo-black.png" alt="" className={styles.brandMark} />
             <span className={styles.brandWord}>Nabogaming</span>
           </div>
 
@@ -281,29 +280,31 @@ export default function MatchupPage() {
           )}
 
           <div className={styles.footer}>
-            <img src="/logo.png" alt="" className={styles.footerMark} />
+            <img src="/logo-black.png" alt="" className={styles.footerMark} />
             <span className={styles.footerSite}>nabogaming.live</span>
             <span className={styles.footerTag}>#{hashtagify(tournament.name)}</span>
           </div>
         </div>
       </div>
 
-      {disputed && (
-        <div className={styles.section}>
-          <div className={styles.disputeBanner}>
-            <i className="ri-error-warning-line" style={{ marginTop: 1 }} />
-            <span>Both sides submitted different scores for this match. An organiser needs to review it before it's final.</span>
+      <div className={styles.inner}>
+        {disputed && (
+          <div className={styles.section}>
+            <div className={styles.disputeBanner}>
+              <i className="ri-error-warning-line" style={{ marginTop: 1 }} />
+              <span>Both sides submitted different scores for this match. An organiser needs to review it before it's final.</span>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <div className={styles.actions}>
-        <Link href={`/tournaments/${tournament.slug || slug}`} className={`${styles.actionBtn} ${styles.primary}`}>
-          <i className="ri-trophy-line" /> View Tournament
-        </Link>
-        <button className={`${styles.actionBtn} ${styles.ghost}`} onClick={shareLink}>
-          <i className="ri-share-line" /> Share
-        </button>
+        <div className={styles.actions}>
+          <Link href={`/tournaments/${tournament.slug || slug}`} className={`${styles.actionBtn} ${styles.primary}`}>
+            <i className="ri-trophy-line" /> View Tournament
+          </Link>
+          <button className={`${styles.actionBtn} ${styles.ghost}`} onClick={shareLink}>
+            <i className="ri-share-line" /> Share
+          </button>
+        </div>
       </div>
     </div>
   )
