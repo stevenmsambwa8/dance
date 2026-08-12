@@ -908,8 +908,16 @@ export default function TournamentDetail() {
         autoAcceptRunning.current = false
       }
     }
-    sweep()
-    const iv = setInterval(sweep, 60 * 1000)
+    // Only sweep from tabs that are actually in the foreground — a
+    // popular tournament page can have many simultaneous viewers, and
+    // background tabs don't need to be racing each other to write the
+    // same auto-accept result.
+    function guardedSweep() {
+      if (document.hidden) return
+      sweep()
+    }
+    guardedSweep()
+    const iv = setInterval(guardedSweep, 60 * 1000)
     return () => clearInterval(iv)
   }, [id])
 
