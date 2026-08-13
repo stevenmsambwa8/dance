@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '../../../components/AuthProvider'
 import { useAuthGate } from '../../../components/AuthGateModal'
@@ -8,6 +8,14 @@ import { GAME_SLUGS, GAME_META } from '../../../lib/constants'
 import styles from './page.module.css'
 
 export default function CreateClanPage() {
+  return (
+    <Suspense fallback={null}>
+      <CreateClanPageInner />
+    </Suspense>
+  )
+}
+
+function CreateClanPageInner() {
   const router = useRouter()
   const params = useSearchParams()
   const { user } = useAuth()
