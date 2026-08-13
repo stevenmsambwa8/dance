@@ -75,8 +75,16 @@ export default function MaintainanceGate({ children }) {
     supabase.getChannels().forEach(ch => supabase.removeChannel(ch))
   }, [isUnderMaintenance, isAdmin, loading])
 
+  // Outside a maintenance window (the normal case), never block first
+  // paint on auth/profile resolution — that chain can take several
+  // sequential round trips, and there's no reason every page load
+  // should sit on a blank screen waiting for it. Pages already have
+  // their own skeleton/loading states for anything user-specific.
+  if (!isUnderMaintenance) return children
+  // Inside a maintenance window we do need to know isAdmin before
+  // deciding what to show, so that (much rarer) case still waits.
   if (loading) return null
-  if (!isUnderMaintenance || isAdmin) return children
+  if (isAdmin) return children
 
   async function handleGoogleSignIn() {
     setGoogleError('')
