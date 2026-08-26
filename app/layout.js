@@ -10,8 +10,6 @@ import { ToastProvider } from '../components/ToastProvider'
 import PhoneGate from '../components/PhoneGate'
 import LoadingProvider from '../components/LoadingContext'
 import ThemeScript from '../components/ThemeScript'
-import PWAInstallPrompt from '../components/PWAInstallPrompt'
-import StartupModals from '../components/StartupModals'
 import MaintenanceGate from '../components/MaintenanceGate'
 import { AuthGateProvider } from '../components/AuthGateModal'
 import MusicPlayerProvider from '../components/MusicPlayerContext' // ← NEW
@@ -79,8 +77,6 @@ export default function RootLayout({ children }) {
                       {/* Fixed UI — must live OUTSIDE SlideTransition so it doesn't slide */}
                       <NavWrapper />
                       <PhoneGate />
-                      <PWAInstallPrompt />
-                      <StartupModals />
                       {/* Loader overlay also lives OUTSIDE SlideTransition — see
                           PageTransition.js notes. Rendering it inside the slide
                           wrapper made it inherit that wrapper's transform as its

@@ -11,8 +11,6 @@ import UserBadges from '../components/UserBadges'
 import { useCurrency } from '../lib/useCurrency'
 import useTranslation from '../lib/useTranslation'
 import { identityColor } from '../lib/clanColors'
-import { getRecentStories } from '../lib/news'
-import PatchNotesModal from '../components/PatchNotesModal'
 import PendingResultCards from '../components/PendingResultCard'
 
 const CLAN_CAP = 125
@@ -337,106 +335,6 @@ function Section({ icon, title, href, linkLabel, children, className }) {
   )
 }
 
-/**
- * NewsStrip — auto-scrolling, infinite-loop horizontal strip of real
- * platform activity ("Headlines"), same component/behavior as the one
- * in the search sidebar: game covers, match duo-avatars, or post avatars
- * behind a dark fade, nudged forward continuously via requestAnimationFrame
- * and snapped back seamlessly once a full duplicated set has scrolled by.
- */
-function NewsStrip({ stories, loading }) {
-  const trackRef   = useRef(null)
-  const rafRef      = useRef(null)
-  const pausedRef   = useRef(false)
-  const resumeTimer = useRef(null)
-
-  useEffect(() => {
-    const track = trackRef.current
-    if (!track || stories.length === 0) return
-    const speed = 0.4
-    function step() {
-      if (!pausedRef.current && track) {
-        const halfWidth = track.scrollWidth / 2
-        track.scrollLeft += speed
-        if (track.scrollLeft >= halfWidth) track.scrollLeft -= halfWidth
-      }
-      rafRef.current = requestAnimationFrame(step)
-    }
-    rafRef.current = requestAnimationFrame(step)
-    return () => cancelAnimationFrame(rafRef.current)
-  }, [stories])
-
-  function pause() {
-    pausedRef.current = true
-    clearTimeout(resumeTimer.current)
-  }
-  function resumeSoon() {
-    clearTimeout(resumeTimer.current)
-    resumeTimer.current = setTimeout(() => { pausedRef.current = false }, 1200)
-  }
-
-  if (!loading && stories.length === 0) return null
-  const looped = stories.length > 0 ? [...stories, ...stories] : []
-
-  return (
-    <div
-      ref={trackRef}
-      className={styles.newsTrack}
-      onPointerDown={pause}
-      onPointerUp={resumeSoon}
-      onPointerLeave={resumeSoon}
-    >
-      {loading && stories.length === 0 && [1,2,3].map(i => (
-        <div key={i} className={styles.newsCardSkeleton}>
-          <div className={styles.skelBlock} style={{ position: 'absolute', inset: 0, borderRadius: 16 }} />
-          <div className={styles.skelLine} style={{ position: 'absolute', top: 8, right: 8, width: 44, height: 16, borderRadius: 99 }} />
-          <div style={{ position: 'absolute', left: 12, right: 12, bottom: 12, display: 'flex', flexDirection: 'column', gap: 5 }}>
-            <div className={styles.skelLine} style={{ width: '75%', height: 11 }} />
-            <div className={styles.skelLine} style={{ width: '45%', height: 9 }} />
-          </div>
-        </div>
-      ))}
-      {looped.map((s, i) => (
-        <Link key={`${s.id}-${i}`} href={s.href} className={styles.newsCard}>
-          <NewsCardMedia media={s.media} icon={s.icon} />
-          <div className={styles.newsCardFade} />
-          <span className={styles.newsCardTime}>{s.timeLabel}</span>
-          <div className={styles.newsCardText}>
-            <span className={styles.newsCardHeadline}>{s.headline}</span>
-            <span className={styles.newsCardSub}>{s.sub}</span>
-          </div>
-        </Link>
-      ))}
-    </div>
-  )
-}
-
-function NewsCardMedia({ media, icon }) {
-  if (media?.kind === 'game' && media.src) {
-    return <img src={media.src} alt="" className={styles.newsCardBg} />
-  }
-  if (media?.kind === 'duo' && (media.a || media.b)) {
-    return (
-      <div className={styles.newsCardDuo}>
-        <div className={styles.newsCardDuoHalf}>
-          {media.a ? <img src={media.a} alt="" /> : <div className={styles.newsCardAvatarFallback}><i className="ri-user-3-line" /></div>}
-        </div>
-        <div className={styles.newsCardDuoHalf}>
-          {media.b ? <img src={media.b} alt="" /> : <div className={styles.newsCardAvatarFallback}><i className="ri-user-3-line" /></div>}
-        </div>
-      </div>
-    )
-  }
-  if (media?.kind === 'avatar' && media.src) {
-    return <img src={media.src} alt="" className={styles.newsCardBg} />
-  }
-  return (
-    <div className={`${styles.newsCardBg} ${styles.newsCardIconFallback}`}>
-      <i className={icon} />
-    </div>
-  )
-}
-
 export default function Home() {
   const { user, profile, isAdmin, loading: authLoading } = useAuth()
   const { openAuthGate } = useAuthGate()
@@ -452,8 +350,6 @@ export default function Home() {
   const [shopItems,    setShopItems]    = useState([])
   const [shopImages,   setShopImages]   = useState({})
   const [recentPosts,  setRecentPosts]  = useState([])
-  const [stories,      setStories]      = useState([])
-  const [storiesLoading, setStoriesLoading] = useState(true)
 
   const [loadingTourns,  setLoadingTourns]  = useState(true)
   const [loadingPlayers, setLoadingPlayers] = useState(true)
@@ -526,13 +422,6 @@ export default function Home() {
       }
     }
     loadGameMasters()
-  }, [])
-
-  useEffect(() => {
-    getRecentStories(4).then(data => {
-      setStories(data)
-      setStoriesLoading(false)
-    })
   }, [])
 
   useEffect(() => {
@@ -763,8 +652,6 @@ export default function Home() {
   return (
     <div className={styles.page}>
 
-      <PatchNotesModal />
-
       {/* ── Game Master Modal ── */}
       {showMasterModal && gameMasters.length > 0 && (
         <MasterModal gameMasters={gameMasters} onClose={() => setShowMasterModal(false)} />
@@ -840,13 +727,6 @@ export default function Home() {
       {/* ══════════ PENDING MATCH RESULTS ══════════ */}
       {user && <div style={{ padding: '0 16px', marginTop: 14 }}><PendingResultCards limit={1} /></div>}
 
-      {/* ══════════ HEADLINES ══════════ */}
-      {(storiesLoading || stories.length > 0) && (
-        <Section icon="ri-fire-line" title={t('home.headlines') || 'Headlines'}>
-          <NewsStrip stories={stories} loading={storiesLoading} />
-        </Section>
-      )}
-
       {/* ══════════ TOURNAMENTS ══════════ */}
       <Section icon="ri-node-tree" title={t('tournaments.tournaments')} href="/tournaments" linkLabel={t('common.all')}>
         {loadingTourns ? (
@@ -871,7 +751,7 @@ export default function Home() {
                 <Link key={`${tour.id}-${i}`} href={`/tournaments/${tour.slug || tour.id}`} className={styles.tCard}>
                   <div className={styles.tCardImg}>
                     {game?.image
-                      ? <img src={game.image} alt={game.name} className={styles.tCardImgEl} />
+                      ? <img src={game.image} alt={game.name} className={styles.tCardImgEl} loading="lazy" decoding="async" />
                       : <div className={styles.tCardImgFallback}><i className={game?.icon || 'ri-gamepad-line'} /></div>
                     }
                     <div className={styles.tCardImgBadges}>
@@ -1006,7 +886,7 @@ export default function Home() {
                     <span className={styles.leaderPos}>{medals[i] || `#${i+1}`}</span>
                     <div className={styles.leaderAvatar}>
                       {p.avatar_url
-                        ? <img src={p.avatar_url} alt="" />
+                        ? <img src={p.avatar_url} alt="" loading="lazy" decoding="async" />
                         : <span>{(p.username || '?').slice(0,2).toUpperCase()}</span>
                       }
                     </div>
@@ -1063,7 +943,7 @@ export default function Home() {
             return (
               <Link key={slug} href={`/games/${slug}`} className={styles.gameCard}>
                 {game?.image
-                  ? <img src={game.image} alt={game.name} className={styles.gameCardImg} />
+                  ? <img src={game.image} alt={game.name} className={styles.gameCardImg} loading="lazy" decoding="async" />
                   : <i className={game?.icon || 'ri-gamepad-line'} className={styles.gameCardIcon} />
                 }
                 <div className={styles.gameCardOverlay}>{game?.name || slug}</div>
@@ -1099,13 +979,13 @@ export default function Home() {
                   <span className={`${styles.clanCardOverlay} ${bgImage ? styles.overlayGradient : styles.overlayFlat}`} />
                   <span className={styles.clanGameBadge}>
                     {GAME_META[clan.game]?.image
-                      ? <img src={GAME_META[clan.game].image} alt="" className={styles.clanGameBadgeImg} />
+                      ? <img src={GAME_META[clan.game].image} alt="" className={styles.clanGameBadgeImg} loading="lazy" decoding="async" />
                       : <i className={GAME_META[clan.game]?.icon} />}
                   </span>
                   <div className={styles.clanCardBody}>
                     <div className={styles.clanCardTop}>
                       <div className={styles.clanCardLogo}>
-                        {clan.logo_url ? <img src={clan.logo_url} alt="" /> : <span>{clan.tag_prefix}</span>}
+                        {clan.logo_url ? <img src={clan.logo_url} alt="" loading="lazy" decoding="async" /> : <span>{clan.tag_prefix}</span>}
                       </div>
                       <div className={styles.clanCardNameWrap}>
                         <span className={styles.clanCardName}>{clan.name}</span>
@@ -1135,7 +1015,7 @@ export default function Home() {
               <Link key={squad.id} href={`/clans/${clan.code}/squads/${squad.code}`} className={styles.squadCard}>
                 <div className={styles.squadCardImg}>
                   {squad.image_url
-                    ? <img src={squad.image_url} alt="" />
+                    ? <img src={squad.image_url} alt="" loading="lazy" decoding="async" />
                     : <span style={{ background: identityColor(squad.name) }}>{squad.name?.[0]?.toUpperCase()}</span>
                   }
                 </div>
@@ -1165,7 +1045,7 @@ export default function Home() {
                 <Link key={item.id} href={`/shop/${item.id}`} className={styles.shopCard}>
                   <div className={styles.shopImgWrap}>
                     {imgs[0]
-                      ? <img src={imgs[0]} alt={item.title} className={styles.shopImg} />
+                      ? <img src={imgs[0]} alt={item.title} className={styles.shopImg} loading="lazy" decoding="async" />
                       : <div className={styles.shopImgFallback}><i className="ri-image-line" /></div>
                     }
                     <span className={styles.shopCat}>{item.category || t('home.item')}</span>
@@ -1193,7 +1073,7 @@ export default function Home() {
               <Link key={post.id} href="/feed" className={styles.feedPost}>
                 <div className={styles.feedAvatar}>
                   {post.profiles?.avatar_url
-                    ? <img src={post.profiles.avatar_url} alt="" />
+                    ? <img src={post.profiles.avatar_url} alt="" loading="lazy" decoding="async" />
                     : <span>{(post.profiles?.username || '?').slice(0,2).toUpperCase()}</span>
                   }
                 </div>
