@@ -13,3 +13,17 @@ alter table profiles
 update profiles
   set country_flag = 'tanzania'
   where country_flag is null;
+
+-- 3. Tag every player who has ever entered an eFootball tournament with
+--    the "eFootball" game tag (matches the exact string used by the
+--    Settings/Account game-tag pickers). Safe to re-run — it only adds
+--    the tag if it isn't already present, and never removes existing tags.
+update profiles p
+set game_tags = array_append(coalesce(p.game_tags, '{}'), 'eFootball')
+where p.id in (
+  select distinct tp.user_id
+  from tournament_participants tp
+  join tournaments t on t.id = tp.tournament_id
+  where t.game_slug = 'efootball'
+)
+and not ('eFootball' = any(coalesce(p.game_tags, '{}')));

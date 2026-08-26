@@ -218,9 +218,19 @@ export function ProBadge({ size = 16 }) {
 }
 
 /* ── Custom badge (admin-assigned) ──────────────────────────
- * shape: { id, label, icon, color, desc }
- * `icon` is a short glyph/emoji rendered directly (no image asset needed) */
-function CustomBadgeIcon({ icon, color, size }) {
+ * shape: { id, label, icon, iconUrl, color, desc }
+ * `icon` is a short glyph/emoji fallback; `iconUrl` (if set) is an
+ * uploaded image and takes priority over the emoji. */
+function CustomBadgeIcon({ icon, iconUrl, color, size }) {
+  if (iconUrl) {
+    return (
+      <img src={iconUrl} alt="" style={{
+        width: size, height: size, display: 'block', flexShrink: 0,
+        objectFit: 'cover', borderRadius: 3,
+        filter: `drop-shadow(0 0 2px ${color}88)`,
+      }} />
+    )
+  }
   return (
     <span style={{
       width: size, height: size, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -288,7 +298,7 @@ export default function UserBadges({
       {extras.map(b => (
         <BadgeBtn key={b.id || b.label} tip={{ title: b.label, color: b.color || '#f97316',
           desc: b.desc || `Awarded: ${b.label}` }}>
-          <CustomBadgeIcon icon={b.icon} color={b.color || '#f97316'} size={size} />
+          <CustomBadgeIcon icon={b.icon} iconUrl={b.iconUrl} color={b.color || '#f97316'} size={size} />
         </BadgeBtn>
       ))}
     </span>

@@ -186,7 +186,9 @@ export default function Dashboard() {
   const [battleCreating, setBattleCreating] = useState(false)
   const [fixingFlags, setFixingFlags] = useState(false)
   const [flagFixResult, setFlagFixResult] = useState(null)
-  const [newBadgeDraft, setNewBadgeDraft] = useState({ label: '', icon: '🏅', color: '#f97316' })
+  const [newBadgeDraft, setNewBadgeDraft] = useState({ label: '', icon: '🏅', color: '#f97316', desc: '', iconUrl: '' })
+  const [badgeIconFile, setBadgeIconFile] = useState(null)
+  const [badgeIconUploading, setBadgeIconUploading] = useState(false)
 
   useEffect(() => { if (!authLoading && !isAdmin) router.replace('/') }, [authLoading, isAdmin])
   useEffect(() => { if (isAdmin) { loadAll(); loadPendingSubsCount() } }, [isAdmin])
@@ -436,7 +438,8 @@ export default function Dashboard() {
     if (error) { alert(error.message); return }
     setUsers(u => u.map(x => x.id === editUser.id ? { ...x, ...editUser, ...payload } : x))
     setEditUser(null)
-    setNewBadgeDraft({ label: '', icon: '🏅', color: '#f97316' })
+    setNewBadgeDraft({ label: '', icon: '🏅', color: '#f97316', desc: '', iconUrl: '' })
+    setBadgeIconFile(null)
   }
   async function deleteUser(id) {
     if (!confirm('Delete profile? Auth record stays.')) return
@@ -466,16 +469,32 @@ export default function Dashboard() {
     setFixingFlags(false)
   }
 
+  async function uploadBadgeIcon() {
+    if (!badgeIconFile) return
+    setBadgeIconUploading(true)
+    const ext = badgeIconFile.name.split('.').pop()
+    const path = `badge-icons/${editUser?.id || 'admin'}-${Date.now()}.${ext}`
+    const { error: upErr } = await supabase.storage.from('public').upload(path, badgeIconFile)
+    if (upErr) { alert(upErr.message); setBadgeIconUploading(false); return }
+    const { data: pub } = supabase.storage.from('public').getPublicUrl(path)
+    setNewBadgeDraft(d => ({ ...d, iconUrl: pub.publicUrl }))
+    setBadgeIconFile(null)
+    setBadgeIconUploading(false)
+  }
+
   function addCustomBadge() {
     if (!newBadgeDraft.label.trim()) return
     const badge = {
       id: `b_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
       label: newBadgeDraft.label.trim(),
       icon: newBadgeDraft.icon.trim() || '🏅',
+      iconUrl: newBadgeDraft.iconUrl || null,
       color: newBadgeDraft.color || '#f97316',
+      desc: newBadgeDraft.desc.trim() || '',
     }
     setEditUser(x => ({ ...x, custom_badges: [...(x.custom_badges || []), badge] }))
-    setNewBadgeDraft({ label: '', icon: '🏅', color: '#f97316' })
+    setNewBadgeDraft({ label: '', icon: '🏅', color: '#f97316', desc: '', iconUrl: '' })
+    setBadgeIconFile(null)
   }
   function removeCustomBadge(id) {
     setEditUser(x => ({ ...x, custom_badges: (x.custom_badges || []).filter(b => b.id !== id) }))
@@ -1165,7 +1184,9 @@ export default function Dashboard() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                             {u.is_season_winner && <img src="/fire.png" alt="Champion" style={{ width: 15, height: 15 }} />}
                             {(u.custom_badges || []).map(b => (
-                              <span key={b.id} title={b.label} style={{ fontSize: 13, lineHeight: 1 }}>{b.icon}</span>
+                              b.iconUrl
+                                ? <img key={b.id} src={b.iconUrl} alt={b.label} title={b.label} style={{ width: 15, height: 15, borderRadius: 3, objectFit: 'cover' }} />
+                                : <span key={b.id} title={b.label} style={{ fontSize: 13, lineHeight: 1 }}>{b.icon}</span>
                             ))}
                             {!u.is_season_winner && (!u.custom_badges || u.custom_badges.length === 0) && (
                               <span className={styles.nil}>—</span>
@@ -1643,8 +1664,13 @@ export default function Dashboard() {
                           display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px',
                           border: '1px solid var(--border-dark)', borderRadius: 8, background: 'var(--bg-2)',
                         }}>
-                          <span style={{ fontSize: 15 }}>{b.icon}</span>
-                          <span style={{ flex: 1, fontSize: 12.5, fontWeight: 700, color: b.color }}>{b.label}</span>
+                          {b.iconUrl
+                            ? <img src={b.iconUrl} alt="" style={{ width: 20, height: 20, borderRadius: 4, objectFit: 'cover' }} />
+                            : <span style={{ fontSize: 15 }}>{b.icon}</span>}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12.5, fontWeight: 700, color: b.color }}>{b.label}</div>
+                            {b.desc && <div style={{ fontSize: 10.5, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.desc}</div>}
+                          </div>
                           <button type="button" className={styles.iconBtnSmDanger} onClick={() => removeCustomBadge(b.id)}>
                             <i className="ri-delete-bin-line" />
                           </button>
@@ -1653,18 +1679,51 @@ export default function Dashboard() {
                     </div>
                   )}
 
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                    <input placeholder="Badge name e.g. MVP" value={newBadgeDraft.label}
-                      onChange={e => setNewBadgeDraft(d => ({ ...d, label: e.target.value }))}
-                      style={{ flex: 1 }} />
-                    <input placeholder="🏅" value={newBadgeDraft.icon}
-                      onChange={e => setNewBadgeDraft(d => ({ ...d, icon: e.target.value }))}
-                      style={{ width: 44, textAlign: 'center' }} maxLength={4} />
-                    <input type="color" value={newBadgeDraft.color}
-                      onChange={e => setNewBadgeDraft(d => ({ ...d, color: e.target.value }))}
-                      style={{ width: 36, height: 34, padding: 2, border: '1px solid var(--border-dark)', borderRadius: 6, background: 'var(--bg-2)' }} />
-                    <button type="button" className={styles.iconBtnSm} onClick={addCustomBadge}>
-                      <i className="ri-add-line" />
+                  <div style={{
+                    display: 'flex', flexDirection: 'column', gap: 8, padding: '10px',
+                    border: '1px dashed var(--border-dark)', borderRadius: 8, background: 'var(--bg-2)',
+                  }}>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <input placeholder="Badge name e.g. MVP" value={newBadgeDraft.label}
+                        onChange={e => setNewBadgeDraft(d => ({ ...d, label: e.target.value }))}
+                        style={{ flex: 1 }} />
+                      {!newBadgeDraft.iconUrl && (
+                        <input placeholder="🏅" value={newBadgeDraft.icon}
+                          onChange={e => setNewBadgeDraft(d => ({ ...d, icon: e.target.value }))}
+                          style={{ width: 44, textAlign: 'center' }} maxLength={4} />
+                      )}
+                      <input type="color" value={newBadgeDraft.color}
+                        onChange={e => setNewBadgeDraft(d => ({ ...d, color: e.target.value }))}
+                        style={{ width: 36, height: 34, padding: 2, border: '1px solid var(--border-dark)', borderRadius: 6, background: 'var(--bg-2)' }} />
+                    </div>
+
+                    <textarea rows={2} placeholder="Tooltip description shown when a player taps the badge…"
+                      value={newBadgeDraft.desc}
+                      onChange={e => setNewBadgeDraft(d => ({ ...d, desc: e.target.value }))} />
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {newBadgeDraft.iconUrl ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <img src={newBadgeDraft.iconUrl} alt="" style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover', border: '1px solid var(--border-dark)' }} />
+                          <button type="button" className={styles.iconBtnSmDanger}
+                            onClick={() => setNewBadgeDraft(d => ({ ...d, iconUrl: '' }))}>
+                            <i className="ri-close-line" />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <input type="file" accept="image/*" style={{ fontSize: 11, flex: 1 }}
+                            onChange={e => setBadgeIconFile(e.target.files?.[0] || null)} />
+                          <button type="button" className={styles.iconBtnSm} disabled={!badgeIconFile || badgeIconUploading}
+                            onClick={uploadBadgeIcon} title="Upload badge image (used instead of the emoji)">
+                            {badgeIconUploading ? <i className="ri-loader-4-line" /> : <i className="ri-upload-2-line" />}
+                          </button>
+                        </>
+                      )}
+                    </div>
+
+                    <button type="button" className={styles.saveBtn} onClick={addCustomBadge}>
+                      <i className="ri-add-line" /> Add Badge
                     </button>
                   </div>
                 </div>
