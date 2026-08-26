@@ -232,6 +232,7 @@ export default function AccountPage() {
               planExpiresAt={profile?.plan_expires_at}
               countryFlag={profile?.country_flag}
               isSeasonWinner={profile?.is_season_winner}
+              customBadges={profile?.custom_badges}
               size={18}
             />
           </div>

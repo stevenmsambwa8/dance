@@ -68,7 +68,7 @@ function SpotlightCards({ players, onlineIds, onNavigate }) {
                   : (p.username || '?')}
                 <UserBadges
                   email={p.email} plan={p.plan} planExpiresAt={p.plan_expires_at}
-                  countryFlag={p.country_flag} isSeasonWinner={p.is_season_winner}
+                  countryFlag={p.country_flag} isSeasonWinner={p.is_season_winner} customBadges={p.custom_badges}
                   size={11} gap={2}/>
               </div>
               <div className={styles.spMeta} style={{ color: rank.color }}>{p.tier}</div>
@@ -297,7 +297,7 @@ export default function PlayersPage() {
                     {p.username}
                     <UserBadges
                       email={p.email} plan={p.plan} planExpiresAt={p.plan_expires_at}
-                      countryFlag={p.country_flag} isSeasonWinner={p.is_season_winner}
+                      countryFlag={p.country_flag} isSeasonWinner={p.is_season_winner} customBadges={p.custom_badges}
                       size={13} gap={2}/>
                   </span>
                   {!isSupport ? (

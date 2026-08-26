@@ -39,7 +39,7 @@ export default function MemberPreviewModal({ member, squadName, onClose }) {
     // a couple of extra stat fields not already selected upstream.
     supabase
       .from('profiles')
-      .select('last_seen, wins, total_matches, followers_count, country_flag, plan, plan_expires_at, is_season_winner, email, tier, level, avatar_url, username')
+      .select('last_seen, wins, total_matches, followers_count, country_flag, plan, plan_expires_at, is_season_winner, custom_badges, email, tier, level, avatar_url, username')
       .eq('id', member.user_id)
       .single()
       .then(({ data }) => setFullProfile(data))
@@ -80,7 +80,7 @@ export default function MemberPreviewModal({ member, squadName, onClose }) {
               {merged.username}
               <UserBadges
                 email={merged.email} plan={merged.plan} planExpiresAt={merged.plan_expires_at}
-                countryFlag={merged.country_flag} isSeasonWinner={merged.is_season_winner}
+                countryFlag={merged.country_flag} isSeasonWinner={merged.is_season_winner} customBadges={merged.custom_badges}
                 size={13} gap={2}/>
             </span>
             <span className="mpm-presence" style={{ color: presence.color }}>{presence.text}</span>

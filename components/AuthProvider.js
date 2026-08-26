@@ -162,7 +162,7 @@ export default function AuthProvider({ children }) {
           current_season: currentSeason,
           season_wins: 0,
           season_losses: 0,
-          country_flag: null,
+          country_flag: 'tanzania',
           is_season_winner: false,
           level: 1,
         })
@@ -242,7 +242,7 @@ export default function AuthProvider({ children }) {
         current_season: currentSeason,
         season_wins: 0,
         season_losses: 0,
-        country_flag: countryFlag,
+        country_flag: countryFlag || 'tanzania',
         is_season_winner: false,
         level: 1,
       })

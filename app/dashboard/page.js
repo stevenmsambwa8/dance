@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth, ADMIN_EMAIL } from '../../components/AuthProvider'
 import { supabase } from '../../lib/supabase'
-import { RANK_TIERS, GAME_META, GAME_SLUGS } from '../../lib/constants'
+import { RANK_TIERS, GAME_META, GAME_SLUGS, FLAG_OPTIONS, DEFAULT_FLAG } from '../../lib/constants'
 import { getTierTheme } from '../../lib/tierTheme'
 import { getCurrentSeason, computeLevelAfterWin } from '../../lib/seasons'
 import styles from './page.module.css'
@@ -184,6 +184,9 @@ export default function Dashboard() {
   const [battleModal, setBattleModal] = useState(false)
   const [battleForm, setBattleForm] = useState({ player1: '', player2: '', game: '', game_mode: '', format: '', scheduled_at: '' })
   const [battleCreating, setBattleCreating] = useState(false)
+  const [fixingFlags, setFixingFlags] = useState(false)
+  const [flagFixResult, setFlagFixResult] = useState(null)
+  const [newBadgeDraft, setNewBadgeDraft] = useState({ label: '', icon: '🏅', color: '#f97316' })
 
   useEffect(() => { if (!authLoading && !isAdmin) router.replace('/') }, [authLoading, isAdmin])
   useEffect(() => { if (isAdmin) { loadAll(); loadPendingSubsCount() } }, [isAdmin])
@@ -420,20 +423,62 @@ export default function Dashboard() {
   async function saveUser() {
     const fullPhone = editUserPhoneLocal.trim()
       ? `+${editUserPhoneCode}${editUserPhoneLocal.trim().replace(/^0/, '')}` : null
-    const { error } = await supabase.from('profiles').update({
+    const payload = {
       username: editUser.username, tier: editUser.tier,
       level: Number(editUser.level ?? 1), wins: Number(editUser.wins),
       losses: Number(editUser.losses), points: Number(editUser.points),
       bio: editUser.bio, phone: fullPhone,
-    }).eq('id', editUser.id)
+      country_flag: editUser.country_flag || DEFAULT_FLAG,
+      is_season_winner: !!editUser.is_season_winner,
+      custom_badges: editUser.custom_badges || [],
+    }
+    const { error } = await supabase.from('profiles').update(payload).eq('id', editUser.id)
     if (error) { alert(error.message); return }
-    setUsers(u => u.map(x => x.id === editUser.id ? { ...x, ...editUser, phone: fullPhone } : x))
+    setUsers(u => u.map(x => x.id === editUser.id ? { ...x, ...editUser, ...payload } : x))
     setEditUser(null)
+    setNewBadgeDraft({ label: '', icon: '🏅', color: '#f97316' })
   }
   async function deleteUser(id) {
     if (!confirm('Delete profile? Auth record stays.')) return
     await supabase.from('profiles').delete().eq('id', id)
     setUsers(u => u.filter(x => x.id !== id))
+  }
+
+  // Bulk-assign the default flag (Tanzania) to every profile missing one.
+  async function fixMissingFlags() {
+    if (!confirm('Set flag to Tanzania for every player with no country flag set?')) return
+    setFixingFlags(true)
+    setFlagFixResult(null)
+    const { data: missing, error: findErr } = await supabase
+      .from('profiles').select('id').is('country_flag', null)
+    if (findErr) { alert(findErr.message); setFixingFlags(false); return }
+    const ids = (missing || []).map(m => m.id)
+    if (ids.length === 0) {
+      setFlagFixResult(0)
+      setFixingFlags(false)
+      return
+    }
+    const { error: updErr } = await supabase.from('profiles')
+      .update({ country_flag: DEFAULT_FLAG }).in('id', ids)
+    if (updErr) { alert(updErr.message); setFixingFlags(false); return }
+    setUsers(u => u.map(x => ids.includes(x.id) ? { ...x, country_flag: DEFAULT_FLAG } : x))
+    setFlagFixResult(ids.length)
+    setFixingFlags(false)
+  }
+
+  function addCustomBadge() {
+    if (!newBadgeDraft.label.trim()) return
+    const badge = {
+      id: `b_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      label: newBadgeDraft.label.trim(),
+      icon: newBadgeDraft.icon.trim() || '🏅',
+      color: newBadgeDraft.color || '#f97316',
+    }
+    setEditUser(x => ({ ...x, custom_badges: [...(x.custom_badges || []), badge] }))
+    setNewBadgeDraft({ label: '', icon: '🏅', color: '#f97316' })
+  }
+  function removeCustomBadge(id) {
+    setEditUser(x => ({ ...x, custom_badges: (x.custom_badges || []).filter(b => b.id !== id) }))
   }
 
   async function savePost() {
@@ -1071,9 +1116,21 @@ export default function Dashboard() {
                     </span>
                   </h2>
                 </div>
-                <button className={styles.exportVcfBtn} onClick={exportUsersVCF}>
-                  <i className="ri-contacts-book-line" /> Export VCF
-                </button>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  {flagFixResult !== null && (
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>
+                      {flagFixResult === 0 ? 'No missing flags' : `Fixed ${flagFixResult} player${flagFixResult === 1 ? '' : 's'}`}
+                    </span>
+                  )}
+                  <button className={styles.exportVcfBtn} onClick={fixMissingFlags} disabled={fixingFlags}
+                    title="Set every player with no country flag to Tanzania">
+                    <img src="/tanzania.png" alt="" style={{ width: 14, height: 10, borderRadius: 2, objectFit: 'cover' }} />
+                    {fixingFlags ? 'Fixing…' : 'Fix Missing Flags'}
+                  </button>
+                  <button className={styles.exportVcfBtn} onClick={exportUsersVCF}>
+                    <i className="ri-contacts-book-line" /> Export VCF
+                  </button>
+                </div>
               </div>
               <div className={styles.userSearchBar}>
                 <i className="ri-search-line" />
@@ -1089,16 +1146,32 @@ export default function Dashboard() {
               </div>
               <div className={styles.tableWrap}>
                 <table className={styles.table}>
-                  <thead><tr><th>Player</th><th>Email</th><th>Phone</th><th>Tier</th><th>Lv</th><th>W</th><th>Pts</th><th></th></tr></thead>
+                  <thead><tr><th>Player</th><th>Flag</th><th>Badges</th><th>Email</th><th>Phone</th><th>Tier</th><th>Lv</th><th>W</th><th>Pts</th><th></th></tr></thead>
                   <tbody>
                     {filteredUsers.length === 0 && (
-                      <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 0', fontSize: 13 }}>
+                      <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 0', fontSize: 13 }}>
                         No players match "{userListSearch}"
                       </td></tr>
                     )}
                     {filteredUsers.map(u => (
                       <tr key={u.id}>
                         <td><a href={`/profile/${u.id}`} className={styles.link}>{u.username}</a></td>
+                        <td>
+                          <img src={`/${u.country_flag || DEFAULT_FLAG}.png`} alt={u.country_flag || DEFAULT_FLAG}
+                            title={u.country_flag ? undefined : 'No flag set — defaulted to Tanzania'}
+                            style={{ width: 18, height: 13, borderRadius: 2, objectFit: 'cover', opacity: u.country_flag ? 1 : 0.45 }} />
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                            {u.is_season_winner && <img src="/fire.png" alt="Champion" style={{ width: 15, height: 15 }} />}
+                            {(u.custom_badges || []).map(b => (
+                              <span key={b.id} title={b.label} style={{ fontSize: 13, lineHeight: 1 }}>{b.icon}</span>
+                            ))}
+                            {!u.is_season_winner && (!u.custom_badges || u.custom_badges.length === 0) && (
+                              <span className={styles.nil}>—</span>
+                            )}
+                          </div>
+                        </td>
                         <td className={styles.dimCell}>{u.email}</td>
                         <td className={styles.monoCell}>
                           {u.phone ? (
@@ -1533,6 +1606,69 @@ export default function Dashboard() {
                 ))}
                 <div className={styles.createField}><label>Bio</label>
                   <textarea rows={2} value={editUser.bio || ''} onChange={e => setEditUser(x => ({ ...x, bio: e.target.value }))} /></div>
+
+                <div className={styles.createField}>
+                  <label>Country Flag {!editUser.country_flag && <span style={{ color: '#f59e0b', fontWeight: 600 }}>(none set — defaults to Tanzania)</span>}</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {FLAG_OPTIONS.map(f => (
+                      <button key={f.value} type="button"
+                        onClick={() => setEditUser(x => ({ ...x, country_flag: f.value }))}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 8,
+                          border: `1.5px solid ${(editUser.country_flag || DEFAULT_FLAG) === f.value ? 'var(--text)' : 'var(--border-dark)'}`,
+                          background: (editUser.country_flag || DEFAULT_FLAG) === f.value ? 'var(--surface)' : 'var(--bg-2)',
+                          color: (editUser.country_flag || DEFAULT_FLAG) === f.value ? 'var(--text)' : 'var(--text-muted)',
+                          fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                        }}>
+                        <img src={f.flag} alt={f.value} style={{ width: 16, height: 12, borderRadius: 2, objectFit: 'cover' }} />
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className={styles.createField}>
+                  <label>Winner Badges</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, cursor: 'pointer', fontSize: 12.5, fontWeight: 600 }}>
+                    <input type="checkbox" checked={!!editUser.is_season_winner}
+                      onChange={e => setEditUser(x => ({ ...x, is_season_winner: e.target.checked }))} />
+                    <img src="/fire.png" alt="" style={{ width: 16, height: 16 }} />
+                    Season Champion badge
+                  </label>
+
+                  {(editUser.custom_badges || []).length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+                      {editUser.custom_badges.map(b => (
+                        <div key={b.id} style={{
+                          display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px',
+                          border: '1px solid var(--border-dark)', borderRadius: 8, background: 'var(--bg-2)',
+                        }}>
+                          <span style={{ fontSize: 15 }}>{b.icon}</span>
+                          <span style={{ flex: 1, fontSize: 12.5, fontWeight: 700, color: b.color }}>{b.label}</span>
+                          <button type="button" className={styles.iconBtnSmDanger} onClick={() => removeCustomBadge(b.id)}>
+                            <i className="ri-delete-bin-line" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <input placeholder="Badge name e.g. MVP" value={newBadgeDraft.label}
+                      onChange={e => setNewBadgeDraft(d => ({ ...d, label: e.target.value }))}
+                      style={{ flex: 1 }} />
+                    <input placeholder="🏅" value={newBadgeDraft.icon}
+                      onChange={e => setNewBadgeDraft(d => ({ ...d, icon: e.target.value }))}
+                      style={{ width: 44, textAlign: 'center' }} maxLength={4} />
+                    <input type="color" value={newBadgeDraft.color}
+                      onChange={e => setNewBadgeDraft(d => ({ ...d, color: e.target.value }))}
+                      style={{ width: 36, height: 34, padding: 2, border: '1px solid var(--border-dark)', borderRadius: 6, background: 'var(--bg-2)' }} />
+                    <button type="button" className={styles.iconBtnSm} onClick={addCustomBadge}>
+                      <i className="ri-add-line" />
+                    </button>
+                  </div>
+                </div>
+
                 <div className={styles.createField}>
                   <label>Phone Number</label>
                   <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>

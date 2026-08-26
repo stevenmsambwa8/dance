@@ -217,9 +217,22 @@ export function ProBadge({ size = 16 }) {
   )
 }
 
+/* ── Custom badge (admin-assigned) ──────────────────────────
+ * shape: { id, label, icon, color, desc }
+ * `icon` is a short glyph/emoji rendered directly (no image asset needed) */
+function CustomBadgeIcon({ icon, color, size }) {
+  return (
+    <span style={{
+      width: size, height: size, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: Math.max(9, size - 4), lineHeight: 1, flexShrink: 0,
+      filter: `drop-shadow(0 0 2px ${color}88)`,
+    }}>{icon || '★'}</span>
+  )
+}
+
 /* ── Main export ─────────────────────────────────────────── */
 export default function UserBadges({
-  email, plan, planExpiresAt, countryFlag, isSeasonWinner, size = 16, gap = 3, hideAdmin = false
+  email, plan, planExpiresAt, countryFlag, isSeasonWinner, customBadges, size = 16, gap = 3, hideAdmin = false
 }) {
   useEffect(injectStyles, [])
   const isAdmin  = !hideAdmin && ADMIN_EMAILS.includes(email)
@@ -228,7 +241,8 @@ export default function UserBadges({
   const isPro    = ap === 'pro'
   const showFlag = !!countryFlag
   const showFire = !!isSeasonWinner
-  if (!isAdmin && !isElite && !isPro && !showFlag && !showFire) return null
+  const extras   = Array.isArray(customBadges) ? customBadges.filter(b => b && b.label) : []
+  if (!isAdmin && !isElite && !isPro && !showFlag && !showFire && extras.length === 0) return null
 
   const flagLabel = countryFlag
     ? countryFlag.charAt(0).toUpperCase() + countryFlag.slice(1) : ''
@@ -271,6 +285,12 @@ export default function UserBadges({
             style={{ width:size, height:size, display:'block' }}/>
         </BadgeBtn>
       )}
+      {extras.map(b => (
+        <BadgeBtn key={b.id || b.label} tip={{ title: b.label, color: b.color || '#f97316',
+          desc: b.desc || `Awarded: ${b.label}` }}>
+          <CustomBadgeIcon icon={b.icon} color={b.color || '#f97316'} size={size} />
+        </BadgeBtn>
+      ))}
     </span>
   )
 }

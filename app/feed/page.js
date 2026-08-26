@@ -35,7 +35,7 @@ export default function Feed() {
     setLoading(true)
     const { data, error } = await supabase
       .from('posts')
-      .select('id, user_id, content, likes, comment_count, created_at, profiles(id, username, tier, level, avatar_url, email, plan, plan_expires_at, game_tags)')
+      .select('id, user_id, content, likes, comment_count, created_at, profiles(id, username, tier, level, avatar_url, email, plan, plan_expires_at, game_tags, country_flag, is_season_winner, custom_badges)')
       .order('created_at', { ascending: false })
       .limit(50)
     if (!error) setPosts(data || [])
@@ -118,7 +118,7 @@ export default function Feed() {
     const { data, error } = await supabase
       .from('posts')
       .insert({ user_id: user.id, content: newPost.trim(), likes: 0, comment_count: 0 })
-      .select('id, user_id, content, likes, comment_count, created_at, profiles(id, username, tier, level, avatar_url, email, plan, plan_expires_at, game_tags)')
+      .select('id, user_id, content, likes, comment_count, created_at, profiles(id, username, tier, level, avatar_url, email, plan, plan_expires_at, game_tags, country_flag, is_season_winner, custom_badges)')
       .single()
     if (error) {
       setPostError(error.message)
@@ -213,7 +213,7 @@ export default function Feed() {
                   <div className={styles.postHeader}>
                     <div className={styles.postUserRow}>
                       <a href={`/profile/${post.profiles?.id}`} className={styles.postUser}>{post.profiles?.username || 'Player'}</a>
-                      <UserBadges email={post.profiles?.email} plan={post.profiles?.plan} planExpiresAt={post.profiles?.plan_expires_at} countryFlag={post.profiles?.country_flag} isSeasonWinner={post.profiles?.is_season_winner} size={13} gap={2} />
+                      <UserBadges email={post.profiles?.email} plan={post.profiles?.plan} planExpiresAt={post.profiles?.plan_expires_at} countryFlag={post.profiles?.country_flag} isSeasonWinner={post.profiles?.is_season_winner} customBadges={post.profiles?.custom_badges} size={13} gap={2} />
                       {post.profiles?.level ? <span className={styles.postDot}>·</span> : null}
                       {post.profiles?.level ? <span className={styles.postTime}>Lv.{post.profiles.level}</span> : null}
                       <span className={styles.postDot}>·</span>

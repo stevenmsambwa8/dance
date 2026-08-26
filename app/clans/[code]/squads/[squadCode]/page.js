@@ -56,7 +56,7 @@ export default function SquadPage() {
     if (!squadData) { setSquad(null); setClan(clanData); setLoading(false); return }
 
     const { data: memberData } = await supabase.from('clan_members')
-      .select('*, profiles(id, username, avatar_url, tier, level, email, plan, plan_expires_at, country_flag, is_season_winner)')
+      .select('*, profiles(id, username, avatar_url, tier, level, email, plan, plan_expires_at, country_flag, is_season_winner, custom_badges)')
       .eq('squad_id', squadData.id)
 
     setClan(clanData)
@@ -269,7 +269,7 @@ export default function SquadPage() {
                   <MarqueeText text={m.profiles?.username || 'Player'} wrapClassName={styles.memberNameWrap} textClassName={styles.memberName}/>
                   <UserBadges
                     email={m.profiles?.email} plan={m.profiles?.plan} planExpiresAt={m.profiles?.plan_expires_at}
-                    countryFlag={m.profiles?.country_flag} isSeasonWinner={m.profiles?.is_season_winner}
+                    countryFlag={m.profiles?.country_flag} isSeasonWinner={m.profiles?.is_season_winner} customBadges={m.profiles?.custom_badges}
                     size={11} gap={2}/>
                 </div>
                 <span className={styles.memberRoleText}>

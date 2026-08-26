@@ -285,7 +285,7 @@ export default function GameChat() {
     const ch = supabase.channel('gchat-' + slug)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'game_chat_messages', filter: 'game_slug=eq.' + slug }, payload => {
         supabase.from('game_chat_messages')
-          .select('*, profiles(id, username, avatar_url, email, tier, level, country_flag, is_season_winner, plan, plan_expires_at)')
+          .select('*, profiles(id, username, avatar_url, email, tier, level, country_flag, is_season_winner, custom_badges, plan, plan_expires_at)')
           .eq('id', payload.new.id).single()
           .then(({ data }) => {
             if (!data) return
@@ -334,11 +334,11 @@ export default function GameChat() {
     setLoading(true)
     const [{ data: msgs }, { count: subs }, profResult, subResult] = await Promise.all([
       supabase.from('game_chat_messages')
-        .select('*, profiles(id, username, avatar_url, email, tier, level, country_flag, is_season_winner, plan, plan_expires_at)')
+        .select('*, profiles(id, username, avatar_url, email, tier, level, country_flag, is_season_winner, custom_badges, plan, plan_expires_at)')
         .eq('game_slug', slug).order('created_at', { ascending: true }).limit(200),
       supabase.from('game_subscriptions').select('*', { count: 'exact', head: true }).eq('game_slug', slug),
       user ? supabase.from('profiles')
-        .select('id, username, avatar_url, email, tier, level, country_flag, is_season_winner')
+        .select('id, username, avatar_url, email, tier, level, country_flag, is_season_winner, custom_badges')
         .eq('id', user.id).single() : Promise.resolve({ data: null }),
       user ? supabase.from('game_subscriptions')
         .select('id').eq('game_slug', slug).eq('user_id', user.id).maybeSingle() : Promise.resolve({ data: null }),
@@ -706,7 +706,7 @@ export default function GameChat() {
                           {!mine && isFirst && !isSpecial && (
                             <div className={styles.bubbleSender}>
                               <span className={styles.bubbleSenderName}>{msg.profiles?.username || 'Player'}</span>
-                              <UserBadges email={msg.profiles?.email} plan={msg.profiles?.plan} planExpiresAt={msg.profiles?.plan_expires_at} countryFlag={msg.profiles?.country_flag} isSeasonWinner={msg.profiles?.is_season_winner} size={10} gap={2} />
+                              <UserBadges email={msg.profiles?.email} plan={msg.profiles?.plan} planExpiresAt={msg.profiles?.plan_expires_at} countryFlag={msg.profiles?.country_flag} isSeasonWinner={msg.profiles?.is_season_winner} customBadges={msg.profiles?.custom_badges} size={10} gap={2} />
                               {msg.profiles?.tier && <span className={styles.bubbleSenderTier}>{msg.profiles.tier}</span>}
                             </div>
                           )}

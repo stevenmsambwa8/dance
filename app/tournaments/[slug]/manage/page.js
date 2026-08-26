@@ -745,7 +745,7 @@ export default function TournamentManage() {
 
     const [partsRes, lbRes, pmtsRes] = await Promise.all([
       supabase.from('tournament_participants')
-        .select('*, profiles(username, avatar_url, level, country_flag, is_season_winner)')
+        .select('*, profiles(username, avatar_url, level, country_flag, is_season_winner, custom_badges)')
         .eq('tournament_id', t.id),
       supabase.from('tournament_leaderboard')
         .select('*, profiles(username, avatar_url)')

@@ -55,7 +55,7 @@ export default function ClanPage() {
     const [{ data: squadData }, { data: memberData }, { data: tourData }] = await Promise.all([
       supabase.from('clan_squads').select('*').eq('clan_id', clanData.id).order('created_at'),
       supabase.from('clan_members')
-        .select('*, profiles(id, username, avatar_url, tier, level, email, plan, plan_expires_at, country_flag, is_season_winner)')
+        .select('*, profiles(id, username, avatar_url, tier, level, email, plan, plan_expires_at, country_flag, is_season_winner, custom_badges)')
         .eq('clan_id', clanData.id),
       // Real tournament data for this clan's game — active/upcoming, soonest first
       supabase.from('tournaments')
@@ -396,7 +396,7 @@ export default function ClanPage() {
                     <MarqueeText text={m.profiles?.username || 'Player'} wrapClassName={styles.memberNameWrap} textClassName={styles.memberName}/>
                     <UserBadges
                       email={m.profiles?.email} plan={m.profiles?.plan} planExpiresAt={m.profiles?.plan_expires_at}
-                      countryFlag={m.profiles?.country_flag} isSeasonWinner={m.profiles?.is_season_winner}
+                      countryFlag={m.profiles?.country_flag} isSeasonWinner={m.profiles?.is_season_winner} customBadges={m.profiles?.custom_badges}
                       size={11} gap={2}/>
                   </div>
                   <span className={styles.memberRoleText}>
