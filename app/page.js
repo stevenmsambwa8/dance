@@ -11,7 +11,6 @@ import UserBadges from '../components/UserBadges'
 import { useCurrency } from '../lib/useCurrency'
 import useTranslation from '../lib/useTranslation'
 import { identityColor } from '../lib/clanColors'
-import PendingResultCards from '../components/PendingResultCard'
 
 const CLAN_CAP = 125
 
@@ -19,11 +18,6 @@ function parsePrize(raw) {
   if (!raw) return null
   const n = Number(String(raw).replace(/[^0-9.]/g, ''))
   return isNaN(n) || n <= 0 ? null : n
-}
-
-function fmtTime(iso) {
-  if (!iso) return 'TBD'
-  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
 function timeAgo(iso) {
@@ -225,18 +219,6 @@ function SkeletonTournamentCard() {
     </div>
   )
 }
-function SkeletonMatchRow() {
-  return (
-    <div className={styles.matchRow}>
-      <div className={styles.skelBlock} style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0 }} />
-      <div className={styles.matchInfo}>
-        <div className={styles.skelLine} style={{ width: '55%', height: 10, marginBottom: 4 }} />
-        <div className={styles.skelLine} style={{ width: '35%', height: 8 }} />
-      </div>
-      <div className={styles.skelLine} style={{ width: 44, height: 14, borderRadius: 6 }} />
-    </div>
-  )
-}
 function SkeletonLeaderRow() {
   return (
     <div className={styles.leaderRow}>
@@ -322,13 +304,13 @@ function SkeletonFeedPost() {
 }
 
 /* ── Section wrapper ── */
-function Section({ icon, title, href, linkLabel, children, className }) {
+function Section({ title, href, linkLabel, children, className }) {
   const { t } = useTranslation()
   return (
     <section className={`${styles.section} ${className || ''}`}>
       <div className={styles.sectionHead}>
-        <h2 className={styles.sectionTitle}><i className={icon} /> {title}</h2>
-        {href && <Link href={href} className={styles.sectionLink}>{linkLabel || t('home.seeAll')} <i className="ri-arrow-right-s-line" /></Link>}
+        <h2 className={styles.sectionTitle}>{title}</h2>
+        {href && <Link href={href} className={styles.sectionLink}>{linkLabel || t('home.seeAll')}</Link>}
       </div>
       {children}
     </section>
@@ -346,20 +328,14 @@ export default function Home() {
   const [selectedGame,      setSelectedGame]      = useState('all')
   const [gamePlayers,       setGamePlayers]       = useState([])
   const [loadingGamePlayers, setLoadingGamePlayers] = useState(false)
-  const [liveMatches,  setLiveMatches]  = useState([])
   const [shopItems,    setShopItems]    = useState([])
   const [shopImages,   setShopImages]   = useState({})
   const [recentPosts,  setRecentPosts]  = useState([])
 
   const [loadingTourns,  setLoadingTourns]  = useState(true)
   const [loadingPlayers, setLoadingPlayers] = useState(true)
-  const [loadingMatches, setLoadingMatches] = useState(true)
   const [loadingShop,    setLoadingShop]    = useState(true)
   const [loadingFeed,    setLoadingFeed]    = useState(true)
-
-  const [upcoming,    setUpcoming]    = useState([])
-  const [recent,      setRecent]      = useState([])
-  const [loadingUser, setLoadingUser] = useState(false)
 
   const [gameMasters,     setGameMasters]     = useState([])
   const [showMasterModal, setShowMasterModal] = useState(false)
@@ -508,14 +484,6 @@ export default function Home() {
       .then(({ data }) => { setTopPlayers(data || []); setLoadingPlayers(false) })
 
     supabase
-      .from('matches')
-      .select('id,slug,game_mode,status,scheduled_at,challenger:profiles!matches_challenger_id_fkey(username,level),challenged:profiles!matches_challenged_id_fkey(username,level)')
-      .in('status', ['confirmed', 'pending', 'live'])
-      .order('scheduled_at', { ascending: true })
-      .limit(4)
-      .then(({ data }) => { setLiveMatches(data || []); setLoadingMatches(false) })
-
-    supabase
       .from('shop_items')
       .select('id,title,price,category,profiles(username)')
       .eq('active', true)
@@ -576,31 +544,6 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
-    if (!user) return
-    setLoadingUser(true)
-    Promise.all([
-      supabase
-        .from('matches')
-        .select('id,game_mode,status,scheduled_at,challenger_id,challenged_id,challenger:profiles!matches_challenger_id_fkey(username,level,tier),challenged:profiles!matches_challenged_id_fkey(username,level,tier)')
-        .or(`challenger_id.eq.${user.id},challenged_id.eq.${user.id}`)
-        .in('status', ['confirmed', 'pending', 'challenged'])
-        .order('scheduled_at', { ascending: true })
-        .limit(3),
-      supabase
-        .from('matches')
-        .select('id,game_mode,status,score_challenger,score_challenged,winner_id,challenger_id,challenged_id,challenger:profiles!matches_challenger_id_fkey(id,username,level),challenged:profiles!matches_challenged_id_fkey(id,username,level)')
-        .or(`challenger_id.eq.${user.id},challenged_id.eq.${user.id}`)
-        .eq('status', 'completed')
-        .order('updated_at', { ascending: false })
-        .limit(3),
-    ]).then(([{ data: up }, { data: rec }]) => {
-      setUpcoming(up || [])
-      setRecent(rec || [])
-      setLoadingUser(false)
-    })
-  }, [user])
-
-  useEffect(() => {
     const ch = supabase
       .channel('home-tourney-count')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tournament_participants' }, async () => {
@@ -622,10 +565,6 @@ export default function Home() {
       if (!user) return false
       return isAdmin || t.created_by === user?.id
     })
-  }
-
-  function getOpponent(m) {
-    return m.challenger_id === user?.id ? m.challenged : m.challenger
   }
 
   const allSquads = availableClans.flatMap(clan =>
@@ -724,11 +663,8 @@ export default function Home() {
       {/* Daily Login Rewards now lives in the Nav header (gift icon,
           between the plan icon and the sidebar toggle) — see Nav.js. */}
 
-      {/* ══════════ PENDING MATCH RESULTS ══════════ */}
-      {user && <PendingResultCards limit={1} style={{ padding: '0 16px', marginTop: 14 }} />}
-
       {/* ══════════ TOURNAMENTS ══════════ */}
-      <Section icon="ri-node-tree" title={t('tournaments.tournaments')} href="/tournaments" linkLabel={t('common.all')}>
+      <Section title={t('tournaments.tournaments')} href="/tournaments" linkLabel={t('common.all')}>
         {loadingTourns ? (
           <div className={styles.tGrid}><SkeletonTournamentCard /><SkeletonTournamentCard /></div>
         ) : tournaments.length === 0 ? (
@@ -783,59 +719,8 @@ export default function Home() {
         )}
       </Section>
 
-      {/* ══════════ MY MATCHES (logged-in only) ══════════ */}
-      {user && (
-        <Section icon="ri-swords-line" title={t('matches.myMatches')} href="/matches" linkLabel={t('common.all')}>
-          {loadingUser ? (
-            [1,2,3].map(i => <SkeletonMatchRow key={i} />)
-          ) : upcoming.length === 0 && recent.length === 0 ? (
-            <div className={styles.empty}>
-              <i className="ri-swords-line" />
-              <p>{t('home.noMatchesYet')}</p>
-              <Link href="/players" className={styles.emptyBtn}><i className="ri-user-search-line" /> {t('home.findPlayers')}</Link>
-            </div>
-          ) : (
-            <div className={styles.matchList}>
-              {upcoming.map(m => {
-                const opp = getOpponent(m)
-                return (
-                  <Link key={m.id} href={`/matches/${m.slug || m.id}`} className={styles.matchRow}>
-                    <div className={`${styles.matchStatusDot} ${styles['dot_' + m.status]}`} />
-                    <div className={styles.matchInfo}>
-                      <span className={styles.matchOpp}>{t('home.vs')} {opp?.username || '—'}</span>
-                      <span className={styles.matchSub}>{m.game_mode} · {fmtTime(m.scheduled_at)}</span>
-                    </div>
-                    <span className={`${styles.matchBadge} ${styles['badge_' + m.status]}`}>{m.status?.toUpperCase()}</span>
-                  </Link>
-                )
-              })}
-              {recent.map(r => {
-                const isMe = r.challenger_id === user.id
-                const opp  = isMe ? r.challenged : r.challenger
-                const won  = r.winner_id === user.id
-                const result = r.winner_id ? (won ? 'WIN' : 'LOSS') : 'DRAW'
-                const ms   = isMe ? r.score_challenger : r.score_challenged
-                const os   = isMe ? r.score_challenged : r.score_challenger
-                return (
-                  <Link key={r.id} href={`/matches/${r.slug || r.id}`} className={styles.matchRow}>
-                    <span className={`${styles.resultPill} ${result === 'WIN' ? styles.pillWin : result === 'LOSS' ? styles.pillLoss : styles.pillDraw}`}>{result}</span>
-                    <div className={styles.matchInfo}>
-                      <span className={styles.matchOpp}>{opp?.username || '—'}</span>
-                      <span className={styles.matchSub}>{r.game_mode} · {ms ?? '—'}–{os ?? '—'}</span>
-                    </div>
-                    <span className={`${styles.ptsDelta} ${result === 'WIN' ? styles.ptsPos : styles.ptsNeg}`}>
-                      {result === 'WIN' ? '+10' : result === 'LOSS' ? '−5' : '0'}
-                    </span>
-                  </Link>
-                )
-              })}
-            </div>
-          )}
-        </Section>
-      )}
-
       {/* ══════════ LEADERBOARD ══════════ */}
-      <Section icon="ri-bar-chart-line" title={t('players.leaderboard')} href="/players" linkLabel={t('home.allPlayers')}>
+      <Section title={t('players.leaderboard')} href="/players" linkLabel={t('home.allPlayers')}>
         <div className={styles.gameFilterRow}>
           <button
             className={`${styles.gameFilterChip} ${selectedGame === 'all' ? styles.gameFilterChipActive : ''}`}
@@ -909,34 +794,8 @@ export default function Home() {
         })()}
       </Section>
 
-      {/* ══════════ SCHEDULED MATCHES ══════════ */}
-      <Section icon="ri-calendar-check-line" title={t('tournaments.statusScheduled')} href="/matches" linkLabel={t('home.allMatches')}>
-        {loadingMatches ? (
-          [1,2,3].map(i => <SkeletonMatchRow key={i} />)
-        ) : liveMatches.length === 0 ? (
-          <div className={styles.empty}>
-            <i className="ri-calendar-check-line" />
-            <p>{t('home.noScheduledMatches')}</p>
-            <Link href="/players" className={styles.emptyBtn}><i className="ri-user-search-line" /> {t('home.findPlayers')}</Link>
-          </div>
-        ) : (
-          <div className={styles.matchList}>
-            {liveMatches.map(m => (
-              <Link key={m.id} href={`/matches/${m.slug || m.id}`} className={styles.matchRow}>
-                <div className={`${styles.matchStatusDot} ${styles['dot_' + m.status]}`} />
-                <div className={styles.matchInfo}>
-                  <span className={styles.matchOpp}>{m.challenger?.username || '—'} <span style={{ opacity: 0.5 }}>{t('home.vs')}</span> {m.challenged?.username || '—'}</span>
-                  <span className={styles.matchSub}>{m.game_mode} · {fmtTime(m.scheduled_at)}</span>
-                </div>
-                <span className={`${styles.matchBadge} ${styles['badge_' + m.status]}`}>{m.status?.toUpperCase()}</span>
-              </Link>
-            ))}
-          </div>
-        )}
-      </Section>
-
       {/* ══════════ GAMES GRID ══════════ */}
-      <Section icon="ri-gamepad-line" title={t('navigation.games')} href="/games" linkLabel={t('common.all')}>
+      <Section title={t('navigation.games')} href="/games" linkLabel={t('common.all')}>
         <div className={styles.gamesGrid}>
           {GAME_SLUGS.map(slug => {
             const game = GAME_META[slug]
@@ -954,7 +813,7 @@ export default function Home() {
       </Section>
 
       {/* ══════════ CLANS ══════════ */}
-      <Section icon="ri-shield-star-line" title={t('home.clans')} href="/clans" linkLabel={t('home.allClans')}>
+      <Section title={t('home.clans')} href="/clans" linkLabel={t('home.allClans')}>
         {loadingClans ? (
           <div className={styles.clanGrid}><SkeletonClanCard /><SkeletonClanCard /><SkeletonClanCard /></div>
         ) : availableClans.length === 0 ? (
@@ -1009,7 +868,7 @@ export default function Home() {
 
       {/* ══════════ SQUADS ══════════ */}
       {allSquads.length > 0 && (
-        <Section icon="ri-team-line" title={t('home.squads')} href="/clans" linkLabel={t('home.allClans')}>
+        <Section title={t('home.squads')} href="/clans" linkLabel={t('home.allClans')}>
           <div className={styles.squadScroll}>
             {allSquads.map(({ squad, clan }) => (
               <Link key={squad.id} href={`/clans/${clan.code}/squads/${squad.code}`} className={styles.squadCard}>
@@ -1031,7 +890,7 @@ export default function Home() {
       )}
 
       {/* ══════════ SHOP SPOTLIGHT ══════════ */}
-      <Section icon="ri-store-2-line" title={t('shop.shop')} href="/shop" linkLabel={t('home.browseAll')}>
+      <Section title={t('shop.shop')} href="/shop" linkLabel={t('home.browseAll')}>
         {loadingShop ? (
           <div className={styles.shopGrid}><SkeletonShopCard /><SkeletonShopCard /><SkeletonShopCard /><SkeletonShopCard /></div>
         ) : shopItems.length === 0 ? (
@@ -1062,7 +921,7 @@ export default function Home() {
       </Section>
 
       {/* ══════════ COMMUNITY FEED ══════════ */}
-      <Section icon="ri-compass-3-line" title={t('navigation.community')} href="/feed" linkLabel={t('navigation.feed')}>
+      <Section title={t('navigation.community')} href="/feed" linkLabel={t('navigation.feed')}>
         {loadingFeed ? (
           [1,2].map(i => <SkeletonFeedPost key={i} />)
         ) : recentPosts.length === 0 ? (
