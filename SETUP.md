@@ -10,11 +10,17 @@ existing repo (same names, same spots):
 
 ```
 your-project/
-  lib/adminCommands.js          <- copy this in
+  lib/adminCommands.js           <- copy this in
   app/
-    api/admin/command/route.js  <- copy this in
-    worker/page.js               <- copy this in
+    api/admin/command/route.js   <- copy this in
+    worker/page.js                <- copy this in
+    worker/page.module.css        <- copy this in
 ```
+
+Note: `app/worker/page.js` imports `GAME_SLUGS` and `GAME_META` from
+`@/lib/constants` — this is your app's existing file, not something new
+you need to create. The worker page just reuses your real game list so
+the dropdown always matches your site.
 
 ## Step 2 — Install one package (if you don't already have it)
 
@@ -41,7 +47,9 @@ Push to git as usual, Vercel redeploys automatically.
 ## Step 5 — Use it
 
 Go to `yoursite.com/worker`, type the password you set as
-`ADMIN_COMMAND_SECRET`, type a tournament ID, tap a button.
+`ADMIN_COMMAND_SECRET`. You'll see your real tournament list — tap one to
+select it, then tap an action button. Tap "New Tournament" to create one
+with a proper form (game, format, slots, prize, date, entry fee).
 
 That's it. It runs 24/7 on Vercel's servers — your phone can be off,
 the site still works when you click the button from anywhere.
