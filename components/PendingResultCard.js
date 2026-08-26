@@ -193,23 +193,25 @@ export function usePendingResultItems(limit = 5, onlyTournamentId = null) {
  *                      tournament (used on the tournament slug page so
  *                      the card only nudges about THIS tournament)
  */
-export default function PendingResultCards({ limit = 1, compact = false, onlyTournamentId = null, className = '' }) {
+export default function PendingResultCards({ limit = 1, compact = false, onlyTournamentId = null, className = '', style }) {
   const { items, userId, avatarUrl, resolve } = usePendingResultItems(limit, onlyTournamentId)
 
   if (!items.length) return null
 
   return (
-    <div className={`${styles.stack} ${className}`}>
-      {items.map(item => (
-        <PendingResultCard
-          key={`${item.tournamentId}-${item.kind}-${item.fixtureId ?? `${item.rIdx}-${item.pIdx}`}`}
-          item={item}
-          avatarUrl={avatarUrl}
-          compact={compact}
-          userId={userId}
-          onResolved={resolve}
-        />
-      ))}
+    <div style={style} className={className || undefined}>
+      <div className={styles.stack}>
+        {items.map(item => (
+          <PendingResultCard
+            key={`${item.tournamentId}-${item.kind}-${item.fixtureId ?? `${item.rIdx}-${item.pIdx}`}`}
+            item={item}
+            avatarUrl={avatarUrl}
+            compact={compact}
+            userId={userId}
+            onResolved={resolve}
+          />
+        ))}
+      </div>
     </div>
   )
 }

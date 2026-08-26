@@ -725,7 +725,7 @@ export default function Home() {
           between the plan icon and the sidebar toggle) — see Nav.js. */}
 
       {/* ══════════ PENDING MATCH RESULTS ══════════ */}
-      {user && <div style={{ padding: '0 16px', marginTop: 14 }}><PendingResultCards limit={1} /></div>}
+      {user && <PendingResultCards limit={1} style={{ padding: '0 16px', marginTop: 14 }} />}
 
       {/* ══════════ TOURNAMENTS ══════════ */}
       <Section icon="ri-node-tree" title={t('tournaments.tournaments')} href="/tournaments" linkLabel={t('common.all')}>
