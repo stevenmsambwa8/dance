@@ -1,7 +1,7 @@
 'use client'
 import { getCurrentSeason, computeLevelAfterWin } from '@/lib/seasons'
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '../../../components/AuthProvider'
 import { useAuthGate } from '../../../components/AuthGateModal'
@@ -443,6 +443,8 @@ function PlayerSide({ entry, profile, won, lost, side, isBye }) {
 export default function TournamentDetail() {
   const { slug } = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const quickRegisterAttempted = useRef(false)
   const { user, isAdmin, profile } = useAuth()
   const { t } = useTranslation()
   const { openAuthGate } = useAuthGate()
@@ -691,6 +693,22 @@ export default function TournamentDetail() {
     attemptRegister()
   }, [user, tournament, paymentStatus, registered])
   useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current) }, [])
+
+  // ── Quick Register deep-link ─────────────────────────────────────────
+  // Landed here from the homepage sidebar's "Quick Register" button
+  // (?quickRegister=1). Runs the same registration path as the hero
+  // button once the tournament/user state has settled, then strips the
+  // param so a refresh or back-nav doesn't fire it again.
+  useEffect(() => {
+    if (quickRegisterAttempted.current) return
+    if (searchParams.get('quickRegister') !== '1') return
+    if (!tournament) return
+    if (registered) return
+    quickRegisterAttempted.current = true
+    router.replace(`/tournaments/${slug}`, { scroll: false })
+    if (!user) { openAuthGate(); return }
+    attemptRegister()
+  }, [tournament, user, registered, searchParams, slug])
 
   // ── Clan tournament: load clan info + my membership/squad in it ──────────
   useEffect(() => {

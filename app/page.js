@@ -183,6 +183,79 @@ function MasterModal({ gameMasters, onClose }) {
   )
 }
 
+/* ── Tournament Quick View sidebar ──
+   Opened from a tap on a homepage tournament card instead of jumping
+   straight to the full tournament page. Lets the player register in one
+   tap (deep-links into the tournament page's own registration flow via
+   ?quickRegister=1, so payment/squad-picker logic stays in one place) or
+   go look at the full page first. */
+function TournamentSidebar({ tour, onClose, t, fmtAmt }) {
+  const game  = GAME_META[tour.game_slug]
+  const prize = parsePrize(tour.prize)
+  const fee   = parsePrize(tour.entrance_fee)
+  const pct   = tour.slots ? Math.min(100, Math.round(((tour.registered_count || 0) / tour.slots) * 100)) : 0
+  const full  = (tour.registered_count || 0) >= tour.slots
+  const href  = `/tournaments/${tour.slug || tour.id}`
+
+  useEffect(() => {
+    function onKey(e) { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
+    <div className={styles.tSidebarOverlay} onClick={onClose}>
+      <div className={styles.tSidebar} onClick={(e) => e.stopPropagation()}>
+        <button className={styles.tSidebarClose} onClick={onClose} aria-label="Close"><i className="ri-close-line" /></button>
+
+        <div className={styles.tSidebarImg}>
+          {game?.image
+            ? <img src={game.image} alt={game.name} className={styles.tCardImgEl} />
+            : <div className={styles.tCardImgFallback}><i className={game?.icon || 'ri-gamepad-line'} /></div>
+          }
+          <div className={styles.tCardImgBadges}>
+            <span className={styles.tStatusBadge}>
+              <i className="ri-circle-fill" style={{ fontSize: 6 }} /> {tour.status}
+            </span>
+            {full && <span className={styles.tFullBadge}><i className="ri-lock-line" /> {t('home.full')}</span>}
+          </div>
+        </div>
+
+        <div className={styles.tSidebarBody}>
+          <div className={styles.tGameChip}><i className={game?.icon || 'ri-gamepad-line'} /> {game?.name || tour.game_slug}</div>
+          <h2 className={styles.tSidebarName}>{tour.name}</h2>
+
+          <div className={styles.tStatRow}>
+            <span><i className="ri-money-dollar-circle-line" /> {fee ? fmtAmt(fee) : t('common.free')}</span>
+            <span style={{ color: prize ? '#22c55e' : 'var(--text-muted)' }}><i className="ri-trophy-line" /> {prize ? fmtAmt(prize) : t('home.noPrize')}</span>
+            {tour.date && <span><i className="ri-calendar-line" /> {tour.date}</span>}
+          </div>
+
+          <div className={styles.tSlotBar}>
+            <div className={styles.tSlotTrack}>
+              <div className={`${styles.tSlotFill} ${full ? styles.tSlotFull : pct >= 80 ? styles.tSlotWarm : ''}`} style={{ width: `${pct}%` }} />
+            </div>
+            <span className={styles.tSlotLabel}>{tour.registered_count || 0}/{tour.slots}</span>
+          </div>
+
+          <div className={styles.tSidebarActions}>
+            {full ? (
+              <span className={styles.tSidebarQuickBtnDisabled}><i className="ri-lock-line" /> {t('home.full')}</span>
+            ) : (
+              <Link href={`${href}?quickRegister=1`} className={styles.tSidebarQuickBtn} onClick={onClose}>
+                <i className="ri-flashlight-line" /> {t('home.quickRegister')}
+              </Link>
+            )}
+            <Link href={href} className={styles.tSidebarViewBtn} onClick={onClose}>
+              <i className="ri-eye-line" /> {t('home.viewTournament')}
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ── Skeleton primitives ── */
 function SkeletonRow() {
   return (
@@ -339,6 +412,8 @@ export default function Home() {
 
   const [gameMasters,     setGameMasters]     = useState([])
   const [showMasterModal, setShowMasterModal] = useState(false)
+
+  const [sidebarTournament, setSidebarTournament] = useState(null)
 
   const [availableClans, setAvailableClans] = useState([])
   const [clanSquads,     setClanSquads]     = useState({})
@@ -596,6 +671,16 @@ export default function Home() {
         <MasterModal gameMasters={gameMasters} onClose={() => setShowMasterModal(false)} />
       )}
 
+      {/* ── Tournament Quick View sidebar ── */}
+      {sidebarTournament && (
+        <TournamentSidebar
+          tour={sidebarTournament}
+          onClose={() => setSidebarTournament(null)}
+          t={t}
+          fmtAmt={fmtAmt}
+        />
+      )}
+
       {/* ══════════ HERO ══════════ */}
       <div className={styles.hero}>
         <div className={styles.heroOverlay} />
@@ -684,7 +769,7 @@ export default function Home() {
               const statusColors = { active: '#22c55e', ongoing: '#6366f1', upcoming: '#f59e0b' }
               const sc = statusColors[tour.status] || '#6b7280'
               return (
-                <Link key={`${tour.id}-${i}`} href={`/tournaments/${tour.slug || tour.id}`} className={styles.tCard}>
+                <button key={`${tour.id}-${i}`} onClick={() => setSidebarTournament(tour)} className={styles.tCard}>
                   <div className={styles.tCardImg}>
                     {game?.image
                       ? <img src={game.image} alt={game.name} className={styles.tCardImgEl} loading="lazy" decoding="async" />
@@ -712,7 +797,7 @@ export default function Home() {
                       <span className={styles.tSlotLabel}>{tour.registered_count || 0}/{tour.slots}</span>
                     </div>
                   </div>
-                </Link>
+                </button>
               )
             })}
           </div>

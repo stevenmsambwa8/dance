@@ -64,7 +64,9 @@ export default function WorkerPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [editingId, setEditingId] = useState(null);
-  const [editForm, setEditForm] = useState({ name: '', prize: '', slots: '', status: 'active' });
+  const [editForm, setEditForm] = useState({
+    name: '', prize: '', slots: '', status: 'active', date: '', entrance_fee: '', description: '',
+  });
   const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
 
@@ -130,8 +132,15 @@ export default function WorkerPage() {
 
   function startEdit(t) {
     setEditingId(t.id);
-    setEditForm({ name: t.name || '', prize: t.prize || '', slots: t.slots || '', status: t.status || 'active' });
-    if (selected === t.id) setSelected(null);
+    setEditForm({
+      name: t.name || '',
+      prize: t.prize || '',
+      slots: t.slots || '',
+      status: t.status || 'active',
+      date: t.date || '',
+      entrance_fee: t.entrance_fee || '',
+      description: t.description || '',
+    });
   }
 
   async function saveEdit(t) {
@@ -198,6 +207,7 @@ export default function WorkerPage() {
   }
 
   const selectedT = tournaments?.find((t) => t.id === selected);
+  const editingT = tournaments?.find((t) => t.id === editingId);
   const q = search.trim().toLowerCase();
   const filtered = (tournaments || []).filter((t) => {
     if (statusFilter !== 'all' && t.status !== statusFilter) return false;
@@ -342,48 +352,24 @@ export default function WorkerPage() {
 
             <div className={styles.grid}>
               {filtered.map((t) => {
-                const isEditing = editingId === t.id;
                 const isSelected = selected === t.id;
                 return (
                   <div key={t.id} className={`${styles.gridCard} ${isSelected ? styles.gridCardActive : ''}`}>
-                    {isEditing ? (
-                      <div className={styles.editForm}>
-                        <input className={styles.input} value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} placeholder="Name" />
-                        <div className={styles.fieldRow}>
-                          <input className={styles.input} value={editForm.prize} onChange={(e) => setEditForm((f) => ({ ...f, prize: e.target.value }))} placeholder="Prize" />
-                          <input className={styles.input} type="number" value={editForm.slots} onChange={(e) => setEditForm((f) => ({ ...f, slots: e.target.value }))} placeholder="Slots" />
-                        </div>
-                        <select className={styles.input} value={editForm.status} onChange={(e) => setEditForm((f) => ({ ...f, status: e.target.value }))}>
-                          {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                        <div className={styles.fieldRow}>
-                          <button className={styles.smallBtn} disabled={busy} onClick={() => saveEdit(t)}>
-                            <i className="ri-check-line" /> Save
-                          </button>
-                          <button className={styles.smallBtnGhost} onClick={() => setEditingId(null)}>
-                            Cancel
-                          </button>
-                        </div>
+                    <button className={styles.gridCardBody} onClick={() => setSelected(isSelected ? null : t.id)}>
+                      <div className={styles.gridCardTop}>
+                        <span className={styles.listGameIcon}><i className={GAME_META[t.game_slug]?.icon || 'ri-gamepad-line'} /></span>
+                        <StatusPill status={t.status} />
                       </div>
-                    ) : (
-                      <>
-                        <button className={styles.gridCardBody} onClick={() => setSelected(isSelected ? null : t.id)}>
-                          <div className={styles.gridCardTop}>
-                            <span className={styles.listGameIcon}><i className={GAME_META[t.game_slug]?.icon || 'ri-gamepad-line'} /></span>
-                            <StatusPill status={t.status} />
-                          </div>
-                          <span className={styles.gridCardName}>{t.name}{t.is_test && ' 🧪'}</span>
-                          <span className={styles.listMeta}>
-                            {GAME_META[t.game_slug]?.name || t.game_slug} · {t.registered_count || 0}/{t.slots}
-                          </span>
-                        </button>
-                        <div className={styles.gridCardFoot}>
-                          <button className={styles.iconBtn} title="Edit" onClick={() => startEdit(t)}><i className="ri-edit-line" /></button>
-                          <button className={styles.iconBtn} title="Duplicate" disabled={busy} onClick={() => handleDuplicate(t)}><i className="ri-file-copy-line" /></button>
-                          <button className={styles.iconBtnDanger} title="Delete" disabled={busy} onClick={() => handleDelete(t)}><i className="ri-delete-bin-line" /></button>
-                        </div>
-                      </>
-                    )}
+                      <span className={styles.gridCardName}>{t.name}{t.is_test && ' 🧪'}</span>
+                      <span className={styles.listMeta}>
+                        {GAME_META[t.game_slug]?.name || t.game_slug} · {t.registered_count || 0}/{t.slots}
+                      </span>
+                    </button>
+                    <div className={styles.gridCardFoot}>
+                      <button className={styles.iconBtn} title="Edit" onClick={() => startEdit(t)}><i className="ri-edit-line" /></button>
+                      <button className={styles.iconBtn} title="Duplicate" disabled={busy} onClick={() => handleDuplicate(t)}><i className="ri-file-copy-line" /></button>
+                      <button className={styles.iconBtnDanger} title="Delete" disabled={busy} onClick={() => handleDelete(t)}><i className="ri-delete-bin-line" /></button>
+                    </div>
                   </div>
                 );
               })}
@@ -423,6 +409,66 @@ export default function WorkerPage() {
           </div>
         ))}
       </div>
+
+      {/* ── Edit Tournament — full modal ── */}
+      {editingT && (
+        <div className={styles.modalOverlay} onClick={() => setEditingId(null)}>
+          <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3>Edit: {editingT.name}</h3>
+              <button className={styles.iconBtn} style={{ flex: 'none', width: 28 }} onClick={() => setEditingId(null)}>
+                <i className="ri-close-line" />
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              <div className={styles.editForm}>
+                <label className={styles.label}>Name</label>
+                <input className={styles.input} value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} placeholder="Name" />
+
+                <div className={styles.fieldRow}>
+                  <div style={{ flex: 1 }}>
+                    <label className={styles.label}>Prize (TZS)</label>
+                    <input className={styles.input} value={editForm.prize} onChange={(e) => setEditForm((f) => ({ ...f, prize: e.target.value }))} placeholder="e.g. 500,000" />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label className={styles.label}>Slots</label>
+                    <select className={styles.input} value={editForm.slots} onChange={(e) => setEditForm((f) => ({ ...f, slots: e.target.value }))}>
+                      {SLOT_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className={styles.fieldRow}>
+                  <div style={{ flex: 1 }}>
+                    <label className={styles.label}>Date</label>
+                    <input className={styles.input} value={editForm.date} onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))} placeholder="e.g. Apr 20" />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label className={styles.label}>Entrance Fee (TZS)</label>
+                    <input className={styles.input} value={editForm.entrance_fee} onChange={(e) => setEditForm((f) => ({ ...f, entrance_fee: e.target.value }))} placeholder="Leave blank for free" />
+                  </div>
+                </div>
+
+                <label className={styles.label}>Status</label>
+                <select className={styles.input} value={editForm.status} onChange={(e) => setEditForm((f) => ({ ...f, status: e.target.value }))}>
+                  {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+
+                <label className={styles.label}>Description</label>
+                <input className={styles.input} value={editForm.description} onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))} placeholder="Optional" />
+              </div>
+            </div>
+            <div className={styles.modalFooter}>
+              <button className={styles.smallBtn} disabled={busy} onClick={() => saveEdit(editingT)}>
+                <i className="ri-check-line" /> Save
+              </button>
+              <button className={styles.smallBtnGhost} onClick={() => setEditingId(null)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

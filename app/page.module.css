@@ -410,6 +410,13 @@
   display: block;
   animation: tCardIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards;
   scroll-snap-align: start;
+  /* .tCard is a <button> now (opens the quick-view sidebar), so reset
+     the button defaults it would otherwise pick up */
+  padding: 0;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 .tGrid .tCard:nth-child(1) { animation-delay: 0.02s; }
 .tGrid .tCard:nth-child(2) { animation-delay: 0.07s; }
@@ -546,6 +553,95 @@
 .tSlotWarm { background: linear-gradient(90deg, #f97316, #fb923c); }
 .tSlotFull { background: linear-gradient(90deg, #dc2626, #ef4444); }
 .tSlotLabel { font-size: 10.5px; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
+
+/* ══════════ TOURNAMENT QUICK VIEW SIDEBAR ══════════ */
+.tSidebarOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  animation: tSidebarFade 0.2s ease;
+}
+@keyframes tSidebarFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes tSidebarSlide {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+.tSidebar {
+  width: 65%;
+  height: 100%;
+  max-width: 560px;
+  min-width: 280px;
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  position: relative;
+  animation: tSidebarSlide 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.tSidebarClose {
+  position: absolute;
+  top: 12px; right: 12px;
+  z-index: 2;
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  cursor: pointer;
+}
+.tSidebarImg {
+  position: relative;
+  height: 180px;
+  background: var(--bg-2);
+  overflow: hidden;
+}
+.tSidebarImg .tCardImgEl { width: 100%; height: 100%; object-fit: cover; filter: brightness(0.7); }
+.tSidebarBody { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.tSidebarName { font-size: 19px; font-weight: 800; margin: 0; line-height: 1.25; }
+.tSidebarActions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+.tSidebarQuickBtn,
+.tSidebarViewBtn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 13px 16px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 14.5px;
+  text-decoration: none;
+  border: 1px solid var(--border);
+}
+.tSidebarQuickBtn {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}
+.tSidebarQuickBtnDisabled {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 13px 16px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 14.5px;
+  background: var(--bg-2);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+.tSidebarViewBtn {
+  background: transparent;
+  color: var(--text);
+}
+
+@media (max-width: 640px) {
+  .tSidebar { width: 85%; }
+}
 
 /* ══════════ LEADERBOARD ══════════ */
 .gameFilterRow {
