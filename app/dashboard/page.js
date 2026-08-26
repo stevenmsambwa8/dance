@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth, ADMIN_EMAIL } from '../../components/AuthProvider'
 import { supabase } from '../../lib/supabase'
-import { RANK_TIERS, GAME_META, GAME_SLUGS, FLAG_OPTIONS, DEFAULT_FLAG } from '../../lib/constants'
+import { RANK_TIERS, GAME_META, GAME_SLUGS, DEFAULT_FLAG } from '../../lib/constants'
 import { getTierTheme } from '../../lib/tierTheme'
 import { getCurrentSeason, computeLevelAfterWin } from '../../lib/seasons'
 import styles from './page.module.css'
@@ -173,9 +173,6 @@ export default function Dashboard() {
   const [userResults, setUserResults] = useState([])
   const [searching, setSearching] = useState(false)
 
-  const [editUser, setEditUser] = useState(null)
-  const [editUserPhoneCode, setEditUserPhoneCode] = useState('255')
-  const [editUserPhoneLocal, setEditUserPhoneLocal] = useState('')
   const [editPost, setEditPost] = useState(null)
   const [editTournament, setEditTournament] = useState(null)
   const [editShop, setEditShop] = useState(null)
@@ -186,9 +183,6 @@ export default function Dashboard() {
   const [battleCreating, setBattleCreating] = useState(false)
   const [fixingFlags, setFixingFlags] = useState(false)
   const [flagFixResult, setFlagFixResult] = useState(null)
-  const [newBadgeDraft, setNewBadgeDraft] = useState({ label: '', icon: '🏅', color: '#f97316', desc: '', iconUrl: '' })
-  const [badgeIconFile, setBadgeIconFile] = useState(null)
-  const [badgeIconUploading, setBadgeIconUploading] = useState(false)
 
   useEffect(() => { if (!authLoading && !isAdmin) router.replace('/') }, [authLoading, isAdmin])
   useEffect(() => { if (isAdmin) { loadAll(); loadPendingSubsCount() } }, [isAdmin])
@@ -422,25 +416,6 @@ export default function Dashboard() {
     loadTodos()
   }
 
-  async function saveUser() {
-    const fullPhone = editUserPhoneLocal.trim()
-      ? `+${editUserPhoneCode}${editUserPhoneLocal.trim().replace(/^0/, '')}` : null
-    const payload = {
-      username: editUser.username, tier: editUser.tier,
-      level: Number(editUser.level ?? 1), wins: Number(editUser.wins),
-      losses: Number(editUser.losses), points: Number(editUser.points),
-      bio: editUser.bio, phone: fullPhone,
-      country_flag: editUser.country_flag || DEFAULT_FLAG,
-      is_season_winner: !!editUser.is_season_winner,
-      custom_badges: editUser.custom_badges || [],
-    }
-    const { error } = await supabase.from('profiles').update(payload).eq('id', editUser.id)
-    if (error) { alert(error.message); return }
-    setUsers(u => u.map(x => x.id === editUser.id ? { ...x, ...editUser, ...payload } : x))
-    setEditUser(null)
-    setNewBadgeDraft({ label: '', icon: '🏅', color: '#f97316', desc: '', iconUrl: '' })
-    setBadgeIconFile(null)
-  }
   async function deleteUser(id) {
     if (!confirm('Delete profile? Auth record stays.')) return
     await supabase.from('profiles').delete().eq('id', id)
@@ -469,36 +444,6 @@ export default function Dashboard() {
     setFixingFlags(false)
   }
 
-  async function uploadBadgeIcon() {
-    if (!badgeIconFile) return
-    setBadgeIconUploading(true)
-    const ext = badgeIconFile.name.split('.').pop()
-    const path = `badge-icons/${editUser?.id || 'admin'}-${Date.now()}.${ext}`
-    const { error: upErr } = await supabase.storage.from('public').upload(path, badgeIconFile)
-    if (upErr) { alert(upErr.message); setBadgeIconUploading(false); return }
-    const { data: pub } = supabase.storage.from('public').getPublicUrl(path)
-    setNewBadgeDraft(d => ({ ...d, iconUrl: pub.publicUrl }))
-    setBadgeIconFile(null)
-    setBadgeIconUploading(false)
-  }
-
-  function addCustomBadge() {
-    if (!newBadgeDraft.label.trim()) return
-    const badge = {
-      id: `b_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-      label: newBadgeDraft.label.trim(),
-      icon: newBadgeDraft.icon.trim() || '🏅',
-      iconUrl: newBadgeDraft.iconUrl || null,
-      color: newBadgeDraft.color || '#f97316',
-      desc: newBadgeDraft.desc.trim() || '',
-    }
-    setEditUser(x => ({ ...x, custom_badges: [...(x.custom_badges || []), badge] }))
-    setNewBadgeDraft({ label: '', icon: '🏅', color: '#f97316', desc: '', iconUrl: '' })
-    setBadgeIconFile(null)
-  }
-  function removeCustomBadge(id) {
-    setEditUser(x => ({ ...x, custom_badges: (x.custom_badges || []).filter(b => b.id !== id) }))
-  }
 
   async function savePost() {
     const { error } = await supabase.from('posts').update({ content: editPost.content }).eq('id', editPost.id)
@@ -674,7 +619,7 @@ export default function Dashboard() {
 
   if (authLoading || !isAdmin) return null
 
-  const anyEdit = editUser || editPost || editTournament || editBattle || editShop || battleModal
+  const anyEdit = editPost || editTournament || editBattle || editShop || battleModal
   const todoBadge = todos.length + tournamentPayments.length
   const mastersByGame = GAME_SLUGS.reduce((acc, slug) => {
     acc[slug] = allMasters.filter(m => m.game_slug === slug)
@@ -1211,14 +1156,9 @@ export default function Dashboard() {
                         <td>{u.level ?? 1}</td><td>{u.wins}</td><td>{(u.points || 0).toLocaleString()}</td>
                         <td>
                           <div className={styles.rowActions}>
-                            <button className={styles.iconBtnSm} onClick={() => {
-                              const CODES = ['254','255','256']
-                              const stripped = (u.phone || '').replace(/^\+/, '')
-                              const matched = CODES.find(c => stripped.startsWith(c))
-                              setEditUserPhoneCode(matched || '255')
-                              setEditUserPhoneLocal(matched ? stripped.slice(matched.length) : stripped)
-                              setEditUser({ ...u })
-                            }}><i className="ri-edit-line" /></button>
+                            <button className={styles.iconBtnSm} onClick={() => router.push(`/dashboard/edit-user/${u.id}`)} title="Edit player">
+                              <i className="ri-edit-line" />
+                            </button>
                             <button className={styles.iconBtnSmDanger} onClick={() => deleteUser(u.id)}><i className="ri-delete-bin-line" /></button>
                           </div>
                         </td>
@@ -1609,151 +1549,8 @@ export default function Dashboard() {
 
       {/* ════ EDIT MODALS ════ */}
       {anyEdit && (
-        <div className={styles.modalOverlay} onClick={() => { setEditUser(null); setEditPost(null); setEditTournament(null); setEditBattle(null); setEditShop(null); setBattleModal(false) }}>
+        <div className={styles.modalOverlay} onClick={() => { setEditPost(null); setEditTournament(null); setEditBattle(null); setEditShop(null); setBattleModal(false) }}>
           <div className={styles.modalBox} onClick={e => e.stopPropagation()}>
-
-            {editUser && <>
-              <div className={styles.modalHeader}><span>Edit Player</span><button onClick={() => setEditUser(null)}><i className="ri-close-line" /></button></div>
-              <div className={styles.modalBody}>
-                <div className={styles.createField}><label>Username</label>
-                  <input value={editUser.username || ''} onChange={e => setEditUser(x => ({ ...x, username: e.target.value }))} /></div>
-                <div className={styles.createField}><label>Rank Tier</label>
-                  <select value={editUser.tier || 'Gold'} onChange={e => setEditUser(x => ({ ...x, tier: e.target.value }))}>
-                    {RANK_TIERS.map(t => <option key={t}>{t}</option>)}
-                  </select></div>
-                {[['level','Level','number'],['wins','Wins','number'],['losses','Losses','number'],['points','Points','number']].map(([k,l,t]) => (
-                  <div key={k} className={styles.createField}><label>{l}</label>
-                    <input type={t} value={editUser[k] || ''} onChange={e => setEditUser(x => ({ ...x, [k]: e.target.value }))} /></div>
-                ))}
-                <div className={styles.createField}><label>Bio</label>
-                  <textarea rows={2} value={editUser.bio || ''} onChange={e => setEditUser(x => ({ ...x, bio: e.target.value }))} /></div>
-
-                <div className={styles.createField}>
-                  <label>Country Flag {!editUser.country_flag && <span style={{ color: '#f59e0b', fontWeight: 600 }}>(none set — defaults to Tanzania)</span>}</label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {FLAG_OPTIONS.map(f => (
-                      <button key={f.value} type="button"
-                        onClick={() => setEditUser(x => ({ ...x, country_flag: f.value }))}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 8,
-                          border: `1.5px solid ${(editUser.country_flag || DEFAULT_FLAG) === f.value ? 'var(--text)' : 'var(--border-dark)'}`,
-                          background: (editUser.country_flag || DEFAULT_FLAG) === f.value ? 'var(--surface)' : 'var(--bg-2)',
-                          color: (editUser.country_flag || DEFAULT_FLAG) === f.value ? 'var(--text)' : 'var(--text-muted)',
-                          fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                        }}>
-                        <img src={f.flag} alt={f.value} style={{ width: 16, height: 12, borderRadius: 2, objectFit: 'cover' }} />
-                        {f.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className={styles.createField}>
-                  <label>Winner Badges</label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, cursor: 'pointer', fontSize: 12.5, fontWeight: 600 }}>
-                    <input type="checkbox" checked={!!editUser.is_season_winner}
-                      onChange={e => setEditUser(x => ({ ...x, is_season_winner: e.target.checked }))} />
-                    <img src="/fire.png" alt="" style={{ width: 16, height: 16 }} />
-                    Season Champion badge
-                  </label>
-
-                  {(editUser.custom_badges || []).length > 0 && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
-                      {editUser.custom_badges.map(b => (
-                        <div key={b.id} style={{
-                          display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px',
-                          border: '1px solid var(--border-dark)', borderRadius: 8, background: 'var(--bg-2)',
-                        }}>
-                          {b.iconUrl
-                            ? <img src={b.iconUrl} alt="" style={{ width: 20, height: 20, borderRadius: 4, objectFit: 'cover' }} />
-                            : <span style={{ fontSize: 15 }}>{b.icon}</span>}
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 12.5, fontWeight: 700, color: b.color }}>{b.label}</div>
-                            {b.desc && <div style={{ fontSize: 10.5, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.desc}</div>}
-                          </div>
-                          <button type="button" className={styles.iconBtnSmDanger} onClick={() => removeCustomBadge(b.id)}>
-                            <i className="ri-delete-bin-line" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <div style={{
-                    display: 'flex', flexDirection: 'column', gap: 8, padding: '10px',
-                    border: '1px dashed var(--border-dark)', borderRadius: 8, background: 'var(--bg-2)',
-                  }}>
-                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                      <input placeholder="Badge name e.g. MVP" value={newBadgeDraft.label}
-                        onChange={e => setNewBadgeDraft(d => ({ ...d, label: e.target.value }))}
-                        style={{ flex: 1 }} />
-                      {!newBadgeDraft.iconUrl && (
-                        <input placeholder="🏅" value={newBadgeDraft.icon}
-                          onChange={e => setNewBadgeDraft(d => ({ ...d, icon: e.target.value }))}
-                          style={{ width: 44, textAlign: 'center' }} maxLength={4} />
-                      )}
-                      <input type="color" value={newBadgeDraft.color}
-                        onChange={e => setNewBadgeDraft(d => ({ ...d, color: e.target.value }))}
-                        style={{ width: 36, height: 34, padding: 2, border: '1px solid var(--border-dark)', borderRadius: 6, background: 'var(--bg-2)' }} />
-                    </div>
-
-                    <textarea rows={2} placeholder="Tooltip description shown when a player taps the badge…"
-                      value={newBadgeDraft.desc}
-                      onChange={e => setNewBadgeDraft(d => ({ ...d, desc: e.target.value }))} />
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      {newBadgeDraft.iconUrl ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <img src={newBadgeDraft.iconUrl} alt="" style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover', border: '1px solid var(--border-dark)' }} />
-                          <button type="button" className={styles.iconBtnSmDanger}
-                            onClick={() => setNewBadgeDraft(d => ({ ...d, iconUrl: '' }))}>
-                            <i className="ri-close-line" />
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <input type="file" accept="image/*" style={{ fontSize: 11, flex: 1 }}
-                            onChange={e => setBadgeIconFile(e.target.files?.[0] || null)} />
-                          <button type="button" className={styles.iconBtnSm} disabled={!badgeIconFile || badgeIconUploading}
-                            onClick={uploadBadgeIcon} title="Upload badge image (used instead of the emoji)">
-                            {badgeIconUploading ? <i className="ri-loader-4-line" /> : <i className="ri-upload-2-line" />}
-                          </button>
-                        </>
-                      )}
-                    </div>
-
-                    <button type="button" className={styles.saveBtn} onClick={addCustomBadge}>
-                      <i className="ri-add-line" /> Add Badge
-                    </button>
-                  </div>
-                </div>
-
-                <div className={styles.createField}>
-                  <label>Phone Number</label>
-                  <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-                    {[{ code: '254', flag: '/kenya.png', label: '+254' }, { code: '255', flag: '/tanzania.png', label: '+255' }, { code: '256', flag: '/uganda.png', label: '+256' }].map(c => (
-                      <button key={c.code} type="button" onClick={() => setEditUserPhoneCode(c.code)} style={{
-                        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-                        padding: '7px 8px', borderRadius: 8,
-                        border: `1.5px solid ${editUserPhoneCode === c.code ? 'var(--text)' : 'var(--border-dark)'}`,
-                        background: editUserPhoneCode === c.code ? 'var(--surface)' : 'var(--bg-2)',
-                        color: editUserPhoneCode === c.code ? 'var(--text)' : 'var(--text-muted)',
-                        fontWeight: 700, fontSize: 11, cursor: 'pointer',
-                      }}>
-                        <img src={c.flag} alt={c.code} style={{ width: 16, height: 12, borderRadius: 2, objectFit: 'cover' }} />{c.label}
-                      </button>
-                    ))}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid var(--border-dark)', borderRadius: 8, background: 'var(--bg-2)', padding: '0 12px' }}>
-                    <span style={{ color: 'var(--text-muted)', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>+{editUserPhoneCode}</span>
-                    <div style={{ width: 1, height: 16, background: 'var(--border-dark)', flexShrink: 0 }} />
-                    <input type="tel" placeholder="712 345 678" value={editUserPhoneLocal} onChange={e => setEditUserPhoneLocal(e.target.value)}
-                      style={{ flex: 1, border: 'none', background: 'transparent', padding: '10px 0', fontSize: 13, color: 'var(--text)', outline: 'none', fontFamily: 'var(--font)' }} />
-                  </div>
-                </div>
-                <button className={styles.saveBtn} onClick={saveUser}><i className="ri-check-line" /> Save Player</button>
-              </div>
-            </>}
 
             {editPost && <>
               <div className={styles.modalHeader}><span>Edit Post</span><button onClick={() => setEditPost(null)}><i className="ri-close-line" /></button></div>
