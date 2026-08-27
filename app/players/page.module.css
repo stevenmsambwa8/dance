@@ -104,7 +104,10 @@
   transition: background 0.1s, border-color 0.1s;
   background: var(--bg);
 }
+
+@media (hover: hover) {
 .playerRow:hover { background: var(--surface); border-color: var(--border-dark); }
+}
 .playerRow:active { opacity: 0.85; }
 
 .rankNum {
@@ -155,9 +158,15 @@
   display: flex; align-items: center; justify-content: center;
   transition: all 0.12s; cursor: pointer;
 }
+
+@media (hover: hover) {
 .followBtn:hover  { background: var(--surface); color: var(--text); }
+}
 .following { background: var(--text) !important; color: var(--bg) !important; border-color: var(--text) !important; }
+
+@media (hover: hover) {
 .challengeBtn:hover { background: var(--text); color: var(--bg); border-color: var(--text); }
+}
 
 .loadMoreBtn {
   width: 100%; padding: 12px 0; margin-top: 6px;
@@ -165,7 +174,10 @@
   border-radius: 10px; color: var(--text-muted); font-size: 12px; font-weight: 700;
   cursor: pointer;
 }
+
+@media (hover: hover) {
 .loadMoreBtn:hover { color: var(--text); border-color: var(--border-dark); }
+}
 
 /* Challenge / recruit modal */
 .challengeBody { display: flex; flex-direction: column; gap: 16px; }
@@ -179,7 +191,10 @@
 
 .modeGrid { display: flex; flex-wrap: wrap; gap: 6px; }
 .modeBtn { padding: 6px 12px; border: 1px solid var(--border-dark); border-radius: 20px; background: transparent; color: var(--text-dim); font-size: 12px; font-weight: 600; transition: all 0.1s; cursor: pointer; }
+
+@media (hover: hover) {
 .modeBtn:hover { border-color: var(--text); color: var(--text); }
+}
 .modeActive { background: var(--text) !important; color: var(--bg) !important; border-color: var(--text) !important; }
 
 .textInput {

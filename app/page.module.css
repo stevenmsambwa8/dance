@@ -210,7 +210,10 @@
   text-decoration: none;
   transition: opacity 0.12s;
 }
+
+@media (hover: hover) {
 .heroPrimaryBtn:hover { opacity: 0.85; }
+}
 
 .heroSecondaryBtn {
   display: flex;
@@ -227,7 +230,10 @@
   text-decoration: none;
   transition: background 0.12s;
 }
+
+@media (hover: hover) {
 .heroSecondaryBtn:hover { background: var(--bg-2); }
+}
 
 /* ══════════ PROGRESS BLOCK ══════════ */
 .progressBlock {
@@ -329,7 +335,10 @@
   gap: 2px;
   transition: color 0.12s;
 }
+
+@media (hover: hover) {
 .sectionLink:hover { color: var(--text); }
+}
 
 /* ══════════ SKELETONS ══════════ */
 @keyframes shimmer {
@@ -735,7 +744,10 @@
   transition: background 0.1s;
 }
 .leaderRow:last-child { border-bottom: none; }
+
+@media (hover: hover) {
 .leaderRow:hover { background: var(--bg-2); margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: 8px; }
+}
 .leaderRowMe { background: rgba(34,197,94,0.05); }
 
 .leaderPos {
@@ -815,7 +827,10 @@
   justify-content: center;
   transition: transform 0.15s, border-color 0.15s;
 }
+
+@media (hover: hover) {
 .gameCard:hover { transform: scale(1.03); border-color: var(--border-dark); }
+}
 
 .gameCardImg {
   width: 100%; height: 100%;
@@ -968,7 +983,10 @@
   display: flex;
   flex-direction: column;
 }
+
+@media (hover: hover) {
 .squadCard:hover { border-color: var(--border-dark); }
+}
 
 .squadCardImg {
   width: 100%;
@@ -1035,7 +1053,10 @@
   transition: border-color 0.15s;
   background: var(--bg);
 }
+
+@media (hover: hover) {
 .shopCard:hover { border-color: var(--border-dark); }
+}
 
 .shopImgWrap {
   position: relative;
@@ -1191,7 +1212,10 @@
   text-decoration: none;
   transition: background 0.12s;
 }
+
+@media (hover: hover) {
 .emptyBtn:hover { background: var(--bg-2); }
+}
 
 /* ══════════ RESPONSIVE ══════════ */
 @media (max-width: 420px) {
@@ -1353,9 +1377,12 @@
   backdrop-filter: blur(6px);
   transition: background 0.12s, color 0.12s;
 }
+
+@media (hover: hover) {
 .mmClose:hover {
   background: var(--bg-2);
   color: var(--text);
+}
 }
 
 /* ── Body ── */
@@ -1553,7 +1580,10 @@
   text-decoration: none;
   transition: background 0.12s;
 }
+
+@media (hover: hover) {
 .mmViewBtn:hover { background: var(--border); }
+}
 .mmViewBtn i:last-child { margin-left: auto; }
 
 /* ── Awesome button ── */
@@ -1575,7 +1605,10 @@
   box-shadow: 0 4px 16px rgba(245, 158, 11, 0.35);
   transition: opacity 0.12s, transform 0.1s;
 }
+
+@media (hover: hover) {
 .mmAwesome:hover { opacity: 0.87; transform: translateY(-1px); }
+}
 .mmAwesome i { font-size: 14px; }
 
 /* ── Don't show ── */
@@ -1593,4 +1626,7 @@
   opacity: 0.6;
   transition: opacity 0.12s;
 }
+
+@media (hover: hover) {
 .mmDontShow:hover { opacity: 1; }
+}

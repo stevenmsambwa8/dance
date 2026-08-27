@@ -134,7 +134,10 @@
   text-decoration: none;
 }
 
+@media (hover: hover) {
+
 .sectionLink:hover { color: var(--text); }
+}
 
 /* ── Perks Grid ── */
 .perksGrid {
@@ -196,7 +199,10 @@
   transition: background 0.15s;
 }
 
+@media (hover: hover) {
+
 .matchRow:hover { background: var(--bg-2); }
+}
 
 .matchResult {
   font-size: 11px;
@@ -313,7 +319,10 @@
   transition: border-color 0.15s, background 0.15s;
 }
 
+@media (hover: hover) {
+
 .networkCard:hover { background: var(--bg-2); }
+}
 
 .networkCardSelf {
   border-color: rgba(34,197,94,0.55);

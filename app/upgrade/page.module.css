@@ -273,7 +273,10 @@
   transition: opacity 0.15s, transform 0.1s;
 }
 
+@media (hover: hover) {
+
 .cta:hover { opacity: 0.9; }
+}
 .cta:active { transform: scale(0.98); }
 
 .ctaActive {
@@ -292,8 +295,11 @@
   border: 1.5px solid var(--border-dark);
 }
 
+@media (hover: hover) {
+
 .ctaSwitch:hover {
   background: var(--bg-2);
+}
 }
 
 .switchNote {

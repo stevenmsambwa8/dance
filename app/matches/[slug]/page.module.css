@@ -13,7 +13,10 @@
 }
 .adminLinkBtn i { font-size: 13px; }
 .adminLinkBtn:active { opacity: 0.7; }
+
+@media (hover: hover) {
 .back:hover { color: var(--text); }
+}
 
 .notFound { text-align: center; padding: 60px 20px; display: flex; flex-direction: column; align-items: center; gap: 12px; color: var(--text-muted); }
 .notFound i { font-size: 40px; }
@@ -88,12 +91,21 @@
   border: none; border-radius: 12px; font-size: 13px; font-weight: 800;
   cursor: pointer; transition: opacity 0.12s; font-family: inherit; width: 100%;
 }
+
+@media (hover: hover) {
 .btn:hover { opacity: 0.85; }
+}
 .btn:disabled { opacity: 0.4; }
 .btnDanger { background: none; color: #ef4444; border: 1.5px solid #ef4444; }
+
+@media (hover: hover) {
 .btnDanger:hover { background: #fee2e215; opacity: 1; }
+}
 .btnGhost { background: none; color: var(--text-muted); border: 1px solid var(--border-dark); }
+
+@media (hover: hover) {
 .btnGhost:hover { border-color: #ef4444; color: #ef4444; opacity: 1; }
+}
 .btnSm { width: auto; flex-shrink: 0; padding: 0 16px; height: 42px; }
 
 /* Admin */
@@ -106,7 +118,10 @@
 
 .statusBtns { display: flex; flex-wrap: wrap; gap: 6px; }
 .statusBtn { padding: 6px 12px; border: 1px solid var(--border-dark); border-radius: 8px; background: none; font-size: 11px; font-weight: 700; color: var(--text-muted); cursor: pointer; font-family: inherit; text-transform: capitalize; transition: all 0.12s; }
+
+@media (hover: hover) {
 .statusBtn:hover { border-color: var(--text); color: var(--text); }
+}
 .statusBtnActive { background: var(--text); color: var(--bg); border-color: var(--text); }
 
 .tickerRow { display: flex; gap: 8px; }
@@ -200,7 +215,10 @@
   transition: background 0.1s;
   font-family: inherit;
 }
+
+@media (hover: hover) {
 .stepBtn:hover { background: var(--bg); }
+}
 .stepVal {
   min-width: 44px;
   text-align: center;

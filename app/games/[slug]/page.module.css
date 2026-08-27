@@ -19,7 +19,10 @@
   z-index: 2;
   transition: color 0.15s;
 }
+
+@media (hover: hover) {
 .back:hover { color: var(--text); }
+}
 .back i { font-size: 14px; }
 
 /* ── Hero — full bleed, starts at very top ── */
@@ -217,10 +220,13 @@
   transition: all 0.15s;
 }
 .subBtn i { font-size: 16px; }
+
+@media (hover: hover) {
 .subBtn:hover {
   border-color: var(--text);
   color: var(--text);
   background: var(--bg-2);
+}
 }
 .subActive {
   background: var(--accent) !important;
@@ -245,10 +251,13 @@
   text-decoration: none;
 }
 .chatBtn i { font-size: 16px; }
+
+@media (hover: hover) {
 .chatBtn:hover {
   border-color: var(--text);
   color: var(--text);
   background: var(--bg-2);
+}
 }
 
 /* ── Section ── */
@@ -299,7 +308,10 @@
   border-radius: 10px;
   transition: background 0.1s;
 }
+
+@media (hover: hover) {
 .tRow:hover { background: var(--bg-2); }
+}
 .tRowFull { opacity: 0.35; cursor: default; pointer-events: none; }
 .tRowJoined { opacity: 1; cursor: pointer; pointer-events: all; }
 
@@ -471,7 +483,10 @@
   width: 100%;
   transition: opacity 0.15s;
 }
+
+@media (hover: hover) {
 .joinBtn:hover { opacity: 0.82; }
+}
 
 /* ── Weekly Master Card ─────────────────────────────────── */
 .masterSkel {
@@ -611,7 +626,10 @@
   border-bottom: 1px solid var(--border);
   border-radius: 10px; transition: background 0.1s;
 }
+
+@media (hover: hover) {
 .pastRow:hover { background: var(--bg-2); }
+}
 .pastRow:last-child { border-bottom: none; }
 
 .pastAvatar {
@@ -705,7 +723,10 @@
   color: var(--text-muted); font-size: 17px;
   display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 1;
 }
+
+@media (hover: hover) {
 .modalClose:hover { background: var(--bg-2); color: var(--text); }
+}
 .detailTitle   { font-size: 18px; font-weight: 900; color: var(--text); margin-bottom: 4px; }
 .detailFormat  { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 16px; }
 .pendingBanner {
@@ -720,7 +741,10 @@
   background: var(--surface); color: var(--text); font-size: 13px; font-weight: 700;
   text-decoration: none; transition: background 0.15s;
 }
+
+@media (hover: hover) {
 .viewBtn:hover { background: var(--bg-2); }
+}
 .fullNote {
   display: flex; align-items: center; justify-content: center; gap: 6px;
   padding: 12px; border-radius: 10px; background: var(--surface);
@@ -789,5 +813,8 @@
   transition: opacity 0.15s, transform 0.1s;
   display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 4px;
 }
+
+@media (hover: hover) {
 .modalSubmit:hover:not(:disabled) { opacity: 0.87; transform: translateY(-1px); }
+}
 .modalSubmit:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }

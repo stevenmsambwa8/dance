@@ -14,7 +14,10 @@
   flex-shrink:0; font-family:var(--font); white-space:nowrap;
   transition:color 0.15s, border-color 0.15s;
 }
+
+@media (hover: hover) {
 .backBtn:hover { color:var(--text); border-color:var(--accent); }
+}
 .headerCenter { display:flex; align-items:center; gap:10px; flex:1; min-width:0; }
 .headerName   { font-size:15px; font-weight:900; color:var(--text); line-height:1.2; }
 .headerSub    { font-size:10px; color:var(--text-muted); }
@@ -65,7 +68,10 @@
   color:var(--text-muted); cursor:pointer;
   transition:all 0.15s; font-family:var(--font); white-space:nowrap;
 }
+
+@media (hover: hover) {
 .stageBtn:hover { border-color:var(--accent); color:var(--text); }
+}
 .stageBtnActive { background:var(--accent); border-color:var(--accent); color:#fff; }
 
 /* Pills */
@@ -81,7 +87,10 @@
   color:var(--text-muted); cursor:pointer;
   transition:all 0.15s; font-family:var(--font); white-space:nowrap;
 }
+
+@media (hover: hover) {
 .pill:hover { border-color:var(--accent); color:var(--text); }
+}
 .pillActive { background:var(--accent) !important; border-color:var(--accent) !important; color:#fff !important; }
 
 /* Matchday filter */
@@ -120,7 +129,10 @@
   border:none; border-radius:9px; font-size:12px; font-weight:700;
   cursor:pointer; transition:opacity 0.15s; font-family:var(--font);
 }
+
+@media (hover: hover) {
 .generateBtn:hover:not(:disabled) { opacity:0.85; }
+}
 .generateBtn:disabled { opacity:0.4; cursor:not-allowed; }
 .adminHint { font-size:11px; color:var(--text-muted); }
 
@@ -181,7 +193,10 @@
   color:var(--text-muted); cursor:pointer; transition:all 0.15s;
   font-family:var(--font); text-align:center;
 }
+
+@media (hover: hover) {
 .postScoreBtn:hover { border-color:var(--accent); color:var(--accent); }
+}
 .deleteScoreBtn {
   padding:7px 12px;
   background:none; border:1px solid rgba(239,68,68,0.3);
@@ -189,7 +204,10 @@
   color:#ef4444; cursor:pointer; transition:all 0.15s;
   font-family:var(--font); white-space:nowrap;
 }
+
+@media (hover: hover) {
 .deleteScoreBtn:hover { background:rgba(239,68,68,0.08); border-color:#ef4444; }
+}
 
 /* Knockout list */
 .knockoutList { display:flex; flex-direction:column; gap:0; }
@@ -215,7 +233,10 @@
 }
 .tableRowHdr .tTeam { text-align:left; }
 .tableRow:last-child { border-bottom:none; }
+
+@media (hover: hover) {
 .tableRow:hover { background:var(--bg-2); }
+}
 .tableRowQ  { border-left:3px solid var(--accent); }
 .tableRowMe { background:rgba(34,197,94,0.05); }
 .tPos  { font-size:11px; font-weight:700; color:var(--text-muted); text-align:center; }
@@ -252,7 +273,10 @@
   color:#ef4444; font-size:12px; font-weight:700;
   cursor:pointer; transition:all 0.15s; font-family:var(--font); flex-shrink:0;
 }
+
+@media (hover: hover) {
 .dropBtn:hover { background:rgba(239,68,68,0.08); border-color:#ef4444; }
+}
 
 .pickHint { font-size:13px; color:var(--text-muted); text-align:center; margin-bottom:16px; }
 .group { margin-bottom:18px; }
@@ -270,7 +294,10 @@
   cursor:pointer; transition:all 0.15s; position:relative;
   text-align:center; font-family:var(--font);
 }
+
+@media (hover: hover) {
 .teamCard:hover:not(:disabled) { border-color:var(--accent); transform:translateY(-1px); }
+}
 .teamCardMe  { border-color:var(--accent) !important; background:rgba(34,197,94,0.07) !important; box-shadow:0 0 0 2px rgba(34,197,94,0.18); }
 .teamCardDim { opacity:0.35; cursor:default; }
 .teamName    { font-size:12px; font-weight:700; color:var(--text); }
@@ -309,7 +336,10 @@
   font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center;
   font-family:var(--font); transition:background 0.15s; font-weight:700;
 }
+
+@media (hover: hover) {
 .modalClose:hover { background:var(--border); color:var(--text); }
+}
 .modalTitle  { font-size:18px; font-weight:800; color:var(--text); margin-bottom:6px; }
 .modalSub    { font-size:13px; color:var(--text-muted); margin-bottom:20px; line-height:1.5; }
 .modalHint   { font-size:11px; color:var(--text-muted); text-align:center; margin-bottom:14px; line-height:1.5; }
@@ -336,7 +366,10 @@
   border:none; border-radius:14px; font-size:15px; font-weight:800;
   cursor:pointer; transition:opacity 0.15s; font-family:var(--font);
 }
+
+@media (hover: hover) {
 .saveBtn:hover:not(:disabled) { opacity:0.85; }
+}
 .saveBtn:disabled { opacity:0.5; cursor:not-allowed; }
 .deleteConfirmBtn {
   width:100%; padding:14px; background:#ef4444; color:#fff;
@@ -344,14 +377,20 @@
   cursor:pointer; transition:opacity 0.15s; font-family:var(--font);
   margin-bottom:10px;
 }
+
+@media (hover: hover) {
 .deleteConfirmBtn:hover { opacity:0.85; }
+}
 .dropConfirmBtn {
   width:100%; padding:14px; background:#ef4444; color:#fff;
   border:none; border-radius:14px; font-size:15px; font-weight:800;
   cursor:pointer; transition:opacity 0.15s; font-family:var(--font);
   margin-bottom:10px;
 }
+
+@media (hover: hover) {
 .dropConfirmBtn:hover:not(:disabled) { opacity:0.85; }
+}
 .dropConfirmBtn:disabled { opacity:0.5; cursor:not-allowed; }
 .modalCancel {
   width:100%; padding:12px; background:none;
@@ -359,7 +398,10 @@
   font-size:14px; color:var(--text-muted); cursor:pointer;
   transition:background 0.15s; font-family:var(--font);
 }
+
+@media (hover: hover) {
 .modalCancel:hover { background:var(--bg-2); }
+}
 
 /* Detail modal */
 .detailFlag  { text-align:center; margin-bottom:8px; }
@@ -378,7 +420,10 @@
   border:none; border-radius:12px; font-size:14px; font-weight:700;
   cursor:pointer; font-family:var(--font); transition:opacity 0.15s;
 }
+
+@media (hover: hover) {
 .detailPickBtn:hover { opacity:0.85; }
+}
 
 /* ── My pick dot on fixtures (only MY team) ── */
 .myPickDot {

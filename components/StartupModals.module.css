@@ -96,10 +96,13 @@
   transition: transform 0.25s ease, background 0.25s ease, color 0.25s ease;
 }
 
+@media (hover: hover) {
+
 .closeBtn:hover {
   transform: rotate(90deg);
   background: var(--accent);
   color: #fff;
+}
 }
 
 /* ── Badge with ambient pulse ring (opacity/blur only — never scales) ── */
@@ -323,8 +326,11 @@
   transition: transform 0.2s ease, background-position 0.6s ease;
 }
 
+@media (hover: hover) {
+
 .primaryBtn:hover {
   background-position: 0 0;
+}
 }
 
 .primaryBtn:active {
@@ -338,8 +344,11 @@
   opacity: 0.6;
 }
 
+@media (hover: hover) {
+
 .primaryBtn:disabled:hover {
   background-position: 100% 0;
+}
 }
 
 /* ── Respect reduced motion ── */

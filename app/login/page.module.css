@@ -163,7 +163,10 @@
   object-fit: cover;
   flex-shrink: 0;
 }
+
+@media (hover: hover) {
 .flagBtn:hover { border-color: var(--text); color: var(--text); }
+}
 .flagBtnActive {
   border-color: var(--text) !important;
   background: var(--surface) !important;
@@ -195,7 +198,10 @@
   cursor: pointer;
   width: 100%;
 }
+
+@media (hover: hover) {
 .submit:hover { opacity: 0.8; }
+}
 .submit:disabled { opacity: 0.5; cursor: not-allowed; }
 .submit i { font-size: 15px; }
 
@@ -234,7 +240,10 @@
   width: 100%;
 }
 .googleBtn i { font-size: 16px; }
+
+@media (hover: hover) {
 .googleBtn:hover { background: var(--surface); }
+}
 
 /* ══ Saved accounts ══ */
 .savedSection {
@@ -270,9 +279,12 @@
   text-align: left;
   width: 100%;
 }
+
+@media (hover: hover) {
 .savedRow:hover {
   border-color: var(--border-dark);
   background: var(--surface);
+}
 }
 
 .savedAvatar {
@@ -337,9 +349,12 @@
   flex-shrink: 0;
   transition: background 0.1s, color 0.1s;
 }
+
+@media (hover: hover) {
 .savedRemove:hover {
   background: var(--border);
   color: var(--text);
+}
 }
 
 .useAnotherBtn {
@@ -358,7 +373,10 @@
   transition: color 0.1s, border-color 0.1s;
   width: 100%;
 }
+
+@media (hover: hover) {
 .useAnotherBtn:hover { color: var(--text); border-color: var(--text); }
+}
 
 /* ══ Selected account hero ══ */
 .selectedWrap {
@@ -415,7 +433,10 @@
   cursor: pointer;
   transition: color 0.1s;
 }
+
+@media (hover: hover) {
 .switchAccountBtn:hover { color: var(--text); }
+}
 
 /* ══ Find my account ══ */
 .findSection {
@@ -442,7 +463,10 @@
   text-align: left;
   transition: color 0.1s, background 0.1s;
 }
+
+@media (hover: hover) {
 .findToggle:hover { background: var(--surface); color: var(--text); }
+}
 .findToggle i:first-child { font-size: 14px; }
 
 .findPanel {
@@ -497,7 +521,10 @@
   width: 100%;
   transition: border-color 0.15s, background 0.15s;
 }
+
+@media (hover: hover) {
 .findResult:hover { border-color: var(--text); background: var(--surface); }
+}
 
 /* ══ Find tab ══ */
 .findTab {

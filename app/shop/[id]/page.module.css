@@ -27,7 +27,10 @@
   font-size: 13px; font-weight: 700; color: var(--text-muted);
   text-decoration: none; transition: color 0.1s;
 }
+
+@media (hover: hover) {
 .back:hover { color: var(--text); }
+}
 .shareBtn {
   width: 32px; height: 32px;
   border: 1px solid var(--border-dark);
@@ -37,7 +40,10 @@
   font-size: 14px; color: var(--text-muted);
   cursor: pointer; transition: background 0.1s;
 }
+
+@media (hover: hover) {
 .shareBtn:hover { background: var(--bg-2); }
+}
 
 /* ── Gallery — full bleed, landscape ── */
 .gallery {
@@ -211,7 +217,10 @@
   border-bottom: 1px solid var(--border);
   transition: opacity 0.1s;
 }
+
+@media (hover: hover) {
 .sellerRow:hover { opacity: 0.7; }
+}
 .sellerAvatar {
   width: 36px; height: 36px;
   border-radius: 50%;
@@ -280,7 +289,10 @@
   text-decoration: none;
   transition: opacity 0.1s;
 }
+
+@media (hover: hover) {
 .ctaBtn:hover { opacity: 0.85; }
+}
 .ctaBtn:disabled { opacity: 0.45; cursor: not-allowed; }
 .ctaBtnAlt {
   background: transparent !important;
@@ -357,7 +369,10 @@
   cursor: pointer; transition: opacity 0.1s;
   display: flex; align-items: center; justify-content: center; gap: 4px;
 }
+
+@media (hover: hover) {
 .reqAccept:hover { opacity: 0.85; }
+}
 .reqDecline {
   flex: 1; height: 34px;
   background: transparent; color: var(--text-muted);
@@ -366,7 +381,10 @@
   cursor: pointer; transition: background 0.1s;
   display: flex; align-items: center; justify-content: center; gap: 4px;
 }
+
+@media (hover: hover) {
 .reqDecline:hover { background: var(--bg-2); }
+}
 .reqChat {
   flex: 1; height: 34px;
   background: transparent; color: var(--text);
@@ -376,7 +394,10 @@
   display: flex; align-items: center; justify-content: center; gap: 4px;
   transition: background 0.1s;
 }
+
+@media (hover: hover) {
 .reqChat:hover { background: var(--bg-2); }
+}
 
 /* ── Lightbox ── */
 .lightbox {

@@ -51,7 +51,10 @@
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; transition: background 0.15s, color 0.15s, transform 0.15s; flex-shrink: 0;
 }
+
+@media (hover: hover) {
 .backBtn:hover { background: var(--surface); color: var(--text); }
+}
 .backBtn:active { transform: scale(0.9); }
 .topTitle { font-size: 15px; font-weight: 800; flex: 1; }
 
@@ -226,7 +229,10 @@
   background: var(--bg); cursor: pointer; position: relative;
   transition: border-color 0.15s, transform 0.15s, background 0.15s;
 }
+
+@media (hover: hover) {
 .gameTile:hover { border-color: var(--text-muted); }
+}
 .gameTile:active { transform: scale(0.95); }
 .gameTileActive {
   border-color: var(--accent); background: rgba(var(--accent-rgb, 34,197,94), 0.07);
@@ -261,7 +267,10 @@
   background: var(--bg); cursor: pointer; text-align: left; font-family: var(--font);
   transition: border-color 0.15s, background 0.15s, transform 0.15s;
 }
+
+@media (hover: hover) {
 .formatCard:hover { border-color: var(--text-muted); }
+}
 .formatCard:active { transform: scale(0.98); }
 .formatCardActive {
   border-color: var(--accent); background: rgba(var(--accent-rgb, 34,197,94), 0.07);
@@ -293,7 +302,10 @@
   font-size: 11px; font-weight: 700; color: var(--text-muted);
   cursor: pointer; transition: border-color 0.12s, color 0.12s, background 0.12s, transform 0.12s;
 }
+
+@media (hover: hover) {
 .chip:hover { border-color: var(--text); color: var(--text); }
+}
 .chip:active { transform: scale(0.94); }
 .chipActive {
   background: var(--text); color: var(--bg); border-color: var(--text);
@@ -427,7 +439,10 @@
   font-size: 13px; font-weight: 700; color: var(--text-muted);
   cursor: pointer; transition: background 0.15s, color 0.15s, transform 0.15s; margin-right: auto;
 }
+
+@media (hover: hover) {
 .navBack:hover { background: var(--surface); color: var(--text); }
+}
 .navBack:active { transform: scale(0.96); }
 .navNext {
   display: flex; align-items: center; gap: 6px;
@@ -435,7 +450,10 @@
   font-size: 13px; font-weight: 800; color: var(--text);
   cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.15s;
 }
+
+@media (hover: hover) {
 .navNext:hover { background: var(--text); color: var(--bg); border-color: var(--text); }
+}
 .navNext:active { transform: scale(0.96); }
 .navLaunch {
   display: flex; align-items: center; gap: 8px;
@@ -444,7 +462,10 @@
   cursor: pointer; transition: opacity 0.15s, transform 0.15s;
   animation: launchPulse 2.2s ease-in-out infinite;
 }
+
+@media (hover: hover) {
 .navLaunch:hover { opacity: 0.88; transform: translateY(-1px); }
+}
 .navLaunch:active { transform: scale(0.96); }
 .navLaunch:disabled { opacity: 0.5; cursor: not-allowed; transform: none; animation: none; }
 @keyframes launchPulse {
@@ -498,14 +519,20 @@
   padding: 12px 24px; border: none; border-radius: 10px; background: var(--accent); color: var(--accent-text);
   font-size: 13px; font-weight: 800; cursor: pointer; transition: opacity 0.15s, transform 0.15s;
 }
+
+@media (hover: hover) {
 .donePrimary:hover { opacity: 0.88; }
+}
 .donePrimary:active { transform: scale(0.97); }
 .doneSecondary {
   display: flex; align-items: center; justify-content: center; gap: 8px;
   padding: 12px 24px; border: 1px solid var(--border-dark); border-radius: 10px; background: none; color: var(--text-muted);
   font-size: 13px; font-weight: 700; cursor: pointer; transition: background 0.15s, color 0.15s, transform 0.15s;
 }
+
+@media (hover: hover) {
 .doneSecondary:hover { background: var(--surface); color: var(--text); }
+}
 .doneSecondary:active { transform: scale(0.97); }
 
 /* ── Quota error block ── */

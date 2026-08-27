@@ -34,7 +34,10 @@
   text-decoration: none;
   transition: border-color 0.12s, background 0.12s;
 }
+
+@media (hover: hover) {
 .editBtn:hover { border-color: var(--text); background: var(--bg-2); }
+}
 
 /* ── Hero ── */
 .hero {
@@ -91,7 +94,10 @@
   opacity: 0;
   transition: opacity 0.15s;
 }
+
+@media (hover: hover) {
 .avatarWrap:hover .avatarCamera { opacity: 1; }
+}
 
 /* Hero text */
 .heroMeta {
@@ -224,7 +230,10 @@
   text-decoration: none;
   transition: background 0.12s;
 }
+
+@media (hover: hover) {
 .partnerHubBtn:hover { background: rgba(34,197,94,0.20); }
+}
 
 .adminBtn {
   display: flex;
@@ -241,7 +250,10 @@
   text-decoration: none;
   transition: background 0.12s;
 }
+
+@media (hover: hover) {
 .adminBtn:hover { background: rgba(245,158,11,0.18); }
+}
 
 /* Bio */
 .bio {
@@ -336,7 +348,10 @@
   bottom: -1px;
   cursor: pointer;
 }
+
+@media (hover: hover) {
 .tab:hover { color: var(--text); }
+}
 .tabActive { color: var(--text); border-bottom-color: var(--text); }
 .tabCount {
   font-size: 10px;
@@ -419,7 +434,10 @@
   cursor: pointer;
   transition: color 0.1s;
 }
+
+@media (hover: hover) {
 .deleteBtn:hover { color: #ef4444; }
+}
 .postContent { font-size: 14px; line-height: 1.6; color: var(--text); word-break: break-word; }
 .postActions { display: flex; align-items: center; gap: 2px; }
 .actionBtn {
@@ -451,7 +469,10 @@
   color: var(--text);
   transition: border-color 0.15s;
 }
+
+@media (hover: hover) {
 .shopCard:hover { border-color: var(--border-dark); }
+}
 .shopCardImg { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
 .shopCardNoImg {
   width: 100%;
@@ -481,7 +502,10 @@
   text-decoration: none;
   transition: border-color 0.12s, color 0.12s;
 }
+
+@media (hover: hover) {
 .shopViewAll:hover { border-color: var(--text); color: var(--text); }
+}
 
 /* Season history */
 .historyList { display: flex; flex-direction: column; }
@@ -537,7 +561,10 @@
   cursor: pointer;
   transition: background 0.15s;
 }
+
+@media (hover: hover) {
 .lightboxClose:hover { background: rgba(255,255,255,0.22); }
+}
 .lightboxChangeBtn {
   display: flex;
   align-items: center;
@@ -552,7 +579,10 @@
   cursor: pointer;
   transition: background 0.15s;
 }
+
+@media (hover: hover) {
 .lightboxChangeBtn:hover { background: rgba(255,255,255,0.20); }
+}
 
 /* ═══════════════════════════════════════════════
    ANIMATED TIER RINGS — all tiers
@@ -616,7 +646,10 @@
   letter-spacing: 0.06em;
   width: 100%;
 }
+
+@media (hover: hover) {
 .saveBtn:hover { opacity: 0.8; }
+}
 .gameTagGrid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .gameTagBtn {
   font-size: 11px;
@@ -629,7 +662,10 @@
   cursor: pointer;
   transition: all 0.1s;
 }
+
+@media (hover: hover) {
 .gameTagBtn:hover { border-color: var(--text); color: var(--text); }
+}
 .gameTagActive { background: var(--text) !important; color: var(--bg) !important; border-color: var(--text) !important; }
 
 @media (max-width: 520px) {

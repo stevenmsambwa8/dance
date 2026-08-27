@@ -6,7 +6,10 @@
 
 .filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
 .pill { padding: 5px 14px; border-radius: 20px; border: 1px solid var(--border-dark); background: none; color: var(--text-muted); font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.12s; font-family: inherit; }
+
+@media (hover: hover) {
 .pill:hover { color: var(--text); border-color: var(--text); }
+}
 .pillActive { background: var(--text); color: var(--bg); border-color: var(--text); }
 
 .empty { text-align: center; padding: 60px 20px; color: var(--text-muted); display: flex; flex-direction: column; align-items: center; gap: 8px; }
@@ -25,8 +28,14 @@
   cursor: pointer;
   transition: padding-left 0.15s;
 }
+
+@media (hover: hover) {
 .row:hover { padding-left: 6px; }
+}
+
+@media (hover: hover) {
 .row:hover .arrow { opacity: 1; }
+}
 .rowLive { border-left: 2px solid #22c55e; padding-left: 12px; }
 
 .joinBtn {
@@ -43,9 +52,15 @@
 }
 .joinBtn:disabled { opacity: 0.5; }
 .joinBtn:active { opacity: 0.8; }
+
+@media (hover: hover) {
 .rowLive:hover { padding-left: 14px; }
+}
 .rowMyTurn { border-left: 2px solid #f59e0b; padding-left: 12px; }
+
+@media (hover: hover) {
 .rowMyTurn:hover { padding-left: 14px; }
+}
 
 .num { font-size: 11px; font-weight: 600; color: var(--text-muted); flex-shrink: 0; padding-top: 3px; min-width: 22px; }
 
@@ -112,7 +127,10 @@
   font-family: inherit;
 }
 .mainTab i { font-size: 14px; }
+
+@media (hover: hover) {
 .mainTab:hover { color: var(--text); }
+}
 .mainTabActive { color: var(--text); border-bottom-color: var(--accent); }
 
 /* ── Tournament selector pills ── */
@@ -127,7 +145,10 @@
   cursor: pointer; transition: all 0.12s; font-family: inherit;
   max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+
+@media (hover: hover) {
 .tournPill:hover { color: var(--text); border-color: var(--text); }
+}
 .tournPillActive { background: var(--text); color: var(--bg); border-color: var(--text); }
 .tournPillActive .tournPillDot { filter: brightness(0); }
 .tournPillDot {

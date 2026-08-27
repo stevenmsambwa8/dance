@@ -7,7 +7,10 @@
 .list { display: flex; flex-direction: column; gap: 8px; }
 
 .rowWrap { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; transition: border-color 0.15s; }
+
+@media (hover: hover) {
 .rowWrap:hover { border-color: var(--border-dark); }
+}
 
 .row {
   display: flex;
@@ -18,7 +21,10 @@
   background: var(--bg);
   transition: background 0.1s;
 }
+
+@media (hover: hover) {
 .row:hover { background: var(--surface); }
+}
 
 .num { font-size: 11px; font-weight: 800; color: var(--text-muted); width: 24px; flex-shrink: 0; }
 .icon { width: 40px; height: 40px; border: 1px solid var(--border-dark); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--text-dim); flex-shrink: 0; overflow: hidden; }
@@ -47,7 +53,10 @@
   transition: all 0.12s;
   cursor: pointer;
 }
+
+@media (hover: hover) {
 .subBtn:hover { background: var(--surface); color: var(--text); border-color: var(--text); }
+}
 .subActive { background: var(--text) !important; color: var(--bg) !important; border-color: var(--text) !important; }
 
 @media (max-width: 540px) {

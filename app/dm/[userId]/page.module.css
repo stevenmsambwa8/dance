@@ -29,7 +29,10 @@
   color: var(--text); font-size: 18px; flex-shrink: 0;
   cursor: pointer; transition: background 0.15s;
 }
+
+@media (hover: hover) {
 .backBtn:hover { background: var(--border); }
+}
 
 .profileLink {
   display: flex; align-items: center; gap: 11px;
@@ -64,7 +67,10 @@
   transition: color 0.15s, background 0.15s;
   background: var(--bg-2); border: 1px solid var(--border);
 }
+
+@media (hover: hover) {
 .viewBtn:hover { color: var(--text); background: var(--border); }
+}
 
 /* ── Chat box ── */
 .chatBox {
@@ -200,7 +206,10 @@
   cursor: pointer; text-align: left; transition: background 0.1s;
 }
 .ctxBtn i { font-size: 18px; color: var(--text-muted); }
+
+@media (hover: hover) {
 .ctxBtn:hover { background: var(--bg-2); }
+}
 .ctxDelete { color: #ef4444; }
 .ctxDelete i { color: #ef4444; }
 .ctxCancel {

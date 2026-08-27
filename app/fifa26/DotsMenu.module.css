@@ -18,7 +18,10 @@
   transition: background 0.15s, border-color 0.15s;
   padding: 0;
 }
+
+@media (hover: hover) {
 .trigger:hover { background: var(--border); border-color: var(--border-dark); }
+}
 
 .dot {
   width: 3.5px;
@@ -66,7 +69,10 @@
   transition: background 0.12s;
 }
 .item:last-child { border-bottom: none; }
+
+@media (hover: hover) {
 .item:hover { background: var(--bg-2); }
+}
 
 .itemIcon {
   width: 18px;

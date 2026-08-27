@@ -88,7 +88,10 @@
   color: var(--text-dim); font-size: 16px;
   cursor: pointer; transition: all 0.15s;
 }
+
+@media (hover: hover) {
 .backCircle:hover { background: var(--bg-2); color: var(--text); }
+}
 .manageBtnTop {
   display: flex; align-items: center; gap: 6px;
   height: 32px; padding: 0 14px;
@@ -97,7 +100,10 @@
   font-size: 12px; font-weight: 800;
   cursor: pointer; transition: opacity 0.15s; font-family: inherit;
 }
+
+@media (hover: hover) {
 .manageBtnTop:hover { opacity: 0.85; }
+}
 .manageBtnTop i { font-size: 13px; }
 .adminActions { display: flex; gap: 8px; align-items: center; }
 
@@ -109,7 +115,10 @@
   font-size: 12px; font-weight: 800;
   cursor: pointer; transition: opacity 0.12s;
 }
+
+@media (hover: hover) {
 .editBtn:hover { opacity: 0.85; }
+}
 .deleteBtn {
   display: flex; align-items: center; justify-content: center;
   width: 34px; height: 34px;
@@ -118,7 +127,10 @@
   border-radius: 10px; color: #dc2626;
   font-size: 16px; cursor: pointer; transition: background 0.12s;
 }
+
+@media (hover: hover) {
 .deleteBtn:hover { background: rgba(220,38,38,0.15); }
+}
 
 .tickIcon   { width: 14px; height: 14px; object-fit: contain; }
 .tickIconSm { width: 16px; height: 16px; object-fit: contain; }
@@ -134,14 +146,20 @@
   font-size: 11px; font-weight: 800; color: var(--text-dim);
   cursor: pointer; transition: all 0.15s;
 }
+
+@media (hover: hover) {
 .adminPanelBtn:hover { background: var(--bg-2); color: var(--text); border-color: var(--accent); }
+}
 .adminPanelBtnActive { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
 
 .adminPanel { border: 1px solid var(--border-dark); border-radius: 16px; margin-bottom: 16px; background: var(--surface); overflow: hidden; }
 .adminPanelHeader { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); }
 .adminPanelTitle { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 800; color: var(--text); }
 .adminPanelClose { width: 28px; height: 28px; border: none; background: var(--bg-2); border-radius: 50%; font-size: 14px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); cursor: pointer; }
+
+@media (hover: hover) {
 .adminPanelClose:hover { color: var(--text); }
+}
 .adminPanelBody { padding: 16px 18px; display: flex; flex-direction: column; gap: 18px; }
 
 .adminSection { display: flex; flex-direction: column; gap: 8px; }
@@ -149,10 +167,16 @@
 .adminSectionLabel i { font-size: 13px; color: var(--accent); }
 .adminBracketActions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .adminActionBtn { display: flex; align-items: center; gap: 5px; padding: 8px 14px; background: var(--bg-2); border: 1px solid var(--border-dark); border-radius: 10px; font-size: 12px; font-weight: 700; color: var(--text); cursor: pointer; transition: all 0.15s; }
+
+@media (hover: hover) {
 .adminActionBtn:hover { border-color: var(--accent); color: var(--accent); }
+}
 .adminActionBtn:disabled { opacity: 0.4; cursor: not-allowed; }
 .adminActionBtnDanger { display: flex; align-items: center; gap: 5px; padding: 8px 14px; background: rgba(220,38,38,0.06); border: 1px solid rgba(220,38,38,0.25); border-radius: 10px; font-size: 12px; font-weight: 700; color: #dc2626; cursor: pointer; transition: all 0.15s; }
+
+@media (hover: hover) {
 .adminActionBtnDanger:hover { background: rgba(220,38,38,0.12); }
+}
 .savingLabel { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-muted); }
 .savingLabel i { animation: spin 0.8s linear infinite; }
 .adminHint { font-size: 11px; color: var(--text-muted); margin: 0; line-height: 1.6; }
@@ -211,7 +235,10 @@
   text-decoration: none; transition: opacity 0.15s;
   min-width: 0; flex: 1;
 }
+
+@media (hover: hover) {
 .heroCreatorChip:hover { opacity: 0.8; }
+}
 .heroCreatorAvatar {
   width: 30px; height: 30px; border-radius: 50%;
   background: var(--surface); border: 1px solid var(--border-dark);
@@ -229,7 +256,10 @@
   font-size: 12px; font-weight: 700; color: var(--text-muted);
   cursor: pointer; transition: all 0.15s; white-space: nowrap; flex-shrink: 0;
 }
+
+@media (hover: hover) {
 .heroShareBtn:hover { border-color: var(--text); color: var(--text); }
+}
 .heroShareBtn i { font-size: 14px; }
 
 .heroDesc { font-size: 13px; color: var(--text-muted); margin: 0; line-height: 1.6; padding: 0; }
@@ -268,7 +298,10 @@
 .heroRegChip { display: flex; align-items: center; gap: 0; margin-left: auto; border-radius: 10px; overflow: hidden; border: 1px solid var(--border-dark); }
 .heroRegLabel { display: flex; align-items: center; gap: 4px; padding: 5px 10px; font-size: 11px; font-weight: 700; color: var(--accent); background: var(--surface); white-space: nowrap; }
 .heroLeaveBtn { display: flex; align-items: center; gap: 3px; padding: 5px 10px; border: none; border-left: 1px solid var(--border-dark); background: none; color: #dc2626; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: background 0.1s; }
+
+@media (hover: hover) {
 .heroLeaveBtn:hover { background: rgba(220,38,38,0.07); }
+}
 .heroLeaveBtn:disabled { opacity: 0.5; }
 .heroRegisterBtn {
   display: flex; align-items: center; gap: 5px;
@@ -278,13 +311,19 @@
   font-size: 11px; font-weight: 800; cursor: pointer;
   transition: opacity 0.15s; white-space: nowrap;
 }
+
+@media (hover: hover) {
 .heroRegisterBtn:hover { opacity: 0.85; }
+}
 .heroRegisterBtn:disabled { opacity: 0.5; }
 .heroFullChip { display: flex; align-items: center; gap: 4px; margin-left: auto; padding: 6px 12px; border: 1px solid var(--border); border-radius: 10px; font-size: 11px; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
 .heroParticipatedChip { display: flex; align-items: center; justify-content: center; margin-left: auto; width: 28px; height: 28px; border-radius: 50%; background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); color: var(--accent); font-size: 15px; }
 .heroPayPendingChip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 20px; border: 1.5px solid #0ea5e9; color: #0ea5e9; font-size: 11px; font-weight: 700; background: rgba(14,165,233,0.08); }
 .heroStartBtn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 20px; border: 1.5px solid #6366f1; background: rgba(99,102,241,0.1); color: #6366f1; font-size: 11px; font-weight: 800; cursor: pointer; transition: background 0.15s, color 0.15s; }
+
+@media (hover: hover) {
 .heroStartBtn:hover { background: #6366f1; color: #fff; }
+}
 .heroTestChip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(245,158,11,0.4); color: #d97706; font-size: 11px; font-weight: 700; background: rgba(245,158,11,0.08); }
 .heroTestTimer { margin-left: 6px; font-size: 10px; font-weight: 900; font-variant-numeric: tabular-nums; letter-spacing: 0.05em; background: rgba(245,158,11,0.15); border-radius: 6px; padding: 1px 6px; color: #d97706; }
 
@@ -297,12 +336,18 @@
 .feeBannerBtn { flex-shrink: 0; padding: 5px 12px; border-radius: 8px; border: none; background: #d97706; font-size: 11px; font-weight: 800; cursor: pointer; color: #fff; transition: opacity 0.15s; }
 .feeBannerPending .feeBannerBtn { background: #0ea5e9; }
 .feeBannerRejected .feeBannerBtn { background: #ef4444; }
+
+@media (hover: hover) {
 .feeBannerBtn:hover { opacity: 0.85; }
+}
 
 /* Hero misc */
 .heroActions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .registerBtn { display: flex; align-items: center; gap: 6px; padding: 10px 20px; background: var(--accent); color: var(--accent-text); border: none; border-radius: 10px; font-size: 13px; font-weight: 800; cursor: pointer; transition: opacity 0.15s; }
+
+@media (hover: hover) {
 .registerBtn:hover { opacity: 0.85; }
+}
 .registerBtn:disabled { opacity: 0.5; }
 
 /* ══════════════════════════════════
@@ -330,7 +375,10 @@
   transition: color 0.15s, border-color 0.15s; font-family: inherit;
 }
 .tab i { font-size: 14px; }
+
+@media (hover: hover) {
 .tab:hover { color: var(--text); }
+}
 .tabActive {
   color: var(--text);
   border-bottom-color: var(--text);
@@ -421,14 +469,20 @@
   transition: border-color 0.15s, box-shadow 0.15s;
   min-height: 72px;
 }
+
+@media (hover: hover) {
 .matchCard:hover {
   border-color: var(--border-dark);
   box-shadow: 0 2px 12px rgba(0,0,0,0.07);
 }
+}
 .matchCard::before { display: none; }
 .matchCard::after  { display: none; }
 .matchCardBye { opacity: 0.4; border-style: dashed; }
+
+@media (hover: hover) {
 .matchCardBye:hover { border-color: var(--border-dark); opacity: 0.5; box-shadow: none; }
+}
 
 .matchDivider { height: 1px; background: var(--border); position: relative; display: flex; align-items: center; }
 .vsLabel {
@@ -444,7 +498,10 @@
   padding: 7px 9px; min-height: 34px;
   transition: background 0.1s; position: relative;
 }
+
+@media (hover: hover) {
 .slotRow:hover { background: color-mix(in srgb, var(--bg-2) 60%, transparent); }
+}
 .slotRowBye { opacity: 0.38; cursor: default !important; }
 .slotRowName { flex: 1; font-size: 11px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); min-width: 0; }
 .slotRowBye .slotRowName { font-size: 10px; font-weight: 600; letter-spacing: 0.06em; color: var(--text-muted); }
@@ -496,7 +553,10 @@
 .lbInput { flex: 1; min-width: 60px; border: 1px solid var(--border-dark); border-radius: 8px; padding: 7px 10px; background: var(--bg); color: var(--text); font-size: 12px; outline: none; font-family: var(--font); }
 .lbInput:focus { border-color: var(--accent); }
 .lbAddBtn { display: flex; align-items: center; gap: 4px; padding: 7px 12px; background: var(--accent); color: var(--accent-text); border: none; border-radius: 8px; font-size: 12px; font-weight: 700; flex-shrink: 0; cursor: pointer; transition: opacity 0.15s; }
+
+@media (hover: hover) {
 .lbAddBtn:hover { opacity: 0.85; }
+}
 .lbAddBtn:disabled { opacity: 0.5; }
 
 /* Podium — keep existing classes, just style them nicer */
@@ -540,7 +600,10 @@
   background: var(--bg); border: 1px solid var(--border);
   transition: background 0.1s; min-width: 0;
 }
+
+@media (hover: hover) {
 .lbRow:hover { background: var(--surface); }
+}
 .lbTop1 { border-color: rgba(245,158,11,0.35); background: linear-gradient(90deg, rgba(245,158,11,0.05), var(--bg)); }
 .lbTop2 { border-color: rgba(148,163,184,0.3); }
 .lbTop3 { border-color: rgba(180,83,9,0.22); }
@@ -571,20 +634,41 @@
 }
 
 .lbMenuBtn { width: 26px; height: 26px; border: none; background: var(--surface); border-radius: 6px; font-size: 14px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); cursor: pointer; transition: all 0.1s; }
+
+@media (hover: hover) {
 .lbMenuBtn:hover { background: var(--border); color: var(--text); }
+}
 .lbMenuBtnActive { background: var(--border-dark); color: var(--text); }
 .lbAdminMenu { display: flex; flex-direction: column; border: 1px solid var(--border-dark); border-radius: 12px; overflow: hidden; background: var(--bg); box-shadow: 0 4px 20px rgba(0,0,0,0.1); margin: 0 2px; }
 .lbAdminMenuBtn { display: flex; align-items: center; gap: 8px; width: 100%; padding: 11px 14px; border: none; background: none; font-size: 12px; font-weight: 700; color: var(--text); cursor: pointer; transition: background 0.1s; text-align: left; }
 .lbAdminMenuBtn:not(:last-child) { border-bottom: 1px solid var(--border); }
 .lbAdminMenuBtn i { font-size: 14px; }
+
+@media (hover: hover) {
 .lbAdminMenuBtn:hover { background: var(--surface); }
-.lbAdminMenuDeduct { color: #f59e0b; } .lbAdminMenuDeduct:hover { background: rgba(245,158,11,0.06) !important; }
-.lbAdminMenuDQ     { color: #7c3aed; } .lbAdminMenuDQ:hover     { background: rgba(124,58,237,0.06) !important; }
-.lbAdminMenuDel    { color: #dc2626; } .lbAdminMenuDel:hover    { background: rgba(220,38,38,0.06) !important; }
+}
+.lbAdminMenuDeduct { color: #f59e0b; }
+
+@media (hover: hover) {
+ .lbAdminMenuDeduct:hover { background: rgba(245,158,11,0.06) !important; }
+}
+.lbAdminMenuDQ     { color: #7c3aed; }
+
+@media (hover: hover) {
+ .lbAdminMenuDQ:hover     { background: rgba(124,58,237,0.06) !important; }
+}
+.lbAdminMenuDel    { color: #dc2626; }
+
+@media (hover: hover) {
+ .lbAdminMenuDel:hover    { background: rgba(220,38,38,0.06) !important; }
+}
 
 .lbPrizeAmt { font-size: 10px; font-weight: 800; color: #f59e0b; background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2); border-radius: 6px; padding: 2px 6px; flex-shrink: 0; white-space: nowrap; }
 .lbRowClickable { cursor: pointer; }
+
+@media (hover: hover) {
 .lbRowClickable:hover { background: var(--surface); }
+}
 .lbInProgressBanner { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 6%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent); font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 14px; }
 .lbInProgressBanner i { color: var(--accent); font-size: 14px; flex-shrink: 0; animation: pulse 2s ease-in-out infinite; }
 
@@ -613,7 +697,10 @@
 ══════════════════════════════════ */
 .playerGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
 .playerCard { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 16px 10px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); transition: border-color 0.15s; position: relative; }
+
+@media (hover: hover) {
 .playerCard:hover { border-color: var(--border-dark); }
+}
 .playerAvatar { width: 44px; height: 44px; border-radius: 50%; background: var(--bg-2); border: 2px solid var(--border-dark); overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; color: var(--text-dim); }
 .playerAvatar img { width: 100%; height: 100%; object-fit: cover; }
 .playerName { font-size: 12px; font-weight: 700; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; color: var(--text); }
@@ -621,7 +708,10 @@
 
 /* Share button */
 .shareBtn { display: flex; align-items: center; gap: 6px; padding: 7px 14px; border: 1px solid var(--border-dark); border-radius: 10px; background: var(--surface); font-size: 12px; font-weight: 700; color: var(--text-muted); cursor: pointer; transition: all 0.15s; }
+
+@media (hover: hover) {
 .shareBtn:hover { border-color: var(--text); color: var(--text); }
+}
 .shareBtnCopied { background: rgba(34,197,94,0.08); border-color: rgba(34,197,94,0.4); color: #16a34a !important; }
 
 /* ══════════════════════════════════
@@ -639,7 +729,10 @@
 .editField input, .editField select, .editField textarea { border: 1px solid var(--border-dark); border-radius: 10px; padding: 10px 12px; background: var(--surface); font-family: var(--font); font-size: 13px; color: var(--text); outline: none; resize: vertical; width: 100%; box-sizing: border-box; transition: border-color 0.15s; }
 .editField input:focus, .editField select:focus, .editField textarea:focus { border-color: var(--accent); background: var(--bg); }
 .saveBtn { display: flex; align-items: center; gap: 6px; padding: 12px 18px; background: var(--text); color: var(--bg); border: none; border-radius: 12px; font-size: 13px; font-weight: 800; margin-top: 4px; cursor: pointer; justify-content: center; transition: opacity 0.15s; font-family: var(--font); }
+
+@media (hover: hover) {
 .saveBtn:hover { opacity: 0.85; }
+}
 .saveBtn:disabled { opacity: 0.5; }
 
 /* ══════════════════════════════════
@@ -654,7 +747,10 @@
 .historyUsername { font-size: 15px; font-weight: 800; color: var(--text); }
 .historySubtitle { font-size: 11px; color: var(--text-muted); }
 .historyClose { width: 28px; height: 28px; border: none; background: var(--surface); border-radius: 50%; font-size: 15px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); cursor: pointer; flex-shrink: 0; }
+
+@media (hover: hover) {
 .historyClose:hover { background: var(--border); color: var(--text); }
+}
 .historyBody { padding: 12px 18px; display: flex; flex-direction: column; gap: 6px; }
 .historyEmpty { font-size: 13px; color: var(--text-muted); text-align: center; padding: 24px 0; }
 .historyList { display: flex; flex-direction: column; gap: 6px; padding: 12px 18px; }
@@ -700,9 +796,15 @@
 .confirmMessage { font-size: 14px; font-weight: 500; color: var(--text); text-align: center; line-height: 1.5; margin: 0; }
 .confirmActions { display: flex; gap: 10px; width: 100%; margin-top: 4px; }
 .confirmCancel { flex: 1; padding: 11px; border-radius: 10px; border: 1px solid var(--border-dark); background: transparent; color: var(--text-muted); font-size: 13px; font-weight: 700; cursor: pointer; transition: background 0.15s; font-family: var(--font); }
+
+@media (hover: hover) {
 .confirmCancel:hover { background: var(--surface); }
+}
 .confirmOk { flex: 1; padding: 11px; border-radius: 10px; border: none; background: #dc2626; color: #fff; font-size: 13px; font-weight: 800; cursor: pointer; transition: opacity 0.15s; font-family: var(--font); }
+
+@media (hover: hover) {
 .confirmOk:hover { opacity: 0.85; }
+}
 
 /* ══════════════════════════════════
    ADMIN ACTION BOTTOM SHEET
@@ -722,16 +824,31 @@
 .sheetBtnText { display: flex; flex-direction: column; gap: 2px; flex: 1; }
 .sheetBtnText span:first-child { font-size: 13px; font-weight: 700; color: var(--text); }
 .sheetBtnSub { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+
+@media (hover: hover) {
 .sheetBtnPass:hover:not(:disabled) { background: rgba(245,158,11,0.07); border-color: rgba(245,158,11,0.3); }
+}
+
+@media (hover: hover) {
 .sheetBtnElim:hover:not(:disabled) { background: rgba(220,38,38,0.07); border-color: rgba(220,38,38,0.3); }
+}
+
+@media (hover: hover) {
 .sheetBtnDQ:hover:not(:disabled)   { background: rgba(124,58,237,0.07); border-color: rgba(124,58,237,0.3); }
+}
 .sheetCTARow { display: flex; gap: 8px; padding: 2px 16px 8px; }
 .sheetCTAProfile { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-dark); background: var(--surface); color: var(--text); font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; transition: background 0.12s; }
+
+@media (hover: hover) {
 .sheetCTAProfile:hover { background: var(--bg-2); }
+}
 .sheetCTAFollow, .sheetCTAFollowing { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-dark); background: var(--surface); color: var(--text-muted); font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; transition: all 0.12s; }
 .sheetCTAFollowing { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 30%, transparent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .sheetCancel { display: block; width: calc(100% - 32px); margin: 0 16px 16px; padding: 12px; border-radius: 12px; border: 1px solid var(--border-dark); background: transparent; color: var(--text-muted); font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; transition: background 0.12s; }
+
+@media (hover: hover) {
 .sheetCancel:hover { background: var(--surface); color: var(--text); }
+}
 
 /* ══════════════════════════════════
    PAYMENT MODAL
@@ -742,7 +859,10 @@
 .modalSheet::-webkit-scrollbar-thumb { background: var(--border-dark); border-radius: 99px; }
 .modalSheet::before { content: ''; display: block; width: 36px; height: 4px; border-radius: 99px; background: var(--border-dark); margin: 0 auto 20px; }
 .modalClose { position: absolute; top: 18px; right: 16px; width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border-dark); background: var(--surface); color: var(--text-muted); font-size: 17px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s; z-index: 1; }
+
+@media (hover: hover) {
 .modalClose:hover { background: var(--bg-2); color: var(--text); }
+}
 .modalIcon { font-size: 38px; color: var(--accent); text-align: center; margin-bottom: 10px; display: block; }
 .modalTitle { font-size: 20px; font-weight: 900; text-align: center; margin-bottom: 6px; color: var(--text); }
 .modalSub { font-size: 13px; color: var(--text-muted); text-align: center; line-height: 1.6; margin-bottom: 20px; }
@@ -759,7 +879,10 @@
 .modalErr { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #ef4444; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; }
 .modalErr i { font-size: 14px; flex-shrink: 0; }
 .modalSubmit { width: 100%; padding: 14px; border-radius: 12px; background: var(--text); color: var(--bg); border: none; font-size: 15px; font-weight: 800; cursor: pointer; transition: opacity 0.15s; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 4px; font-family: var(--font); }
+
+@media (hover: hover) {
 .modalSubmit:hover:not(:disabled) { opacity: 0.87; }
+}
 .modalSubmit:disabled { opacity: 0.45; cursor: not-allowed; }
 .modalSubSmall { font-size: 12px; font-weight: 600; color: var(--text-dim); margin-bottom: 12px; }
 
@@ -777,7 +900,10 @@
 .payChooseLabel::before, .payChooseLabel::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 .payGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
 .payCard { border: 1.5px solid var(--border-dark); border-radius: 14px; padding: 14px; background: var(--surface); display: flex; flex-direction: column; gap: 8px; transition: border-color 0.15s; }
+
+@media (hover: hover) {
 .payCard:hover { border-color: var(--text-muted); }
+}
 .payCardHead { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; color: var(--text); }
 .payCardHead i { font-size: 17px; }
 .payCardNum { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
@@ -787,7 +913,10 @@
 .payCardAcct { font-size: 11px; font-weight: 800; color: var(--text); }
 .payProofLabel { font-size: 10px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; }
 .copyBtn { display: flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: 6px; border: 1px solid var(--border-dark); background: var(--bg-2); color: var(--text-muted); font-size: 10px; font-weight: 700; cursor: pointer; transition: all 0.12s; white-space: nowrap; font-family: var(--font); }
+
+@media (hover: hover) {
 .copyBtn:hover { border-color: var(--text-muted); color: var(--text); }
+}
 .copyBtnDone { background: rgba(34,197,94,0.1); border-color: rgba(34,197,94,0.35); color: #16a34a; }
 
 /* Old payment box styles kept for compat */

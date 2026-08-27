@@ -54,7 +54,10 @@
   font-size: 17px;
   transition: background 0.15s;
 }
+
+@media (hover: hover) {
 .dotsBtn:hover { background: rgba(0,0,0,0.45); }
+}
 
 .menuOverlay {
   position: fixed;
@@ -93,7 +96,10 @@
   cursor: pointer;
   transition: background 0.1s;
 }
+
+@media (hover: hover) {
 .dropdownItem:hover { background: var(--bg-2); }
+}
 .dropdownItem i { font-size: 16px; color: var(--text-muted); }
 
 /* ─────────────────────────────────────────────────
@@ -207,7 +213,10 @@
   transition: opacity 0.15s;
   z-index: 2;
 }
+
+@media (hover: hover) {
 .avatarWrap:hover .avatarCamera { opacity: 1; }
+}
 
 /* ── Info column ── */
 .heroInfo {
@@ -388,9 +397,12 @@
   transition: background 0.14s, border-color 0.14s, color 0.14s;
   letter-spacing: 0.01em;
 }
+
+@media (hover: hover) {
 .followPill:hover {
   background: var(--surface);
   border-color: var(--text);
+}
 }
 .followPill i { font-size: 16px; }
 
@@ -399,10 +411,13 @@
   color: #fff;
   border-color: var(--user-accent, var(--text));
 }
+
+@media (hover: hover) {
 .followingPill:hover {
   opacity: 0.85;
   background: var(--user-accent, var(--text));
   color: #fff;
+}
 }
 
 .msgIconBtn {
@@ -419,7 +434,10 @@
   flex-shrink: 0;
   transition: background 0.12s, border-color 0.12s;
 }
+
+@media (hover: hover) {
 .msgIconBtn:hover { background: var(--surface); border-color: var(--text); }
+}
 
 .editPill {
   height: 36px;
@@ -435,7 +453,10 @@
   gap: 7px;
   transition: background 0.12s, border-color 0.12s;
 }
+
+@media (hover: hover) {
 .editPill:hover { background: var(--surface); border-color: var(--text); }
+}
 
 /* ─────────────────────────────────────────────────
    BODY
@@ -530,7 +551,10 @@
   position: relative;
   bottom: -1px;
 }
+
+@media (hover: hover) {
 .tab:hover { color: var(--text); }
+}
 .tabActive {
   color: var(--user-accent, var(--text));
   border-bottom-color: var(--user-accent, var(--text));
@@ -591,7 +615,10 @@
   gap: 10px;
   transition: border-color 0.12s;
 }
+
+@media (hover: hover) {
 .postCard:hover { border-color: var(--border-dark); }
+}
 .postHeader {
   display: flex;
   align-items: center;
@@ -633,7 +660,10 @@
   text-overflow: ellipsis;
   max-width: 180px;
 }
+
+@media (hover: hover) {
 .postUser:hover { text-decoration: underline; }
+}
 .postTime { font-size: 11px; color: var(--text-muted); }
 .deleteBtn {
   background: none;
@@ -648,7 +678,10 @@
   flex-shrink: 0;
   transition: color 0.1s;
 }
+
+@media (hover: hover) {
 .deleteBtn:hover { color: #ef4444; }
+}
 .postContent {
   font-size: 14px;
   line-height: 1.6;
@@ -673,7 +706,10 @@
   border-radius: 8px;
   transition: background 0.1s, color 0.1s;
 }
+
+@media (hover: hover) {
 .actionBtn:hover { background: var(--bg-2); color: var(--text); }
+}
 .actionBtn i { font-size: 15px; }
 .liked { color: #ef4444 !important; }
 .liked i { color: #ef4444; }
@@ -693,7 +729,10 @@
   color: var(--text);
   transition: border-color 0.15s;
 }
+
+@media (hover: hover) {
 .shopCard:hover { border-color: var(--border-dark); }
+}
 .shopCardImg { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
 .shopCardNoImg {
   width: 100%;
@@ -744,7 +783,10 @@
   text-decoration: none;
   transition: border-color 0.12s, color 0.12s;
 }
+
+@media (hover: hover) {
 .shopViewAll:hover { border-color: var(--text); color: var(--text); }
+}
 
 /* ─────────────────────────────────────────────────
    HELPDESK SPECIAL CARD
@@ -865,7 +907,10 @@
   width: 100%;
   justify-content: center;
 }
+
+@media (hover: hover) {
 .saveBtn:hover { opacity: 0.8; }
+}
 .gameTagGrid {
   display: flex;
   flex-wrap: wrap;
@@ -882,7 +927,10 @@
   color: var(--text-dim);
   transition: all 0.1s;
 }
+
+@media (hover: hover) {
 .gameTagBtn:hover { border-color: var(--text); color: var(--text); }
+}
 .gameTagActive {
   background: var(--text) !important;
   color: var(--bg) !important;
@@ -996,7 +1044,10 @@
   cursor: pointer;
   transition: background 0.15s;
 }
+
+@media (hover: hover) {
 .lightboxClose:hover { background: rgba(255,255,255,0.22); }
+}
 .lightboxChangeBtn {
   display: flex;
   align-items: center;
@@ -1011,7 +1062,10 @@
   cursor: pointer;
   transition: background 0.15s;
 }
+
+@media (hover: hover) {
 .lightboxChangeBtn:hover { background: rgba(255,255,255,0.2); }
+}
 
 /* ─────────────────────────────────────────────────
    TOURNAMENT LIST (creator tab)
@@ -1034,7 +1088,10 @@
   color: var(--text);
   transition: border-color 0.12s;
 }
+
+@media (hover: hover) {
 .tournamentRow:hover { border-color: var(--border-dark); }
+}
 .tournamentRowLeft {
   display: flex;
   flex-direction: column;

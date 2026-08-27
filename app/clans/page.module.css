@@ -72,7 +72,10 @@
   background-repeat: no-repeat;
   transition: border-color 0.15s, transform 0.15s;
 }
+
+@media (hover: hover) {
 .clanCard:hover { border-color: var(--clan-accent); transform: translateY(-1px); }
+}
 .clanCard:active { transform: scale(0.99); }
 
 /* overlay sits between the bg image/color and the content */

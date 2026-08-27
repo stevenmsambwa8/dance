@@ -47,7 +47,10 @@
   border-bottom: 1px solid var(--border);
   transition: background 0.1s;
 }
+
+@media (hover: hover) {
 .post:hover { background: var(--bg-2); }
+}
 
 .postRow { display: flex; gap: 10px; align-items: flex-start; }
 
@@ -77,7 +80,10 @@
 .postUserRow { display: flex; align-items: center; gap: 4px; min-width: 0; flex-wrap: nowrap; }
 
 .postUser { max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; font-weight: 800; color: var(--text); }
+
+@media (hover: hover) {
 .postUser:hover { text-decoration: underline; }
+}
 
 .postDot { color: var(--text-muted); font-size: 12px; flex-shrink: 0; }
 
@@ -97,7 +103,10 @@
   flex-shrink: 0;
   transition: all 0.1s;
 }
+
+@media (hover: hover) {
 .deleteBtn:hover { color: #ef4444; background: #ef444418; }
+}
 
 .postTags { display: flex; flex-wrap: wrap; gap: 5px; margin: 2px 0 4px; }
 .postTag {
@@ -150,10 +159,16 @@
   transition: all 0.1s;
 }
 .action i { font-size: 15px; }
+
+@media (hover: hover) {
 .action:hover { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+}
 .liked { background: #ef4444 !important; color: #fff !important; }
 .liked i { color: #fff; }
+
+@media (hover: hover) {
 .liked:hover { background: #dc2626 !important; }
+}
 
 .followBtn {
   height: 28px;
@@ -188,7 +203,10 @@
   opacity: 0.55;
   text-align: left;
 }
+
+@media (hover: hover) {
 .likesCaption:hover { opacity: 0.85; }
+}
 
 .likersList { display: flex; flex-direction: column; gap: 2px; }
 .likerRow {
@@ -200,7 +218,10 @@
   color: var(--text);
   border-radius: 8px;
 }
+
+@media (hover: hover) {
 .likerRow:hover { background: var(--bg-2); }
+}
 .likerAvatar {
   width: 40px; height: 40px;
   border-radius: 50%;

@@ -84,7 +84,10 @@
   cursor: pointer;
   transition: all 0.12s;
 }
+
+@media (hover: hover) {
 .iconBtn:hover { background: var(--bg-2); color: var(--text); }
+}
 
 /* ══════════════════════════════════════
    STAT CARDS ROW
@@ -118,7 +121,10 @@
   border-radius: 99px;
   opacity: 0.7;
 }
+
+@media (hover: hover) {
 .statCard:hover { transform: translateY(-1px); border-color: color-mix(in srgb, var(--stat-color) 40%, transparent); }
+}
 
 .statTop {
   display: flex;
@@ -205,7 +211,10 @@
   position: relative;
 }
 .navBtn i { font-size: 15px; }
+
+@media (hover: hover) {
 .navBtn:hover { color: var(--text); background: var(--bg-2); }
+}
 .navBtnActive {
   color: var(--text);
   background: var(--bg-2);
@@ -280,7 +289,10 @@
   transition: all 0.1s;
   letter-spacing: 0.04em;
 }
+
+@media (hover: hover) {
 .chartPeriodBtn:hover { color: var(--text); border-color: var(--text); }
+}
 .chartPeriodBtnActive {
   background: var(--text);
   color: var(--bg);
@@ -388,7 +400,10 @@
   transition: background 0.1s;
 }
 .activityRow:last-child { border-bottom: none; }
+
+@media (hover: hover) {
 .activityRow:hover { background: var(--bg-2); }
+}
 
 .activityDot {
   width: 8px; height: 8px;
@@ -457,8 +472,14 @@
   transition: all 0.12s;
 }
 .qaBtn i { font-size: 22px; color: var(--text-muted); }
+
+@media (hover: hover) {
 .qaBtn:hover { background: var(--text); color: var(--bg); border-color: var(--text); }
+}
+
+@media (hover: hover) {
 .qaBtn:hover i { color: var(--bg); }
+}
 
 /* ══════════════════════════════════════
    SHARED SECTION ELEMENTS
@@ -517,7 +538,10 @@
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; transition: all 0.12s;
 }
+
+@media (hover: hover) {
 .iconBtnSm:hover { background: var(--bg-2); color: var(--text); }
+}
 
 .iconBtnSmDanger {
   width: 28px; height: 28px; border-radius: 7px;
@@ -526,7 +550,10 @@
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; transition: all 0.12s;
 }
+
+@media (hover: hover) {
 .iconBtnSmDanger:hover { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.4); }
+}
 
 /* ══════════════════════════════════════
    BUTTONS
@@ -537,7 +564,10 @@
   background: var(--bg-2); color: var(--text); font-size: 12px; font-weight: 700;
   text-decoration: none; cursor: pointer; transition: background 0.12s;
 }
+
+@media (hover: hover) {
 .btnGhost:hover { background: var(--surface); }
+}
 
 .btnPrimary {
   flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
@@ -546,7 +576,10 @@
   font-size: 12px; font-weight: 800; cursor: pointer; transition: opacity 0.12s;
   font-family: var(--font);
 }
+
+@media (hover: hover) {
 .btnPrimary:hover { opacity: 0.85; }
+}
 
 .exportVcfBtn {
   display: flex; align-items: center; gap: 6px; flex-shrink: 0;
@@ -554,7 +587,10 @@
   background: var(--bg-2); color: var(--text); font-size: 12px; font-weight: 700;
   font-family: var(--font); cursor: pointer; transition: all 0.12s; white-space: nowrap;
 }
+
+@media (hover: hover) {
 .exportVcfBtn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+}
 .exportVcfBtn i { font-size: 14px; }
 
 
@@ -564,7 +600,10 @@
   background: rgba(239,68,68,0.06); color: #ef4444; font-size: 12px; font-weight: 700;
   cursor: pointer; transition: all 0.12s; white-space: nowrap;
 }
+
+@media (hover: hover) {
 .btnDanger:hover { background: rgba(239,68,68,0.12); }
+}
 
 .btnAccent {
   display: inline-flex; align-items: center; gap: 7px;
@@ -574,7 +613,10 @@
   transition: opacity 0.12s; white-space: nowrap; flex-shrink: 0;
   font-family: var(--font);
 }
+
+@media (hover: hover) {
 .btnAccent:hover { opacity: 0.82; }
+}
 .btnAccent i { font-size: 14px; }
 
 .actionRow { display: flex; gap: 8px; }
@@ -688,7 +730,10 @@
   font-size: 12px; font-weight: 800; cursor: pointer; transition: all 0.12s;
   font-family: var(--font);
 }
+
+@media (hover: hover) {
 .btnCrownManual:hover { background: rgba(251,191,36,0.12); border-color: rgba(251,191,36,0.55); }
+}
 .btnCrownManual i { font-size: 14px; }
 .masterPastList { display: flex; flex-direction: column; gap: 0; border-top: 1px solid var(--border); padding-top: 8px; }
 .masterPastRow { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 11px; }
@@ -715,10 +760,16 @@
 }
 .table td { padding: 11px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
 .table tr:last-child td { border-bottom: none; }
+
+@media (hover: hover) {
 .table tr:hover td { background: color-mix(in srgb, var(--bg-2) 60%, transparent); }
+}
 .bold { font-weight: 700; color: var(--text); }
 .link { color: var(--text); font-weight: 700; text-decoration: none; }
+
+@media (hover: hover) {
 .link:hover { text-decoration: underline; }
+}
 .dimCell { font-size: 11px; color: var(--text-muted); }
 .monoCell { font-size: 11px; font-family: monospace; color: var(--text-dim); }
 .truncCell { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-dim); }
@@ -754,7 +805,10 @@
   background: var(--bg-2); color: var(--text-dim); font-size: 13px; font-weight: 700;
   cursor: pointer; transition: all 0.12s; font-family: var(--font);
 }
+
+@media (hover: hover) {
 .targetBtn:hover { border-color: var(--text); color: var(--text); }
+}
 .targetBtnActive { border-color: var(--accent) !important; background: rgba(34,197,94,0.08) !important; color: var(--accent) !important; }
 
 .userSearchWrap { display: flex; flex-direction: column; gap: 6px; }
@@ -765,7 +819,10 @@
   background: none; cursor: pointer; text-align: left; transition: background 0.1s;
 }
 .userResult:last-child { border-bottom: none; }
+
+@media (hover: hover) {
 .userResult:hover { background: var(--bg-2); }
+}
 .userResultActive { background: rgba(34,197,94,0.07) !important; }
 .userResultName { font-size: 13px; font-weight: 700; color: var(--text); }
 .userResultTier { font-size: 10px; color: var(--text-muted); font-weight: 600; }
@@ -782,7 +839,10 @@
   cursor: pointer; transition: all 0.12s; font-family: var(--font);
 }
 .typeBtn i { font-size: 18px; }
+
+@media (hover: hover) {
 .typeBtn:hover { border-color: var(--text); color: var(--text); }
+}
 .typeBtnActive { border-color: var(--accent) !important; background: rgba(34,197,94,0.08) !important; color: var(--accent) !important; }
 .notifInput {
   width: 100%; border: 1.5px solid var(--border-dark); border-radius: 9px;
@@ -820,7 +880,10 @@
   border-radius: 12px; font-size: 14px; font-weight: 800; cursor: pointer;
   transition: opacity 0.12s; font-family: var(--font);
 }
+
+@media (hover: hover) {
 .sendBtn:hover { opacity: 0.88; }
+}
 .sendBtn:disabled { opacity: 0.4; cursor: not-allowed; }
 .historyList { display: flex; flex-direction: column; }
 .historyRow {
@@ -857,7 +920,10 @@
   width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
   border-radius: 6px; transition: background 0.1s;
 }
+
+@media (hover: hover) {
 .modalHeader button:hover { background: var(--bg-2); color: var(--text); }
+}
 .modalBody {
   padding: 16px 18px; display: flex; flex-direction: column; gap: 12px;
   overflow-y: auto; max-height: 70vh;
@@ -881,7 +947,10 @@
   border-radius: 10px; font-size: 13px; font-weight: 800;
   font-family: var(--font); cursor: pointer; transition: opacity 0.12s; margin-top: 4px;
 }
+
+@media (hover: hover) {
 .saveBtn:hover { opacity: 0.85; }
+}
 .saveBtn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* Crown modal bits */

@@ -83,7 +83,10 @@
   cursor: pointer;
   transition: height 0.15s;
 }
+
+@media (hover: hover) {
 .seekBar:hover { height: 5px; }
+}
 .seekFill {
   position: absolute;
   left: 0; top: 0;
@@ -104,7 +107,10 @@
   opacity: 0;
   transition: opacity 0.15s;
 }
+
+@media (hover: hover) {
 .seekBar:hover .seekThumb { opacity: 1; }
+}
 
 /* ── Controls ── */
 .playerControls { display: flex; align-items: center; gap: 16px; }
@@ -119,7 +125,10 @@
   cursor: pointer;
   transition: color 0.15s, transform 0.1s;
 }
+
+@media (hover: hover) {
 .ctrlBtn:hover  { color: var(--text); }
+}
 .ctrlBtn:active { transform: scale(0.92); }
 
 .playBtnLarge {
@@ -133,7 +142,10 @@
   cursor: pointer;
   transition: transform 0.15s, opacity 0.15s;
 }
+
+@media (hover: hover) {
 .playBtnLarge:hover  { opacity: 0.85; }
+}
 .playBtnLarge:active { transform: scale(0.96); }
 .loadingBtn i { animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -169,8 +181,11 @@
   transition: height 0.15s;
 }
 
+@media (hover: hover) {
+
 .volumeSlider:hover {
   height: 5px;
+}
 }
 
 /* WebKit thumb */
@@ -247,7 +262,10 @@
   cursor: pointer;
   transition: all 0.15s;
 }
+
+@media (hover: hover) {
 .genreBtn:hover { color: var(--text); border-color: var(--text-muted); }
+}
 .genreBtnActive { background: var(--text); border-color: var(--text); color: var(--bg); }
 
 .trackList { display: flex; flex-direction: column; gap: 2px; }
@@ -266,9 +284,18 @@
   transition: background 0.1s;
   position: relative;
 }
+
+@media (hover: hover) {
 .trackRow:hover { background: var(--surface); }
+}
+
+@media (hover: hover) {
 .trackRow:hover .idxNum  { opacity: 0; }
+}
+
+@media (hover: hover) {
 .trackRow:hover .trackPlay { opacity: 1; }
+}
 .trackRowActive { background: var(--surface) !important; }
 .trackRowActive .trackName { color: var(--accent); }
 

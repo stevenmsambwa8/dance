@@ -101,7 +101,10 @@
   transition: opacity 0.15s, transform 0.12s;
   margin-bottom: 12px;
 }
+
+@media (hover: hover) {
 .btn:hover  { opacity: 0.88; }
+}
 .btn:active { transform: scale(0.98); }
 
 /* Counter */

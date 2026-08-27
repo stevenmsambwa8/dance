@@ -14,7 +14,10 @@
   flex-shrink:0; font-family:var(--font); white-space:nowrap;
   transition:color 0.15s, border-color 0.15s;
 }
+
+@media (hover: hover) {
 .backBtn:hover { color:var(--text); border-color:var(--accent); }
+}
 .headerCenter { display:flex; align-items:center; gap:10px; flex:1; min-width:0; }
 .headerEmoji { font-size:28px; flex-shrink:0; }
 .headerName  { font-size:15px; font-weight:900; color:var(--text); line-height:1.2; }
@@ -25,7 +28,10 @@
   font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center;
   transition:background 0.15s; font-family:var(--font); flex-shrink:0;
 }
+
+@media (hover: hover) {
 .refreshBtn:hover { background:var(--border); }
+}
 
 /* Tabs */
 .tabs {
@@ -69,7 +75,10 @@
   color:var(--text-muted); cursor:pointer; transition:all 0.15s;
   font-family:var(--font); white-space:nowrap;
 }
+
+@media (hover: hover) {
 .pill:hover { border-color:var(--accent); color:var(--text); }
+}
 .pillActive { background:var(--accent) !important; border-color:var(--accent) !important; color:#fff !important; }
 
 /* Empty */
@@ -138,7 +147,10 @@
 .tableRowHdr span { font-size:9px; font-weight:700; letter-spacing:0.5px; text-transform:uppercase; color:var(--text-muted); text-align:center; }
 .tableRowHdr .tTeam { text-align:left; }
 .tableRow:last-child { border-bottom:none; }
+
+@media (hover: hover) {
 .tableRow:hover { background:var(--bg-2); }
+}
 .tableRowQ  { border-left:3px solid var(--accent); }
 .tPos  { font-size:11px; font-weight:700; color:var(--text-muted); text-align:center; }
 .tPosQ { color:var(--accent); }

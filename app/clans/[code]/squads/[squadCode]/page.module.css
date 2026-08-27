@@ -6,7 +6,10 @@
   font-size: 12px; font-weight: 600; cursor: pointer; padding: 0; margin-bottom: 18px;
   transition: color 0.15s;
 }
+
+@media (hover: hover) {
 .backLink:hover { color: var(--text); }
+}
 .backLink i { font-size: 15px; }
 
 /* ── Hero ── */
@@ -61,7 +64,10 @@
   color: var(--text-dim); font-size: 15px; cursor: pointer; flex-shrink: 0;
   transition: all 0.15s;
 }
+
+@media (hover: hover) {
 .editBtn:hover { color: var(--squad-accent); border-color: var(--squad-accent); }
+}
 
 @keyframes tileMarquee {
   0%, 15%   { transform: translateX(0); }
@@ -77,7 +83,10 @@
   transition: filter 0.15s, opacity 0.15s;
 }
 .joinBtn { background: var(--squad-accent); color: #000; }
+
+@media (hover: hover) {
 .joinBtn:hover { filter: brightness(1.1); }
+}
 .joinBtn:disabled { opacity: 0.4; cursor: not-allowed; filter: none; }
 .leaveBtn { background: rgba(239,68,68,0.06); color: #ef4444; border: 1px solid rgba(239,68,68,0.35); }
 .leaveBtn:active { opacity: 0.8; }
@@ -113,7 +122,10 @@
   background-size: cover; background-position: center; background-repeat: no-repeat;
   transition: border-color 0.15s, transform 0.15s;
 }
+
+@media (hover: hover) {
 .memberCard:hover { border-color: var(--border-dark); }
+}
 .memberCard:active { transform: scale(0.98); }
 
 .memberCrown {
@@ -154,7 +166,10 @@
   color: var(--text-muted); font-size: 11px; font-weight: 700; cursor: pointer;
   transition: all 0.15s;
 }
+
+@media (hover: hover) {
 .openSlot:not(:disabled):hover { border-color: var(--squad-accent); color: var(--squad-accent); }
+}
 .openSlot:disabled { cursor: default; opacity: 0.5; }
 .openSlot i { font-size: 20px; }
 
@@ -173,7 +188,10 @@
   font-size: 12.5px; font-weight: 800; cursor: pointer;
   transition: background 0.15s;
 }
+
+@media (hover: hover) {
 .deleteSquadBtn:hover { background: rgba(239,68,68,0.1); }
+}
 
 /* ── Edit modal ── */
 .editModalBody { display: flex; flex-direction: column; gap: 18px; }
@@ -184,7 +202,10 @@
   display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden;
   transition: border-color 0.15s;
 }
+
+@media (hover: hover) {
 .squadImgPicker:hover { border-color: var(--squad-accent); }
+}
 .squadImgPicker i { font-size: 23px; color: var(--text-muted); }
 .squadImgPicker img { width: 100%; height: 100%; object-fit: cover; }
 

@@ -155,7 +155,10 @@
   color: var(--text); font-size: 11px; font-weight: 700;
   cursor: pointer; align-self: flex-end; transition: all .15s;
 }
+
+@media (hover: hover) {
 .callBtnSmall:hover { border-color: #22c55e; color: #22c55e; }
+}
 
 /* legacy callBtn used in stripInfo for pending state */
 .callBtn {
@@ -165,7 +168,10 @@
   color: var(--text); font-size: 11px; font-weight: 700;
   cursor: pointer; white-space: nowrap; transition: all .15s; flex-shrink: 0;
 }
+
+@media (hover: hover) {
 .callBtn:hover { border-color: #22c55e; color: #22c55e; }
+}
 .callBtnSent   { border-color: #22c55e; color: #22c55e; background: #22c55e14; }
 
 /* ══════════════════════════════════════════════
@@ -317,7 +323,10 @@
   display: flex; align-items: center; justify-content: center;
   font-size: 16px; color: var(--text-muted); cursor: pointer;
 }
+
+@media (hover: hover) {
 .modalClose:hover { color: var(--text); }
+}
 .modalTitle {
   font-size: 15px; font-weight: 800; color: var(--text);
   margin: 0 0 6px; display: flex; align-items: center; gap: 7px;
@@ -434,7 +443,10 @@
   cursor: pointer;
   transition: opacity 0.12s;
 }
+
+@media (hover: hover) {
 .newRequestBtn:hover { opacity: 0.82; }
+}
 .newRequestBtn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* Item summary card at top of new request form */

@@ -66,9 +66,12 @@
   flex-shrink: 0;
 }
 
+@media (hover: hover) {
+
 .clearBtn:hover, .closeBtn:hover {
   color: var(--text);
   background: var(--surface);
+}
 }
 
 .jumpingHint {
@@ -126,7 +129,10 @@
 }
 
 .gameChip:active { transform: scale(0.97); }
+
+@media (hover: hover) {
 .gameChip:hover  { background: var(--surface-dim, var(--surface)); }
+}
 .gameChip i { font-size: 16px; color: var(--text-muted); flex-shrink: 0; }
 
 /* ── Result rows (tournaments / players / shop) ── */
@@ -142,7 +148,10 @@
   cursor: pointer;
 }
 
+@media (hover: hover) {
+
 .resultRow:hover { background: var(--surface); }
+}
 
 .resultIcon {
   width: 38px;
@@ -220,7 +229,10 @@
   -webkit-appearance: none;
   line-height: 1;
 }
+
+@media (hover: hover) {
 .resultCta:hover  { filter: brightness(0.94); }
+}
 .resultCta:active { filter: brightness(0.88); transform: scale(0.97); }
 
 .resultCtaGroup {
@@ -247,7 +259,10 @@
   -webkit-appearance: none;
   line-height: 1;
 }
+
+@media (hover: hover) {
 .resultCtaSecondary:hover { background: var(--surface); }
+}
 .resultCtaSecondary:active { transform: scale(0.97); }
 
 /* ── News strip (headlines) — wide auto-scrolling cards with real media ── */

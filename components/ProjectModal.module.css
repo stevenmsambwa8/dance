@@ -62,7 +62,10 @@
   transition: all 0.1s;
 }
 
+@media (hover: hover) {
+
 .close:hover { background: var(--text); color: var(--bg); }
+}
 
 .body {
   padding: 20px 24px 28px;
@@ -163,7 +166,10 @@
   transition: opacity 0.1s;
 }
 
+@media (hover: hover) {
+
 .btnAccept:hover { opacity: 0.8; }
+}
 
 .btnDecline {
   padding: 13px 20px;
@@ -176,7 +182,10 @@
   transition: all 0.1s;
 }
 
+@media (hover: hover) {
+
 .btnDecline:hover { background: var(--surface); }
+}
 
 @keyframes fadeIn {
   from { opacity: 0; }

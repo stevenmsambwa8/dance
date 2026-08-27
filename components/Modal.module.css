@@ -81,7 +81,10 @@
   transition: all 0.1s;
 }
 
+@media (hover: hover) {
+
 .close:hover { background: var(--text); color: var(--bg); }
+}
 
 .body {
   padding: 20px;

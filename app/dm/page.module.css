@@ -85,9 +85,12 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+@media (hover: hover) {
+
 .threadRow:hover {
   background: var(--surface-2);
   border-color: var(--border-focus);
+}
 }
 
 .threadRow:active {

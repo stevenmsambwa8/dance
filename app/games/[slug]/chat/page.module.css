@@ -58,7 +58,10 @@
   transition: background 0.15s;
   flex-shrink: 0;
 }
+
+@media (hover: hover) {
 .backBtn:hover { background: var(--bg-2); }
+}
 
 .groupAvatar {
   width: 40px;
@@ -311,7 +314,10 @@
   justify-content: center;
   transition: background 0.15s;
 }
+
+@media (hover: hover) {
 .menuDotsBtn:hover { background: var(--bg-2); }
+}
 .menuDropdownOverlay {
   position: fixed;
   inset: 0;
@@ -343,7 +349,10 @@
   text-align: left;
   transition: background 0.12s;
 }
+
+@media (hover: hover) {
 .menuDropdownItem:hover { background: var(--bg-2); }
+}
 .menuDropdownItem i { font-size: 18px; color: var(--accent); width: 20px; }
 
 /* ── Bottom sheet (replaces modal for match/product) ── */
@@ -416,8 +425,14 @@
   transition: background 0.15s;
 }
 [data-theme="dark"] .replyQuote { background: rgba(255,255,255,0.06); }
+
+@media (hover: hover) {
 .replyQuote:hover { background: rgba(0,0,0,0.10); }
+}
+
+@media (hover: hover) {
 [data-theme="dark"] .replyQuote:hover { background: rgba(255,255,255,0.10); }
+}
 .replyQuoteMine   { border-left-color: var(--accent); }
 .replyQuoteTheirs { border-left-color: var(--accent); }
 .replyQuoteName {
@@ -522,7 +537,10 @@
   flex-shrink: 0;
   transition: background 0.15s;
 }
+
+@media (hover: hover) {
 .replyBarClose:hover { background: var(--border); }
+}
 
 /* ── Input area ── */
 .inputArea {
@@ -567,7 +585,10 @@
   transition: color 0.15s;
   flex-shrink: 0;
 }
+
+@media (hover: hover) {
 .actionBtn:hover { color: var(--accent); }
+}
 
 .input {
   flex: 1;
@@ -599,7 +620,10 @@
   flex-shrink: 0;
 }
 .sendBtn:disabled { opacity: 0.35; cursor: default; }
+
+@media (hover: hover) {
 .sendBtn:not(:disabled):hover  { opacity: 0.85; }
+}
 .sendBtn:not(:disabled):active { transform: scale(0.93); }
 
 /* ── Special card (match request) ── */
@@ -664,7 +688,10 @@
   cursor: pointer;
   transition: opacity 0.15s;
 }
+
+@media (hover: hover) {
 .specialCardBtn:hover { opacity: 0.85; }
+}
 
 .specialCardAcceptedWrap { display: flex; flex-direction: column; }
 .specialCardAccepted {
@@ -698,7 +725,10 @@
   border-top: 1px solid var(--border);
   transition: filter 0.15s;
 }
+
+@media (hover: hover) {
 .viewMatchBtn:hover { filter: brightness(0.95); }
+}
 
 /* ── Product card ── */
 .productCard {
@@ -713,7 +743,10 @@
   color: inherit;
   transition: border-color 0.15s;
 }
+
+@media (hover: hover) {
 .productCard:hover { border-color: var(--accent); }
+}
 .productCardExpired { opacity: 0.55; pointer-events: none; }
 
 /* Inner flex row */
@@ -852,7 +885,10 @@
   transition: background 0.12s;
   text-align: left;
 }
+
+@media (hover: hover) {
 .ctxBtn:hover { background: var(--bg-2); }
+}
 .ctxBtn i { font-size: 18px; color: var(--accent); width: 22px; }
 
 .ctxDivider { height: 1px; background: var(--border); margin: 4px 0; }
@@ -919,7 +955,10 @@
   cursor: pointer;
   transition: background 0.15s;
 }
+
+@media (hover: hover) {
 .modalCancel:hover { background: var(--border-dark); }
+}
 
 .modalConfirm {
   flex: 1;
@@ -938,7 +977,10 @@
   transition: opacity 0.15s;
 }
 .modalConfirm:disabled { opacity: 0.4; cursor: default; }
+
+@media (hover: hover) {
 .modalConfirm:not(:disabled):hover { opacity: 0.85; }
+}
 
 /* ── Product picker list ── */
 .productList {
@@ -970,7 +1012,10 @@
   text-align: left;
   transition: background 0.12s;
 }
+
+@media (hover: hover) {
 .productPickItem:hover { background: var(--bg-2); }
+}
 
 .productPickThumb {
   width: 44px;
@@ -1031,7 +1076,10 @@
   text-decoration: none;
   transition: opacity 0.15s;
 }
+
+@media (hover: hover) {
 .primaryBtn:hover { opacity: 0.85; }
+}
 
 /* ── Responsive ── */
 @media (min-width: 600px) {

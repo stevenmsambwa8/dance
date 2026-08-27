@@ -34,8 +34,14 @@
   color: #ef4444;
   border-color: rgba(239,68,68,0.35);
 }
+
+@media (hover: hover) {
 .deleteBtn:hover { background: rgba(239,68,68,0.08); }
+}
+
+@media (hover: hover) {
 .backBtn:hover { background: var(--bg-2); }
+}
 
 .notFound {
   color: var(--text-muted);
@@ -242,8 +248,14 @@
   cursor: pointer;
   flex-shrink: 0;
 }
+
+@media (hover: hover) {
 .iconBtnDanger:hover { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.4); color: #ef4444; }
+}
+
+@media (hover: hover) {
 .iconBtnSm:hover { background: var(--surface); color: var(--text); }
+}
 .iconBtnSm:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .composer {
@@ -320,7 +332,10 @@
   font-weight: 700;
   cursor: pointer;
 }
+
+@media (hover: hover) {
 .addBadgeBtn:hover { opacity: 0.88; }
+}
 
 .saveBtn {
   width: 100%;
@@ -337,5 +352,8 @@
   font-weight: 800;
   cursor: pointer;
 }
+
+@media (hover: hover) {
 .saveBtn:hover { opacity: 0.88; }
+}
 .saveBtn:disabled { opacity: 0.5; cursor: not-allowed; }

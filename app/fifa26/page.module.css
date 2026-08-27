@@ -102,10 +102,13 @@
   font-family: var(--font);
   width: 100%;
 }
+
+@media (hover: hover) {
 .gameCard:hover {
   border-color: var(--accent);
   transform: translateY(-1px);
   box-shadow: 0 6px 24px rgba(0,0,0,0.08);
+}
 }
 .gameCard:active { transform: translateY(0); }
 
@@ -135,8 +138,11 @@
   font-size: 22px; color: var(--text-muted); flex-shrink: 0;
   transition: transform 0.15s, color 0.15s; font-weight: 300; line-height: 1;
 }
+
+@media (hover: hover) {
 .gameCard:hover .gameChevron,
 .liveCard:hover .gameChevron { transform: translateX(2px); color: var(--text); }
+}
 
 /* ── Divider ── */
 .divider { height:1px; background:var(--border); margin:16px 0; }
@@ -150,7 +156,10 @@
   transition: border-color 0.15s, transform 0.15s;
   text-align: left; font-family: var(--font); width: 100%;
 }
+
+@media (hover: hover) {
 .liveCard:hover { border-color: rgba(239,68,68,0.4); transform: translateY(-1px); }
+}
 
 .livePulse {
   width: 36px; height: 36px; border-radius: 10px;

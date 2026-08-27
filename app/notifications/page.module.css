@@ -67,10 +67,13 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+@media (hover: hover) {
+
 .iconBtn:hover {
   background: var(--surface-2);
   color: var(--text);
   border-color: var(--border-focus);
+}
 }
 
 .iconBtnDanger {
@@ -78,10 +81,13 @@
   border-color: rgba(248, 113, 113, 0.2);
 }
 
+@media (hover: hover) {
+
 .iconBtnDanger:hover {
   background: rgba(248, 113, 113, 0.08);
   color: #fca5a5;
   border-color: rgba(248, 113, 113, 0.35);
+}
 }
 
 /* ── Tabs ── */
@@ -113,8 +119,11 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+@media (hover: hover) {
+
 .tab:hover {
   color: var(--text-dim);
+}
 }
 
 .tabActive {
@@ -175,9 +184,12 @@
   content: none;
 }
 
+@media (hover: hover) {
+
 .item:hover {
   transform: translateY(-2px);
   border-color: var(--border-focus);
+}
 }
 
 .item:active {
@@ -331,8 +343,11 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+@media (hover: hover) {
+
 .item:hover .deleteBtn {
   opacity: 1;
+}
 }
 
 @media (hover: none) {
@@ -341,9 +356,12 @@
   }
 }
 
+@media (hover: hover) {
+
 .deleteBtn:hover {
   background: var(--surface-2);
   color: var(--text);
+}
 }
 
 /* ── Confirm Modal ── */
@@ -404,8 +422,11 @@
   transition: background 0.15s ease;
 }
 
+@media (hover: hover) {
+
 .modalCancel:hover {
   background: var(--bg-2);
+}
 }
 
 .modalConfirm {
@@ -421,8 +442,11 @@
   transition: background 0.15s ease;
 }
 
+@media (hover: hover) {
+
 .modalConfirm:hover {
   background: rgba(248, 113, 113, 0.25);
+}
 }
 
 /* ── Empty State ── */
@@ -461,9 +485,12 @@
     transform 0.15s ease;
 }
 
+@media (hover: hover) {
+
 .loginBtn:hover {
   opacity: 0.88;
   transform: translateY(-1px);
+}
 }
 
 .loginBtn:active {
@@ -504,6 +531,13 @@
 }
 
 /* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) and (hover: hover) {
+  .item:hover,
+  .loginBtn:hover {
+    transform: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .item,
   .tab,
@@ -513,11 +547,6 @@
   .modal {
     transition: none;
     animation: none;
-  }
-
-  .item:hover,
-  .loginBtn:hover {
-    transform: none;
   }
 
   .item:active,

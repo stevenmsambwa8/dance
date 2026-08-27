@@ -96,9 +96,12 @@
   transition: all 0.15s;
 }
 
+@media (hover: hover) {
+
 .filterBtn:hover {
   color: var(--text);
   border-color: var(--text-muted);
+}
 }
 
 .filterActive {
@@ -125,8 +128,11 @@
   transition: border-color 0.15s;
 }
 
+@media (hover: hover) {
+
 .logRow:hover {
   border-color: var(--border-dark, var(--border));
+}
 }
 
 .logIcon {

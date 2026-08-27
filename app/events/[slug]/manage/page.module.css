@@ -27,7 +27,10 @@
 
 .chipRow { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip { display: inline-flex; align-items: center; gap: 5px; padding: 7px 13px; border-radius: 99px; border: 1px solid var(--border-dark); background: var(--bg); color: var(--text-muted); font-size: 12px; font-weight: 700; cursor: pointer; font-family: var(--font); transition: all 0.12s; }
+
+@media (hover: hover) {
 .chip:hover { color: var(--text); }
+}
 .chipActive { background: var(--text); color: var(--bg); border-color: var(--text); }
 .hint { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-muted); margin-top: 6px; }
 

@@ -30,7 +30,10 @@
   transition: color 0.1s;
 }
 
+@media (hover: hover) {
+
 .nav a:hover { color: var(--text); }
+}
 .active { color: var(--text) !important; font-weight: 700; }
 
 /* ── Search trigger — wide pill, height matched to .groupIconBtn (the
@@ -56,10 +59,13 @@
   transition: background 0.1s, border-color 0.1s, color 0.1s;
 }
 
+@media (hover: hover) {
+
 .searchTrigger:hover {
   background: var(--surface-dim, var(--surface));
   border-color: var(--border-dark, var(--border));
   color: var(--text);
+}
 }
 
 .searchTrigger i {
@@ -94,8 +100,11 @@
   transition: background 0.1s;
   box-sizing: border-box;
 }
+
+@media (hover: hover) {
 .refreshBtn:hover { 
   background: var(--surface); 
+}
 }
 
 /* ── Plan CTA (paid users) — icon-only.
@@ -117,7 +126,10 @@
   box-sizing: border-box;
   transition: transform 0.15s, background 0.1s;
 }
+
+@media (hover: hover) {
 .planIconBtn:hover  { background: var(--surface-dim, var(--surface)); transform: scale(1.05); }
+}
 .planIconBtn:active { transform: scale(0.95); }
 .planIconBtn i { font-size: 15px; }
 
@@ -136,7 +148,10 @@
   background: var(--accent, #6366f1);
   color: #fff;
 }
+
+@media (hover: hover) {
 .upgradeCta:hover  { transform: scale(1.03); }
+}
 .upgradeCta:active { transform: scale(0.97); }
 .upgradeCta > i { font-size: 15px; flex-shrink: 0; }
 
@@ -190,8 +205,11 @@
   transition: background 0.1s;
   box-sizing: border-box;
 }
+
+@media (hover: hover) {
 .groupIconBtn:hover {
   background: var(--surface);
+}
 }
 
 .iconBtn {
@@ -210,9 +228,12 @@
   position: relative;
   box-sizing: border-box;
 }
+
+@media (hover: hover) {
 .iconBtn:hover { 
   background: var(--surface); 
   border-color: var(--border);
+}
 }
 
 .hamburger {
@@ -228,7 +249,10 @@
   font-size: 20px;
   cursor: pointer;
 }
+
+@media (hover: hover) {
 .hamburger:hover { background: var(--surface); }
+}
 
 .adminLink {
   color: #f59e0b !important;
@@ -308,7 +332,10 @@
   padding: 6px;
   border-radius: 50%;
 }
+
+@media (hover: hover) {
 .sidebarClose:hover { color: var(--text); background: var(--surface); }
+}
 
 /* ── Refined Action Row Layout (Matches 1000014522.jpg Grid) ── */
 .sidebarTopActions {
@@ -343,8 +370,11 @@
   color: var(--text-muted); 
 }
 
+@media (hover: hover) {
+
 .sidebarTopBtn:hover { 
   background: var(--surface); 
+}
 }
 
 /* Theme Button Adjustments: Fixed layout with absolute border elimination */
@@ -369,9 +399,12 @@
   color: #ef4444;
 }
 
+@media (hover: hover) {
+
 .sidebarSignOutBtn:hover {
   background: rgba(239, 68, 68, 0.06) !important;
   border-color: #ef4444 !important;
+}
 }
 
 .sidebarUser {
@@ -384,11 +417,17 @@
   transition: background 0.15s ease;
   cursor: pointer;
 }
+
+@media (hover: hover) {
 .sidebarUser:hover { background: var(--surface); }
+}
 
 .sidebarUserInfo { flex: 1; min-width: 0; }
 .sidebarEditIcon { font-size: 16px; color: var(--text-muted); margin-left: auto; flex-shrink: 0; transition: color 0.15s ease; }
+
+@media (hover: hover) {
 .sidebarUser:hover .sidebarEditIcon { color: var(--text); }
+}
 
 .sidebarAvatar {
   width: 36px;
@@ -428,12 +467,18 @@
   transition: color 0.1s, background 0.1s;
 }
 .sidebarLink i { font-size: 16px; }
+
+@media (hover: hover) {
 .sidebarLink:hover { color: var(--text); background: var(--surface); }
+}
 .sidebarLinkActive { color: var(--text) !important; font-weight: 700; }
 .sidebarAdmin { color: #f59e0b !important; }
 
 .sidebarArrow { font-size: 15px !important; margin-left: auto; opacity: 0.35; flex-shrink: 0; }
+
+@media (hover: hover) {
 .sidebarLink:hover .sidebarArrow { opacity: 0.7; }
+}
 
 .sidebarFifaBlock {
   padding: 16px 20px;
@@ -449,16 +494,22 @@
   position: relative;
   transition: border-color 0.2s, background 0.2s;
 }
+
+@media (hover: hover) {
 .sidebarFifaCard:hover {
   border-color: rgba(122, 0, 255, 0.3);
   background: linear-gradient(135deg, rgba(122,0,255,0.08) 0%, rgba(255,0,85,0.06) 100%);
+}
 }
 .sidebarFifaHeader { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
 .sidebarFifaBadge { background: #ff0055; color: #fff; font-size: 8px; font-weight: 900; padding: 1px 4px; border-radius: 4px; letter-spacing: 0.05em; }
 .sidebarFifaTitle { font-size: 11px; font-weight: 800; color: var(--text); letter-spacing: 0.02em; }
 .sidebarFifaText { font-size: 11px; color: var(--text-dim); line-height: 1.4; margin: 0; padding-right: 16px; }
 .sidebarFifaCard i { position: absolute; right: 12px; bottom: 12px; font-size: 14px; color: var(--text-muted); transition: color 0.2s, transform 0.2s; }
+
+@media (hover: hover) {
 .sidebarFifaCard:hover i { color: var(--text); transform: translateX(2px); }
+}
 
 /* Clickable Active Floating Arrow */
 .scrollIndicator {
@@ -485,9 +536,12 @@
   animation: floatArrow 1.5s infinite ease-in-out;
 }
 
+@media (hover: hover) {
+
 .scrollIndicator:hover {
   background: var(--surface);
   color: var(--text);
+}
 }
 
 .hideIndicator {
@@ -531,7 +585,10 @@
   cursor: pointer;
   transition: color 0.1s, background 0.1s, border-color 0.1s;
 }
+
+@media (hover: hover) {
 .langToggle:hover { background: var(--bg); border-color: var(--text-muted); }
+}
 .langDivider { color: var(--border-dark); font-weight: 400; }
 .langActive { color: var(--text); }
 
@@ -548,7 +605,10 @@
   text-decoration: none;
   transition: color 0.1s, background 0.1s;
 }
+
+@media (hover: hover) {
 .socialBtn:hover { color: var(--text); background: var(--surface); }
+}
 
 .notifWrap { position: relative; display: flex; }
 
@@ -573,13 +633,19 @@
 
 .notifHeader { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 11.5px; font-weight: 700; }
 .markAllBtn { font-size: 10.5px; font-weight: 600; color: var(--text-muted); background: none; border: none; cursor: pointer; }
+
+@media (hover: hover) {
 .markAllBtn:hover { color: var(--text); }
+}
 .notifList { max-height: 300px; overflow-y: auto; }
 
 .notifItem {
   width: 100%; display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: none; border: none; cursor: pointer; text-align: left; font-family: inherit;
 }
+
+@media (hover: hover) {
 .notifItem:hover { background: var(--surface); }
+}
 .notifUnread { background: var(--bg-2); }
 .notifIcon { width: 28px; height: 28px; border-radius: 50%; background: var(--surface); border: 1px solid var(--border-dark); display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--text); flex-shrink: 0; }
 .notifContent { flex: 1; min-width: 0; }
@@ -589,12 +655,21 @@
 .unreadDot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; flex-shrink: 0; margin-top: 5px; }
 
 .notifDeleteBtn { width: 18px; height: 18px; border-radius: 50%; background: none; border: none; color: var(--text-muted); font-size: 12px; flex-shrink: 0; opacity: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+@media (hover: hover) {
 .notifItem:hover .notifDeleteBtn { opacity: 1; }
+}
+
+@media (hover: hover) {
 .notifDeleteBtn:hover { background: #fee2e2; color: #ef4444; }
+}
 .notifEmpty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 24px 14px; color: var(--text-muted); font-size: 11.5px; }
 .notifEmpty i { font-size: 20px; }
 .notifFooter { display: flex; align-items: center; justify-content: center; gap: 4px; padding: 10px 14px; font-size: 11px; font-weight: 600; color: var(--text-muted); border-top: 1px solid var(--border); text-decoration: none; }
+
+@media (hover: hover) {
 .notifFooter:hover { color: var(--text); }
+}
 
 .sidebarBadge { margin-left: auto; background: #ef4444; color: #fff; font-size: 9px; font-weight: 800; min-width: 16px; height: 16px; border-radius: 99px; display: flex; align-items: center; justify-content: center; }
 
