@@ -1,20 +1,19 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import Modal from '../../components/Modal'
 import { useAuth } from '../../components/AuthProvider'
 import { useAuthGate } from '../../components/AuthGateModal'
 import { supabase } from '../../lib/supabase'
 import styles from './page.module.css'
 import usePageLoading from '../../components/usePageLoading'
 import { useCurrency } from '../../lib/useCurrency'
-import { canDo, getActivePlan } from '../../lib/plans'
-import UpgradeModal from '../../components/UpgradeModal'
+import ProductDrawer from '../../components/ProductDrawer'
 
 const CATS = ['all', 'accounts', 'gear', 'services']
 const MAX_IMAGES = 4
 const TARGET_KB  = 60
 const MAX_DIM    = 1200
+const EMPTY_FORM = { title: '', price: '', category: 'accounts', description: '' }
 
 async function compressToWebP(file) {
   return new Promise((resolve, reject) => {
@@ -54,15 +53,14 @@ async function compressToWebP(file) {
   })
 }
 
-function SkeletonCard() {
+function SkeletonTile() {
   return (
-    <div className={styles.skeletonCard}>
-      <div className={styles.skeletonImg} />
-      <div className={styles.skeletonBody}>
-        <div className={styles.skeletonLine} style={{ width: '30%' }} />
-        <div className={styles.skeletonLine} style={{ width: '70%' }} />
-        <div className={styles.skeletonLine} style={{ width: '50%' }} />
-        <div className={styles.skeletonLine} style={{ width: '40%', marginTop: 8 }} />
+    <div className={styles.tile}>
+      <div className={`${styles.tileImgWrap} ${styles.skeletonShimmer}`} />
+      <div className={styles.tileBody}>
+        <div className={`${styles.skeletonLine} ${styles.skeletonShimmer}`} style={{ width: '40%' }} />
+        <div className={`${styles.skeletonLine} ${styles.skeletonShimmer}`} style={{ width: '85%' }} />
+        <div className={`${styles.skeletonLine} ${styles.skeletonShimmer}`} style={{ width: '55%', marginTop: 6 }} />
       </div>
     </div>
   )
@@ -71,28 +69,30 @@ function SkeletonCard() {
 export default function Shop() {
   const { user, isAdmin, profile } = useAuth()
   const { openAuthGate } = useAuthGate()
-  const { fmtAmt, currency, currencyMeta } = useCurrency(profile?.country_flag)
+  const { fmtAmt, currency } = useCurrency(profile?.country_flag)
   const router = useRouter()
   const [cat, setCat]         = useState('all')
   const [items, setItems]     = useState([])
   const [itemImages, setItemImages] = useState({})
-  const [sellModal, setSellModal]   = useState(false)
-  const [editModal, setEditModal]   = useState(null)
   const [loading, setLoading] = useState(true)
   usePageLoading(loading)
+
+  // Unified drawer state — null | 'add' | 'edit'
+  const [drawerMode, setDrawerMode] = useState(null)
+  const [editingId, setEditingId]   = useState(null)
+  const [form, setForm]             = useState(EMPTY_FORM)
+
   const [listing, setListing] = useState(false)
   const [saving, setSaving]   = useState(false)
-  const [form, setForm]       = useState({ title: '', price: '', category: 'accounts', description: '' })
-  const [editForm, setEditForm] = useState({ title: '', price: '', category: 'accounts', description: '' })
   const [pendingFiles, setPendingFiles]       = useState([])
   const [pendingPreviews, setPendingPreviews] = useState([])
   const [compressing, setCompressing]         = useState(false)
   // per-card buy loading state: itemId → true/false
   const [buying, setBuying] = useState({})
-  const [showUpgrade, setShowUpgrade] = useState(false)
   const fileInputRef = useRef(null)
 
-  const canSell = isAdmin || canDo(profile, 'shop_sell')
+  // Selling is open to everyone who's logged in — no plan gate (Test Mode)
+  const canSell = !!user
 
   useEffect(() => { loadItems() }, [cat])
 
@@ -181,15 +181,30 @@ export default function Shop() {
     setPendingPreviews(prev => prev.filter((_, i) => i !== idx))
   }
 
-  function resetModal() {
+  function openAdd() {
+    if (!user) { openAuthGate(); return }
+    setForm(EMPTY_FORM)
+    setEditingId(null)
+    setDrawerMode('add')
+  }
+
+  function openEdit(item, e) {
+    e?.stopPropagation()
+    setForm({ title: item.title, price: item.price, category: item.category, description: item.description || '' })
+    setEditingId(item.id)
+    setDrawerMode('edit')
+  }
+
+  function closeDrawer() {
     pendingPreviews.forEach(u => URL.revokeObjectURL(u))
     setPendingFiles([]); setPendingPreviews([])
-    setSellModal(false)
+    setDrawerMode(null)
+    setEditingId(null)
+    setForm(EMPTY_FORM)
   }
 
   async function listItem() {
     if (!user) return alert('Log in to sell items')
-    if (!canSell) { setShowUpgrade(true); return }
     if (!form.title || !form.price) return alert('Title and price are required')
     setListing(true)
     const { data: item, error } = await supabase
@@ -213,27 +228,21 @@ export default function Shop() {
       setCompressing(false)
     }
     setListing(false)
-    setForm({ title: '', price: '', category: 'accounts', description: '' })
-    resetModal()
+    closeDrawer()
     loadItems()
   }
 
-  function openEdit(item, e) {
-    e?.stopPropagation()
-    setEditForm({ title: item.title, price: item.price, category: item.category, description: item.description || '' })
-    setEditModal(item)
-  }
-
   async function saveEdit() {
-    if (!editModal) return
+    if (!editingId) return
     setSaving(true)
     const { error } = await supabase.from('shop_items').update({
-      title: editForm.title, price: editForm.price,
-      category: editForm.category, description: editForm.description,
-    }).eq('id', editModal.id)
+      title: form.title, price: form.price,
+      category: form.category, description: form.description,
+    }).eq('id', editingId)
     setSaving(false)
     if (error) { alert(error.message); return }
-    setEditModal(null); loadItems()
+    closeDrawer()
+    loadItems()
   }
 
   async function deleteItem(item, e) {
@@ -244,7 +253,6 @@ export default function Shop() {
   }
 
   const canManage = (item) => item && user && (user.id === item.seller_id || isAdmin)
-  const fmtPrice  = (p) => { const n = Number(String(p || '').replace(/[^0-9.]/g, '')); return isNaN(n) || n <= 0 ? p : n.toLocaleString() }
 
   return (
     <div className={styles.page}>
@@ -252,16 +260,12 @@ export default function Shop() {
         <div>
           <p className={styles.eyebrow}>Marketplace · {currency}</p>
           <h1 className={styles.headline}>Shop</h1>
+          <span className={styles.testTag}><i className="ri-flask-line" /> Open to everyone — Test Mode</span>
         </div>
         {user && (
-          canSell
-            ? <button className={styles.sellBtn} onClick={() => setSellModal(true)}>
-                <i className="ri-price-tag-3-line" /> Sell Item
-              </button>
-            : <button className={styles.sellBtn} onClick={() => setShowUpgrade(true)}
-                style={{ opacity: 0.72, background: 'var(--surface)', color: 'var(--text-muted)', border: '1px solid var(--border-dark)' }}>
-                <i className="ri-lock-line" /> Sell Item
-              </button>
+          <button className={styles.sellBtn} onClick={openAdd}>
+            <i className="ri-add-line" /> Sell Item
+          </button>
         )}
       </div>
 
@@ -280,9 +284,9 @@ export default function Shop() {
         {!loading && <span className={styles.itemCount}>{items.length} {items.length === 1 ? 'item' : 'items'}</span>}
       </div>
 
-      <div className={styles.list}>
+      <div className={styles.grid}>
         {loading
-          ? Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)
+          ? Array.from({ length: 6 }).map((_, i) => <SkeletonTile key={i} />)
           : items.length === 0
             ? (
               <div className={styles.empty}>
@@ -298,50 +302,45 @@ export default function Shop() {
               return (
                 <div
                   key={item.id}
-                  className={styles.card}
+                  className={styles.tile}
                   onClick={() => router.push(`/shop/${item.id}`)}
                 >
-                  <div className={styles.cardImgWrap}>
+                  <div className={styles.tileImgWrap}>
                     {imgs.length > 0
-                      ? <img src={imgs[0]} alt={item.title} className={styles.cardImg} />
-                      : <div className={styles.cardImgEmpty}><i className="ri-image-line" /></div>
+                      ? <img src={imgs[0]} alt={item.title} className={styles.tileImg} />
+                      : <div className={styles.tileImgEmpty}><i className="ri-image-line" /></div>
                     }
+                    <span className={styles.tileCat}>{item.category}</span>
                     {imgs.length > 1 && (
-                      <span className={styles.imgCount}><i className="ri-image-2-line" /> {imgs.length}</span>
+                      <span className={styles.tileImgCount}><i className="ri-image-2-line" /> {imgs.length}</span>
                     )}
-                    <span className={styles.catChip}>{item.category}</span>
+                    {canManage(item) && (
+                      <div className={styles.tileActions} onClick={e => e.stopPropagation()}>
+                        <button className={styles.tileIconBtn} onClick={e => openEdit(item, e)} title="Edit"><i className="ri-edit-line" /></button>
+                        <button className={`${styles.tileIconBtn} ${styles.tileIconDel}`} onClick={e => deleteItem(item, e)} title="Delete"><i className="ri-delete-bin-line" /></button>
+                      </div>
+                    )}
                   </div>
 
-                  <div className={styles.cardBody}>
-                    <div className={styles.cardTop}>
-                      <span className={styles.seller}><i className="ri-user-line" />{item.profiles?.username || 'Unknown'}</span>
-                      <h3 className={styles.itemTitle}>{item.title}</h3>
-                      {item.description && <p className={styles.itemDesc}>{item.description}</p>}
-                    </div>
+                  <div className={styles.tileBody}>
+                    <span className={styles.tileSeller}><i className="ri-user-line" />{item.profiles?.username || 'Unknown'}</span>
+                    <h3 className={styles.tileTitle}>{item.title}</h3>
 
-                    <div className={styles.cardFooter}>
-                      <span className={styles.itemPrice}>{fmtAmt(Number(String(item.price).replace(/[^0-9.]/g,'')))}</span>
-                      <div className={styles.cardActions} onClick={e => e.stopPropagation()}>
-                        {canManage(item) && (
-                          <>
-                            <button className={styles.iconBtn} onClick={e => openEdit(item, e)} title="Edit"><i className="ri-edit-line" /></button>
-                            <button className={`${styles.iconBtn} ${styles.iconDel}`} onClick={e => deleteItem(item, e)} title="Delete"><i className="ri-delete-bin-line" /></button>
-                          </>
-                        )}
+                    <div className={styles.tileFooter}>
+                      <span className={styles.tilePrice}>{fmtAmt(Number(String(item.price).replace(/[^0-9.]/g,'')))}</span>
+                      <div onClick={e => e.stopPropagation()}>
                         {isOwn ? (
-                          <button className={styles.viewBtn} onClick={e => { e.stopPropagation(); router.push(`/shop/${item.id}`) }}>
-                            <i className="ri-eye-line" /> View
+                          <button className={styles.tileView} onClick={e => { e.stopPropagation(); router.push(`/shop/${item.id}`) }}>
+                            View
                           </button>
                         ) : (
                           <button
-                            className={styles.buyNowBtn}
+                            className={styles.tileBuy}
                             disabled={isBuying}
                             onClick={e => handleBuyNow(item, e)}
+                            title="Buy Now"
                           >
-                            {isBuying
-                              ? <><i className="ri-loader-4-line" style={{ animation: 'spin .7s linear infinite' }} /> Opening…</>
-                              : <><i className="ri-shopping-bag-line" /> Buy Now</>
-                            }
+                            <i className={isBuying ? 'ri-loader-4-line' : 'ri-shopping-bag-line'} style={isBuying ? { animation: 'spin .7s linear infinite' } : undefined} />
                           </button>
                         )}
                       </div>
@@ -353,65 +352,23 @@ export default function Shop() {
         }
       </div>
 
-      {/* Edit Modal */}
-      <Modal open={!!editModal} onClose={() => setEditModal(null)} title="Edit Listing" size="sm"
-        footer={<button className={styles.buyBtn} onClick={saveEdit} disabled={saving}>{saving ? 'Saving…' : <><i className="ri-check-line" /> Save Changes</>}</button>}
-      >
-        <div className={styles.sellForm}>
-          <div className={styles.sellField}><label>Title</label><input type="text" value={editForm.title} onChange={e => setEditForm(x => ({ ...x, title: e.target.value }))} /></div>
-          <div className={styles.sellField}><label>Price (TZS — stored in Tanzanian Shilling)</label><input type="text" value={editForm.price} onChange={e => setEditForm(x => ({ ...x, price: e.target.value }))} /></div>
-          <div className={styles.sellField}><label>Category</label>
-            <select value={editForm.category} onChange={e => setEditForm(x => ({ ...x, category: e.target.value }))}>
-              <option value="accounts">Account</option><option value="gear">Gear</option><option value="services">Service</option>
-            </select>
-          </div>
-          <div className={styles.sellField}><label>Description</label><textarea rows={4} value={editForm.description} onChange={e => setEditForm(x => ({ ...x, description: e.target.value }))} /></div>
-        </div>
-      </Modal>
-
-      {/* Sell Modal */}
-      <Modal open={sellModal} onClose={resetModal} title="List an Item" size="sm"
-        footer={
-          <button className={styles.buyBtn} onClick={listItem} disabled={listing || compressing}>
-            {listing || compressing
-              ? <><i className="ri-loader-4-line" style={{ animation: 'spin .7s linear infinite' }} /> {compressing ? 'Compressing…' : 'Listing…'}</>
-              : <><i className="ri-price-tag-3-line" /> List for Sale</>}
-          </button>
-        }
-      >
-        <div className={styles.sellForm}>
-          <div className={styles.sellField}><label>Title</label><input type="text" placeholder="Item name" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></div>
-          <div className={styles.sellField}><label>Price (TZS — enter in Tanzanian Shilling)</label><input type="text" placeholder="0" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} /></div>
-          <div className={styles.sellField}><label>Category</label>
-            <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
-              <option value="accounts">Account</option><option value="gear">Gear</option><option value="services">Service</option>
-            </select>
-          </div>
-          <div className={styles.sellField}><label>Description</label><textarea rows={3} placeholder="Describe your item..." value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} /></div>
-          <div className={styles.sellField}>
-            <label>Photos&nbsp;<span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: 'var(--text-muted)' }}>{pendingFiles.length}/{MAX_IMAGES} · auto-compressed to 60 KB WebP</span></label>
-            <div className={styles.imgUploadRow}>
-              {pendingPreviews.map((src, i) => (
-                <div key={i} className={styles.imgThumb}>
-                  <img src={src} alt="" />
-                  <button className={styles.imgRemove} onClick={() => removeImage(i)} type="button"><i className="ri-close-line" /></button>
-                  {i === 0 && <span className={styles.imgCoverBadge}>Cover</span>}
-                </div>
-              ))}
-              {pendingFiles.length < MAX_IMAGES && (
-                <button className={styles.imgAdd} onClick={() => fileInputRef.current?.click()} type="button">
-                  <i className="ri-add-line" /><span>Add</span>
-                </button>
-              )}
-            </div>
-            <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleFilePick} />
-          </div>
-        </div>
-      </Modal>
-
-      {showUpgrade && (
-        <UpgradeModal feature="shop_sell" profile={profile} onClose={() => setShowUpgrade(false)} />
-      )}
+      <ProductDrawer
+        open={drawerMode !== null}
+        mode={drawerMode || 'add'}
+        onClose={closeDrawer}
+        onSubmit={drawerMode === 'edit' ? saveEdit : listItem}
+        submitting={drawerMode === 'edit' ? saving : (listing || compressing)}
+        compressing={compressing}
+        form={form}
+        setForm={setForm}
+        showPhotos={drawerMode === 'add'}
+        pendingFiles={pendingFiles}
+        pendingPreviews={pendingPreviews}
+        maxImages={MAX_IMAGES}
+        onPick={handleFilePick}
+        onRemoveImage={removeImage}
+        fileInputRef={fileInputRef}
+      />
     </div>
   )
 }
