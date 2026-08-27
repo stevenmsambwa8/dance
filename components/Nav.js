@@ -12,6 +12,7 @@ import NavMusicBar from './NavMusicBar'
 import SearchSidebar from './SearchSidebar'
 import styles from './Nav.module.css'
 import DailyRewardPopup from './DailyRewardPopup'
+import DailyRewardModal from './DailyRewardModal'
 import { useDailyReward } from '../lib/useDailyReward'
 import { getActivePlan, PLANS } from '../lib/plans'
 
@@ -29,7 +30,8 @@ export default function Nav() {
   
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
-  const { status: dailyRewardStatus, loading: dailyRewardLoading } = useDailyReward()
+  const [rewardModalOpen, setRewardModalOpen] = useState(false)
+  const dailyReward = useDailyReward()
   const [searchOpen, setSearchOpen] = useState(false)
   const [notifications, setNotifications] = useState([])
   const [unread, setUnread] = useState(0)
@@ -346,14 +348,16 @@ export default function Nav() {
           )}
 
           {/* ── Daily Login Reward — global, same as the notif bell.
-                The gift icon links straight to /rewards; the auto-popup
-                (DailyRewardPopup, mounted once below) is what surfaces an
-                unclaimed reward without forcing a modal on the user. ── */}
+                The gift icon opens DailyRewardModal directly; the
+                auto-popup (mounted once below) is what surfaces an
+                unclaimed reward without forcing anything on the user —
+                tapping the popup body opens the same modal, and its own
+                Collect Now claims in place without opening it at all. ── */}
           {user && (
-            <Link href="/rewards" className={styles.groupIconBtn} title="Daily login reward">
+            <button className={styles.groupIconBtn} onClick={() => setRewardModalOpen(true)} title="Daily login reward">
               <i className="ri-gift-2-line" />
-              {!dailyRewardStatus?.claimedToday && <span className={styles.badge} />}
-            </Link>
+              {!dailyReward.status?.claimedToday && <span className={styles.badge} />}
+            </button>
           )}
 
           <button className={styles.hamburger} onClick={() => setSidebarOpen(true)}>
@@ -362,7 +366,25 @@ export default function Nav() {
         </div>
       </header>
 
-      {user && <DailyRewardPopup status={dailyRewardStatus} loading={dailyRewardLoading} />}
+      {user && (
+        <DailyRewardPopup
+          status={dailyReward.status}
+          loading={dailyReward.loading}
+          claiming={dailyReward.claiming}
+          justClaimed={dailyReward.justClaimed}
+          handleClaim={dailyReward.handleClaim}
+          onOpenModal={() => setRewardModalOpen(true)}
+        />
+      )}
+
+      <DailyRewardModal
+        open={rewardModalOpen}
+        onClose={() => setRewardModalOpen(false)}
+        status={dailyReward.status}
+        claiming={dailyReward.claiming}
+        justClaimed={dailyReward.justClaimed}
+        handleClaim={dailyReward.handleClaim}
+      />
 
       {sidebarOpen && <div className={styles.overlay} onClick={() => setSidebarOpen(false)} />}
 

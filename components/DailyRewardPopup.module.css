@@ -17,7 +17,7 @@
     linear-gradient(160deg, #14121f 0%, #0b0b12 100%);
   box-shadow: 0 12px 32px rgba(0,0,0,0.35);
   animation: popupIn 0.22s cubic-bezier(0.22, 1, 0.36, 1);
-  cursor: default;
+  cursor: pointer;
 }
 .popup.leaving {
   animation: popupOut 0.18s ease forwards;
@@ -48,7 +48,6 @@
 .body {
   flex: 1;
   min-width: 0;
-  cursor: pointer;
 }
 .title {
   font-size: 12.5px;
@@ -78,6 +77,10 @@
   letter-spacing: 0.01em;
   cursor: pointer;
   white-space: nowrap;
+}
+.collectBtn:disabled {
+  opacity: 0.7;
+  cursor: default;
 }
 
 .dismissBtn {
