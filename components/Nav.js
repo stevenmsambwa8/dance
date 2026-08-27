@@ -11,7 +11,8 @@ import { supabase } from '../lib/supabase'
 import NavMusicBar from './NavMusicBar'
 import SearchSidebar from './SearchSidebar'
 import styles from './Nav.module.css'
-import DailyRewardModal from './DailyRewardModal'
+import DailyRewardPopup from './DailyRewardPopup'
+import { useDailyReward } from '../lib/useDailyReward'
 import { getActivePlan, PLANS } from '../lib/plans'
 
 export default function Nav() {
@@ -28,6 +29,7 @@ export default function Nav() {
   
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
+  const { status: dailyRewardStatus, loading: dailyRewardLoading } = useDailyReward()
   const [searchOpen, setSearchOpen] = useState(false)
   const [notifications, setNotifications] = useState([])
   const [unread, setUnread] = useState(0)
@@ -344,15 +346,14 @@ export default function Nav() {
           )}
 
           {/* ── Daily Login Reward — global, same as the notif bell.
-                Logic/modal lives in DailyRewardModal; this just supplies a
-                nav-styled trigger via render-prop. ── */}
+                The gift icon links straight to /rewards; the auto-popup
+                (DailyRewardPopup, mounted once below) is what surfaces an
+                unclaimed reward without forcing a modal on the user. ── */}
           {user && (
-            <DailyRewardModal renderTrigger={({ onClick, claimedToday }) => (
-              <button className={styles.groupIconBtn} onClick={onClick} title="Daily login reward">
-                <i className="ri-gift-2-line" />
-                {!claimedToday && <span className={styles.badge} />}
-              </button>
-            )} />
+            <Link href="/rewards" className={styles.groupIconBtn} title="Daily login reward">
+              <i className="ri-gift-2-line" />
+              {!dailyRewardStatus?.claimedToday && <span className={styles.badge} />}
+            </Link>
           )}
 
           <button className={styles.hamburger} onClick={() => setSidebarOpen(true)}>
@@ -360,6 +361,8 @@ export default function Nav() {
           </button>
         </div>
       </header>
+
+      {user && <DailyRewardPopup status={dailyRewardStatus} loading={dailyRewardLoading} />}
 
       {sidebarOpen && <div className={styles.overlay} onClick={() => setSidebarOpen(false)} />}
 
