@@ -1,0 +1,94 @@
+.page { max-width: 640px; margin: 0 auto; padding: 14px 14px 110px; }
+
+/* ── Gate (not signed in / not admin) ── */
+.gateWrap { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 90px 24px; }
+.gateTitle { font-size: 17px; font-weight: 800; margin: 0 0 6px; }
+.gateSub { font-size: 13px; color: var(--text-muted); margin: 0 0 16px; max-width: 280px; }
+.gateBtn { padding: 10px 22px; border-radius: 99px; background: var(--accent); color: var(--accent-text); border: none; font-size: 13px; font-weight: 800; cursor: pointer; font-family: var(--font); }
+
+/* ── Top bar ── */
+.topBar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.backBtn { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text); flex-shrink: 0; }
+.topTitle { font-size: 17px; font-weight: 800; }
+
+.adminNote {
+  display: flex; align-items: center; gap: 8px; padding: 9px 12px;
+  border-radius: 10px; background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.2);
+  font-size: 12px; color: var(--text-muted); margin-bottom: 14px;
+}
+.adminNote i { color: #22c55e; font-size: 15px; flex-shrink: 0; }
+
+/* ── Card / sections ── */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 16px; }
+.sectionCard { border: 1px solid var(--border); border-radius: 14px; margin-top: 14px; overflow: hidden; }
+.sectionHead { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.sectionIcon { width: 30px; height: 30px; border-radius: 9px; background: var(--bg-2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sectionTitle { font-size: 13px; font-weight: 800; margin: 0; }
+.sectionSub { font-size: 11px; color: var(--text-muted); margin: 1px 0 0; }
+.sectionBody { padding: 14px; }
+
+.field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
+.field:last-child { margin-bottom: 0; }
+.field label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+.field input, .field textarea, .sectionBody > input, .sectionBody > textarea {
+  width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border-dark);
+  background: var(--bg); color: var(--text); font-size: 13px; font-family: var(--font);
+}
+.field textarea, .sectionBody > textarea { resize: vertical; }
+.inputError { border-color: #ef4444 !important; }
+.req { color: #ef4444; }
+.opt { color: var(--text-muted); font-weight: 500; text-transform: none; }
+.errMsg { font-size: 11px; color: #ef4444; font-weight: 600; }
+
+.nameField { margin-bottom: 4px; }
+.fieldRow { display: flex; gap: 10px; }
+.fieldRow .field { flex: 1; min-width: 0; }
+
+.chipRow { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: inline-flex; align-items: center; gap: 5px; padding: 7px 13px; border-radius: 99px; border: 1px solid var(--border-dark); background: var(--bg); color: var(--text-muted); font-size: 12px; font-weight: 700; cursor: pointer; font-family: var(--font); transition: all 0.12s; }
+.chip:hover { color: var(--text); }
+.chipActive { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+/* ── Banner upload ── */
+.bannerPicker {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  aspect-ratio: 2.2 / 1; border: 1.5px dashed var(--border-dark); border-radius: 12px;
+  cursor: pointer; color: var(--text-muted); overflow: hidden; background: var(--bg-2);
+}
+.bannerPicker i { font-size: 26px; }
+.bannerPicker span { font-size: 12px; font-weight: 600; }
+.bannerPreviewImg { width: 100%; height: 100%; object-fit: cover; }
+
+/* ── Test toggle ── */
+.testCard { border-color: rgba(245,158,11,0.25); }
+.testCardOn { background: rgba(245,158,11,0.06); }
+.toggleRow { display: flex; align-items: center; justify-content: space-between; width: 100%; background: none; border: none; cursor: pointer; padding: 0; font-family: var(--font); text-align: left; }
+.toggleLeft { display: flex; align-items: center; gap: 10px; }
+.toggleLeft i { font-size: 20px; color: #f59e0b; }
+.toggleLabel { display: block; font-size: 13px; font-weight: 800; color: var(--text); }
+.toggleHint { display: block; font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+.toggleSwitch { width: 40px; height: 22px; border-radius: 99px; background: var(--border-dark); position: relative; flex-shrink: 0; transition: background 0.15s; }
+.toggleSwitchOn { background: #f59e0b; }
+.toggleKnob { width: 18px; height: 18px; border-radius: 50%; background: #fff; position: absolute; top: 2px; left: 2px; transition: transform 0.15s; }
+.toggleSwitchOn .toggleKnob { transform: translateX(18px); }
+
+.submitErr { display: flex; align-items: center; gap: 6px; padding: 10px 12px; border-radius: 10px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); color: #ef4444; font-size: 12px; font-weight: 600; margin-top: 14px; }
+
+/* ── Nav / submit ── */
+.navRow { margin-top: 18px; }
+.navLaunch {
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 13px; border-radius: 14px; background: var(--accent); color: var(--accent-text);
+  border: none; font-size: 14px; font-weight: 800; cursor: pointer; font-family: var(--font);
+}
+.navLaunch:disabled { opacity: 0.6; cursor: default; }
+
+/* ── Done ── */
+.doneWrap { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 80px 20px; }
+.doneIcon { width: 64px; height: 64px; border-radius: 50%; background: rgba(34,197,94,0.12); display: flex; align-items: center; justify-content: center; margin-bottom: 14px; }
+.doneIcon i { font-size: 30px; color: #22c55e; }
+.doneTitle { font-size: 20px; font-weight: 900; margin: 0 0 6px; }
+.doneSub { font-size: 13px; color: var(--text-muted); margin: 0 0 20px; }
+.doneBtns { display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 280px; }
+.donePrimary { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 12px; border-radius: 12px; background: var(--accent); color: var(--accent-text); border: none; font-size: 13px; font-weight: 800; cursor: pointer; font-family: var(--font); }
+.doneSecondary { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 12px; border-radius: 12px; background: none; color: var(--text); border: 1px solid var(--border-dark); font-size: 13px; font-weight: 700; cursor: pointer; font-family: var(--font); }
