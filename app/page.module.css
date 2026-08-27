@@ -424,12 +424,7 @@
 .tGrid .tCard:nth-child(4) { animation-delay: 0.17s; }
 .tGrid .tCard:nth-child(n+5) { animation-delay: 0.2s; }
 
-.tCard:hover {
-  border-color: var(--border-dark);
-  box-shadow: 0 10px 26px rgba(0,0,0,0.14);
-  transform: translateY(-5px);
-}
-.tCard:active { transform: translateY(-2px) scale(0.99); }
+.tCard:active { transform: scale(0.99); }
 
 .tCardImg {
   position: relative;
@@ -443,10 +438,6 @@
   object-position: center 30%;
   filter: brightness(0.7);
   transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), filter 0.3s ease;
-}
-.tCard:hover .tCardImgEl {
-  transform: scale(1.08);
-  filter: brightness(0.78);
 }
 .tCardImgFallback {
   width: 100%; height: 100%;
@@ -553,6 +544,57 @@
 .tSlotWarm { background: linear-gradient(90deg, #f97316, #fb923c); }
 .tSlotFull { background: linear-gradient(90deg, #dc2626, #ef4444); }
 .tSlotLabel { font-size: 10.5px; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
+
+/* ── Events row (manual horizontal slide, no auto-scroll) ── */
+.eGrid {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 12px;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+.eGrid::-webkit-scrollbar { display: none; }
+
+.eCard {
+  flex: 0 0 auto;
+  width: 240px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  background: var(--bg);
+  display: block;
+  scroll-snap-align: start;
+}
+.eCard:active { transform: scale(0.99); }
+
+.eCardImg { position: relative; height: 116px; overflow: hidden; background: var(--bg-2); }
+.eCardImgEl { width: 100%; height: 100%; object-fit: cover; object-position: center; }
+.eCardImgFallback { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 26px; }
+.eCardImgBadges { position: absolute; top: 8px; left: 8px; display: flex; gap: 5px; }
+.eStatusBadge {
+  font-size: 9px; font-weight: 800; letter-spacing: 0.03em;
+  padding: 3px 8px; border-radius: 6px; color: #fff;
+  display: flex; align-items: center; gap: 4px;
+}
+.eStatusBadge i { animation: tPulseDot 1.6s ease-in-out infinite; }
+
+.eCardBody { padding: 10px 12px 12px; }
+.eCatChip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 9.5px; font-weight: 800; letter-spacing: 0.02em;
+  padding: 2px 7px; border-radius: 99px; margin-bottom: 6px;
+}
+.eCardName {
+  font-size: 14px; font-weight: 800; color: var(--text); line-height: 1.25; margin-bottom: 6px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.eStatRow { display: flex; gap: 9px; font-size: 10.5px; font-weight: 600; color: var(--text-muted); flex-wrap: wrap; }
+.eStatRow span { display: flex; align-items: center; gap: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eStatRow i { font-size: 12.5px; flex-shrink: 0; }
 
 /* ══════════ TOURNAMENT QUICK VIEW SIDEBAR ══════════ */
 .tSidebarOverlay {
@@ -1171,6 +1213,7 @@
   .shopGrid     { grid-template-columns: repeat(3, 1fr); }
   .clanGrid     { grid-template-columns: repeat(3, 1fr); }
   .tCard        { width: 280px; }
+  .eCard        { width: 250px; }
   .heroName     { font-size: 26px; }
 }
 

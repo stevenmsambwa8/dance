@@ -11,6 +11,7 @@ import UserBadges from '../components/UserBadges'
 import { useCurrency } from '../lib/useCurrency'
 import useTranslation from '../lib/useTranslation'
 import { identityColor } from '../lib/clanColors'
+import { EVENT_CATEGORY_META, deriveEventStatus, formatEventDate } from '../lib/eventCategories'
 
 const CLAN_CAP = 125
 
@@ -275,6 +276,19 @@ function SkeletonCard() {
 /* Shape-matched skeletons — mirror the real card/row markup below so each
    section's loading state actually looks like what's about to appear,
    instead of one generic block/row reused everywhere. */
+function SkeletonEventCard() {
+  return (
+    <div className={styles.eCard} style={{ animation: 'none' }}>
+      <div className={styles.eCardImg}><div className={styles.skelBlock} style={{ position: 'absolute', inset: 0, borderRadius: 0 }} /></div>
+      <div className={styles.eCardBody}>
+        <div className={styles.skelLine} style={{ width: '32%', height: 8, marginBottom: 8 }} />
+        <div className={styles.skelLine} style={{ width: '72%', height: 12, marginBottom: 10 }} />
+        <div className={styles.skelLine} style={{ width: '50%', height: 8 }} />
+      </div>
+    </div>
+  )
+}
+
 function SkeletonTournamentCard() {
   return (
     <div className={styles.tCard} style={{ animation: 'none' }}>
@@ -397,6 +411,8 @@ export default function Home() {
   const { t } = useTranslation()
 
   const [tournaments,  setTournaments]  = useState([])
+  const [events,       setEvents]       = useState([])
+  const [loadingEvents, setLoadingEvents] = useState(true)
   const [topPlayers,   setTopPlayers]   = useState([])
   const [selectedGame,      setSelectedGame]      = useState('all')
   const [gamePlayers,       setGamePlayers]       = useState([])
@@ -420,7 +436,7 @@ export default function Home() {
   const [loadingClans,   setLoadingClans]   = useState(true)
 
   const tGridRef = useRef(null)
-  const tPausedRef = useRef(false)
+  const eGridRef = useRef(null)
 
   useEffect(() => {
     async function loadGameMasters() {
@@ -485,57 +501,18 @@ export default function Home() {
       .then(({ data }) => { setTournaments(filterTest(data)); setLoadingTourns(false) })
   }, [])
 
-  // Auto-scroll tournament carousel: card-to-card snap, seamless infinite loop
   useEffect(() => {
-    const el = tGridRef.current
-    if (!el || tournaments.length < 2) return
-
-    let i = 0
-    let raf = null
-    const total = tournaments.length
-
-    const getStep = () => {
-      const first = el.children[0]
-      if (!first) return 244
-      const gap = parseFloat(getComputedStyle(el).gap) || 12
-      return first.getBoundingClientRect().width + gap
-    }
-
-    const tick = () => {
-      if (tPausedRef.current) return
-      i += 1
-      el.scrollTo({ left: i * getStep(), behavior: 'smooth' })
-      if (i >= total) {
-        setTimeout(() => {
-          if (!tPausedRef.current) {
-            el.scrollTo({ left: 0, behavior: 'auto' })
-            i = 0
-          } else {
-            i = 0
-          }
-        }, 500)
-      }
-    }
-
-    const interval = setInterval(tick, 2800)
-
-    let resumeTimeout = null
-    const pause = () => {
-      tPausedRef.current = true
-      clearTimeout(resumeTimeout)
-      resumeTimeout = setTimeout(() => { tPausedRef.current = false }, 4000)
-    }
-    el.addEventListener('touchstart', pause, { passive: true })
-    el.addEventListener('pointerdown', pause)
-
-    return () => {
-      clearInterval(interval)
-      clearTimeout(resumeTimeout)
-      if (raf) cancelAnimationFrame(raf)
-      el.removeEventListener('touchstart', pause)
-      el.removeEventListener('pointerdown', pause)
-    }
-  }, [tournaments])
+    supabase
+      .from('events')
+      .select('id,title,slug,category,banner_url,location,start_at,end_at,status,rsvp_count,is_test,created_by')
+      .order('start_at', { ascending: true })
+      .limit(10)
+      .then(({ data }) => {
+        const upcoming = (data || []).filter(ev => deriveEventStatus(ev) !== 'ended')
+        setEvents(filterTest(upcoming))
+        setLoadingEvents(false)
+      })
+  }, [])
 
   useEffect(() => {
     if (selectedGame === 'all') return
@@ -760,7 +737,7 @@ export default function Home() {
           </div>
         ) : (
           <div className={styles.tGrid} ref={tGridRef}>
-            {(tournaments.length > 1 ? [...tournaments, ...tournaments] : tournaments).map((tour, i) => {
+            {tournaments.map((tour, i) => {
               const game  = GAME_META[tour.game_slug]
               const prize = parsePrize(tour.prize)
               const fee   = parsePrize(tour.entrance_fee)
@@ -798,6 +775,49 @@ export default function Home() {
                     </div>
                   </div>
                 </button>
+              )
+            })}
+          </div>
+        )}
+      </Section>
+
+      {/* ══════════ EVENTS ══════════ */}
+      <Section title={t('events.events') || 'Events'} href="/events" linkLabel={t('common.all')}>
+        {loadingEvents ? (
+          <div className={styles.eGrid}><SkeletonEventCard /><SkeletonEventCard /></div>
+        ) : events.length === 0 ? (
+          <div className={styles.empty}>
+            <i className="ri-calendar-event-line" />
+            <p>{t('home.noUpcomingEvents') || 'No upcoming events'}</p>
+            <Link href="/events" className={styles.emptyBtn}>{t('home.browseAll')}</Link>
+          </div>
+        ) : (
+          <div className={styles.eGrid} ref={eGridRef}>
+            {events.map(ev => {
+              const catMeta = EVENT_CATEGORY_META[ev.category] || EVENT_CATEGORY_META.other
+              const evStatus = deriveEventStatus(ev)
+              return (
+                <Link key={ev.id} href={`/events/${ev.slug || ev.id}`} className={styles.eCard}>
+                  <div className={styles.eCardImg}>
+                    {ev.banner_url
+                      ? <img src={ev.banner_url} alt={ev.title} className={styles.eCardImgEl} loading="lazy" decoding="async" />
+                      : <div className={styles.eCardImgFallback} style={{ background: `${catMeta.color}22` }}><i className={catMeta.icon} style={{ color: catMeta.color }} /></div>
+                    }
+                    <div className={styles.eCardImgBadges}>
+                      <span className={styles.eStatusBadge} style={{ background: evStatus === 'live' ? '#22c55e' : 'rgba(0,0,0,0.55)' }}>
+                        <i className="ri-circle-fill" style={{ fontSize: 6 }} /> {evStatus === 'live' ? (t('home.liveNow') || 'Live') : formatEventDate(ev.start_at)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className={styles.eCardBody}>
+                    <div className={styles.eCatChip} style={{ color: catMeta.color, background: `${catMeta.color}18` }}><i className={catMeta.icon} /> {catMeta.label}</div>
+                    <div className={styles.eCardName}>{ev.title}</div>
+                    <div className={styles.eStatRow}>
+                      {ev.location && <span><i className="ri-map-pin-line" /> {ev.location}</span>}
+                      <span><i className="ri-group-line" /> {ev.rsvp_count || 0}</span>
+                    </div>
+                  </div>
+                </Link>
               )
             })}
           </div>
