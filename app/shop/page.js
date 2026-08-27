@@ -72,6 +72,8 @@ export default function Shop() {
   const { fmtAmt, currency } = useCurrency(profile?.country_flag)
   const router = useRouter()
   const [cat, setCat]         = useState('all')
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [query, setQuery]     = useState('')
   const [items, setItems]     = useState([])
   const [itemImages, setItemImages] = useState({})
   const [loading, setLoading] = useState(true)
@@ -254,6 +256,18 @@ export default function Shop() {
 
   const canManage = (item) => item && user && (user.id === item.seller_id || isAdmin)
 
+  function toggleSearch() {
+    setSearchOpen(o => {
+      if (o) setQuery('')
+      return !o
+    })
+  }
+
+  const q = query.trim().toLowerCase()
+  const filteredItems = q
+    ? items.filter(i => i.title?.toLowerCase().includes(q) || (i.description || '').toLowerCase().includes(q))
+    : items
+
   return (
     <div className={styles.page}>
       <div className={styles.header}>
@@ -281,21 +295,45 @@ export default function Shop() {
             </button>
           ))}
         </div>
-        {!loading && <span className={styles.itemCount}>{items.length} {items.length === 1 ? 'item' : 'items'}</span>}
+        <button
+          className={`${styles.searchToggle} ${searchOpen ? styles.searchToggleActive : ''}`}
+          onClick={toggleSearch}
+          aria-label="Search products"
+        >
+          <i className={searchOpen ? 'ri-close-line' : 'ri-search-line'} />
+        </button>
       </div>
+
+      {searchOpen && (
+        <div className={styles.searchRow}>
+          <i className="ri-search-line" />
+          <input
+            autoFocus
+            type="text"
+            placeholder="Search products..."
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+          />
+          {query && (
+            <button className={styles.searchClear} onClick={() => setQuery('')} type="button">
+              <i className="ri-close-line" />
+            </button>
+          )}
+        </div>
+      )}
 
       <div className={styles.grid}>
         {loading
           ? Array.from({ length: 6 }).map((_, i) => <SkeletonTile key={i} />)
-          : items.length === 0
+          : filteredItems.length === 0
             ? (
               <div className={styles.empty}>
                 <i className="ri-store-2-line" />
-                <p>No items here yet</p>
-                <span>Be the first to list something in this category</span>
+                <p>{q ? 'No matches found' : 'No items here yet'}</p>
+                <span>{q ? 'Try a different search term' : 'Be the first to list something in this category'}</span>
               </div>
             )
-            : items.map(item => {
+            : filteredItems.map(item => {
               const imgs  = itemImages[item.id] || []
               const isOwn = user && user.id === item.seller_id
               const isBuying = buying[item.id]
@@ -323,8 +361,11 @@ export default function Shop() {
                   </div>
 
                   <div className={styles.tileBody}>
-                    <span className={styles.tileSeller}><i className="ri-user-line" />{item.profiles?.username || 'Unknown'}</span>
-                    <h3 className={styles.tileTitle}>{item.title}</h3>
+                    <div className={styles.tileTop}>
+                      <span className={styles.tileSeller}><i className="ri-user-line" />{item.profiles?.username || 'Unknown'}</span>
+                      <h3 className={styles.tileTitle}>{item.title}</h3>
+                      {item.description && <p className={styles.tileDesc}>{item.description}</p>}
+                    </div>
 
                     <div className={styles.tileFooter}>
                       <span className={styles.tilePrice}>{fmtAmt(Number(String(item.price).replace(/[^0-9.]/g,'')))}</span>
