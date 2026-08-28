@@ -288,47 +288,19 @@
 
 /* ── Body ── */
 .tileBody {
-  padding: 12px 13px 13px;
+  padding: 10px 12px 11px;
   display: flex;
   flex-direction: column;
-  flex: 1;
 }
-.tileTop {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex: 1;
-}
-.tileSeller {
-  font-size: 9.5px;
-  color: var(--text-muted);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  display: flex;
-  align-items: center;
-  gap: 3px;
-}
-.tileSeller i { font-size: 10px; }
 .tileTitle {
   font-size: 12.5px;
   font-weight: 700;
   letter-spacing: -0.005em;
-  line-height: 1.35;
+  line-height: 1.3;
   color: var(--text);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  white-space: nowrap;
   overflow: hidden;
-  min-height: 34px;
-}
-.tileDesc {
-  font-size: 10.5px;
-  line-height: 1.4;
-  color: var(--text-muted);
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tileFooter {
@@ -336,8 +308,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-top: 10px;
-  padding-top: 10px;
+  margin-top: 8px;
+  padding-top: 8px;
   border-top: 1px solid var(--border);
 }
 .tilePrice {

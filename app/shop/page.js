@@ -58,9 +58,8 @@ function SkeletonTile() {
     <div className={styles.tile}>
       <div className={`${styles.tileImgWrap} ${styles.skeletonShimmer}`} />
       <div className={styles.tileBody}>
-        <div className={`${styles.skeletonLine} ${styles.skeletonShimmer}`} style={{ width: '40%' }} />
         <div className={`${styles.skeletonLine} ${styles.skeletonShimmer}`} style={{ width: '85%' }} />
-        <div className={`${styles.skeletonLine} ${styles.skeletonShimmer}`} style={{ width: '55%', marginTop: 6 }} />
+        <div className={`${styles.skeletonLine} ${styles.skeletonShimmer}`} style={{ width: '45%', marginTop: 10 }} />
       </div>
     </div>
   )
@@ -361,11 +360,7 @@ export default function Shop() {
                   </div>
 
                   <div className={styles.tileBody}>
-                    <div className={styles.tileTop}>
-                      <span className={styles.tileSeller}><i className="ri-user-line" />{item.profiles?.username || 'Unknown'}</span>
-                      <h3 className={styles.tileTitle}>{item.title}</h3>
-                      {item.description && <p className={styles.tileDesc}>{item.description}</p>}
-                    </div>
+                    <h3 className={styles.tileTitle}>{item.title}</h3>
 
                     <div className={styles.tileFooter}>
                       <span className={styles.tilePrice}>{fmtAmt(Number(String(item.price).replace(/[^0-9.]/g,'')))}</span>

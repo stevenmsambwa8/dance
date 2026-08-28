@@ -1,4 +1,4 @@
-/* Shop Item Detail — raw, clean, gaming-native */
+/* Shop Item Detail — clean, single-source info block */
 
 .page {
   max-width: 680px;
@@ -27,9 +27,8 @@
   font-size: 13px; font-weight: 700; color: var(--text-muted);
   text-decoration: none; transition: color 0.1s;
 }
-
 @media (hover: hover) {
-.back:hover { color: var(--text); }
+  .back:hover { color: var(--text); }
 }
 .shareBtn {
   width: 32px; height: 32px;
@@ -40,15 +39,14 @@
   font-size: 14px; color: var(--text-muted);
   cursor: pointer; transition: background 0.1s;
 }
-
 @media (hover: hover) {
-.shareBtn:hover { background: var(--bg-2); }
+  .shareBtn:hover { background: var(--bg-2); }
 }
 
 /* ── Gallery — full bleed, landscape ── */
 .gallery {
   margin: 14px 20px 0;
-  border-radius: 10px;
+  border-radius: 14px;
   overflow: hidden;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -89,7 +87,7 @@
 .expandBtn {
   position: absolute; top: 8px; right: 8px;
   width: 30px; height: 30px;
-  border-radius: 6px;
+  border-radius: 8px;
   background: rgba(0,0,0,0.5);
   border: none; color: #fff;
   display: flex; align-items: center; justify-content: center;
@@ -111,7 +109,7 @@
   font-size: 8px; font-weight: 800;
   letter-spacing: 0.12em; text-transform: uppercase;
   background: rgba(0,0,0,0.6); color: #fff;
-  padding: 2px 8px; border-radius: 3px;
+  padding: 3px 9px; border-radius: 20px;
 }
 
 /* Thumbnail strip */
@@ -126,18 +124,21 @@
 .thumb {
   flex-shrink: 0;
   width: 48px; height: 36px;
-  border-radius: 4px;
+  border-radius: 6px;
   overflow: hidden;
   border: 2px solid transparent;
   padding: 0; background: none;
   cursor: pointer; transition: border-color 0.1s;
 }
 .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.thumbActive { border-color: var(--text) !important; }
+.thumbActive { border-color: var(--accent) !important; }
 
-/* ── Info ── */
+/* ── Info — one grouped block, spaced by gap not dividers ── */
 .info {
   padding: 18px 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .titleRow {
@@ -145,12 +146,12 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 4px;
 }
 .title {
-  font-size: 22px;
+  font-size: 21px;
   font-weight: 900;
   letter-spacing: -0.02em;
+  line-height: 1.25;
   color: var(--text);
   flex: 1;
 }
@@ -159,113 +160,84 @@
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.08em;
-  padding: 3px 8px;
+  padding: 4px 9px;
   border-radius: 20px;
   background: rgba(34,197,94,0.1);
   color: #22c55e;
   border: 1px solid rgba(34,197,94,0.25);
-  margin-top: 5px;
 }
 .soldBadge {
   flex-shrink: 0;
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.08em;
-  padding: 3px 8px;
+  padding: 4px 9px;
   border-radius: 20px;
   background: rgba(148,163,184,0.1);
   color: var(--text-muted);
   border: 1px solid var(--border-dark);
-  margin-top: 5px;
 }
 
-.bigPrice {
-  font-size: 28px;
+.price {
+  font-size: 26px;
   font-weight: 900;
   letter-spacing: -0.03em;
   color: var(--accent);
-  margin: 2px 0 14px;
 }
 
-.blockLabel {
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: 6px;
-}
-
-.desc {
-  font-size: 13px;
-  line-height: 1.65;
-  color: var(--text-dim);
-  white-space: pre-line;
-}
-
-.divider { height: 1px; background: var(--border); margin: 16px 0; }
-
-/* ── Seller row — flat, no nested card ── */
+/* ── Seller — single contained card, no stacked border lines ── */
 .sellerRow {
   display: flex;
   align-items: center;
   gap: 10px;
   text-decoration: none;
   color: inherit;
-  padding: 10px 0;
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-  transition: opacity 0.1s;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  transition: background 0.1s;
 }
-
 @media (hover: hover) {
-.sellerRow:hover { opacity: 0.7; }
+  .sellerRow:hover { background: var(--bg-2); }
 }
 .sellerAvatar {
-  width: 36px; height: 36px;
+  width: 34px; height: 34px;
   border-radius: 50%;
   overflow: hidden;
-  background: var(--surface);
+  background: var(--bg-2);
   border: 1px solid var(--border-dark);
   display: flex; align-items: center; justify-content: center;
   font-size: 13px; font-weight: 800; color: var(--text-muted);
   flex-shrink: 0;
 }
 .sellerAvatar img { width: 100%; height: 100%; object-fit: cover; }
-.sellerInfo { flex: 1; display: flex; flex-direction: column; gap: 1px; }
+.sellerInfo { flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .sellerName {
   font-size: 13px; font-weight: 700;
   display: flex; align-items: center; gap: 5px;
 }
 .sellerMeta { font-size: 11px; color: var(--text-muted); }
 
-/* ── Buy strip — flat bar at bottom of info ── */
-.buyStrip {
-  padding: 16px 20px 0;
+.desc {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-dim);
+  white-space: pre-line;
+}
+
+/* ── CTA ── */
+.ctaArea {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.buyStripTop {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.buyStripPrice {
-  font-size: 20px;
-  font-weight: 900;
-  letter-spacing: -0.02em;
-}
-.panelStatusAvail { font-size: 10px; font-weight: 700; color: #22c55e; }
-.panelStatusSold  { font-size: 10px; font-weight: 700; color: var(--text-muted); }
-
 .requestTracker {
   display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px;
+  padding: 10px 12px;
   background: var(--bg-2);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 12px;
 }
 .trackerDot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .trackerLabel { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); display: block; }
@@ -277,11 +249,11 @@
   justify-content: center;
   gap: 7px;
   width: 100%;
-  height: 44px;
-  background: var(--text);
-  color: var(--bg);
+  height: 46px;
+  background: var(--accent);
+  color: var(--accent-text);
   border: none;
-  border-radius: 8px;
+  border-radius: 12px;
   font-size: 14px;
   font-weight: 800;
   letter-spacing: 0.01em;
@@ -289,9 +261,8 @@
   text-decoration: none;
   transition: opacity 0.1s;
 }
-
 @media (hover: hover) {
-.ctaBtn:hover { opacity: 0.85; }
+  .ctaBtn:hover { opacity: 0.86; }
 }
 .ctaBtn:disabled { opacity: 0.45; cursor: not-allowed; }
 .ctaBtnAlt {
@@ -299,42 +270,43 @@
   color: var(--text) !important;
   border: 1px solid var(--border-dark) !important;
 }
-.ctaHint {
-  font-size: 10px; color: var(--text-muted);
-  display: flex; align-items: center; gap: 4px;
-  justify-content: center;
-}
 
 .ownerNote {
   font-size: 12px; font-weight: 600;
   color: var(--text-muted);
-  display: flex; align-items: center; gap: 5px;
-  padding: 10px 0;
+  display: flex; align-items: center; gap: 6px;
+  padding: 12px;
+  background: var(--bg-2);
+  border-radius: 12px;
 }
 .panelSub { font-size: 12px; color: var(--text-muted); text-align: center; }
 
-/* ── Inbox — flat list, no double border ── */
+/* ── Inbox — spaced cards, not a stacked list of border-lines ── */
 .inboxPanel {
-  margin: 24px 20px 0;
+  margin: 28px 20px 0;
+  padding-top: 18px;
   border-top: 1px solid var(--border);
 }
 .inboxTitle {
   font-size: 10px; font-weight: 800;
   letter-spacing: 0.12em; text-transform: uppercase;
   color: var(--text-muted);
-  padding: 14px 0 10px;
+  margin: 0 0 12px;
   display: flex; align-items: center; gap: 6px;
 }
 .inboxEmpty {
   font-size: 13px; color: var(--text-muted);
-  padding: 16px 0;
+  padding: 4px 0 8px;
 }
 
 .reqCard {
-  padding: 12px 0;
-  border-bottom: 1px solid var(--border);
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  margin-bottom: 10px;
 }
-.reqCard:last-child { border-bottom: none; }
+.reqCard:last-child { margin-bottom: 0; }
 
 .reqTop {
   display: flex; align-items: center; gap: 8px;
@@ -358,45 +330,42 @@
 .reqStatus {
   display: inline-flex; align-items: center;
   font-size: 9px; font-weight: 800; letter-spacing: 0.06em;
-  padding: 2px 7px; border-radius: 3px; margin-bottom: 8px;
+  padding: 2px 8px; border-radius: 20px; margin-bottom: 8px;
 }
 .reqActions { display: flex; gap: 6px; }
 .reqAccept {
   flex: 1; height: 34px;
   background: #22c55e; color: #fff;
-  border: none; border-radius: 6px;
+  border: none; border-radius: 8px;
   font-size: 12px; font-weight: 800;
   cursor: pointer; transition: opacity 0.1s;
   display: flex; align-items: center; justify-content: center; gap: 4px;
 }
-
 @media (hover: hover) {
-.reqAccept:hover { opacity: 0.85; }
+  .reqAccept:hover { opacity: 0.85; }
 }
 .reqDecline {
   flex: 1; height: 34px;
   background: transparent; color: var(--text-muted);
-  border: 1px solid var(--border-dark); border-radius: 6px;
+  border: 1px solid var(--border-dark); border-radius: 8px;
   font-size: 12px; font-weight: 700;
   cursor: pointer; transition: background 0.1s;
   display: flex; align-items: center; justify-content: center; gap: 4px;
 }
-
 @media (hover: hover) {
-.reqDecline:hover { background: var(--bg-2); }
+  .reqDecline:hover { background: var(--bg-2); }
 }
 .reqChat {
   flex: 1; height: 34px;
   background: transparent; color: var(--text);
-  border: 1px solid var(--border-dark); border-radius: 6px;
+  border: 1px solid var(--border-dark); border-radius: 8px;
   font-size: 12px; font-weight: 700;
   cursor: pointer; text-decoration: none;
   display: flex; align-items: center; justify-content: center; gap: 4px;
   transition: background 0.1s;
 }
-
 @media (hover: hover) {
-.reqChat:hover { background: var(--bg-2); }
+  .reqChat:hover { background: var(--bg-2); }
 }
 
 /* ── Lightbox ── */

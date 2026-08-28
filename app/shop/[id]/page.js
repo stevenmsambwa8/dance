@@ -265,7 +265,7 @@ export default function ShopItemDetail() {
         )}
       </div>
 
-      {/* Info */}
+      {/* Info — one clean block: title, price, seller, description, CTA */}
       <div className={styles.info}>
         <div className={styles.titleRow}>
           <h1 className={styles.title}>{item.title}</h1>
@@ -273,18 +273,9 @@ export default function ShopItemDetail() {
             {item.active ? 'Available' : 'Sold'}
           </span>
         </div>
-        <p className={styles.bigPrice}>{fmtPrice(item.price)}</p>
 
-        {item.description && (
-          <>
-            <p className={styles.blockLabel}>About this item</p>
-            <p className={styles.desc}>{item.description}</p>
-          </>
-        )}
+        <p className={styles.price}>{fmtPrice(item.price)}</p>
 
-        <div className={styles.divider} />
-
-        <p className={styles.blockLabel}>Seller</p>
         <Link href={`/profile/${item.seller_id}`} className={styles.sellerRow}>
           <div className={styles.sellerAvatar}>
             {item.profiles?.avatar_url
@@ -303,52 +294,44 @@ export default function ShopItemDetail() {
           </div>
           <i className="ri-arrow-right-s-line" style={{ color: 'var(--text-muted)', marginLeft: 'auto' }} />
         </Link>
-      </div>
 
-      {/* Buy strip — flat, no nested panel */}
-      <div className={styles.buyStrip}>
-        <div className={styles.buyStripTop}>
-          <span className={styles.buyStripPrice}>{fmtPrice(item.price)}</span>
-          <span className={item.active ? styles.panelStatusAvail : styles.panelStatusSold}>
-            {item.active ? '● Live' : '● Sold'}
-          </span>
-        </div>
+        {item.description && <p className={styles.desc}>{item.description}</p>}
 
-        {!isSeller && user && item.active && requestChecked && (
-          <>
-            {hasActiveRequest && (
-              <div className={styles.requestTracker}>
-                <div className={styles.trackerDot} style={{ background: statusColor(myRequest.status) }} />
-                <div>
-                  <span className={styles.trackerLabel}>Your request</span>
-                  <span className={styles.trackerStatus} style={{ color: statusColor(myRequest.status) }}>
-                    {myRequest.status?.charAt(0).toUpperCase() + myRequest.status?.slice(1)}
-                  </span>
+        {/* CTA */}
+        <div className={styles.ctaArea}>
+          {!isSeller && user && item.active && requestChecked && (
+            <>
+              {hasActiveRequest && (
+                <div className={styles.requestTracker}>
+                  <div className={styles.trackerDot} style={{ background: statusColor(myRequest.status) }} />
+                  <div>
+                    <span className={styles.trackerLabel}>Your request</span>
+                    <span className={styles.trackerStatus} style={{ color: statusColor(myRequest.status) }}>
+                      {myRequest.status?.charAt(0).toUpperCase() + myRequest.status?.slice(1)}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            )}
-            <button
-              className={`${styles.ctaBtn} ${hasActiveRequest ? styles.ctaBtnAlt : ''}`}
-              onClick={handleBuyNow}
-              disabled={buying}
-            >
-              <i className={ctaIcon} style={buying ? { animation: 'spin .7s linear infinite' } : {}} />
-              {ctaLabel}
-            </button>
-            {!hasActiveRequest && (
-              <p className={styles.ctaHint}><i className="ri-shield-check-line" /> Seller will be notified instantly</p>
-            )}
-          </>
-        )}
-        {isSeller && <div className={styles.ownerNote}><i className="ri-store-2-line" /> This is your listing</div>}
-        {!user && (
-          <>
-            <p className={styles.panelSub}>Log in to buy or make an offer.</p>
-            <Link href="/login" className={styles.ctaBtn} style={{ textDecoration: 'none' }}>
-              <i className="ri-login-box-line" /> Log In to Buy
-            </Link>
-          </>
-        )}
+              )}
+              <button
+                className={`${styles.ctaBtn} ${hasActiveRequest ? styles.ctaBtnAlt : ''}`}
+                onClick={handleBuyNow}
+                disabled={buying}
+              >
+                <i className={ctaIcon} style={buying ? { animation: 'spin .7s linear infinite' } : {}} />
+                {ctaLabel}
+              </button>
+            </>
+          )}
+          {isSeller && <div className={styles.ownerNote}><i className="ri-store-2-line" /> This is your listing</div>}
+          {!user && (
+            <>
+              <p className={styles.panelSub}>Log in to buy or make an offer.</p>
+              <Link href="/login" className={styles.ctaBtn} style={{ textDecoration: 'none' }}>
+                <i className="ri-login-box-line" /> Log In to Buy
+              </Link>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Seller inbox */}
