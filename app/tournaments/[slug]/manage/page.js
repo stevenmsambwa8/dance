@@ -10,6 +10,8 @@ import usePageLoading from '../../../../components/usePageLoading'
 import useTranslation from '../../../../lib/useTranslation'
 import { getTimeStatus, toLocalInputValue, formatDuration, formatTimeOfDay, isTimeUp } from '../../../../lib/roundTimers'
 import { randomizeMatchSchedule, knockoutKey, fixtureKey } from '../../../../lib/matchScheduler'
+import { GAME_META } from '../../../../lib/constants'
+import { buildEmptyBRBracket, parseBRData, PLACEMENT_TABLE_PRESETS, DEFAULT_KILL_POINT_VALUE } from '../../../../lib/brPoints'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function getPlayerBracketStatus(userId, bracketData) {
@@ -129,6 +131,39 @@ const GAME_SLUGS_MANAGE = ['pubgm','freefire','codm','bussid','efootball','dls',
 const GAME_NAMES_MANAGE = { pubgm:'PUBGM', freefire:'Free Fire', codm:'Call of Duty', bussid:'Maleo BUSSID', efootball:'eFootball', dls:'DLS26', fifa:'FIFA 26' }
 const FORMATS_MANAGE    = ['Solo','Duo','Squad','Team','League','Round Robin','Bo3','Bo5']
 const STATUSES_MANAGE   = ['active','ongoing','upcoming','completed']
+
+// Stage structure — same options/copy as the Create flow's Format step,
+// so changing it later in Settings feels like the same decision.
+const STAGE_FORMATS_MANAGE = [
+  { key: 'knockout', icon: 'ri-node-tree', title: 'Knockout', desc: 'Single elimination bracket — lose once and you\'re out. Quickest to run.' },
+  { key: 'groups_knockout', icon: 'ri-grid-line', title: 'Groups + Knockout', desc: 'Round-robin groups first, then top finishers move into a knockout bracket.' },
+  { key: 'league', icon: 'ri-trophy-line', title: 'Premier League', desc: 'Like the NBC Premier League — everyone plays everyone home & away. Top 3 on the table win.' },
+  { key: 'br_points', icon: 'ri-skull-line', title: 'Battle Royale Points', desc: 'No bracket — score by placement + kills across a series of matches.', brOnly: true },
+]
+const LEAGUE_PODIUM_OPTIONS_MANAGE = [1, 3, 5]
+
+// The Settings game dropdown uses its own older slugs ('pubgm', 'bussid', 'fifa')
+// that don't line up with lib/constants' GAME_SLUGS ('pubg', 'maleo_bussid', 'ufl').
+// Mapped here only so Battle-Royale genre detection still works correctly —
+// doesn't touch the dropdown itself.
+const GAME_SLUG_ALIAS_MANAGE = { pubgm: 'pubg', bussid: 'maleo_bussid', fifa: 'ufl' }
+function isBRGameSlug(slug) {
+  const real = GAME_SLUG_ALIAS_MANAGE[slug] || slug
+  return (GAME_META[real]?.genre || '').includes('Battle Royale')
+}
+
+// Best-effort match of a placement table back to a named preset, so the
+// preset chip shows as selected when it still matches exactly.
+function detectPlacementPreset(table) {
+  if (!table) return null
+  const norm = t => JSON.stringify(Object.entries(t || {}).sort((a, b) => Number(a[0]) - Number(b[0])))
+  const target = norm(table)
+  for (const [key, preset] of Object.entries(PLACEMENT_TABLE_PRESETS)) {
+    if (norm(preset.table) === target) return key
+  }
+  return null
+}
+
 const TEAM_SIZE_OPTS    = [
   { value: 1, label: '1v1', sub: 'Solo' },
   { value: 2, label: '2v2', sub: 'Team' },
@@ -729,6 +764,9 @@ export default function TournamentManage() {
     if (error || !t) { setLoading(false); return }
     id.current = t.id
     setTournament(t)
+    const stageFmt   = t.stage_format || 'knockout'
+    const isLeagueT  = stageFmt === 'league'
+    const brConf     = t.stage_format === 'br_points' ? parseBRData(t.bracket_data)?.config : null
     setEditForm({
       name:         t.name         || '',
       description:  t.description  || '',
@@ -741,6 +779,16 @@ export default function TournamentManage() {
       team_size:    t.team_size    || 1,
       prize:        t.prize        || '',
       pro_only:     t.pro_only     || false,
+      // ── Stage structure — mirrors the Create flow's Format step ──
+      stage_format:        stageFmt,
+      group_count:         isLeagueT ? 4 : (t.group_count ?? 4),
+      advance_per_group:   isLeagueT ? 2 : (t.advance_per_group ?? 2),
+      league_legs:         isLeagueT ? (t.group_count ?? 2) : 2,
+      league_podium:       isLeagueT ? (t.advance_per_group ?? 3) : 3,
+      br_match_count:      brConf?.matchCount ?? 6,
+      br_kill_point_value: brConf?.killPointValue ?? DEFAULT_KILL_POINT_VALUE,
+      br_placement_preset: detectPlacementPreset(brConf?.placementTable) ?? 'standard',
+      br_placement_table:  brConf?.placementTable ?? { ...PLACEMENT_TABLE_PRESETS.standard.table },
     })
 
     const [partsRes, lbRes, pmtsRes] = await Promise.all([
@@ -784,6 +832,13 @@ export default function TournamentManage() {
     return () => clearInterval(iv)
   }, [])
   useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current) }, [])
+  // Battle Royale Points only makes sense for BR games — fall back if the
+  // edited game no longer matches (same guard the Create flow uses).
+  useEffect(() => {
+    if (editForm?.stage_format === 'br_points' && !isBRGameSlug(editForm.game_slug)) {
+      setEditForm(f => f ? { ...f, stage_format: 'knockout' } : f)
+    }
+  }, [editForm?.game_slug])
 
   // ── Auth guard ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1306,7 +1361,33 @@ export default function TournamentManage() {
   async function saveEdit() {
     if (!editForm?.name?.trim()) { setEditError(t('tournaments.nameIsRequired')); return }
     setEditSaving(true); setEditError(''); setEditSaved(false)
-    const { error: err } = await supabase.from('tournaments').update({
+
+    const stageFmt   = editForm.stage_format || 'knockout'
+    const wasStage   = tournament?.stage_format || 'knockout'
+    const isLeague   = stageFmt === 'league'
+    const isGroups   = stageFmt === 'groups_knockout'
+    // group_count / advance_per_group are repurposed for 'league' to carry
+    // legs / podium size — same pattern the Create flow uses.
+    const groupCountVal      = isGroups ? Number(editForm.group_count) : (isLeague ? Number(editForm.league_legs) : tournament?.group_count ?? null)
+    const advancePerGroupVal = isGroups ? Number(editForm.advance_per_group) : (isLeague ? Number(editForm.league_podium) : tournament?.advance_per_group ?? null)
+
+    // bracket_data is only touched here for br_points — knockout / groups /
+    // league structure stays owned by the dedicated Bracket-tab actions
+    // (Reset Bracket / Generate Groups), same as slots & team_size already work.
+    let bracketDataPatch // undefined = leave column untouched
+    if (stageFmt === 'br_points') {
+      const existingBR = wasStage === 'br_points' ? parseBRData(tournament?.bracket_data) : null
+      bracketDataPatch = existingBR
+        // still br_points — merge config in, keep any recorded matches
+        ? { ...existingBR, config: { matchCount: Number(editForm.br_match_count), killPointValue: Number(editForm.br_kill_point_value), placementTable: editForm.br_placement_table } }
+        // switching into br_points fresh
+        : buildEmptyBRBracket({ matchCount: Number(editForm.br_match_count), killPointValue: Number(editForm.br_kill_point_value), placementTable: editForm.br_placement_table })
+    } else if (wasStage === 'br_points') {
+      // leaving br_points — clear its bracket_data shape so it doesn't linger
+      bracketDataPatch = null
+    }
+
+    const updatePayload = {
       name:         editForm.name.trim(),
       description:  editForm.description?.trim() || null,
       game_slug:    editForm.game_slug,
@@ -1318,11 +1399,24 @@ export default function TournamentManage() {
       team_size:    Number(editForm.team_size) || 1,
       prize:        editForm.prize || null,
       pro_only:     editForm.pro_only || false,
-    }).eq('id', id.current)
+      stage_format: stageFmt,
+      group_count:  groupCountVal,
+      advance_per_group: advancePerGroupVal,
+    }
+    if (bracketDataPatch !== undefined) updatePayload.bracket_data = bracketDataPatch
+
+    const { error: err } = await supabase.from('tournaments').update(updatePayload).eq('id', id.current)
     setEditSaving(false)
     if (err) { setEditError(err.message); return }
     setEditSaved(true)
-    setTournament(tt => ({ ...tt, ...editForm }))
+    setTournament(tt => ({
+      ...tt, ...editForm,
+      stage_format: stageFmt,
+      group_count: groupCountVal,
+      advance_per_group: advancePerGroupVal,
+      bracket_data: bracketDataPatch !== undefined ? bracketDataPatch : tt.bracket_data,
+    }))
+    if (bracketDataPatch !== undefined) setBracketData(bracketDataPatch)
     showToast(t('tournaments.tournamentUpdated'))
     setTimeout(() => setEditSaved(false), 2500)
   }
@@ -2468,6 +2562,153 @@ export default function TournamentManage() {
                   <div className={styles.field}>
                     <label>{t('tournaments.slotsLabel')}</label>
                     <input type="number" value={editForm.slots} onChange={e => setEF('slots', e.target.value)} placeholder={t('tournaments.eg32')} className={styles.input} />
+                  </div>
+
+                  {/* Stage Structure — how players progress to a winner */}
+                  <div className={styles.field}>
+                    <label><i className="ri-node-tree" style={{ marginRight: 4 }} />Stage Structure</label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 6 }}>
+                      {STAGE_FORMATS_MANAGE.filter(f => !f.brOnly || isBRGameSlug(editForm.game_slug)).map(f => {
+                        const active = editForm.stage_format === f.key
+                        return (
+                          <button key={f.key} type="button" onClick={() => setEF('stage_format', f.key)}
+                            style={{
+                              display: 'flex', alignItems: 'flex-start', gap: 10, textAlign: 'left',
+                              padding: '11px 12px', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit',
+                              border: `1.5px solid ${active ? '#6366f1' : 'var(--border)'}`,
+                              background: active ? '#6366f110' : 'var(--surface)',
+                            }}>
+                            <i className={f.icon} style={{ fontSize: 16, color: active ? '#6366f1' : 'var(--text-muted)', marginTop: 1, flexShrink: 0 }} />
+                            <span style={{ flex: 1 }}>
+                              <span style={{ display: 'block', fontSize: 13, fontWeight: 800, color: active ? '#6366f1' : 'var(--text)' }}>{f.title}</span>
+                              <span style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.4 }}>{f.desc}</span>
+                            </span>
+                            {active && <i className="ri-check-line" style={{ color: '#6366f1', fontSize: 16, flexShrink: 0 }} />}
+                          </button>
+                        )
+                      })}
+                    </div>
+
+                    {editForm.stage_format === 'league' && (
+                      <div style={{ display: 'flex', gap: 16, marginTop: 12, flexWrap: 'wrap' }}>
+                        <div style={{ flex: 1, minWidth: 140 }}>
+                          <span style={{ display: 'block', fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>Legs</span>
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                            {[{ v: 2, l: 'Home & Away' }, { v: 1, l: 'Single Round' }].map(o => (
+                              <button key={o.v} type="button" onClick={() => setEF('league_legs', o.v)}
+                                style={{ padding: '7px 12px', borderRadius: 20, border: 'none', fontFamily: 'inherit', fontSize: 11, fontWeight: 700, cursor: 'pointer', background: editForm.league_legs === o.v ? '#6366f1' : 'var(--surface)', color: editForm.league_legs === o.v ? '#fff' : 'var(--text)' }}>
+                                {o.l}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div style={{ flex: 1, minWidth: 140 }}>
+                          <span style={{ display: 'block', fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>Winners</span>
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                            {LEAGUE_PODIUM_OPTIONS_MANAGE.map(n => (
+                              <button key={n} type="button" onClick={() => setEF('league_podium', n)}
+                                style={{ padding: '7px 12px', borderRadius: 20, border: 'none', fontFamily: 'inherit', fontSize: 11, fontWeight: 700, cursor: 'pointer', background: editForm.league_podium === n ? '#6366f1' : 'var(--surface)', color: editForm.league_podium === n ? '#fff' : 'var(--text)' }}>
+                                Top {n}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {editForm.stage_format === 'groups_knockout' && (
+                      <div style={{ display: 'flex', gap: 16, marginTop: 12, flexWrap: 'wrap' }}>
+                        <div style={{ flex: 1, minWidth: 140 }}>
+                          <span style={{ display: 'block', fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>Number of groups</span>
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                            {[2, 4, 8].map(n => (
+                              <button key={n} type="button" onClick={() => setEF('group_count', n)}
+                                style={{ padding: '7px 12px', borderRadius: 20, border: 'none', fontFamily: 'inherit', fontSize: 11, fontWeight: 700, cursor: 'pointer', background: editForm.group_count === n ? '#6366f1' : 'var(--surface)', color: editForm.group_count === n ? '#fff' : 'var(--text)' }}>
+                                {n}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div style={{ flex: 1, minWidth: 140 }}>
+                          <span style={{ display: 'block', fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>Advance per group</span>
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                            {[1, 2, 4].map(n => (
+                              <button key={n} type="button" onClick={() => setEF('advance_per_group', n)}
+                                style={{ padding: '7px 12px', borderRadius: 20, border: 'none', fontFamily: 'inherit', fontSize: 11, fontWeight: 700, cursor: 'pointer', background: editForm.advance_per_group === n ? '#6366f1' : 'var(--surface)', color: editForm.advance_per_group === n ? '#fff' : 'var(--text)' }}>
+                                {n}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {editForm.stage_format === 'br_points' && (
+                      <div style={{ marginTop: 12 }}>
+                        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                          <div style={{ flex: 1, minWidth: 140 }}>
+                            <span style={{ display: 'block', fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>Number of matches</span>
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                              {[3, 4, 6, 8].map(n => (
+                                <button key={n} type="button" onClick={() => setEF('br_match_count', n)}
+                                  style={{ padding: '7px 12px', borderRadius: 20, border: 'none', fontFamily: 'inherit', fontSize: 11, fontWeight: 700, cursor: 'pointer', background: editForm.br_match_count === n ? '#6366f1' : 'var(--surface)', color: editForm.br_match_count === n ? '#fff' : 'var(--text)' }}>
+                                  {n}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <div style={{ flex: 1, minWidth: 140 }}>
+                            <span style={{ display: 'block', fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>Points per kill</span>
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                              {[0.5, 1, 1.5, 2].map(n => (
+                                <button key={n} type="button" onClick={() => setEF('br_kill_point_value', n)}
+                                  style={{ padding: '7px 12px', borderRadius: 20, border: 'none', fontFamily: 'inherit', fontSize: 11, fontWeight: 700, cursor: 'pointer', background: editForm.br_kill_point_value === n ? '#6366f1' : 'var(--surface)', color: editForm.br_kill_point_value === n ? '#fff' : 'var(--text)' }}>
+                                  {n}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ marginTop: 12 }}>
+                          <span style={{ display: 'block', fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>Placement points table</span>
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+                            {Object.entries(PLACEMENT_TABLE_PRESETS).map(([key, preset]) => (
+                              <button key={key} type="button"
+                                onClick={() => { setEF('br_placement_preset', key); setEF('br_placement_table', { ...preset.table }) }}
+                                style={{ padding: '7px 12px', borderRadius: 20, border: 'none', fontFamily: 'inherit', fontSize: 11, fontWeight: 700, cursor: 'pointer', background: editForm.br_placement_preset === key ? '#6366f1' : 'var(--surface)', color: editForm.br_placement_preset === key ? '#fff' : 'var(--text)' }}>
+                                {preset.label}
+                              </button>
+                            ))}
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                            {Object.entries(editForm.br_placement_table).sort((a, b) => Number(a[0]) - Number(b[0])).map(([place, pts]) => (
+                              <div key={place} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px 4px 4px 9px' }}>
+                                <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-muted)' }}>#{place}</span>
+                                <input
+                                  type="number" value={pts} min={0}
+                                  onChange={e => setEF('br_placement_table', { ...editForm.br_placement_table, [place]: Number(e.target.value) || 0 })}
+                                  style={{ width: 42, border: 'none', background: 'transparent', color: 'var(--text)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '4px 2px' }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                          <p style={{ marginTop: 8, fontSize: 11, color: 'var(--text-muted)' }}>
+                            <i className="ri-information-line" /> Placements not listed score 0 placement points — kills still count for everyone.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {(editForm.stage_format !== (tournament?.stage_format || 'knockout')
+                      || (editForm.stage_format === 'groups_knockout' && (editForm.group_count !== tournament?.group_count || editForm.advance_per_group !== tournament?.advance_per_group))
+                      || (editForm.stage_format === 'league' && (editForm.league_legs !== tournament?.group_count || editForm.league_podium !== tournament?.advance_per_group))
+                    ) && (
+                      <p style={{ marginTop: 10, fontSize: 12, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <i className="ri-information-line" />
+                        Structure changed — save, then use Reset Bracket / Generate Groups in the Bracket tab to rebuild it.
+                      </p>
+                    )}
                   </div>
 
                   {/* Pro Only toggle */}
