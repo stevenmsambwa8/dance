@@ -1371,9 +1371,19 @@ export default function TournamentManage() {
     const groupCountVal      = isGroups ? Number(editForm.group_count) : (isLeague ? Number(editForm.league_legs) : tournament?.group_count ?? null)
     const advancePerGroupVal = isGroups ? Number(editForm.advance_per_group) : (isLeague ? Number(editForm.league_podium) : tournament?.advance_per_group ?? null)
 
-    // bracket_data is only touched here for br_points — knockout / groups /
-    // league structure stays owned by the dedicated Bracket-tab actions
-    // (Reset Bracket / Generate Groups), same as slots & team_size already work.
+    // Only group_count/legs (or the stage format itself) actually invalidate
+    // the groups/fixtures that already exist — advance-per-group / podium
+    // size doesn't change what's been drawn or played, just how many
+    // qualify once it's done, so it never needs a reset.
+    const structuralChange = stageFmt !== wasStage
+      || (isGroups && Number(editForm.group_count) !== (tournament?.group_count ?? null))
+      || (isLeague && Number(editForm.league_legs) !== (tournament?.group_count ?? null))
+
+    // bracket_data is only touched here for br_points, and for a live
+    // advance-per-group/podium tweak on an existing group stage — knockout
+    // structure and any group_count/legs change stay owned by the dedicated
+    // Bracket-tab actions (Reset Bracket / Generate Groups), same as slots
+    // & team_size already work.
     let bracketDataPatch // undefined = leave column untouched
     if (stageFmt === 'br_points') {
       const existingBR = wasStage === 'br_points' ? parseBRData(tournament?.bracket_data) : null
@@ -1385,6 +1395,14 @@ export default function TournamentManage() {
     } else if (wasStage === 'br_points') {
       // leaving br_points — clear its bracket_data shape so it doesn't linger
       bracketDataPatch = null
+    } else if (!structuralChange && (isGroups || isLeague) && bracketData?.stage === 'groups') {
+      // Non-destructive: only advance-per-group/podium changed on an
+      // already-drawn group stage — patch it in place, keep every group,
+      // fixture, and recorded result exactly as they are.
+      const curAdvance = bracketData.advancePerGroup ?? tournament?.advance_per_group
+      if (advancePerGroupVal !== curAdvance) {
+        bracketDataPatch = { ...bracketData, advancePerGroup: advancePerGroupVal }
+      }
     }
 
     const updatePayload = {
@@ -2701,12 +2719,20 @@ export default function TournamentManage() {
                     )}
 
                     {(editForm.stage_format !== (tournament?.stage_format || 'knockout')
-                      || (editForm.stage_format === 'groups_knockout' && (editForm.group_count !== tournament?.group_count || editForm.advance_per_group !== tournament?.advance_per_group))
-                      || (editForm.stage_format === 'league' && (editForm.league_legs !== tournament?.group_count || editForm.league_podium !== tournament?.advance_per_group))
+                      || (editForm.stage_format === 'groups_knockout' && editForm.group_count !== tournament?.group_count)
+                      || (editForm.stage_format === 'league' && editForm.league_legs !== tournament?.group_count)
                     ) && (
                       <p style={{ marginTop: 10, fontSize: 12, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: 5 }}>
                         <i className="ri-information-line" />
                         Structure changed — save, then use Reset Bracket / Generate Groups in the Bracket tab to rebuild it.
+                      </p>
+                    )}
+                    {((editForm.stage_format === 'groups_knockout' && editForm.group_count === tournament?.group_count && editForm.advance_per_group !== tournament?.advance_per_group)
+                      || (editForm.stage_format === 'league' && editForm.league_legs === tournament?.group_count && editForm.league_podium !== tournament?.advance_per_group)
+                    ) && (
+                      <p style={{ marginTop: 10, fontSize: 12, color: '#22c55e', display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <i className="ri-check-line" />
+                        Applies on save, immediately — no reset needed. Existing groups, fixtures, and results are untouched.
                       </p>
                     )}
                   </div>
