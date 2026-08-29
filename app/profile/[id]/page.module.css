@@ -16,6 +16,7 @@
 
 @media (min-width: 768px) {
   .page {
+    max-width: 640px;
     margin: 20px auto;
     border: 1px solid var(--border);
     border-radius: 20px;

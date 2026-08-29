@@ -1,21 +1,16 @@
-.page { margin: 0 auto; padding: 20px 14px 100px; }
+.page { max-width: 1600px; width: 100%; margin: 0 auto; padding: 20px 14px 100px; }
 
 @media (min-width: 900px) {
   .page { padding: 28px 24px 100px; }
   .headline { font-size: 32px; }
   .list {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 16px;
   }
 }
 @media (min-width: 900px) and (hover: hover) {
   .card:hover { transform: translateY(-3px); }
-}
-
-@media (min-width: 1440px) {
-  .page { }
-  .list { grid-template-columns: repeat(3, 1fr); }
 }
 
 /* ── Header ── */
