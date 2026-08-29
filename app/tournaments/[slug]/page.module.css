@@ -37,8 +37,16 @@
   animation-name: groupsMarquee; animation-timing-function: ease-in-out; animation-iteration-count: infinite;
 }
 
+.groupsGrid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+@media (min-width: 900px) {
+  .groupsGrid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (min-width: 620px) and (max-width: 899px) {
+  .groupsGrid { grid-template-columns: repeat(2, 1fr); }
+}
+
 /* ── Page shell ── */
-.page { max-width: 960px; width: 100%; margin: 0 auto; padding: 0 0 96px; }
+.page { width: 100%; margin: 0 auto; padding: 0 0 96px; }
 
 /* ── Loading bar ── */
 .loadingBar { height: 3px; background: var(--border); border-radius: 99px; overflow: hidden; margin: 40px 0; }

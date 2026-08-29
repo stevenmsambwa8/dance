@@ -3884,7 +3884,8 @@ export default function TournamentDetail() {
                   <i className="ri-image-line" /> {t('tournaments.shareCard')}
                 </button>
               </div>
-              {bracketData.groups.map(group => {
+              <div className={styles.groupsGrid}>
+                {bracketData.groups.map(group => {
                 const standings = computeStandings(group)
                 const fixturesOpen = !!expandedFixtures[group.id]
                 return (
@@ -4074,6 +4075,7 @@ export default function TournamentDetail() {
                   </div>
                 )
               })}
+              </div>
             </div>
           )}
         </section>
