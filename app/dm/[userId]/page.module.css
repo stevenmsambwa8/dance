@@ -1,5 +1,5 @@
 .page {
-  max-width: 640px; margin: 0 auto;
+  margin: 0 auto;
   height: 100dvh; display: flex; flex-direction: column; overflow: hidden; padding: 0;
 }
 .centered {

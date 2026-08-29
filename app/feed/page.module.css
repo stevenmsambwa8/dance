@@ -1,8 +1,7 @@
-.page { max-width: 600px; margin: 0 auto; padding: 0 0 80px; }
+.page { margin: 0 auto; padding: 0 0 80px; }
 
 @media (min-width: 768px) {
   .page {
-    max-width: 640px;
     margin: 24px auto;
     border: 1px solid var(--border);
     border-radius: 16px;

@@ -1,12 +1,11 @@
 .page {
-  max-width: 480px;
   margin: 0 auto;
   padding: 20px 16px 40px;
   position: relative;
 }
 
 @media (min-width: 768px) {
-  .page { max-width: 640px; padding-top: 32px; }
+  .page { padding-top: 32px; }
   .statBox { padding: 16px 6px; }
   .statVal { font-size: 20px; }
 }

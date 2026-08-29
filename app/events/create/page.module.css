@@ -1,4 +1,4 @@
-.page { max-width: 640px; margin: 0 auto; padding: 14px 14px 110px; }
+.page { margin: 0 auto; padding: 14px 14px 110px; }
 
 /* ── Gate (not signed in / not admin) ── */
 .gateWrap { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 90px 24px; }

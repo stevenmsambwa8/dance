@@ -1,7 +1,7 @@
-.page { max-width: 860px; margin: 0 auto; padding: 20px 14px 100px; }
+.page { margin: 0 auto; padding: 20px 14px 100px; }
 
 @media (min-width: 900px) {
-  .page { max-width: 1180px; padding: 28px 24px 100px; }
+  .page { padding: 28px 24px 100px; }
   .headline { font-size: 32px; }
   .list {
     display: grid;
@@ -14,7 +14,7 @@
 }
 
 @media (min-width: 1440px) {
-  .page { max-width: 1440px; }
+  .page { }
   .list { grid-template-columns: repeat(3, 1fr); }
 }
 
