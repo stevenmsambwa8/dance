@@ -274,7 +274,8 @@
 
 /* ── Match ticket card ── */
 .ticket {
-  margin: 0 16px 14px; border-radius: 18px;
+  margin: 0 auto 14px; max-width: 640px; width: calc(100% - 32px);
+  border-radius: 18px;
   background: var(--surface); border: 1px solid var(--border);
   overflow: hidden;
 }
