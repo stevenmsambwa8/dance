@@ -366,7 +366,7 @@
 .resultsRail { padding: 16px 0 4px; border-bottom: 1px solid var(--border); }
 .resultsRailHead {
   display: flex; align-items: center; gap: 7px;
-  padding: 0 16px 10px;
+  padding: 0 20px 10px;
   font-size: 12px; font-weight: 800;
   color: var(--text-muted);
   text-transform: uppercase; letter-spacing: 0.08em;
@@ -374,9 +374,10 @@
 .resultsRailHead i { font-size: 13px; color: #f59e0b; }
 
 .resultsRailScroll {
-  display: flex; gap: 12px;
+  display: flex; gap: 14px;
   overflow-x: auto; scroll-snap-type: x proximity;
-  padding: 0 16px 14px;
+  padding: 0 20px 14px;
+  scroll-padding: 0 20px;
   scrollbar-width: thin; scrollbar-color: var(--border-dark) transparent;
 }
 .resultsRailScroll::-webkit-scrollbar { height: 5px; }
@@ -473,6 +474,28 @@
 .resultCardDrawTag {
   margin-top: 4px; font-size: 8px; font-weight: 800; letter-spacing: 0.08em;
   text-transform: uppercase; color: rgba(255,255,255,0.65);
+}
+
+/* Street-style recap sitting under the rail — who's winning right now,
+   when it went final, and the hype line explaining it. */
+.resultsRecap { padding: 2px 20px 16px; }
+.resultsRecapHead {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+.resultsRecapHead i { font-size: 15px; color: #f59e0b; flex-shrink: 0; }
+.resultsRecapTitle {
+  font-size: 15px; font-weight: 800; color: var(--text);
+  line-height: 1.25;
+}
+.resultsRecapTime {
+  font-size: 11px; font-weight: 700; color: var(--text-muted);
+  white-space: nowrap;
+  margin-left: auto;
+}
+.resultsRecapDesc {
+  font-size: 13px; line-height: 1.5; color: var(--text-muted);
+  margin: 0;
 }
 
 /* ══════════════════════════════════

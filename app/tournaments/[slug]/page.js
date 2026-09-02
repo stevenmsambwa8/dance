@@ -438,6 +438,39 @@ function PlayerSide({ entry, profile, won, lost, side, isBye }) {
   )
 }
 
+// Short relative-time label ("just now" / "12m ago" / "3h ago" / "2d ago"),
+// matching the timeAgo() helper used across the feed/notifications pages.
+function timeAgo(iso) {
+  if (!iso) return null
+  const diff = (Date.now() - new Date(iso).getTime()) / 1000
+  if (diff < 60) return 'just now'
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+  return `${Math.floor(diff / 86400)}d ago`
+}
+
+// Latest of two ISO timestamps (either side may be missing).
+function latestAt(a, b) {
+  if (!a) return b || null
+  if (!b) return a
+  return new Date(a).getTime() >= new Date(b).getTime() ? a : b
+}
+
+// Street-tone recap line for the most recent decided match — same info as
+// the card (who, score, round) but read out loud instead of laid out.
+function buildRecapLine(card) {
+  const { leftName: L, rightName: R, leftWon, score, draw, roundLabel } = card
+  const winner = leftWon ? L : R
+  const loser = leftWon ? R : L
+  if (draw) {
+    return `${L} and ${R} went blow for blow in ${roundLabel} and couldn't be split — ${score || 'level'}, nobody blinked.`
+  }
+  if (score) {
+    return `${winner} came through and dropped ${loser} ${score} in ${roundLabel}. No cap, that's a statement — table's heating up.`
+  }
+  return `${winner} got the job done against ${loser} in ${roundLabel} — straight business, no drama.`
+}
+
 // ─── Results rail — horizontally-scrolling cards surfacing decided matches
 //     (winner vs. competitor) right under the hero, so results don't stay
 //     buried inside the Matches tab. Backgrounds blend both players' photos
@@ -483,11 +516,12 @@ function ResultsRail({ bracketData, participants, styles, t, onOpenMatch, onOpen
           const score = sub && typeof sub.a === 'number' && typeof sub.b === 'number' && sub.a !== sub.b
             ? `${aWon ? sub.a : sub.b}–${aWon ? sub.b : sub.a}`
             : null
+          const submittedAt = latestAt(winner.pendingSubmission?.at, loser.pendingSubmission?.at)
           cards.push({
             key: `ko-${rIdx}-${pIdx}`, roundLabel,
             leftName: wProfile?.username || winner.name || 'Player', leftAvatar: wProfile?.avatar_url || winner.avatar || null, leftWon: true,
             rightName: lProfile?.username || loser.name || 'Player', rightAvatar: lProfile?.avatar_url || loser.avatar || null, rightWon: false,
-            score, draw: false,
+            score, draw: false, submittedAt,
             onOpen: () => onOpenMatch(rIdx, pIdx),
           })
         }
@@ -509,12 +543,13 @@ function ResultsRail({ bracketData, participants, styles, t, onOpenMatch, onOpen
         const homeAvatar = home.avatar || home.players?.[0]?.avatar || null
         const awayAvatar = away.avatar || away.players?.[0]?.avatar || null
         const draw = fx.scoreHome === fx.scoreAway
+        const submittedAt = latestAt(fx.submissions?.home?.at, fx.submissions?.away?.at)
 
         cards.push({
           key: `fx-${fx.id}`, roundLabel: group.name || 'League',
           leftName: homeName, leftAvatar: homeAvatar, leftWon: !draw && fx.scoreHome > fx.scoreAway,
           rightName: awayName, rightAvatar: awayAvatar, rightWon: !draw && fx.scoreAway > fx.scoreHome,
-          score: `${fx.scoreHome}–${fx.scoreAway}`, draw,
+          score: `${fx.scoreHome}–${fx.scoreAway}`, draw, submittedAt,
           onOpen: () => onOpenFixture(fx.id),
         })
       })
@@ -523,8 +558,21 @@ function ResultsRail({ bracketData, participants, styles, t, onOpenMatch, onOpen
 
   if (!cards.length) return null
 
-  // Latest results first — that's what people scrolling in from the hero care about.
-  const ordered = [...cards].reverse()
+  // Latest results first — that's what people scrolling in from the hero care
+  // about. Cards with a real submission timestamp sort by that; anything
+  // without one (older data, team battles) just keeps its structural order,
+  // tacked on after the timestamped ones via a stable synthetic key.
+  const ordered = [...cards]
+    .map((card, i) => ({ card, sortKey: card.submittedAt ? new Date(card.submittedAt).getTime() : -i }))
+    .sort((a, b) => b.sortKey - a.sortKey)
+    .map(x => x.card)
+
+  const latest = ordered[0]
+  const latestTime = latest?.submittedAt ? timeAgo(latest.submittedAt) : null
+  const recapTitle = latest?.draw
+    ? `${latest.leftName} & ${latest.rightName} split it`
+    : `${latest?.leftWon ? latest.leftName : latest?.rightName} takes the dub`
+  const recapDesc = latest ? buildRecapLine(latest) : null
 
   return (
     <div className={styles.resultsRail}>
@@ -600,6 +648,17 @@ function ResultsRail({ bracketData, participants, styles, t, onOpenMatch, onOpen
           )
         })}
       </div>
+
+      {recapDesc && (
+        <div className={styles.resultsRecap}>
+          <div className={styles.resultsRecapHead}>
+            <i className="ri-fire-fill" />
+            <span className={styles.resultsRecapTitle}>{recapTitle}</span>
+            {latestTime && <span className={styles.resultsRecapTime}>{latestTime}</span>}
+          </div>
+          <p className={styles.resultsRecapDesc}>{recapDesc}</p>
+        </div>
+      )}
     </div>
   )
 }
