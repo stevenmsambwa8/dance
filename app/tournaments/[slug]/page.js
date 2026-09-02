@@ -438,6 +438,140 @@ function PlayerSide({ entry, profile, won, lost, side, isBye }) {
   )
 }
 
+// ─── Results rail — horizontally-scrolling cards surfacing decided matches
+//     (winner vs. competitor) right under the hero, so results don't stay
+//     buried inside the Matches tab. Backgrounds blend both players' photos
+//     with a soft centre fade. ────────────────────────────────────────────
+function ResultsRail({ bracketData, participants, styles, t, onOpenMatch }) {
+  if (!bracketData?.rounds) return null
+  const isTeam = !!bracketData.isTeamBattle
+  const totalRounds = bracketData.rounds.length
+  const cards = []
+
+  bracketData.rounds.slice(0, totalRounds - 1).forEach((pairs, rIdx) => {
+    const roundLabel = getRoundLabelSimple(rIdx, totalRounds, bracketData.bracketSize, bracketData?.round_names)
+    pairs.forEach((pair, pIdx) => {
+      const [a, b] = pair
+      if (!a || !b) return
+      const aWon = a.status === 'winner'
+      const bWon = b.status === 'winner'
+      if (!aWon && !bWon) return // only fully decided matches count as a "result"
+
+      const winner = aWon ? a : b
+      const loser = aWon ? b : a
+      if (winner?.status === 'bye' || loser?.status === 'bye') return
+
+      if (isTeam) {
+        const wReal = (winner.members || []).find(m => m?.userId && m.avatar)
+        const lReal = (loser.members || []).find(m => m?.userId && m.avatar)
+        if (!(winner.members || []).some(m => m?.userId) || !(loser.members || []).some(m => m?.userId)) return
+        cards.push({
+          rIdx, pIdx, roundLabel,
+          winnerName: autoTeamName(winner, pIdx * 2 + (aWon ? 0 : 1)),
+          winnerAvatar: wReal?.avatar || null,
+          loserName: autoTeamName(loser, pIdx * 2 + (aWon ? 1 : 0)),
+          loserAvatar: lReal?.avatar || null,
+          score: null,
+        })
+      } else {
+        if (!winner?.userId || !loser?.userId) return
+        const wProfile = participants.find(x => x.user_id === winner.userId)?.profiles
+        const lProfile = participants.find(x => x.user_id === loser.userId)?.profiles
+        const sub = winner.pendingSubmission
+        const score = sub && typeof sub.a === 'number' && typeof sub.b === 'number' && sub.a !== sub.b
+          ? `${aWon ? sub.a : sub.b}–${aWon ? sub.b : sub.a}`
+          : null
+        cards.push({
+          rIdx, pIdx, roundLabel,
+          winnerName: wProfile?.username || winner.name || 'Player',
+          winnerAvatar: wProfile?.avatar_url || winner.avatar || null,
+          loserName: lProfile?.username || loser.name || 'Player',
+          loserAvatar: lProfile?.avatar_url || loser.avatar || null,
+          score,
+        })
+      }
+    })
+  })
+
+  if (!cards.length) return null
+
+  // Latest rounds first — that's what people scrolling in from the hero care about.
+  const ordered = [...cards].reverse()
+
+  return (
+    <div className={styles.resultsRail}>
+      <div className={styles.resultsRailHead}>
+        <i className="ri-trophy-fill" />
+        <span>{t('tournaments.matchResults') || 'Results'}</span>
+      </div>
+      <div className={styles.resultsRailScroll}>
+        {ordered.map(card => {
+          const wInitials = (card.winnerName || '?').slice(0, 2).toUpperCase()
+          const lInitials = (card.loserName || '?').slice(0, 2).toUpperCase()
+          return (
+            <button
+              key={`${card.rIdx}-${card.pIdx}`}
+              type="button"
+              className={styles.resultCard}
+              onClick={() => onOpenMatch(card.rIdx, card.pIdx)}
+            >
+              <div className={styles.resultCardBg}>
+                {card.winnerAvatar && (
+                  <div
+                    className={styles.resultCardPhoto}
+                    style={{
+                      backgroundImage: `url(${card.winnerAvatar})`,
+                      WebkitMaskImage: 'linear-gradient(to right, #000 0%, #000 38%, transparent 82%)',
+                      maskImage: 'linear-gradient(to right, #000 0%, #000 38%, transparent 82%)',
+                    }}
+                  />
+                )}
+                {card.loserAvatar && (
+                  <div
+                    className={styles.resultCardPhoto}
+                    style={{
+                      backgroundImage: `url(${card.loserAvatar})`,
+                      WebkitMaskImage: 'linear-gradient(to left, #000 0%, #000 38%, transparent 82%)',
+                      maskImage: 'linear-gradient(to left, #000 0%, #000 38%, transparent 82%)',
+                    }}
+                  />
+                )}
+                <div className={styles.resultCardShade} />
+              </div>
+
+              <div className={styles.resultCardTop}>
+                <span className={styles.resultCardRound}>{card.roundLabel}</span>
+                <i className="ri-trophy-fill" />
+              </div>
+
+              <div className={styles.resultCardBody}>
+                <div className={styles.resultCardSide}>
+                  <span className={styles.resultCardAvatar}>
+                    {card.winnerAvatar ? <img src={card.winnerAvatar} alt="" /> : <span>{wInitials}</span>}
+                  </span>
+                  <span className={styles.resultCardName}>{card.winnerName}</span>
+                  <span className={styles.resultCardTag}>{t('tournaments.winnerBadge') || 'WINNER'}</span>
+                </div>
+
+                <div className={styles.resultCardMid}>
+                  {card.score ? <span className={styles.resultCardScore}>{card.score}</span> : <span className={styles.resultCardVs}>beat</span>}
+                </div>
+
+                <div className={styles.resultCardSide}>
+                  <span className={`${styles.resultCardAvatar} ${styles.resultCardAvatarOpp}`}>
+                    {card.loserAvatar ? <img src={card.loserAvatar} alt="" /> : <span>{lInitials}</span>}
+                  </span>
+                  <span className={styles.resultCardNameOpp}>{card.loserName}</span>
+                </div>
+              </div>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function TournamentDetail() {
@@ -477,6 +611,14 @@ export default function TournamentDetail() {
     requestAnimationFrame(() => {
       document.getElementById('tournament-tabs')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
+  }
+
+  // Jump from a results-rail card straight into the Matches tab, scrolled to
+  // and briefly highlighting that specific match — reuses the same deep-link
+  // mechanism as #ko-<rIdx>-<pIdx> anchor links.
+  function openMatchResult(rIdx, pIdx) {
+    changeTab('matches')
+    setMatchAnchor(`ko-${rIdx}-${pIdx}`)
   }
 
   // ── Hash-based deep links ──────────────────────────────────────────────
@@ -3604,6 +3746,15 @@ export default function TournamentDetail() {
           </div>
         )}
       </div>
+
+      {/* ── Results rail — global, scrollable, tab-independent ── */}
+      <ResultsRail
+        bracketData={bracketData}
+        participants={participants}
+        styles={styles}
+        t={t}
+        onOpenMatch={openMatchResult}
+      />
 
       {/* ── Payment Modal ── */}
       {showPayModal && (() => {

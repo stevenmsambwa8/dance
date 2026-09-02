@@ -360,6 +360,118 @@
 .registerBtn:disabled { opacity: 0.5; }
 
 /* ══════════════════════════════════
+   RESULTS RAIL — decided matches as scrollable cards, sitting right
+   below the hero so results are visible without opening the Matches tab
+══════════════════════════════════ */
+.resultsRail { padding: 16px 0 4px; border-bottom: 1px solid var(--border); }
+.resultsRailHead {
+  display: flex; align-items: center; gap: 7px;
+  padding: 0 16px 10px;
+  font-size: 12px; font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.resultsRailHead i { font-size: 13px; color: #f59e0b; }
+
+.resultsRailScroll {
+  display: flex; gap: 12px;
+  overflow-x: auto; scroll-snap-type: x proximity;
+  padding: 0 16px 14px;
+  scrollbar-width: thin; scrollbar-color: var(--border-dark) transparent;
+}
+.resultsRailScroll::-webkit-scrollbar { height: 5px; }
+.resultsRailScroll::-webkit-scrollbar-thumb { background: var(--border-dark); border-radius: 99px; }
+
+.resultCard {
+  position: relative;
+  flex: 0 0 auto;
+  width: 232px; height: 148px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 0;
+  cursor: pointer;
+  scroll-snap-align: start;
+  text-align: left;
+  font-family: var(--font);
+  transition: transform 0.15s, border-color 0.15s;
+}
+@media (hover: hover) {
+  .resultCard:hover { transform: translateY(-2px); border-color: var(--border-dark); }
+}
+.resultCard:active { transform: translateY(0); }
+
+/* Blended photo background — both avatars fade smoothly into one another */
+.resultCardBg { position: absolute; inset: 0; background: var(--bg-2); }
+.resultCardPhoto {
+  position: absolute; inset: 0;
+  background-size: cover; background-position: center;
+  filter: saturate(1.05);
+}
+.resultCardShade {
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(180deg, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.15) 45%, rgba(0,0,0,0.82) 100%),
+    linear-gradient(90deg, rgba(0,0,0,0.28) 0%, rgba(0,0,0,0.02) 30%, rgba(0,0,0,0.02) 70%, rgba(0,0,0,0.28) 100%);
+}
+
+.resultCardTop {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px 0;
+}
+.resultCardTop i { font-size: 13px; color: #f59e0b; }
+.resultCardRound {
+  font-size: 9px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  color: #fff; background: rgba(0,0,0,0.35);
+  padding: 3px 8px; border-radius: 20px;
+}
+
+.resultCardBody {
+  position: relative; z-index: 1;
+  display: flex; align-items: flex-end;
+  gap: 8px; height: 100%;
+  padding: 0 12px 12px;
+}
+.resultCardSide { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; min-width: 0; }
+.resultCardAvatar {
+  width: 40px; height: 40px; border-radius: 50%; overflow: hidden;
+  border: 2px solid #f59e0b;
+  background: rgba(0,0,0,0.35);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800; color: #fff;
+}
+.resultCardAvatar img { width: 100%; height: 100%; object-fit: cover; }
+.resultCardAvatarOpp { border-color: rgba(255,255,255,0.55); }
+.resultCardName {
+  font-size: 11px; font-weight: 800; color: #fff;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.resultCardNameOpp {
+  font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.75);
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.resultCardTag {
+  font-size: 8px; font-weight: 800; letter-spacing: 0.08em;
+  color: #f59e0b; background: rgba(245,158,11,0.18);
+  padding: 2px 6px; border-radius: 4px;
+}
+.resultCardMid {
+  display: flex; align-items: center; justify-content: center;
+  padding-bottom: 20px; flex-shrink: 0;
+}
+.resultCardVs {
+  font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.6);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.resultCardScore {
+  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px; font-weight: 700; color: #fff;
+  background: rgba(0,0,0,0.35); padding: 3px 7px; border-radius: 6px;
+}
+
+/* ══════════════════════════════════
    TABS
 ══════════════════════════════════ */
 .tabs {
