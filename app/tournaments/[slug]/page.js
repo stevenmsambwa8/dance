@@ -441,61 +441,89 @@ function PlayerSide({ entry, profile, won, lost, side, isBye }) {
 // ─── Results rail — horizontally-scrolling cards surfacing decided matches
 //     (winner vs. competitor) right under the hero, so results don't stay
 //     buried inside the Matches tab. Backgrounds blend both players' photos
-//     with a soft centre fade. ────────────────────────────────────────────
-function ResultsRail({ bracketData, participants, styles, t, onOpenMatch }) {
-  if (!bracketData?.rounds) return null
-  const isTeam = !!bracketData.isTeamBattle
-  const totalRounds = bracketData.rounds.length
+//     with a soft centre fade. Covers both knockout-bracket matchups and
+//     group/league fixtures — whichever the tournament actually uses. ─────
+function ResultsRail({ bracketData, participants, styles, t, onOpenMatch, onOpenFixture }) {
   const cards = []
 
-  bracketData.rounds.slice(0, totalRounds - 1).forEach((pairs, rIdx) => {
-    const roundLabel = getRoundLabelSimple(rIdx, totalRounds, bracketData.bracketSize, bracketData?.round_names)
-    pairs.forEach((pair, pIdx) => {
-      const [a, b] = pair
-      if (!a || !b) return
-      const aWon = a.status === 'winner'
-      const bWon = b.status === 'winner'
-      if (!aWon && !bWon) return // only fully decided matches count as a "result"
+  // ── Knockout / bracket matchups ──────────────────────────────────────
+  if (bracketData?.rounds) {
+    const isTeam = !!bracketData.isTeamBattle
+    const totalRounds = bracketData.rounds.length
 
-      const winner = aWon ? a : b
-      const loser = aWon ? b : a
-      if (winner?.status === 'bye' || loser?.status === 'bye') return
+    bracketData.rounds.slice(0, totalRounds - 1).forEach((pairs, rIdx) => {
+      const roundLabel = getRoundLabelSimple(rIdx, totalRounds, bracketData.bracketSize, bracketData?.round_names)
+      pairs.forEach((pair, pIdx) => {
+        const [a, b] = pair
+        if (!a || !b) return
+        const aWon = a.status === 'winner'
+        const bWon = b.status === 'winner'
+        if (!aWon && !bWon) return // only fully decided matches count as a "result"
 
-      if (isTeam) {
-        const wReal = (winner.members || []).find(m => m?.userId && m.avatar)
-        const lReal = (loser.members || []).find(m => m?.userId && m.avatar)
-        if (!(winner.members || []).some(m => m?.userId) || !(loser.members || []).some(m => m?.userId)) return
-        cards.push({
-          rIdx, pIdx, roundLabel,
-          winnerName: autoTeamName(winner, pIdx * 2 + (aWon ? 0 : 1)),
-          winnerAvatar: wReal?.avatar || null,
-          loserName: autoTeamName(loser, pIdx * 2 + (aWon ? 1 : 0)),
-          loserAvatar: lReal?.avatar || null,
-          score: null,
-        })
-      } else {
-        if (!winner?.userId || !loser?.userId) return
-        const wProfile = participants.find(x => x.user_id === winner.userId)?.profiles
-        const lProfile = participants.find(x => x.user_id === loser.userId)?.profiles
-        const sub = winner.pendingSubmission
-        const score = sub && typeof sub.a === 'number' && typeof sub.b === 'number' && sub.a !== sub.b
-          ? `${aWon ? sub.a : sub.b}–${aWon ? sub.b : sub.a}`
-          : null
-        cards.push({
-          rIdx, pIdx, roundLabel,
-          winnerName: wProfile?.username || winner.name || 'Player',
-          winnerAvatar: wProfile?.avatar_url || winner.avatar || null,
-          loserName: lProfile?.username || loser.name || 'Player',
-          loserAvatar: lProfile?.avatar_url || loser.avatar || null,
-          score,
-        })
-      }
+        const winner = aWon ? a : b
+        const loser = aWon ? b : a
+        if (winner?.status === 'bye' || loser?.status === 'bye') return
+
+        if (isTeam) {
+          const wReal = (winner.members || []).find(m => m?.userId && m.avatar)
+          const lReal = (loser.members || []).find(m => m?.userId && m.avatar)
+          if (!(winner.members || []).some(m => m?.userId) || !(loser.members || []).some(m => m?.userId)) return
+          cards.push({
+            key: `ko-${rIdx}-${pIdx}`, roundLabel,
+            leftName: autoTeamName(winner, pIdx * 2 + (aWon ? 0 : 1)), leftAvatar: wReal?.avatar || null, leftWon: true,
+            rightName: autoTeamName(loser, pIdx * 2 + (aWon ? 1 : 0)), rightAvatar: lReal?.avatar || null, rightWon: false,
+            score: null, draw: false,
+            onOpen: () => onOpenMatch(rIdx, pIdx),
+          })
+        } else {
+          if (!winner?.userId || !loser?.userId) return
+          const wProfile = participants.find(x => x.user_id === winner.userId)?.profiles
+          const lProfile = participants.find(x => x.user_id === loser.userId)?.profiles
+          const sub = winner.pendingSubmission
+          const score = sub && typeof sub.a === 'number' && typeof sub.b === 'number' && sub.a !== sub.b
+            ? `${aWon ? sub.a : sub.b}–${aWon ? sub.b : sub.a}`
+            : null
+          cards.push({
+            key: `ko-${rIdx}-${pIdx}`, roundLabel,
+            leftName: wProfile?.username || winner.name || 'Player', leftAvatar: wProfile?.avatar_url || winner.avatar || null, leftWon: true,
+            rightName: lProfile?.username || loser.name || 'Player', rightAvatar: lProfile?.avatar_url || loser.avatar || null, rightWon: false,
+            score, draw: false,
+            onOpen: () => onOpenMatch(rIdx, pIdx),
+          })
+        }
+      })
     })
-  })
+  }
+
+  // ── Group-stage / league fixtures ────────────────────────────────────
+  if (bracketData?.groups) {
+    bracketData.groups.forEach(group => {
+      (group.fixtures || []).forEach(fx => {
+        if (fx.status !== 'played' || fx.scoreHome == null || fx.scoreAway == null) return
+        const home = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.homeId)
+        const away = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fx.awayId)
+        if (!home || !away) return
+
+        const homeName = home.name || 'Player'
+        const awayName = away.name || 'Player'
+        const homeAvatar = home.avatar || home.players?.[0]?.avatar || null
+        const awayAvatar = away.avatar || away.players?.[0]?.avatar || null
+        const draw = fx.scoreHome === fx.scoreAway
+
+        cards.push({
+          key: `fx-${fx.id}`, roundLabel: group.name || 'League',
+          leftName: homeName, leftAvatar: homeAvatar, leftWon: !draw && fx.scoreHome > fx.scoreAway,
+          rightName: awayName, rightAvatar: awayAvatar, rightWon: !draw && fx.scoreAway > fx.scoreHome,
+          score: `${fx.scoreHome}–${fx.scoreAway}`, draw,
+          onOpen: () => onOpenFixture(fx.id),
+        })
+      })
+    })
+  }
 
   if (!cards.length) return null
 
-  // Latest rounds first — that's what people scrolling in from the hero care about.
+  // Latest results first — that's what people scrolling in from the hero care about.
   const ordered = [...cards].reverse()
 
   return (
@@ -506,31 +534,31 @@ function ResultsRail({ bracketData, participants, styles, t, onOpenMatch }) {
       </div>
       <div className={styles.resultsRailScroll}>
         {ordered.map(card => {
-          const wInitials = (card.winnerName || '?').slice(0, 2).toUpperCase()
-          const lInitials = (card.loserName || '?').slice(0, 2).toUpperCase()
+          const lInitials = (card.leftName || '?').slice(0, 2).toUpperCase()
+          const rInitials = (card.rightName || '?').slice(0, 2).toUpperCase()
           return (
             <button
-              key={`${card.rIdx}-${card.pIdx}`}
+              key={card.key}
               type="button"
               className={styles.resultCard}
-              onClick={() => onOpenMatch(card.rIdx, card.pIdx)}
+              onClick={card.onOpen}
             >
               <div className={styles.resultCardBg}>
-                {card.winnerAvatar && (
+                {card.leftAvatar && (
                   <div
                     className={styles.resultCardPhoto}
                     style={{
-                      backgroundImage: `url(${card.winnerAvatar})`,
+                      backgroundImage: `url(${card.leftAvatar})`,
                       WebkitMaskImage: 'linear-gradient(to right, #000 0%, #000 38%, transparent 82%)',
                       maskImage: 'linear-gradient(to right, #000 0%, #000 38%, transparent 82%)',
                     }}
                   />
                 )}
-                {card.loserAvatar && (
+                {card.rightAvatar && (
                   <div
                     className={styles.resultCardPhoto}
                     style={{
-                      backgroundImage: `url(${card.loserAvatar})`,
+                      backgroundImage: `url(${card.rightAvatar})`,
                       WebkitMaskImage: 'linear-gradient(to left, #000 0%, #000 38%, transparent 82%)',
                       maskImage: 'linear-gradient(to left, #000 0%, #000 38%, transparent 82%)',
                     }}
@@ -546,22 +574,26 @@ function ResultsRail({ bracketData, participants, styles, t, onOpenMatch }) {
 
               <div className={styles.resultCardBody}>
                 <div className={styles.resultCardSide}>
-                  <span className={styles.resultCardAvatar}>
-                    {card.winnerAvatar ? <img src={card.winnerAvatar} alt="" /> : <span>{wInitials}</span>}
+                  <span className={`${styles.resultCardAvatar} ${card.leftWon ? '' : styles.resultCardAvatarOpp}`}>
+                    {card.leftAvatar ? <img src={card.leftAvatar} alt="" /> : <span>{lInitials}</span>}
                   </span>
-                  <span className={styles.resultCardName}>{card.winnerName}</span>
-                  <span className={styles.resultCardTag}>{t('tournaments.winnerBadge') || 'WINNER'}</span>
+                  <span className={card.leftWon ? styles.resultCardName : styles.resultCardNameOpp}>{card.leftName}</span>
+                  {card.leftWon && <span className={styles.resultCardTag}>{t('tournaments.winnerBadge') || 'WINNER'}</span>}
                 </div>
 
                 <div className={styles.resultCardMid}>
-                  {card.score ? <span className={styles.resultCardScore}>{card.score}</span> : <span className={styles.resultCardVs}>beat</span>}
+                  {card.score
+                    ? <span className={styles.resultCardScore}>{card.score}</span>
+                    : <span className={styles.resultCardVs}>beat</span>}
+                  {card.draw && <span className={styles.resultCardDrawTag}>draw</span>}
                 </div>
 
                 <div className={styles.resultCardSide}>
-                  <span className={`${styles.resultCardAvatar} ${styles.resultCardAvatarOpp}`}>
-                    {card.loserAvatar ? <img src={card.loserAvatar} alt="" /> : <span>{lInitials}</span>}
+                  <span className={`${styles.resultCardAvatar} ${card.rightWon ? '' : styles.resultCardAvatarOpp}`}>
+                    {card.rightAvatar ? <img src={card.rightAvatar} alt="" /> : <span>{rInitials}</span>}
                   </span>
-                  <span className={styles.resultCardNameOpp}>{card.loserName}</span>
+                  <span className={card.rightWon ? styles.resultCardName : styles.resultCardNameOpp}>{card.rightName}</span>
+                  {card.rightWon && <span className={styles.resultCardTag}>{t('tournaments.winnerBadge') || 'WINNER'}</span>}
                 </div>
               </div>
             </button>
@@ -619,6 +651,13 @@ export default function TournamentDetail() {
   function openMatchResult(rIdx, pIdx) {
     changeTab('matches')
     setMatchAnchor(`ko-${rIdx}-${pIdx}`)
+  }
+
+  // Same idea for a group/league fixture card — jumps into the Table tab
+  // (which renders fixtures under each group) and highlights that fixture.
+  function openFixtureResult(fixtureId) {
+    changeTab('groups')
+    setMatchAnchor(`fx-${fixtureId}`)
   }
 
   // ── Hash-based deep links ──────────────────────────────────────────────
@@ -1427,16 +1466,43 @@ export default function TournamentDetail() {
       })
     }
 
+    // ── League completion bonus, read live from bracket_data.winners (set once
+    // by finalizeLeague) instead of the tournament_leaderboard counter. That
+    // counter gets the *same* win/draw/loss points as every fixture is scored
+    // (see awardGroupPoints / awardBracketPoints on fixture save), which is
+    // exactly what groupStatsByUser above already recomputes live — adding
+    // both together double-counted every league player's points. Rebuilding
+    // just the position bonus here keeps the total in sync with the real
+    // table while still crediting 1st/2nd/3rd once the league is complete. ──
+    const leagueBonusByUser = {}
+    const isLeague = tournament.stage_format === 'league'
+    if (isLeague && bracketData?.stage === 'complete' && Array.isArray(bracketData.winners) && bracketData.groups?.[0]) {
+      const BONUS_BY_POSITION = { 1: 30, 2: 20, 3: 10 }
+      const tableMembers = bracketData.groups[0].members || []
+      bracketData.winners.forEach(w => {
+        const member = tableMembers.find(m => (m.id ?? m.userId ?? m.teamId) === w.id)
+        const bonus = BONUS_BY_POSITION[w.position] || 5
+        resolveMemberUserIds(member).forEach(uid => { leagueBonusByUser[uid] = bonus })
+      })
+    }
+
     const full = Array.from(allUserIds).map(uid => {
       const gs = groupStatsByUser[uid]
       return {
         user_id: uid,
         id: lbMap[uid]?.id || null,
-        // Total = group-stage points (win 3 / draw 1 / loss 0) PLUS whatever
-        // has accumulated in the bracket/knockout stage (win, eliminated,
-        // and DQ penalties), so points keep counting through the whole run
-        // instead of the bracket overwriting the group-stage total.
-        points: (gs ? gs.groupPoints : 0) + (lbMap[uid]?.points || 0),
+        // Total = group-stage points (win 3 / draw 1 / loss 0), read live so
+        // corrections and admin adjustments always show correctly, PLUS
+        // whatever's earned outside that live table:
+        //  - League: only the position bonus once it's complete (see above) —
+        //    never the raw tournament_leaderboard counter, which already
+        //    contains the same group points and would double them.
+        //  - Groups+Knockout / Bracket-only: the tournament_leaderboard
+        //    counter, since that's the only record of bracket-stage wins,
+        //    eliminations and DQ penalties (not covered by groupStatsByUser).
+        points: gs
+          ? gs.groupPoints + (isLeague ? (leagueBonusByUser[uid] || 0) : (lbMap[uid]?.points || 0))
+          : (lbMap[uid]?.points || 0),
         goalDiff: gs?.goalDiff ?? null,
         goalsFor: gs?.goalsFor ?? null,
         groupName: gs?.groupName ?? null,
@@ -3754,6 +3820,7 @@ export default function TournamentDetail() {
         styles={styles}
         t={t}
         onOpenMatch={openMatchResult}
+        onOpenFixture={openFixtureResult}
       />
 
       {/* ── Payment Modal ── */}
