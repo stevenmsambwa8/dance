@@ -574,15 +574,14 @@ function ResultsRail({ bracketData, participants, styles, t, onOpenMatch, onOpen
     .map((card, i) => ({ card, sortKey: card.submittedAt ? new Date(card.submittedAt).getTime() : -i }))
     .sort((a, b) => b.sortKey - a.sortKey)
     .map(x => x.card)
-
-  const latest = ordered[0]
-  const latestTime = latest?.submittedAt ? timeAgo(latest.submittedAt) : null
-  const recapTitle = latest
-    ? (latest.draw
-        ? (t('tournaments.resultsRecapDrawTitle') || '{left} & {right} split it').replace('{left}', latest.leftName).replace('{right}', latest.rightName)
-        : (t('tournaments.resultsRecapWinTitle') || '{winner} takes the dub').replace('{winner}', latest.leftWon ? latest.leftName : latest.rightName))
-    : null
-  const recapDesc = latest ? buildRecapLine(latest, t) : null
+    .map(card => ({
+      ...card,
+      recapTitle: card.draw
+        ? (t('tournaments.resultsRecapDrawTitle') || '{left} & {right} split it').replace('{left}', card.leftName).replace('{right}', card.rightName)
+        : (t('tournaments.resultsRecapWinTitle') || '{winner} takes the dub').replace('{winner}', card.leftWon ? card.leftName : card.rightName),
+      recapDesc: buildRecapLine(card, t),
+      recapTime: card.submittedAt ? timeAgo(card.submittedAt) : null,
+    }))
 
   return (
     <div className={styles.resultsRail}>
@@ -595,80 +594,82 @@ function ResultsRail({ bracketData, participants, styles, t, onOpenMatch, onOpen
           const lInitials = (card.leftName || '?').slice(0, 2).toUpperCase()
           const rInitials = (card.rightName || '?').slice(0, 2).toUpperCase()
           return (
-            <button
-              key={card.key}
-              type="button"
-              className={styles.resultCard}
-              onClick={card.onOpen}
-            >
-              <div className={styles.resultCardBg}>
-                {card.leftAvatar && (
-                  <div
-                    className={styles.resultCardPhoto}
-                    style={{
-                      backgroundImage: `url(${card.leftAvatar})`,
-                      WebkitMaskImage: 'linear-gradient(to right, #000 0%, #000 38%, transparent 82%)',
-                      maskImage: 'linear-gradient(to right, #000 0%, #000 38%, transparent 82%)',
-                    }}
+            <div key={card.key} className={styles.resultCardCol}>
+              <button
+                type="button"
+                className={styles.resultCard}
+                onClick={card.onOpen}
+              >
+                <div className={styles.resultCardBg}>
+                  {card.leftAvatar && (
+                    <div
+                      className={styles.resultCardPhoto}
+                      style={{
+                        backgroundImage: `url(${card.leftAvatar})`,
+                        WebkitMaskImage: 'linear-gradient(to right, #000 0%, #000 38%, transparent 82%)',
+                        maskImage: 'linear-gradient(to right, #000 0%, #000 38%, transparent 82%)',
+                      }}
+                    />
+                  )}
+                  {card.rightAvatar && (
+                    <div
+                      className={styles.resultCardPhoto}
+                      style={{
+                        backgroundImage: `url(${card.rightAvatar})`,
+                        WebkitMaskImage: 'linear-gradient(to left, #000 0%, #000 38%, transparent 82%)',
+                        maskImage: 'linear-gradient(to left, #000 0%, #000 38%, transparent 82%)',
+                      }}
+                    />
+                  )}
+                  <div className={styles.resultCardShade} />
+                </div>
+
+                <div className={styles.resultCardTop}>
+                  <span className={styles.resultCardRound}>{card.roundLabel}</span>
+                  <i className="ri-trophy-fill" />
+                </div>
+
+                <div className={styles.resultCardBody}>
+                  <div className={styles.resultCardSide}>
+                    <span className={`${styles.resultCardAvatar} ${card.leftWon ? '' : styles.resultCardAvatarOpp}`}>
+                      {card.leftAvatar ? <img src={card.leftAvatar} alt="" /> : <span>{lInitials}</span>}
+                    </span>
+                    <span className={card.leftWon ? styles.resultCardName : styles.resultCardNameOpp}>{card.leftName}</span>
+                    {card.leftWon && <span className={styles.resultCardTag}>{t('tournaments.winnerBadge') || 'WINNER'}</span>}
+                  </div>
+
+                  <div className={styles.resultCardMid}>
+                    {card.score
+                      ? <span className={styles.resultCardScore}>{card.score}</span>
+                      : <span className={styles.resultCardVs}>{t('tournaments.resultCardBeat') || 'beat'}</span>}
+                    {card.draw && <span className={styles.resultCardDrawTag}>{t('tournaments.resultCardDraw') || 'draw'}</span>}
+                  </div>
+
+                  <div className={styles.resultCardSide}>
+                    <span className={`${styles.resultCardAvatar} ${card.rightWon ? '' : styles.resultCardAvatarOpp}`}>
+                      {card.rightAvatar ? <img src={card.rightAvatar} alt="" /> : <span>{rInitials}</span>}
+                    </span>
+                    <span className={card.rightWon ? styles.resultCardName : styles.resultCardNameOpp}>{card.rightName}</span>
+                    {card.rightWon && <span className={styles.resultCardTag}>{t('tournaments.winnerBadge') || 'WINNER'}</span>}
+                  </div>
+                </div>
+              </button>
+
+              <div className={styles.resultRecapUnder}>
+                <div className={styles.resultRecapUnderHead}>
+                  <MarqueeText
+                    text={card.recapTitle}
+                    wrapClassName={styles.resultRecapTitleWrap}
+                    textClassName={styles.resultRecapTitleText}
                   />
-                )}
-                {card.rightAvatar && (
-                  <div
-                    className={styles.resultCardPhoto}
-                    style={{
-                      backgroundImage: `url(${card.rightAvatar})`,
-                      WebkitMaskImage: 'linear-gradient(to left, #000 0%, #000 38%, transparent 82%)',
-                      maskImage: 'linear-gradient(to left, #000 0%, #000 38%, transparent 82%)',
-                    }}
-                  />
-                )}
-                <div className={styles.resultCardShade} />
-              </div>
-
-              <div className={styles.resultCardTop}>
-                <span className={styles.resultCardRound}>{card.roundLabel}</span>
-                <i className="ri-trophy-fill" />
-              </div>
-
-              <div className={styles.resultCardBody}>
-                <div className={styles.resultCardSide}>
-                  <span className={`${styles.resultCardAvatar} ${card.leftWon ? '' : styles.resultCardAvatarOpp}`}>
-                    {card.leftAvatar ? <img src={card.leftAvatar} alt="" /> : <span>{lInitials}</span>}
-                  </span>
-                  <span className={card.leftWon ? styles.resultCardName : styles.resultCardNameOpp}>{card.leftName}</span>
-                  {card.leftWon && <span className={styles.resultCardTag}>{t('tournaments.winnerBadge') || 'WINNER'}</span>}
+                  {card.recapTime && <span className={styles.resultRecapUnderTime}>{card.recapTime}</span>}
                 </div>
-
-                <div className={styles.resultCardMid}>
-                  {card.score
-                    ? <span className={styles.resultCardScore}>{card.score}</span>
-                    : <span className={styles.resultCardVs}>{t('tournaments.resultCardBeat') || 'beat'}</span>}
-                  {card.draw && <span className={styles.resultCardDrawTag}>{t('tournaments.resultCardDraw') || 'draw'}</span>}
-                </div>
-
-                <div className={styles.resultCardSide}>
-                  <span className={`${styles.resultCardAvatar} ${card.rightWon ? '' : styles.resultCardAvatarOpp}`}>
-                    {card.rightAvatar ? <img src={card.rightAvatar} alt="" /> : <span>{rInitials}</span>}
-                  </span>
-                  <span className={card.rightWon ? styles.resultCardName : styles.resultCardNameOpp}>{card.rightName}</span>
-                  {card.rightWon && <span className={styles.resultCardTag}>{t('tournaments.winnerBadge') || 'WINNER'}</span>}
-                </div>
+                <p className={styles.resultRecapUnderDesc}>{card.recapDesc}</p>
               </div>
-            </button>
+            </div>
           )
         })}
       </div>
-
-      {recapDesc && (
-        <div className={styles.resultsRecap}>
-          <div className={styles.resultsRecapHead}>
-            <i className="ri-fire-fill" />
-            <span className={styles.resultsRecapTitle}>{recapTitle}</span>
-            {latestTime && <span className={styles.resultsRecapTime}>{latestTime}</span>}
-          </div>
-          <p className={styles.resultsRecapDesc}>{recapDesc}</p>
-        </div>
-      )}
     </div>
   )
 }

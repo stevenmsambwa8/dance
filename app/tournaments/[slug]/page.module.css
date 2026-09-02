@@ -374,7 +374,7 @@
 .resultsRailHead i { font-size: 13px; color: #f59e0b; }
 
 .resultsRailScroll {
-  display: flex; gap: 14px;
+  display: flex; align-items: flex-start; gap: 14px;
   overflow-x: auto; scroll-snap-type: x proximity;
   padding: 0 20px 14px;
   scroll-padding: 0 20px;
@@ -382,9 +382,12 @@
 }
 .resultsRailScroll::-webkit-scrollbar { display: none; }
 
+/* Each carousel item = the card plus its own recap underneath, scrolling
+   together as one column so the story stays attached to its match. */
+.resultCardCol { flex: 0 0 auto; width: 232px; scroll-snap-align: start; }
+
 .resultCard {
   position: relative;
-  flex: 0 0 auto;
   width: 232px; height: 148px;
   border-radius: 16px;
   overflow: hidden;
@@ -392,7 +395,6 @@
   background: var(--surface);
   padding: 0;
   cursor: pointer;
-  scroll-snap-align: start;
   text-align: left;
   font-family: var(--font);
   transition: transform 0.15s, border-color 0.15s;
@@ -475,26 +477,29 @@
   text-transform: uppercase; color: rgba(255,255,255,0.65);
 }
 
-/* Street-style recap sitting under the rail — who's winning right now,
-   when it went final, and the hype line explaining it. */
-.resultsRecap { padding: 2px 20px 16px; }
-.resultsRecapHead {
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-  margin-bottom: 4px;
+/* Street-style recap under each card — who won that specific match, when
+   it went final, and the hype line explaining it. Title marquees if a
+   name is too long for the card's width instead of wrapping/clipping. */
+.resultRecapUnder { width: 232px; padding: 8px 2px 0; }
+.resultRecapUnderHead {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 3px;
 }
-.resultsRecapHead i { font-size: 15px; color: #f59e0b; flex-shrink: 0; }
-.resultsRecapTitle {
-  font-size: 15px; font-weight: 800; color: var(--text);
-  line-height: 1.25;
+.resultRecapTitleWrap { flex: 1; min-width: 0; overflow: hidden; display: block; }
+.resultRecapTitleText {
+  display: inline-block; white-space: nowrap;
+  font-size: 12.5px; font-weight: 800; color: var(--text);
+  animation-name: groupsMarquee; animation-timing-function: ease-in-out; animation-iteration-count: infinite;
 }
-.resultsRecapTime {
-  font-size: 11px; font-weight: 700; color: var(--text-muted);
-  white-space: nowrap;
-  margin-left: auto;
+.resultRecapUnderTime {
+  font-size: 10px; font-weight: 700; color: var(--text-muted);
+  white-space: nowrap; flex-shrink: 0;
 }
-.resultsRecapDesc {
-  font-size: 13px; line-height: 1.5; color: var(--text-muted);
+.resultRecapUnderDesc {
+  font-size: 11.5px; line-height: 1.45; color: var(--text-muted);
   margin: 0;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* ══════════════════════════════════
