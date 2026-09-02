@@ -378,10 +378,9 @@
   overflow-x: auto; scroll-snap-type: x proximity;
   padding: 0 20px 14px;
   scroll-padding: 0 20px;
-  scrollbar-width: thin; scrollbar-color: var(--border-dark) transparent;
+  scrollbar-width: none; -ms-overflow-style: none;
 }
-.resultsRailScroll::-webkit-scrollbar { height: 5px; }
-.resultsRailScroll::-webkit-scrollbar-thumb { background: var(--border-dark); border-radius: 99px; }
+.resultsRailScroll::-webkit-scrollbar { display: none; }
 
 .resultCard {
   position: relative;

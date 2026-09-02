@@ -458,17 +458,25 @@ function latestAt(a, b) {
 
 // Street-tone recap line for the most recent decided match — same info as
 // the card (who, score, round) but read out loud instead of laid out.
-function buildRecapLine(card) {
+// Pulls its templates from translations (tournaments.resultsRecap*) so the
+// Swahili version isn't just a literal translation of English slang.
+function buildRecapLine(card, t) {
   const { leftName: L, rightName: R, leftWon, score, draw, roundLabel } = card
   const winner = leftWon ? L : R
   const loser = leftWon ? R : L
   if (draw) {
-    return `${L} and ${R} went blow for blow in ${roundLabel} and couldn't be split — ${score || 'level'}, nobody blinked.`
+    const tmpl = t('tournaments.resultsRecapDrawDesc')
+      || "{left} and {right} went blow for blow in {round} and couldn't be split — {score}, nobody blinked."
+    return tmpl.replace('{left}', L).replace('{right}', R).replace('{round}', roundLabel).replace('{score}', score || 'level')
   }
   if (score) {
-    return `${winner} came through and dropped ${loser} ${score} in ${roundLabel}. No cap, that's a statement — table's heating up.`
+    const tmpl = t('tournaments.resultsRecapWinDescScore')
+      || "{winner} came through and dropped {loser} {score} in {round}. No cap, that's a statement — table's heating up."
+    return tmpl.replace('{winner}', winner).replace('{loser}', loser).replace('{score}', score).replace('{round}', roundLabel)
   }
-  return `${winner} got the job done against ${loser} in ${roundLabel} — straight business, no drama.`
+  const tmpl = t('tournaments.resultsRecapWinDescNoScore')
+    || '{winner} got the job done against {loser} in {round} — straight business, no drama.'
+  return tmpl.replace('{winner}', winner).replace('{loser}', loser).replace('{round}', roundLabel)
 }
 
 // ─── Results rail — horizontally-scrolling cards surfacing decided matches
@@ -569,16 +577,18 @@ function ResultsRail({ bracketData, participants, styles, t, onOpenMatch, onOpen
 
   const latest = ordered[0]
   const latestTime = latest?.submittedAt ? timeAgo(latest.submittedAt) : null
-  const recapTitle = latest?.draw
-    ? `${latest.leftName} & ${latest.rightName} split it`
-    : `${latest?.leftWon ? latest.leftName : latest?.rightName} takes the dub`
-  const recapDesc = latest ? buildRecapLine(latest) : null
+  const recapTitle = latest
+    ? (latest.draw
+        ? (t('tournaments.resultsRecapDrawTitle') || '{left} & {right} split it').replace('{left}', latest.leftName).replace('{right}', latest.rightName)
+        : (t('tournaments.resultsRecapWinTitle') || '{winner} takes the dub').replace('{winner}', latest.leftWon ? latest.leftName : latest.rightName))
+    : null
+  const recapDesc = latest ? buildRecapLine(latest, t) : null
 
   return (
     <div className={styles.resultsRail}>
       <div className={styles.resultsRailHead}>
         <i className="ri-trophy-fill" />
-        <span>{t('tournaments.matchResults') || 'Results'}</span>
+        <span>{t('tournaments.matchResults')}</span>
       </div>
       <div className={styles.resultsRailScroll}>
         {ordered.map(card => {
@@ -632,8 +642,8 @@ function ResultsRail({ bracketData, participants, styles, t, onOpenMatch, onOpen
                 <div className={styles.resultCardMid}>
                   {card.score
                     ? <span className={styles.resultCardScore}>{card.score}</span>
-                    : <span className={styles.resultCardVs}>beat</span>}
-                  {card.draw && <span className={styles.resultCardDrawTag}>draw</span>}
+                    : <span className={styles.resultCardVs}>{t('tournaments.resultCardBeat') || 'beat'}</span>}
+                  {card.draw && <span className={styles.resultCardDrawTag}>{t('tournaments.resultCardDraw') || 'draw'}</span>}
                 </div>
 
                 <div className={styles.resultCardSide}>
@@ -704,19 +714,16 @@ export default function TournamentDetail() {
     })
   }
 
-  // Jump from a results-rail card straight into the Matches tab, scrolled to
-  // and briefly highlighting that specific match — reuses the same deep-link
-  // mechanism as #ko-<rIdx>-<pIdx> anchor links.
+  // Jump from a results-rail card into the Matches tab — just switch tabs and
+  // let the user find the match themselves; don't auto-scroll/highlight it,
+  // since they weren't already looking at that tab.
   function openMatchResult(rIdx, pIdx) {
     changeTab('matches')
-    setMatchAnchor(`ko-${rIdx}-${pIdx}`)
   }
 
-  // Same idea for a group/league fixture card — jumps into the Table tab
-  // (which renders fixtures under each group) and highlights that fixture.
+  // Same idea for a group/league fixture card — just open the Table tab.
   function openFixtureResult(fixtureId) {
     changeTab('groups')
-    setMatchAnchor(`fx-${fixtureId}`)
   }
 
   // ── Hash-based deep links ──────────────────────────────────────────────
