@@ -22,6 +22,7 @@ import { parseBRData, computeBRStandings, unitizeParticipants, addOrUpdateMatch,
 import useTranslation from '../../../lib/useTranslation'
 import { getTimeStatus, isTimeUp, formatDuration, formatTimeOfDay } from '../../../lib/roundTimers'
 import { knockoutKey, fixtureKey } from '../../../lib/matchScheduler'
+import { buildRecapTitle, buildRecapDesc } from '../../../lib/resultsRecap'
 
 const ADMIN_EMAIL = 'stevenmsambwa8@gmail.com'
 
@@ -456,29 +457,6 @@ function latestAt(a, b) {
   return new Date(a).getTime() >= new Date(b).getTime() ? a : b
 }
 
-// Street-tone recap line for the most recent decided match — same info as
-// the card (who, score, round) but read out loud instead of laid out.
-// Pulls its templates from translations (tournaments.resultsRecap*) so the
-// Swahili version isn't just a literal translation of English slang.
-function buildRecapLine(card, t) {
-  const { leftName: L, rightName: R, leftWon, score, draw, roundLabel } = card
-  const winner = leftWon ? L : R
-  const loser = leftWon ? R : L
-  if (draw) {
-    const tmpl = t('tournaments.resultsRecapDrawDesc')
-      || "{left} and {right} went blow for blow in {round} and couldn't be split — {score}, nobody blinked."
-    return tmpl.replace('{left}', L).replace('{right}', R).replace('{round}', roundLabel).replace('{score}', score || 'level')
-  }
-  if (score) {
-    const tmpl = t('tournaments.resultsRecapWinDescScore')
-      || "{winner} came through and dropped {loser} {score} in {round}. No cap, that's a statement — table's heating up."
-    return tmpl.replace('{winner}', winner).replace('{loser}', loser).replace('{score}', score).replace('{round}', roundLabel)
-  }
-  const tmpl = t('tournaments.resultsRecapWinDescNoScore')
-    || '{winner} got the job done against {loser} in {round} — straight business, no drama.'
-  return tmpl.replace('{winner}', winner).replace('{loser}', loser).replace('{round}', roundLabel)
-}
-
 // ─── Results rail — horizontally-scrolling cards surfacing decided matches
 //     (winner vs. competitor) right under the hero, so results don't stay
 //     buried inside the Matches tab. Backgrounds blend both players' photos
@@ -576,10 +554,8 @@ function ResultsRail({ bracketData, participants, styles, t, onOpenMatch, onOpen
     .map(x => x.card)
     .map(card => ({
       ...card,
-      recapTitle: card.draw
-        ? (t('tournaments.resultsRecapDrawTitle') || '{left} & {right} split it').replace('{left}', card.leftName).replace('{right}', card.rightName)
-        : (t('tournaments.resultsRecapWinTitle') || '{winner} takes the dub').replace('{winner}', card.leftWon ? card.leftName : card.rightName),
-      recapDesc: buildRecapLine(card, t),
+      recapTitle: buildRecapTitle(card, t),
+      recapDesc: buildRecapDesc(card, t),
       recapTime: card.submittedAt ? timeAgo(card.submittedAt) : null,
     }))
 

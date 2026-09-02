@@ -12,6 +12,8 @@ import { useCurrency } from '../lib/useCurrency'
 import useTranslation from '../lib/useTranslation'
 import { identityColor } from '../lib/clanColors'
 import { EVENT_CATEGORY_META, deriveEventStatus, formatEventDate } from '../lib/eventCategories'
+import { getLatestDecidedMatch, buildRecapTitle, buildRecapDesc } from '../lib/resultsRecap'
+import MarqueeText from '../components/MarqueeText'
 
 const CLAN_CAP = 125
 
@@ -198,6 +200,19 @@ function TournamentSidebar({ tour, onClose, t, fmtAmt }) {
   const full  = (tour.registered_count || 0) >= tour.slots
   const href  = `/tournaments/${tour.slug || tour.id}`
 
+  // Latest decided match, if any — same street-tone recap as the full
+  // tournament page's Results Rail, just the single most recent one here
+  // since this is a quick teaser, not the whole scrollable history.
+  const bracketData = (() => {
+    if (!tour.bracket_data) return null
+    try { return typeof tour.bracket_data === 'string' ? JSON.parse(tour.bracket_data) : tour.bracket_data }
+    catch { return null }
+  })()
+  const latestMatch = bracketData ? getLatestDecidedMatch(bracketData) : null
+  const recapTitle = latestMatch ? buildRecapTitle(latestMatch, t) : null
+  const recapDesc = latestMatch ? buildRecapDesc(latestMatch, t) : null
+  const recapTime = latestMatch?.submittedAt ? timeAgo(latestMatch.submittedAt) : null
+
   useEffect(() => {
     function onKey(e) { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
@@ -238,6 +253,21 @@ function TournamentSidebar({ tour, onClose, t, fmtAmt }) {
             </div>
             <span className={styles.tSlotLabel}>{tour.registered_count || 0}/{tour.slots}</span>
           </div>
+
+          {recapDesc && (
+            <div className={styles.tSidebarRecap}>
+              <div className={styles.tSidebarRecapHead}>
+                <i className="ri-fire-fill" />
+                <MarqueeText
+                  text={recapTitle}
+                  wrapClassName={styles.tSidebarRecapTitleWrap}
+                  textClassName={styles.tSidebarRecapTitleText}
+                />
+                {recapTime && <span className={styles.tSidebarRecapTime}>{recapTime}</span>}
+              </div>
+              <p className={styles.tSidebarRecapDesc}>{recapDesc}</p>
+            </div>
+          )}
 
           <div className={styles.tSidebarActions}>
             {full ? (
@@ -494,7 +524,7 @@ export default function Home() {
   useEffect(() => {
     supabase
       .from('tournaments')
-      .select('id,name,slug,game_slug,status,slots,registered_count,date,prize,entrance_fee,is_test,created_by,created_at')
+      .select('id,name,slug,game_slug,status,slots,registered_count,date,prize,entrance_fee,is_test,created_by,created_at,bracket_data')
       .in('status', ['active', 'ongoing'])
       .order('created_at', { ascending: false })
       .limit(4)
@@ -601,7 +631,7 @@ export default function Home() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tournament_participants' }, async () => {
         const { data } = await supabase
           .from('tournaments')
-          .select('id,name,slug,game_slug,status,slots,registered_count,date,prize,entrance_fee,is_test,created_by,created_at')
+          .select('id,name,slug,game_slug,status,slots,registered_count,date,prize,entrance_fee,is_test,created_by,created_at,bracket_data')
           .in('status', ['active', 'ongoing'])
           .order('created_at', { ascending: false })
           .limit(4)
