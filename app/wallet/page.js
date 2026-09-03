@@ -20,10 +20,11 @@ const TYPE_ICONS = {
   daily_reward:        { icon: 'ri-gift-2-line',              color: '#a855f7' },
   join_bonus:          { icon: 'ri-door-open-line',           color: '#22c55e' },
   full_bonus:          { icon: 'ri-group-2-line',             color: '#eab308' },
+  referral_bonus:      { icon: 'ri-user-add-line',            color: '#22c55e' },
 }
 
 // Types that represent real TZS money rather than in-app points.
-const MONEY_TYPES = new Set(['prize', 'join_bonus', 'full_bonus'])
+const MONEY_TYPES = new Set(['prize', 'join_bonus', 'full_bonus', 'referral_bonus'])
 
 const TYPE_LABEL_KEYS = {
   match_win:            'walletPage.matchWin',
@@ -38,6 +39,7 @@ const TYPE_LABEL_KEYS = {
   daily_reward:          'walletPage.dailyReward',
   join_bonus:            'walletPage.joinBonus',
   full_bonus:            'walletPage.fullSlotsBonus',
+  referral_bonus:        'walletPage.referralBonus',
 }
 
 function typeMeta(type, t) {

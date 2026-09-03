@@ -369,6 +369,9 @@ export default function SettingsPage() {
         <a href="/wallet" className={styles.linkRow}>
           <i className="ri-wallet-3-line" /> Wallet <i className="ri-arrow-right-s-line" style={{marginLeft:'auto'}} />
         </a>
+        <a href="/invite" className={styles.linkRow} style={{color:'#22c55e'}}>
+          <i className="ri-user-add-line" /> Invite &amp; Earn <i className="ri-arrow-right-s-line" style={{marginLeft:'auto'}} />
+        </a>
       </Section>
 
       {/* ── Account / Danger Zone ── */}

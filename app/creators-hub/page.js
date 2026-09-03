@@ -42,7 +42,7 @@ export default function CreatorsHubPage() {
   const [isCreator, setIsCreator] = useState(false)
   const [earningsTotal, setEarningsTotal] = useState(0)
 
-  const MONEY_TYPES = new Set(['prize', 'join_bonus', 'full_bonus', 'shop_payout'])
+  const MONEY_TYPES = new Set(['prize', 'join_bonus', 'full_bonus', 'shop_payout', 'referral_bonus'])
 
   const activePlan = getActivePlan(profile)
   const hasCreatorPerks = activePlan === 'elite' || activePlan === 'team'

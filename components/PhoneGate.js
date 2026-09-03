@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from './AuthProvider'
 import { supabase } from '../lib/supabase'
+import { tryPayReferralBonus } from '../lib/referralBonus'
 
 export default function PhoneGate() {
   const { user, profile } = useAuth()
@@ -31,12 +32,17 @@ export default function PhoneGate() {
       .update({ phone: full })
       .eq('id', user.id)
     if (err) {
-      setError('Failed to save. Try again.')
+      setError(
+        err.code === '23505'
+          ? 'This phone number is already linked to another account.'
+          : 'Failed to save. Try again.'
+      )
       setSaving(false)
       return
     }
     setShow(false)
     setSaving(false)
+    tryPayReferralBonus(supabase, user.id)
   }
 
   if (!show) return null

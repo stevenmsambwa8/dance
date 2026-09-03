@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { usePresence, useZoneTracker } from '../lib/usePresence'
+import { captureReferralFromURL, linkReferralOnSignup, tryPayReferralBonus } from '../lib/referralBonus'
 import {
   getCurrentSeason,
   computeTierAfterWin,
@@ -75,6 +76,10 @@ export default function AuthProvider({ children }) {
   const [user, setUser]       = useState(cached.user)
   const [profile, setProfile] = useState(readCachedProfile())
   const [loading, setLoading] = useState(!cached.user)
+
+  // Capture ?ref=CODE the moment the app loads, before it's stripped by
+  // navigation — survives the trip to /login and back through Google OAuth.
+  useEffect(() => { captureReferralFromURL() }, [])
 
   useEffect(() => {
     let mounted = true
@@ -169,7 +174,10 @@ export default function AuthProvider({ children }) {
         .select()
         .maybeSingle()
 
-      if (!insertError && newProfile) data = newProfile
+      if (!insertError && newProfile) {
+        data = newProfile
+        linkReferralOnSignup(supabase, userId)
+      }
       if (!data) {
         const fallback = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
         data = fallback.data
@@ -246,6 +254,7 @@ export default function AuthProvider({ children }) {
         is_season_winner: false,
         level: 1,
       })
+      linkReferralOnSignup(supabase, data.user.id)
     }
     return data
   }
@@ -276,9 +285,13 @@ export default function AuthProvider({ children }) {
 
   async function updateProfile(updates) {
     if (!user) return
+    const hadNoPhone = !profile?.phone
     const { error } = await supabase.from('profiles').update(updates).eq('id', user.id)
     if (error) throw error
     setProfile(prev => ({ ...prev, ...updates }))
+    // Phone just went from unset → set: this is the verification checkpoint
+    // an invite bonus (if any) is waiting on.
+    if (hadNoPhone && updates.phone) tryPayReferralBonus(supabase, user.id)
   }
 
   async function uploadAvatar(file) {

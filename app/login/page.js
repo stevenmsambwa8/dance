@@ -55,11 +55,21 @@ export default function Login() {
   const [findLoading, setFindLoading] = useState(false)
   const [findResult, setFindResult] = useState(null)
   const [findError, setFindError]   = useState('')
+  const [inviterName, setInviterName] = useState('')
 
   useEffect(() => {
     const accounts = getSavedAccounts()
     setSavedAccounts(accounts)
     if (accounts.length === 0) setShowManual(true)
+
+    // Came from an invite link — jump straight to signup and say who sent it.
+    const ref = new URLSearchParams(window.location.search).get('ref')
+    if (ref) {
+      setTab('signup')
+      setShowManual(true)
+      supabase.from('profiles').select('username').eq('referral_code', ref.toUpperCase()).maybeSingle()
+        .then(({ data }) => { if (data?.username) setInviterName(data.username) })
+    }
   }, [])
 
   function pickAccount(acc) {
@@ -280,6 +290,16 @@ export default function Login() {
           {tab === 'signup' && (
             <form className={styles.form} onSubmit={handleSubmit}>
               <p className={styles.sub}>Create your account</p>
+              {inviterName && (
+                <p style={{
+                  fontSize: 13, fontWeight: 600, color: 'var(--accent)',
+                  background: 'color-mix(in srgb, var(--accent) 10%, transparent)',
+                  border: '1px solid var(--accent)', borderRadius: 10,
+                  padding: '8px 12px', margin: '0 0 4px',
+                }}>
+                  <i className="ri-user-add-line" /> Invited by @{inviterName}
+                </p>
+              )}
               <div className={styles.field}>
                 <label>Username</label>
                 <div className={styles.inputWrap}>
