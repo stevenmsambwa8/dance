@@ -140,6 +140,8 @@
 @media (hover: hover) {
 .avatarWrap:hover .avatarCamera { opacity: 1; }
 }
+.avatarWrapLocked { cursor: not-allowed; }
+.avatarWrapLocked .avatarCamera { opacity: 1; background: rgba(0,0,0,0.65); }
 
 .avatarMeta { display: flex; flex-direction: column; gap: 5px; }
 .avatarName { font-size: 18px; font-weight: 800; }
@@ -195,6 +197,7 @@
   transition: border-color 0.12s;
 }
 .field input:focus, .field textarea:focus { border-color: var(--text); }
+.field input:disabled, .field textarea:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Chips */
 .chipRow { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -232,6 +235,8 @@
 .flagBtn:hover { border-color: var(--text); color: var(--text); }
 }
 .flagBtnActive { border-color: var(--text) !important; color: var(--text) !important; background: var(--surface) !important; }
+.flagRowLocked .flagBtn { opacity: 0.5; cursor: not-allowed; }
+.flagBtn:disabled { cursor: not-allowed; }
 
 /* Phone */
 .phoneCodeRow { display: flex; gap: 6px; margin-bottom: 6px; }

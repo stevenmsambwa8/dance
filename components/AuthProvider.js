@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { usePresence, useZoneTracker } from '../lib/usePresence'
 import { captureReferralFromURL, linkReferralOnSignup, tryPayReferralBonus } from '../lib/referralBonus'
+import { isLocked, lockMessage } from '../lib/profileLock'
 import {
   getCurrentSeason,
   computeTierAfterWin,
@@ -286,6 +287,21 @@ export default function AuthProvider({ children }) {
   async function updateProfile(updates) {
     if (!user) return
     const hadNoPhone = !profile?.phone
+
+    // 60-day identity lock: username, profile picture, and country flag can
+    // each only change once every 60 days. This is a fast client-side check
+    // for a friendly error message — the real backstop is the DB trigger in
+    // lib/profile-lock-schema.sql, which blocks it regardless of caller.
+    if ('username' in updates && updates.username !== profile?.username && isLocked(profile?.username_changed_at)) {
+      throw new Error(lockMessage('Username', profile.username_changed_at))
+    }
+    if ('country_flag' in updates && updates.country_flag !== profile?.country_flag && isLocked(profile?.country_flag_changed_at)) {
+      throw new Error(lockMessage('Country flag', profile.country_flag_changed_at))
+    }
+    if ('avatar_url' in updates && updates.avatar_url !== profile?.avatar_url && isLocked(profile?.avatar_changed_at)) {
+      throw new Error(lockMessage('Profile picture', profile.avatar_changed_at))
+    }
+
     const { error } = await supabase.from('profiles').update(updates).eq('id', user.id)
     if (error) throw error
     setProfile(prev => ({ ...prev, ...updates }))
@@ -296,6 +312,9 @@ export default function AuthProvider({ children }) {
 
   async function uploadAvatar(file) {
     if (!user) return null
+    if (isLocked(profile?.avatar_changed_at)) {
+      throw new Error(lockMessage('Profile picture', profile.avatar_changed_at))
+    }
     const ext = file.name.split('.').pop()
     const path = `${user.id}/avatar.${ext}`
     const { error: uploadError } = await supabase.storage

@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase'
 import usePageLoading from '../../components/usePageLoading'
 import { useCurrency } from '../../lib/useCurrency'
 import { RANK_META } from '../../lib/constants'
+import { isLocked, daysRemaining } from '../../lib/profileLock'
 import styles from './page.module.css'
 
 const PLAY_STYLES  = ['Aggressive', 'Defensive', 'Support', 'Sniper', 'All-Round']
@@ -120,6 +121,14 @@ export default function SettingsPage() {
   const tierMeta  = RANK_META[profile?.tier] || RANK_META.Gold
   const isPartner = profile?.tier === 'Partner'
 
+  // ── 60-day identity lock: username, avatar, and country flag ──
+  const usernameLocked = isLocked(profile?.username_changed_at)
+  const avatarLocked   = isLocked(profile?.avatar_changed_at)
+  const flagLocked     = isLocked(profile?.country_flag_changed_at)
+  const usernameDaysLeft = daysRemaining(profile?.username_changed_at)
+  const avatarDaysLeft   = daysRemaining(profile?.avatar_changed_at)
+  const flagDaysLeft     = daysRemaining(profile?.country_flag_changed_at)
+
   async function saveProfile() {
     if (phoneLocal.trim() && phoneLocal.trim().length < 6) {
       setPhoneError('Enter a valid phone number.')
@@ -201,9 +210,9 @@ export default function SettingsPage() {
       {/* ── Avatar ── */}
       <div className={styles.avatarSection}>
         <div
-          className={styles.avatarWrap}
+          className={`${styles.avatarWrap} ${avatarLocked ? styles.avatarWrapLocked : ''}`}
           data-tier={profile?.tier || 'Gold'}
-          onClick={() => fileRef.current?.click()}
+          onClick={() => { if (!avatarLocked) fileRef.current?.click() }}
         >
           {avatarLoading ? (
             <div className={styles.avatarInner}><i className="ri-loader-4-line" /></div>
@@ -212,8 +221,10 @@ export default function SettingsPage() {
           ) : (
             <div className={styles.avatarInner}>{initials}</div>
           )}
-          <div className={styles.avatarCamera}><i className="ri-camera-line" /></div>
-          <input ref={fileRef} type="file" accept="image/*" style={{display:'none'}} onChange={handleAvatarChange} />
+          <div className={styles.avatarCamera}>
+            <i className={avatarLocked ? 'ri-lock-line' : 'ri-camera-line'} />
+          </div>
+          <input ref={fileRef} type="file" accept="image/*" style={{display:'none'}} onChange={handleAvatarChange} disabled={avatarLocked} />
         </div>
         <div className={styles.avatarMeta}>
           <div className={styles.avatarName}>{profile?.username}</div>
@@ -228,6 +239,11 @@ export default function SettingsPage() {
             <span className={styles.avatarLevel}>Lv.{profile?.level ?? '—'}</span>
           </div>
           <div className={styles.avatarCurrency}>Currency: <strong>{currency}</strong></div>
+          {avatarLocked && (
+            <p className={styles.fieldHint}>
+              <i className="ri-lock-line" /> Photo locked for {avatarDaysLeft} more day{avatarDaysLeft === 1 ? '' : 's'}
+            </p>
+          )}
         </div>
       </div>
 
@@ -235,7 +251,17 @@ export default function SettingsPage() {
       <Section icon="ri-user-3-line" title="Profile Info">
         <div className={styles.field}>
           <label>Username</label>
-          <input value={username} onChange={e => setUsername(e.target.value)} placeholder="Your username" />
+          <input
+            value={username}
+            onChange={e => setUsername(e.target.value)}
+            placeholder="Your username"
+            disabled={usernameLocked}
+          />
+          {usernameLocked && (
+            <p className={styles.fieldHint}>
+              <i className="ri-lock-line" /> Locked for {usernameDaysLeft} more day{usernameDaysLeft === 1 ? '' : 's'} — usernames can only change once every 60 days.
+            </p>
+          )}
         </div>
         <div className={styles.field}>
           <label>Bio</label>
@@ -270,16 +296,22 @@ export default function SettingsPage() {
       <Section icon="ri-map-pin-line" title="Country & Phone">
         <div className={styles.field}>
           <label>Country</label>
-          <div className={styles.flagRow}>
+          <div className={`${styles.flagRow} ${flagLocked ? styles.flagRowLocked : ''}`}>
             {FLAG_OPTIONS.map(f => (
               <button key={f.value} type="button"
+                disabled={flagLocked}
                 className={`${styles.flagBtn} ${countryFlag === f.value ? styles.flagBtnActive : ''}`}
-                onClick={() => { setCountryFlag(f.value); setPhoneCode(f.code) }}>
+                onClick={() => { if (!flagLocked) { setCountryFlag(f.value); setPhoneCode(f.code) } }}>
                 <img src={f.flag} alt={f.label} />
                 <span>{f.label}</span>
               </button>
             ))}
           </div>
+          {flagLocked && (
+            <p className={styles.fieldHint}>
+              <i className="ri-lock-line" /> Locked for {flagDaysLeft} more day{flagDaysLeft === 1 ? '' : 's'} — your country flag can only change once every 60 days.
+            </p>
+          )}
         </div>
         <div className={styles.field}>
           <label>Phone Number</label>
