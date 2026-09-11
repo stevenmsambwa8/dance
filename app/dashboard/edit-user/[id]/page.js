@@ -67,7 +67,26 @@ export default function EditUserPage() {
       is_season_winner: !!profile.is_season_winner,
       custom_badges: profile.custom_badges || [],
     }
-    const { error } = await supabase.from('profiles').update(payload).eq('id', profile.id)
+    // Goes through the server route (service role) instead of a direct
+    // client update — the profiles table's update RLS policy only allows
+    // a row's own owner to update it, so a plain client-side update here
+    // was silently blocked for admins editing someone else's profile.
+    const { data: { session } } = await supabase.auth.getSession()
+    let error = null
+    try {
+      const res = await fetch('/api/admin/update-profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ userId: profile.id, updates: payload }),
+      })
+      const json = await res.json()
+      if (!res.ok) error = { message: json.error || 'Save failed' }
+    } catch (e) {
+      error = { message: e.message }
+    }
     setSaving(false)
     if (error) { alert(error.message); return }
     router.push('/dashboard?tab=Users')
