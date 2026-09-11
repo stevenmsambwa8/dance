@@ -454,6 +454,7 @@ export default function Nav() {
             { href: '/shop',        label: t('navigation.shop'),        icon: 'ri-store-2-line' },
             { href: '/my-requests', label: t('navigation.myRequests'),  icon: 'ri-file-list-3-line' },
             { href: '/music',       label: t('navigation.music'),       icon: 'ri-music-2-line' },
+            { href: '/patches',     label: t('navigation.whatsNew'),    icon: 'ri-rocket-2-line' },
           ].map(({ href, label, icon }) => {
             const isActive = href === '/' ? path === '/' : path.startsWith(href)
             return (

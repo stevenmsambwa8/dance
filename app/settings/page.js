@@ -6,7 +6,7 @@ import { useAuthGate } from '../../components/AuthGateModal'
 import { supabase } from '../../lib/supabase'
 import usePageLoading from '../../components/usePageLoading'
 import { useCurrency } from '../../lib/useCurrency'
-import { RANK_META } from '../../lib/constants'
+import { RANK_META, GAME_SLUGS, GAME_META } from '../../lib/constants'
 import { isLocked, daysRemaining } from '../../lib/profileLock'
 import styles from './page.module.css'
 
@@ -18,9 +18,6 @@ const FLAG_OPTIONS = [
   { value: 'south-africa', label: 'South Africa', code: '27',  flag: '/south-africa.png' },
   { value: 'nigeria',      label: 'Nigeria',      code: '234', flag: '/nigeria.png'      },
 ]
-const GAME_SLUGS_LIST = ['pubgm','freefire','codm','bussid','efootball','dls']
-const GAME_NAMES_MAP  = { pubgm:'PUBGM', freefire:'Free Fire', codm:'Call of Duty', bussid:'Maleo BUSSID', efootball:'eFootball', dls:'DLS26' }
-
 function Section({ icon, title, children }) {
   return (
     <div className={styles.section}>
@@ -280,8 +277,8 @@ export default function SettingsPage() {
         <div className={styles.field}>
           <label>Game Tags</label>
           <div className={styles.chipRow}>
-            {GAME_SLUGS_LIST.map(s => {
-              const name = GAME_NAMES_MAP[s]
+            {GAME_SLUGS.map(s => {
+              const name = GAME_META[s].name
               return (
                 <button key={s} type="button"
                   className={`${styles.chip} ${gameTags.includes(name) ? styles.chipActive : ''}`}
