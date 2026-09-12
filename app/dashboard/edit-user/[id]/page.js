@@ -40,6 +40,7 @@ export default function EditUserPage() {
   const [useCustomColor, setUseCustomColor] = useState(false)
   const [badgeIconFile, setBadgeIconFile] = useState(null)
   const [badgeIconUploading, setBadgeIconUploading] = useState(false)
+  const [editingBadgeId, setEditingBadgeId] = useState(null) // set while editing an existing badge
 
   const [grantHours, setGrantHours] = useState(TEMP_ADMIN_PRESETS[1].hours)
   const [grantSaving, setGrantSaving] = useState(false)
@@ -126,23 +127,52 @@ export default function EditUserPage() {
 
   function addCustomBadge() {
     if (!newBadgeDraft.label.trim()) return
-    const badge = {
-      id: `b_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-      label: newBadgeDraft.label.trim(),
-      icon: newBadgeDraft.icon.trim() || '🏅',
-      iconUrl: newBadgeDraft.iconUrl || null,
-      // Leave color unset unless the admin explicitly picked one — the
-      // badge then renders in the site's theme accent color.
-      color: useCustomColor ? (newBadgeDraft.color || null) : null,
-      desc: newBadgeDraft.desc.trim() || '',
+    const color = useCustomColor ? (newBadgeDraft.color || null) : null
+
+    if (editingBadgeId) {
+      // Updating an existing badge in place — id stays the same.
+      setProfile(x => ({
+        ...x,
+        custom_badges: (x.custom_badges || []).map(b => b.id !== editingBadgeId ? b : {
+          ...b,
+          label: newBadgeDraft.label.trim(),
+          icon: newBadgeDraft.icon.trim() || '🏅',
+          iconUrl: newBadgeDraft.iconUrl || null,
+          color,
+          desc: newBadgeDraft.desc.trim() || '',
+        },
+      }))
+    } else {
+      const badge = {
+        id: `b_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+        label: newBadgeDraft.label.trim(),
+        icon: newBadgeDraft.icon.trim() || '🏅',
+        iconUrl: newBadgeDraft.iconUrl || null,
+        // Leave color unset unless the admin explicitly picked one — the
+        // badge then renders in the site's theme accent color.
+        color,
+        desc: newBadgeDraft.desc.trim() || '',
+      }
+      setProfile(x => ({ ...x, custom_badges: [...(x.custom_badges || []), badge] }))
     }
-    setProfile(x => ({ ...x, custom_badges: [...(x.custom_badges || []), badge] }))
+
+    cancelBadgeEdit()
+  }
+  function startEditBadge(b) {
+    setEditingBadgeId(b.id)
+    setNewBadgeDraft({ label: b.label || '', icon: b.icon || '🏅', color: b.color || '', desc: b.desc || '', iconUrl: b.iconUrl || '' })
+    setUseCustomColor(!!b.color)
+    setBadgeIconFile(null)
+  }
+  function cancelBadgeEdit() {
+    setEditingBadgeId(null)
     setNewBadgeDraft({ label: '', icon: '🏅', color: '', desc: '', iconUrl: '' })
     setUseCustomColor(false)
     setBadgeIconFile(null)
   }
   function removeCustomBadge(id) {
     setProfile(x => ({ ...x, custom_badges: (x.custom_badges || []).filter(b => b.id !== id) }))
+    if (editingBadgeId === id) cancelBadgeEdit()
   }
 
   // ── Temporary admin grant/revoke — takes effect immediately, separate
@@ -291,6 +321,9 @@ export default function EditUserPage() {
                     <div className={styles.badgeLabel} style={{ color: b.color || 'var(--accent)' }}>{b.label}</div>
                     {b.desc && <div className={styles.badgeDesc}>{b.desc}</div>}
                   </div>
+                  <button type="button" className={styles.iconBtnSm} title="Edit badge" onClick={() => startEditBadge(b)}>
+                    <i className="ri-pencil-line" />
+                  </button>
                   <button type="button" className={styles.iconBtnDanger} onClick={() => removeCustomBadge(b.id)}>
                     <i className="ri-delete-bin-line" />
                   </button>
@@ -348,8 +381,13 @@ export default function EditUserPage() {
             </div>
 
             <button type="button" className={styles.addBadgeBtn} onClick={addCustomBadge}>
-              <i className="ri-add-line" /> Add Badge
+              <i className={editingBadgeId ? 'ri-check-line' : 'ri-add-line'} /> {editingBadgeId ? 'Update Badge' : 'Add Badge'}
             </button>
+            {editingBadgeId && (
+              <button type="button" className={styles.cancelEditBtn} onClick={cancelBadgeEdit}>
+                Cancel edit
+              </button>
+            )}
           </div>
         </div>
 

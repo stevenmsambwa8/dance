@@ -336,6 +336,21 @@
 .addBadgeBtn:hover { opacity: 0.88; }
 }
 
+.cancelEditBtn {
+  width: 100%;
+  padding: 9px;
+  border-radius: 10px;
+  border: 1px solid var(--border-dark);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+@media (hover: hover) {
+.cancelEditBtn:hover { background: var(--bg-2); color: var(--text); }
+}
+
 .saveBtn {
   width: 100%;
   display: flex;
