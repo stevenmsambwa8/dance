@@ -86,7 +86,13 @@ export default function EditUserPage() {
     // check on them doesn't reject the rest of an otherwise valid save.
     if (isPermanentAdmin) {
       payload.is_season_winner = !!profile.is_season_winner
-      payload.custom_badges = profile.custom_badges || []
+      // If a badge edit is still open in the composer (e.g. the admin
+      // uploaded a new image but never clicked "Update Badge" before
+      // hitting Save Player), fold it in now rather than silently saving
+      // the old version.
+      payload.custom_badges = editingBadgeId && newBadgeDraft.label.trim()
+        ? mergeEditedBadge(profile.custom_badges || [])
+        : (profile.custom_badges || [])
     }
     // Goes through the server route (service role) instead of a direct
     // client update — the profiles table's update RLS policy only allows
@@ -135,36 +141,36 @@ export default function EditUserPage() {
 
   function addCustomBadge() {
     if (!newBadgeDraft.label.trim()) return
+    setProfile(x => ({ ...x, custom_badges: mergeEditedBadge(x.custom_badges || []) }))
+    cancelBadgeEdit()
+  }
+  // Shared by addCustomBadge (the "Update Badge" button) and saveUser (a
+  // safety net for Save Player) — folds the current composer draft into
+  // an existing badge, or appends it as new. Used only from those two call
+  // sites, both of which already confirm newBadgeDraft.label is filled in.
+  function mergeEditedBadge(list) {
     const color = useCustomColor ? (newBadgeDraft.color || null) : null
-
     if (editingBadgeId) {
-      // Updating an existing badge in place — id stays the same.
-      setProfile(x => ({
-        ...x,
-        custom_badges: (x.custom_badges || []).map(b => b.id !== editingBadgeId ? b : {
-          ...b,
-          label: newBadgeDraft.label.trim(),
-          icon: newBadgeDraft.icon.trim() || '🏅',
-          iconUrl: newBadgeDraft.iconUrl || null,
-          color,
-          desc: newBadgeDraft.desc.trim() || '',
-        }),
-      }))
-    } else {
-      const badge = {
-        id: `b_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      return list.map(b => b.id !== editingBadgeId ? b : {
+        ...b,
         label: newBadgeDraft.label.trim(),
         icon: newBadgeDraft.icon.trim() || '🏅',
         iconUrl: newBadgeDraft.iconUrl || null,
-        // Leave color unset unless the admin explicitly picked one — the
-        // badge then renders in the site's theme accent color.
         color,
         desc: newBadgeDraft.desc.trim() || '',
-      }
-      setProfile(x => ({ ...x, custom_badges: [...(x.custom_badges || []), badge] }))
+      })
     }
-
-    cancelBadgeEdit()
+    const badge = {
+      id: `b_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      label: newBadgeDraft.label.trim(),
+      icon: newBadgeDraft.icon.trim() || '🏅',
+      iconUrl: newBadgeDraft.iconUrl || null,
+      // Leave color unset unless the admin explicitly picked one — the
+      // badge then renders in the site's theme accent color.
+      color,
+      desc: newBadgeDraft.desc.trim() || '',
+    }
+    return [...list, badge]
   }
   function startEditBadge(b) {
     setEditingBadgeId(b.id)
