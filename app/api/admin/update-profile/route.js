@@ -85,6 +85,14 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Only a permanent admin can grant or revoke admin access' }, { status: 403 })
     }
 
+    // Badges are a permanent-admin-only action too — a temp admin's UI
+    // hides these controls, but that's just presentation, so re-check here
+    // in case a temp-admin session hits this route directly.
+    const BADGE_FIELDS = ['is_season_winner', 'custom_badges']
+    if (BADGE_FIELDS.some(f => f in updates) && !admin.isPermanentAdmin) {
+      return NextResponse.json({ error: 'Only a permanent admin can edit badges' }, { status: 403 })
+    }
+
     const payload = {}
     for (const key of EDITABLE_FIELDS) {
       if (key in updates) payload[key] = updates[key]
