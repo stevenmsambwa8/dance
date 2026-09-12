@@ -1,0 +1,285 @@
+.page { margin: 0 auto; padding: 20px 12px 110px; max-width: 640px; }
+
+/* ── Header ── */
+.header { margin-bottom: 16px; }
+.eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+.headline {
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.headline i { color: #ffd54a; font-size: 24px; }
+
+/* ── Game tabs ── */
+.gameTabRow {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 2px 2px 14px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.gameTabRow::-webkit-scrollbar { display: none; }
+
+.gameTab {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  opacity: 0.55;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.gameTab:active { transform: scale(0.95); }
+
+.gameTabImgWrap {
+  width: 52px; height: 52px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 2px solid var(--border);
+  background: var(--bg-2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  color: var(--text-muted);
+  transition: border-color 0.15s;
+}
+.gameTabImgWrap img { width: 100%; height: 100%; object-fit: cover; }
+
+.gameTabLabel {
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.gameTabActive { opacity: 1; }
+.gameTabActive .gameTabImgWrap { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+.gameTabActive .gameTabLabel { color: var(--text); }
+
+/* ── Search ── */
+.searchWrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+}
+.searchWrap i { color: var(--text-muted); font-size: 15px; }
+.searchInput {
+  flex: 1;
+  border: none;
+  background: none;
+  outline: none;
+  font-size: 13px;
+  font-family: var(--font);
+  color: var(--text);
+}
+.searchInput::placeholder { color: var(--text-muted); }
+.searchClear {
+  background: none; border: none; color: var(--text-muted);
+  cursor: pointer; padding: 0; font-size: 16px; line-height: 1; display: flex;
+}
+
+/* ── Your position ── */
+.myRankCard {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--bg-2)), var(--bg-2));
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  border-radius: 14px;
+  padding: 10px 12px;
+  margin-bottom: 16px;
+}
+.myRankLabel {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: block;
+  margin-bottom: 6px;
+}
+.myRankBody { display: flex; align-items: center; gap: 10px; }
+.myRankNum { font-size: 16px; font-weight: 900; width: 30px; flex-shrink: 0; }
+.myRankAvatar {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 2px solid var(--accent);
+  overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface);
+  font-size: 11px; font-weight: 800;
+  flex-shrink: 0;
+}
+.myRankAvatar img { width: 100%; height: 100%; object-fit: cover; }
+.myRankName { flex: 1; font-size: 13px; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.myRankPts { font-size: 13px; font-weight: 900; color: var(--text); white-space: nowrap; }
+
+/* ── Podium ── */
+.podium {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  align-items: end;
+  gap: 10px;
+  padding: 10px 0 22px;
+}
+.podiumCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  text-decoration: none;
+  color: inherit;
+  padding: 16px 6px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--bg-2);
+  position: relative;
+  transition: transform 0.12s;
+}
+.podiumCard:active { transform: scale(0.97); }
+
+.podiumRank1 {
+  order: 2;
+  padding-top: 26px;
+  padding-bottom: 18px;
+  background: linear-gradient(180deg, rgba(255,213,74,0.18), var(--bg-2) 70%);
+  border-color: #ffd54a55;
+  z-index: 1;
+  box-shadow: 0 6px 18px rgba(255,213,74,0.12);
+}
+.podiumRank2 { order: 1; }
+.podiumRank3 { order: 3; }
+
+.crown {
+  position: absolute;
+  top: -15px;
+  font-size: 22px;
+  color: #ffd54a;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3));
+}
+
+.podiumAvatar {
+  width: 58px; height: 58px;
+  border-radius: 50%;
+  border: 3px solid var(--border);
+  overflow: hidden;
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface);
+  font-size: 15px;
+  font-weight: 800;
+}
+.podiumRank1 .podiumAvatar { width: 70px; height: 70px; }
+.podiumAvatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.podiumRankBadge {
+  position: absolute;
+  bottom: -3px; right: -3px;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px;
+  font-weight: 900;
+  color: #1a1a1a;
+  border: 2px solid var(--bg-2);
+}
+
+.podiumName {
+  font-size: 12.5px;
+  font-weight: 800;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.podiumTier { font-size: 9.5px; font-weight: 700; display: flex; align-items: center; gap: 2px; }
+.podiumPts { font-size: 14px; font-weight: 900; color: var(--accent); margin-top: 1px; }
+
+/* ── List ── */
+.list { display: flex; flex-direction: column; padding-bottom: 8px; }
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border);
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.1s;
+}
+.row:last-child { border-bottom: none; }
+@media (hover: hover) {
+  .row:hover { background: var(--bg-2); margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: 8px; }
+}
+.rowMe { background: rgba(34,197,94,0.06); border-radius: 10px; padding-left: 8px; padding-right: 8px; margin: 0 -8px; }
+
+.rowPos { font-size: 14px; width: 28px; text-align: center; flex-shrink: 0; font-weight: 900; color: var(--text-muted); }
+
+.rowAvatar {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-2);
+  font-size: 12px; font-weight: 800;
+}
+.rowAvatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.rowInfo { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rowName {
+  font-size: 13px; font-weight: 700;
+  display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.rowSub { font-size: 10px; font-weight: 600; display: flex; align-items: center; gap: 3px; }
+
+.rowPts { font-size: 14px; font-weight: 900; color: var(--text); white-space: nowrap; }
+.ptsLabel { font-size: 10px; font-weight: 600; color: var(--text-muted); }
+
+.youPill {
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  background: #22c55e;
+  color: #fff;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+/* ── Empty / skeleton ── */
+.empty {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 8px; padding: 48px 12px; text-align: center;
+  color: var(--text-muted); font-size: 12px; font-weight: 600;
+}
+.empty i { font-size: 30px; opacity: 0.5; }
+.emptyImg { width: 48px; height: 48px; border-radius: 12px; object-fit: cover; opacity: 0.55; }
+
+.skelCircle {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--bg-2); flex-shrink: 0;
+  animation: skelPulse 1.2s ease-in-out infinite;
+}
+.skelLine {
+  border-radius: 5px;
+  background: var(--bg-2);
+  animation: skelPulse 1.2s ease-in-out infinite;
+}
+@keyframes skelPulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }

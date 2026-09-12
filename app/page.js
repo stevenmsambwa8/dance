@@ -855,13 +855,13 @@ export default function Home() {
       </Section>
 
       {/* ══════════ LEADERBOARD ══════════ */}
-      <Section title={t('players.leaderboard')} href="/players" linkLabel={t('home.allPlayers')}>
+      <Section title={t('players.leaderboard')} href="/leaderboard" linkLabel={t('home.allPlayers')} className={styles.lbSection}>
         <div className={styles.gameFilterRow}>
           <button
             className={`${styles.gameFilterChip} ${selectedGame === 'all' ? styles.gameFilterChipActive : ''}`}
             onClick={() => setSelectedGame('all')}
           >
-            <i className="ri-global-line" /> {t('common.all')}
+            <span className={styles.gameFilterIconWrap}><i className="ri-global-line" /></span> {t('common.all')}
           </button>
           {GAME_SLUGS.map(slug => {
             const g = GAME_META[slug]
@@ -871,7 +871,14 @@ export default function Home() {
                 className={`${styles.gameFilterChip} ${selectedGame === slug ? styles.gameFilterChipActive : ''}`}
                 onClick={() => setSelectedGame(slug)}
               >
-                <i className={g?.icon || 'ri-gamepad-line'} /> {g?.name || slug}
+                <span className={styles.gameFilterImgWrap}>
+                  {g?.image
+                    ? <img src={g.image} alt="" className={styles.gameFilterImg} loading="lazy" decoding="async" onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'flex' }} />
+                    : null
+                  }
+                  <i className={g?.icon || 'ri-gamepad-line'} style={{ display: g?.image ? 'none' : 'flex' }} />
+                </span>
+                {g?.name || slug}
               </button>
             )
           })}
@@ -888,43 +895,95 @@ export default function Home() {
           if (list.length === 0) {
             return (
               <div className={styles.empty}>
-                <i className={gameMeta?.icon || 'ri-bar-chart-line'} />
+                {gameMeta?.image
+                  ? <img src={gameMeta.image} alt="" className={styles.emptyGameImg} />
+                  : <i className={gameMeta?.icon || 'ri-bar-chart-line'} />
+                }
                 <p>{t('home.noLeaderboardYet') || `No ${gameMeta?.name || ''} tournaments scored yet`}</p>
               </div>
             )
           }
 
+          const podium = list.slice(0, 3)
+          const rest   = list.slice(3)
+          const order  = podium.length === 3 ? [1, 0, 2] : podium.map((_, i) => i)
+
           return (
-            <div className={styles.leaderList}>
-              {list.map((p, i) => {
-                const isMe   = user?.id === p.id
-                const medals = ['🥇', '🥈', '🥉']
-                const tm     = RANK_META[p.tier] || RANK_META.Gold
-                const pts    = isAll ? (p.points || 0) : (p.game_points || 0)
-                return (
-                  <Link key={p.id} href={`/profile/${p.id}`} className={`${styles.leaderRow} ${isMe ? styles.leaderRowMe : ''}`}>
-                    <span className={styles.leaderPos}>{medals[i] || `#${i+1}`}</span>
-                    <div className={styles.leaderAvatar}>
-                      {p.avatar_url
-                        ? <img src={p.avatar_url} alt="" loading="lazy" decoding="async" />
-                        : <span>{(p.username || '?').slice(0,2).toUpperCase()}</span>
-                      }
-                    </div>
-                    <div className={styles.leaderInfo}>
-                      <span className={styles.leaderName}>
-                        {p.username}
-                        {isMe && <span className={styles.youPill}>{t('home.you')}</span>}
-                        <UserBadges email={p.email} plan={p.plan} planExpiresAt={p.plan_expires_at} countryFlag={p.country_flag} isSeasonWinner={p.is_season_winner} customBadges={p.custom_badges} size={11} gap={2} />
-                      </span>
-                      <span className={styles.leaderSub} style={{ color: tm.color }}>
-                        <i className={tm.icon} /> {p.tier} · Lv.{p.level ?? 1} · {p.wins || 0}W
-                      </span>
-                    </div>
-                    <span className={styles.leaderPts}>{pts.toLocaleString()}<span className={styles.ptsLabel}> {t('home.pts').toLowerCase()}</span></span>
-                  </Link>
-                )
-              })}
-            </div>
+            <>
+              {podium.length > 0 && (
+                <div className={styles.lbPodium}>
+                  {order.map(i => {
+                    const p = podium[i]
+                    if (!p) return null
+                    const isMe = user?.id === p.id
+                    const tm   = RANK_META[p.tier] || RANK_META.Gold
+                    const pts  = isAll ? (p.points || 0) : (p.game_points || 0)
+                    const rankColors = ['#ffd54a', '#c9d3e0', '#e0a262']
+                    return (
+                      <Link
+                        key={p.id}
+                        href={`/profile/${p.id}`}
+                        className={`${styles.lbPodiumCard} ${styles['lbPodiumRank' + (i + 1)]} ${isMe ? styles.leaderRowMe : ''}`}
+                      >
+                        {i === 0 && <i className={`ri-vip-crown-fill ${styles.lbCrown}`} />}
+                        <div className={styles.lbPodiumAvatar} style={{ borderColor: rankColors[i] }}>
+                          {p.avatar_url
+                            ? <img src={p.avatar_url} alt="" loading="lazy" decoding="async" />
+                            : <span>{(p.username || '?').slice(0,2).toUpperCase()}</span>
+                          }
+                          <span className={styles.lbPodiumRankBadge} style={{ background: rankColors[i] }}>{i + 1}</span>
+                        </div>
+                        <span className={styles.lbPodiumName}>
+                          {p.username}
+                          {isMe && <span className={styles.youPill}>{t('home.you')}</span>}
+                        </span>
+                        <span className={styles.lbPodiumTier} style={{ color: tm.color }}>
+                          <i className={tm.icon} /> {p.tier}
+                        </span>
+                        <span className={styles.lbPodiumPts}>{pts.toLocaleString()}</span>
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
+
+              {rest.length > 0 && (
+                <div className={styles.leaderList}>
+                  {rest.map((p, idx) => {
+                    const i      = idx + 3
+                    const isMe   = user?.id === p.id
+                    const tm     = RANK_META[p.tier] || RANK_META.Gold
+                    const pts    = isAll ? (p.points || 0) : (p.game_points || 0)
+                    return (
+                      <Link key={p.id} href={`/profile/${p.id}`} className={`${styles.leaderRow} ${isMe ? styles.leaderRowMe : ''}`}>
+                        <span className={styles.leaderPos}>#{i + 1}</span>
+                        <div className={styles.leaderAvatar}>
+                          {p.avatar_url
+                            ? <img src={p.avatar_url} alt="" loading="lazy" decoding="async" />
+                            : <span>{(p.username || '?').slice(0,2).toUpperCase()}</span>
+                          }
+                        </div>
+                        <div className={styles.leaderInfo}>
+                          <span className={styles.leaderName}>
+                            {p.username}
+                            {isMe && <span className={styles.youPill}>{t('home.you')}</span>}
+                            <UserBadges email={p.email} plan={p.plan} planExpiresAt={p.plan_expires_at} countryFlag={p.country_flag} isSeasonWinner={p.is_season_winner} customBadges={p.custom_badges} size={11} gap={2} />
+                          </span>
+                          <span className={styles.leaderSub} style={{ color: tm.color }}>
+                            <i className={tm.icon} /> {p.tier} · Lv.{p.level ?? 1} · {p.wins || 0}W
+                          </span>
+                        </div>
+                        <span className={styles.leaderPts}>{pts.toLocaleString()}<span className={styles.ptsLabel}> {t('home.pts').toLowerCase()}</span></span>
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
+
+              <Link href="/leaderboard" className={styles.lbFullBtn}>
+                <i className="ri-trophy-line" /> {t('home.allPlayers') || 'View Full Leaderboard'}
+              </Link>
+            </>
           )
         })()}
       </Section>
