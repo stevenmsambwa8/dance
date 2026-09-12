@@ -926,11 +926,13 @@ export default function Home() {
                         className={`${styles.lbPodiumCard} ${styles['lbPodiumRank' + (i + 1)]} ${isMe ? styles.leaderRowMe : ''}`}
                       >
                         {i === 0 && <i className={`ri-vip-crown-fill ${styles.lbCrown}`} />}
-                        <div className={styles.lbPodiumAvatar} style={{ borderColor: rankColors[i] }}>
-                          {p.avatar_url
-                            ? <img src={p.avatar_url} alt="" loading="lazy" decoding="async" />
-                            : <span>{(p.username || '?').slice(0,2).toUpperCase()}</span>
-                          }
+                        <div className={styles.lbPodiumAvatar}>
+                          <div className={styles.lbPodiumAvatarInner} style={{ borderColor: rankColors[i] }}>
+                            {p.avatar_url
+                              ? <img src={p.avatar_url} alt="" loading="lazy" decoding="async" />
+                              : <span>{(p.username || '?').slice(0,2).toUpperCase()}</span>
+                            }
+                          </div>
                           <span className={styles.lbPodiumRankBadge} style={{ background: rankColors[i] }}>{i + 1}</span>
                         </div>
                         <span className={styles.lbPodiumName}>
