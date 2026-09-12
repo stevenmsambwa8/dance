@@ -1,5 +1,5 @@
 -- ============================================================================
--- Nabogaming — temporary admin grants + user-editable badges
+-- Nabogaming — temporary admin grants + admin-only badge enforcement
 -- Run this once in Supabase Dashboard → SQL Editor.
 -- Mirrors the conventions of profile-lock-schema.sql: the app does the
 -- friendly-UX check, this trigger is the backstop that can't be bypassed
@@ -10,11 +10,13 @@ alter table public.profiles
   add column if not exists temp_admin_until timestamptz;
 
 -- custom_badges is expected to already exist as jsonb (used by
--- components/UserBadges.js). Each badge object may carry:
---   { id, label, icon, iconUrl, color, desc, editable }
--- `editable: true` means the admin who added it has allowed the badge's
--- owner to edit its label/icon/color/desc themselves. `editable` and `id`
--- can only be set by an admin — never by the user editing their own row.
+-- components/UserBadges.js). Each badge object carries:
+--   { id, label, icon, iconUrl, color, desc }
+-- Badges are admin-only, full stop: only the admin dashboard route (which
+-- runs with the service-role key, so auth.uid() is null) may add, remove,
+-- or edit a user's badges. A user can never change their own badges,
+-- including badges that were added to their own profile — not even a
+-- single field of one.
 alter table public.profiles
   add column if not exists custom_badges jsonb not null default '[]'::jsonb;
 
@@ -29,13 +31,6 @@ declare
   -- go through the service-role key (no session → auth.uid() is null), so
   -- this is false for those and true only for a self-service update.
   is_self_edit boolean := auth.uid() is not null and auth.uid() = old.id;
-  old_badges   jsonb   := coalesce(old.custom_badges, '[]'::jsonb);
-  new_badges   jsonb   := coalesce(new.custom_badges, '[]'::jsonb);
-  old_ids      text[];
-  new_ids      text[];
-  old_b        jsonb;
-  new_b        jsonb;
-  i            int;
 begin
   -- Temporary admin status can never be granted, extended, or cleared by
   -- the row's own owner — only the admin dashboard route can touch it.
@@ -43,31 +38,10 @@ begin
     raise exception 'temp_admin_until cannot be self-modified';
   end if;
 
-  if is_self_edit and new_badges is distinct from old_badges then
-    if jsonb_array_length(new_badges) <> jsonb_array_length(old_badges) then
-      raise exception 'Badges can only be added or removed by an admin';
-    end if;
-
-    select array_agg(b->>'id') into old_ids from jsonb_array_elements(old_badges) b;
-    select array_agg(b->>'id') into new_ids from jsonb_array_elements(new_badges) b;
-    if old_ids is distinct from new_ids then
-      raise exception 'Badges can only be added, removed, or reordered by an admin';
-    end if;
-
-    for i in 0 .. jsonb_array_length(old_badges) - 1 loop
-      old_b := old_badges -> i;
-      new_b := new_badges -> i;
-      if coalesce((old_b->>'editable')::boolean, false) is false then
-        if old_b is distinct from new_b then
-          raise exception 'This badge is not editable by its owner';
-        end if;
-      else
-        if coalesce((old_b->>'editable')::boolean, false)
-           is distinct from coalesce((new_b->>'editable')::boolean, false) then
-          raise exception 'Cannot change a badge''s editable flag';
-        end if;
-      end if;
-    end loop;
+  -- Badges: admin-only. A user's own session can never change this column,
+  -- even to edit a badge already sitting on their own profile.
+  if is_self_edit and coalesce(new.custom_badges, '[]'::jsonb) is distinct from coalesce(old.custom_badges, '[]'::jsonb) then
+    raise exception 'Badges can only be added, removed, or edited by an admin';
   end if;
 
   return new;

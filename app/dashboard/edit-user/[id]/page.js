@@ -36,7 +36,7 @@ export default function EditUserPage() {
   const [phoneCode, setPhoneCode] = useState('255')
   const [phoneLocal, setPhoneLocal] = useState('')
 
-  const [newBadgeDraft, setNewBadgeDraft] = useState({ label: '', icon: '🏅', color: '', desc: '', iconUrl: '', editable: false })
+  const [newBadgeDraft, setNewBadgeDraft] = useState({ label: '', icon: '🏅', color: '', desc: '', iconUrl: '' })
   const [useCustomColor, setUseCustomColor] = useState(false)
   const [badgeIconFile, setBadgeIconFile] = useState(null)
   const [badgeIconUploading, setBadgeIconUploading] = useState(false)
@@ -135,24 +135,14 @@ export default function EditUserPage() {
       // badge then renders in the site's theme accent color.
       color: useCustomColor ? (newBadgeDraft.color || null) : null,
       desc: newBadgeDraft.desc.trim() || '',
-      // If true, the user themselves can edit this badge's label/icon/
-      // color/desc from their account page. They can never add, remove,
-      // or flip this flag — only an admin can here.
-      editable: !!newBadgeDraft.editable,
     }
     setProfile(x => ({ ...x, custom_badges: [...(x.custom_badges || []), badge] }))
-    setNewBadgeDraft({ label: '', icon: '🏅', color: '', desc: '', iconUrl: '', editable: false })
+    setNewBadgeDraft({ label: '', icon: '🏅', color: '', desc: '', iconUrl: '' })
     setUseCustomColor(false)
     setBadgeIconFile(null)
   }
   function removeCustomBadge(id) {
     setProfile(x => ({ ...x, custom_badges: (x.custom_badges || []).filter(b => b.id !== id) }))
-  }
-  function toggleBadgeEditable(id) {
-    setProfile(x => ({
-      ...x,
-      custom_badges: (x.custom_badges || []).map(b => b.id === id ? { ...b, editable: !b.editable } : b),
-    }))
   }
 
   // ── Temporary admin grant/revoke — takes effect immediately, separate
@@ -301,12 +291,6 @@ export default function EditUserPage() {
                     <div className={styles.badgeLabel} style={{ color: b.color || 'var(--accent)' }}>{b.label}</div>
                     {b.desc && <div className={styles.badgeDesc}>{b.desc}</div>}
                   </div>
-                  {b.editable && <span className={styles.badgeEditableTag}>User-editable</span>}
-                  <button type="button" className={styles.iconBtnSm}
-                    title={b.editable ? 'Revoke edit access' : 'Let this user edit this badge'}
-                    onClick={() => toggleBadgeEditable(b.id)}>
-                    <i className={b.editable ? 'ri-lock-unlock-line' : 'ri-lock-line'} />
-                  </button>
                   <button type="button" className={styles.iconBtnDanger} onClick={() => removeCustomBadge(b.id)}>
                     <i className="ri-delete-bin-line" />
                   </button>
@@ -362,12 +346,6 @@ export default function EditUserPage() {
                 </>
               )}
             </div>
-
-            <label className={styles.editableToggle}>
-              <input type="checkbox" checked={!!newBadgeDraft.editable}
-                onChange={e => setNewBadgeDraft(d => ({ ...d, editable: e.target.checked }))} />
-              Let this user edit this badge <span className={styles.editableToggleHint}>(label, icon, color, description — not add/remove)</span>
-            </label>
 
             <button type="button" className={styles.addBadgeBtn} onClick={addCustomBadge}>
               <i className="ri-add-line" /> Add Badge

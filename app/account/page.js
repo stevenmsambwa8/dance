@@ -58,11 +58,6 @@ export default function AccountPage() {
   const [saving,     setSaving]     = useState(false)
   const [saveError,  setSaveError]  = useState('')
 
-  // Badges an admin has marked editable — the user can tweak label/icon/
-  // color/desc for these, but never add, remove, or un-mark them. Anything
-  // else sent for custom_badges is rejected server-side (DB trigger).
-  const [editableBadges, setEditableBadges] = useState([])
-
   // Pre-fill edit form whenever profile loads
   useEffect(() => {
     if (!profile) return
@@ -71,7 +66,6 @@ export default function AccountPage() {
     setPlayStyle(profile.play_style || 'Aggressive')
     setGameTags(profile.game_tags || [])
     setCountryFlag(profile.country_flag || '')
-    setEditableBadges((profile.custom_badges || []).filter(b => b?.editable).map(b => ({ ...b })))
     if (profile.phone) {
       const CODES   = ['254', '255', '256', '27', '234']
       const stripped = profile.phone.replace(/^\+/, '')
@@ -144,23 +138,10 @@ export default function AccountPage() {
       : null
     setSaving(true); setSaveError('')
     try {
-      // Merge this user's edits back into the full badge array, leaving
-      // every non-editable badge byte-for-byte as the admin set it.
-      const editsById = Object.fromEntries(editableBadges.map(b => [b.id, b]))
-      const mergedBadges = (profile.custom_badges || []).map(b =>
-        b?.editable && editsById[b.id] ? { ...b, ...editsById[b.id], id: b.id, editable: true } : b
-      )
-      await updateProfile({
-        username, bio, play_style: playStyle, game_tags: gameTags, country_flag: countryFlag || null, phone: fullPhone,
-        custom_badges: mergedBadges,
-      })
+      await updateProfile({ username, bio, play_style: playStyle, game_tags: gameTags, country_flag: countryFlag || null, phone: fullPhone })
       setEditModal(false)
     } catch (e) { setSaveError(e.message) }
     finally     { setSaving(false) }
-  }
-
-  function updateEditableBadge(id, patch) {
-    setEditableBadges(list => list.map(b => b.id === id ? { ...b, ...patch } : b))
   }
 
   function toggleGameTag(g) {
@@ -502,33 +483,6 @@ export default function AccountPage() {
             <label>Bio</label>
             <textarea rows={3} value={bio} onChange={e => setBio(e.target.value)} placeholder="Tell other players about yourself..." />
           </div>
-          {editableBadges.length > 0 && (
-            <div className={styles.editField}>
-              <label>My Badges</label>
-              {editableBadges.map(b => (
-                <div key={b.id} style={{ display:'flex', flexDirection:'column', gap:6, padding:10,
-                  border:'1px solid var(--border-dark)', borderRadius:10, marginBottom:8 }}>
-                  <div style={{ display:'flex', gap:8 }}>
-                    <input value={b.label || ''} placeholder="Badge name"
-                      onChange={e => updateEditableBadge(b.id, { label: e.target.value })} style={{ flex:1 }} />
-                    {!b.iconUrl && (
-                      <input value={b.icon || ''} placeholder="🏅" maxLength={4}
-                        onChange={e => updateEditableBadge(b.id, { icon: e.target.value })} style={{ width:52, textAlign:'center' }} />
-                    )}
-                  </div>
-                  <textarea rows={2} placeholder="Tooltip description…" value={b.desc || ''}
-                    onChange={e => updateEditableBadge(b.id, { desc: e.target.value })} />
-                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                    <span style={{ fontSize:12, color:'var(--text-muted)' }}>Color</span>
-                    <input type="color" value={b.color || '#f97316'}
-                      onChange={e => updateEditableBadge(b.id, { color: e.target.value })}
-                      style={{ width:36, height:28, padding:1, border:'1px solid var(--border-dark)', borderRadius:6 }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
           <div className={styles.editField}>
             <label>Play Style</label>
             <select value={playStyle} onChange={e => setPlayStyle(e.target.value)}>
