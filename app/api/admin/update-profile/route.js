@@ -15,15 +15,18 @@ const supabaseAnon = createClient(SUPABASE_URL, SUPABASE_ANON, {
 
 // Only these columns can be written through this route — an allowlist so
 // the admin dashboard can never smuggle through something like `id` or
-// `email` via the same payload shape. Any admin (permanent or temporary)
-// can write any of these fields — no per-field permission tiers.
+// `email` via the same payload shape. Badge fields and `temp_admin_until`
+// both get an extra, stricter check below (permanent admins only).
 const EDITABLE_FIELDS = [
   'username', 'tier', 'level', 'wins', 'losses', 'points', 'bio', 'phone',
   'country_flag', 'is_season_winner', 'custom_badges', 'temp_admin_until',
 ]
 
-// Returns the logged-in user if they currently count as an admin
-// (permanent or temporary), or null otherwise.
+// Fields only a permanent admin (not a temp admin) may write.
+const BADGE_FIELDS = ['is_season_winner', 'custom_badges']
+
+// Returns { user, isPermanentAdmin } for a logged-in admin (permanent or
+// temporary), or null if the caller isn't currently an admin at all.
 async function getRequestingAdmin(request) {
   const authHeader = request.headers.get('Authorization')
   if (!authHeader) return null
@@ -31,13 +34,13 @@ async function getRequestingAdmin(request) {
   const { data: { user } } = await supabaseAnon.auth.getUser(token)
   if (!user) return null
 
-  if (ADMIN_EMAILS.includes(user.email)) return { user }
+  if (ADMIN_EMAILS.includes(user.email)) return { user, isPermanentAdmin: true }
 
   // Not a permanent admin by email — check for an active temp-admin grant.
   const { data: requesterProfile } = await supabaseAdmin
     .from('profiles').select('temp_admin_until').eq('id', user.id).maybeSingle()
   if (!isAdminUser(user.email, requesterProfile)) return null
-  return { user }
+  return { user, isPermanentAdmin: false }
 }
 
 /**
@@ -74,6 +77,21 @@ export async function POST(request) {
     const { userId, updates } = body || {}
     if (!userId || !updates || typeof updates !== 'object') {
       return NextResponse.json({ error: 'Missing userId or updates' }, { status: 400 })
+    }
+
+    // Granting/extending/revoking temp-admin access is itself an
+    // admin-granting action — restrict it to permanent admins so a
+    // temp-admin can never mint another admin (including extending their
+    // own window past what was originally granted).
+    if ('temp_admin_until' in updates && !admin.isPermanentAdmin) {
+      return NextResponse.json({ error: 'Only a permanent admin can grant or revoke admin access' }, { status: 403 })
+    }
+
+    // Badges are permanent-admin-only — a temp admin's UI already hides
+    // these controls, but that's just presentation, so re-check here in
+    // case a temp-admin session hits this route directly.
+    if (BADGE_FIELDS.some(f => f in updates) && !admin.isPermanentAdmin) {
+      return NextResponse.json({ error: 'Only a permanent admin can edit badges' }, { status: 403 })
     }
 
     const payload = {}

@@ -24,6 +24,9 @@ const PHONE_CODES = [
 
 export default function EditUserPage() {
   const { isAdmin, isTempAdmin, loading: authLoading } = useAuth()
+  // Badge editing is permanent-admin-only; a temp admin still gets this
+  // whole page (for results/moderation) but not badge controls.
+  const isPermanentAdmin = isAdmin && !isTempAdmin
   const router = useRouter()
   const params = useParams()
   const userId = params?.id
@@ -77,8 +80,13 @@ export default function EditUserPage() {
       losses: Number(profile.losses || 0), points: Number(profile.points || 0),
       bio: profile.bio, phone: fullPhone,
       country_flag: profile.country_flag || DEFAULT_FLAG,
-      is_season_winner: !!profile.is_season_winner,
-      custom_badges: profile.custom_badges || [],
+    }
+    // Only a permanent admin can touch badges — leave the fields out of a
+    // temp admin's payload entirely so the server's permanent-admin-only
+    // check on them doesn't reject the rest of an otherwise valid save.
+    if (isPermanentAdmin) {
+      payload.is_season_winner = !!profile.is_season_winner
+      payload.custom_badges = profile.custom_badges || []
     }
     // Goes through the server route (service role) instead of a direct
     // client update — the profiles table's update RLS policy only allows
@@ -304,7 +312,7 @@ export default function EditUserPage() {
           <label className={styles.sectionLabel}>Winner Badges</label>
 
           <label className={styles.championToggle}>
-            <input type="checkbox" checked={!!profile.is_season_winner}
+            <input type="checkbox" checked={!!profile.is_season_winner} disabled={!isPermanentAdmin}
               onChange={e => setProfile(x => ({ ...x, is_season_winner: e.target.checked }))} />
             <img src="/fire.png" alt="" />
             Season Champion badge
@@ -321,74 +329,75 @@ export default function EditUserPage() {
                     <div className={styles.badgeLabel} style={{ color: b.color || 'var(--accent)' }}>{b.label}</div>
                     {b.desc && <div className={styles.badgeDesc}>{b.desc}</div>}
                   </div>
-                  <button type="button" className={styles.iconBtnSm} title="Edit badge" onClick={() => startEditBadge(b)}>
-                    <i className="ri-pencil-line" />
-                  </button>
-                  <button type="button" className={styles.iconBtnDanger} onClick={() => removeCustomBadge(b.id)}>
-                    <i className="ri-delete-bin-line" />
-                  </button>
+                  {isPermanentAdmin && (
+                    <>
+                      <button type="button" className={styles.iconBtnSm} title="Edit badge" onClick={() => startEditBadge(b)}>
+                        <i className="ri-pencil-line" />
+                      </button>
+                      <button type="button" className={styles.iconBtnDanger} onClick={() => removeCustomBadge(b.id)}>
+                        <i className="ri-delete-bin-line" />
+                      </button>
+                    </>
+                  )}
                 </div>
               ))}
             </div>
           )}
 
-          <div className={styles.composer}>
-            <div className={styles.composerRow}>
+          {isPermanentAdmin ? (
+            <div className={styles.composer}>
               <input placeholder="Badge name e.g. MVP" value={newBadgeDraft.label}
                 onChange={e => setNewBadgeDraft(d => ({ ...d, label: e.target.value }))}
                 className={styles.composerLabelInput} />
-              {!newBadgeDraft.iconUrl && (
-                <input placeholder="🏅" value={newBadgeDraft.icon}
-                  onChange={e => setNewBadgeDraft(d => ({ ...d, icon: e.target.value }))}
-                  className={styles.composerEmojiInput} maxLength={4} />
+
+              <textarea rows={2} placeholder="Tooltip description shown when a player taps the badge…"
+                value={newBadgeDraft.desc}
+                onChange={e => setNewBadgeDraft(d => ({ ...d, desc: e.target.value }))} />
+
+              <label className={styles.colorToggle}>
+                <input type="checkbox" checked={useCustomColor}
+                  onChange={e => { setUseCustomColor(e.target.checked); if (!e.target.checked) setNewBadgeDraft(d => ({ ...d, color: '' })) }} />
+                Use a custom color <span className={styles.colorToggleHint}>(off = matches site theme)</span>
+              </label>
+              {useCustomColor && (
+                <input type="color" value={newBadgeDraft.color || '#f97316'}
+                  onChange={e => setNewBadgeDraft(d => ({ ...d, color: e.target.value }))}
+                  className={styles.colorInput} />
               )}
-            </div>
 
-            <textarea rows={2} placeholder="Tooltip description shown when a player taps the badge…"
-              value={newBadgeDraft.desc}
-              onChange={e => setNewBadgeDraft(d => ({ ...d, desc: e.target.value }))} />
+              <div className={styles.uploadRow}>
+                {newBadgeDraft.iconUrl ? (
+                  <div className={styles.uploadPreview}>
+                    <img src={newBadgeDraft.iconUrl} alt="" />
+                    <button type="button" className={styles.iconBtnDanger}
+                      onClick={() => setNewBadgeDraft(d => ({ ...d, iconUrl: '' }))}>
+                      <i className="ri-close-line" />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <input type="file" accept="image/*"
+                      onChange={e => setBadgeIconFile(e.target.files?.[0] || null)} />
+                    <button type="button" className={styles.iconBtnSm} disabled={!badgeIconFile || badgeIconUploading}
+                      onClick={uploadBadgeIcon} title="Upload badge image (defaults to the standard badge icon if skipped)">
+                      {badgeIconUploading ? <i className="ri-loader-4-line" /> : <i className="ri-upload-2-line" />}
+                    </button>
+                  </>
+                )}
+              </div>
 
-            <label className={styles.colorToggle}>
-              <input type="checkbox" checked={useCustomColor}
-                onChange={e => { setUseCustomColor(e.target.checked); if (!e.target.checked) setNewBadgeDraft(d => ({ ...d, color: '' })) }} />
-              Use a custom color <span className={styles.colorToggleHint}>(off = matches site theme)</span>
-            </label>
-            {useCustomColor && (
-              <input type="color" value={newBadgeDraft.color || '#f97316'}
-                onChange={e => setNewBadgeDraft(d => ({ ...d, color: e.target.value }))}
-                className={styles.colorInput} />
-            )}
-
-            <div className={styles.uploadRow}>
-              {newBadgeDraft.iconUrl ? (
-                <div className={styles.uploadPreview}>
-                  <img src={newBadgeDraft.iconUrl} alt="" />
-                  <button type="button" className={styles.iconBtnDanger}
-                    onClick={() => setNewBadgeDraft(d => ({ ...d, iconUrl: '' }))}>
-                    <i className="ri-close-line" />
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <input type="file" accept="image/*"
-                    onChange={e => setBadgeIconFile(e.target.files?.[0] || null)} />
-                  <button type="button" className={styles.iconBtnSm} disabled={!badgeIconFile || badgeIconUploading}
-                    onClick={uploadBadgeIcon} title="Upload badge image (used instead of the emoji)">
-                    {badgeIconUploading ? <i className="ri-loader-4-line" /> : <i className="ri-upload-2-line" />}
-                  </button>
-                </>
-              )}
-            </div>
-
-            <button type="button" className={styles.addBadgeBtn} onClick={addCustomBadge}>
-              <i className={editingBadgeId ? 'ri-check-line' : 'ri-add-line'} /> {editingBadgeId ? 'Update Badge' : 'Add Badge'}
-            </button>
-            {editingBadgeId && (
-              <button type="button" className={styles.cancelEditBtn} onClick={cancelBadgeEdit}>
-                Cancel edit
+              <button type="button" className={styles.addBadgeBtn} onClick={addCustomBadge}>
+                <i className={editingBadgeId ? 'ri-check-line' : 'ri-add-line'} /> {editingBadgeId ? 'Update Badge' : 'Add Badge'}
               </button>
-            )}
-          </div>
+              {editingBadgeId && (
+                <button type="button" className={styles.cancelEditBtn} onClick={cancelBadgeEdit}>
+                  Cancel edit
+                </button>
+              )}
+            </div>
+          ) : (
+            <p className={styles.badgeDesc}>Only a permanent admin can add or edit badges.</p>
+          )}
         </div>
 
         {!isTargetPermanentAdmin && (
@@ -399,23 +408,29 @@ export default function EditUserPage() {
               {tempAdminActive
                 ? <span>Admin access active until <strong>{new Date(profile.temp_admin_until).toLocaleString()}</strong></span>
                 : <span>No temporary admin access granted.</span>}
-              {tempAdminActive && (
+              {tempAdminActive && isPermanentAdmin && (
                 <button type="button" className={styles.disconnectBtn} onClick={revokeTempAdmin} disabled={grantSaving}>
                   <i className="ri-shut-down-line" /> Disconnect now
                 </button>
               )}
             </div>
 
-            <div className={styles.durationRow}>
-              {TEMP_ADMIN_PRESETS.map(p => (
-                <button key={p.hours} type="button"
-                  className={`${styles.durationBtn} ${grantHours === p.hours ? styles.durationBtnActive : ''}`}
-                  onClick={() => setGrantHours(p.hours)}>{p.label}</button>
-              ))}
-            </div>
-            <button type="button" className={styles.grantBtn} onClick={grantTempAdmin} disabled={grantSaving}>
-              <i className="ri-shield-star-line" /> {grantSaving ? 'Granting…' : (tempAdminActive ? 'Extend / Replace grant' : 'Grant admin access')}
-            </button>
+            {isPermanentAdmin ? (
+              <>
+                <div className={styles.durationRow}>
+                  {TEMP_ADMIN_PRESETS.map(p => (
+                    <button key={p.hours} type="button"
+                      className={`${styles.durationBtn} ${grantHours === p.hours ? styles.durationBtnActive : ''}`}
+                      onClick={() => setGrantHours(p.hours)}>{p.label}</button>
+                  ))}
+                </div>
+                <button type="button" className={styles.grantBtn} onClick={grantTempAdmin} disabled={grantSaving}>
+                  <i className="ri-shield-star-line" /> {grantSaving ? 'Granting…' : (tempAdminActive ? 'Extend / Replace grant' : 'Grant admin access')}
+                </button>
+              </>
+            ) : (
+              <p className={styles.badgeDesc}>Only a permanent admin can grant or revoke admin access.</p>
+            )}
           </div>
         )}
 
