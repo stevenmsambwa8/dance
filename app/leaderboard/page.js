@@ -181,8 +181,8 @@ export default function LeaderboardPage() {
                     className={`${styles.podiumCard} ${styles['podiumRank' + (i + 1)]} ${isMe ? styles.rowMe : ''}`}
                   >
                     {i === 0 && <i className={`ri-vip-crown-fill ${styles.crown}`} />}
-                    <div className={styles.podiumAvatar}>
-                      <div className={styles.podiumAvatarInner} style={{ borderColor: RANK_COLORS[i] }}>
+                    <div className={styles.podiumAvatar} style={{ '--ring': RANK_COLORS[i] }}>
+                      <div className={styles.podiumAvatarInner}>
                         {p.avatar_url
                           ? <img src={p.avatar_url} alt="" loading="lazy" decoding="async" />
                           : <span>{(p.username || '?').slice(0, 2).toUpperCase()}</span>

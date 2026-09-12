@@ -926,8 +926,8 @@ export default function Home() {
                         className={`${styles.lbPodiumCard} ${styles['lbPodiumRank' + (i + 1)]} ${isMe ? styles.leaderRowMe : ''}`}
                       >
                         {i === 0 && <i className={`ri-vip-crown-fill ${styles.lbCrown}`} />}
-                        <div className={styles.lbPodiumAvatar}>
-                          <div className={styles.lbPodiumAvatarInner} style={{ borderColor: rankColors[i] }}>
+                        <div className={styles.lbPodiumAvatar} style={{ '--ring': rankColors[i] }}>
+                          <div className={styles.lbPodiumAvatarInner}>
                             {p.avatar_url
                               ? <img src={p.avatar_url} alt="" loading="lazy" decoding="async" />
                               : <span>{(p.username || '?').slice(0,2).toUpperCase()}</span>
