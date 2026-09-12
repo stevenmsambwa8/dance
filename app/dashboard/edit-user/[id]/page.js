@@ -140,7 +140,7 @@ export default function EditUserPage() {
           iconUrl: newBadgeDraft.iconUrl || null,
           color,
           desc: newBadgeDraft.desc.trim() || '',
-        },
+        }),
       }))
     } else {
       const badge = {
