@@ -12,6 +12,7 @@ import { getTimeStatus, toLocalInputValue, formatDuration, formatTimeOfDay, isTi
 import { randomizeMatchSchedule, knockoutKey, fixtureKey } from '../../../../lib/matchScheduler'
 import { GAME_META } from '../../../../lib/constants'
 import { buildEmptyBRBracket, parseBRData, PLACEMENT_TABLE_PRESETS, DEFAULT_KILL_POINT_VALUE } from '../../../../lib/brPoints'
+import { isAdminUser } from '../../../../lib/adminAccess'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function getPlayerBracketStatus(userId, bracketData) {
@@ -850,12 +851,12 @@ export default function TournamentManage() {
   // ── Server-side permission check ──────────────────────────────────────────
   async function verifyCanManage() {
     if (!user) return false
-    const ADMIN_EMAILS = ['stevenmsambwa8@gmail.com', 'nabogamingss1@gmail.com']
-    const [{ data: { user: fresh } }, { data: t }] = await Promise.all([
+    const [{ data: { user: fresh } }, { data: t }, { data: freshProfile }] = await Promise.all([
       supabase.auth.getUser(),
       supabase.from('tournaments').select('created_by').eq('id', id.current).maybeSingle(),
+      supabase.from('profiles').select('temp_admin_until').eq('id', user.id).maybeSingle(),
     ])
-    return ADMIN_EMAILS.includes(fresh?.email) || t?.created_by === user.id
+    return isAdminUser(fresh?.email, freshProfile) || t?.created_by === user.id
   }
 
   async function saveBracket(bd) {

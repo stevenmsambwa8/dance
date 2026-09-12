@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { usePresence, useZoneTracker } from '../lib/usePresence'
 import { captureReferralFromURL, linkReferralOnSignup, tryPayReferralBonus } from '../lib/referralBonus'
 import { isLocked, lockMessage } from '../lib/profileLock'
+import { ADMIN_EMAILS as ADMIN_EMAILS_LIST, isAdminUser, isTempAdminOnly } from '../lib/adminAccess'
 import {
   getCurrentSeason,
   computeTierAfterWin,
@@ -18,7 +19,7 @@ import {
 const AuthContext = createContext({})
 export const useAuth = () => useContext(AuthContext)
 
-export const ADMIN_EMAILS = ['stevenmsambwa8@gmail.com', 'nabogamingss1@gmail.com']
+export const ADMIN_EMAILS = ADMIN_EMAILS_LIST
 export const ADMIN_EMAIL = ADMIN_EMAILS[0] // backward compat
 export const HELPDESK_EMAILS = ['nabogamingss1@gmail.com']
 export const isHelpdeskEmail = (email) => HELPDESK_EMAILS.includes(email)
@@ -353,13 +354,17 @@ export default function AuthProvider({ children }) {
     setProfile(p => ({ ...p, losses: newLosses, season_losses: newSeasonLosses, current_season: currentSeason }))
   }
 
-  const isAdmin    = ADMIN_EMAILS.includes(user?.email)
-  const isVerified = isAdmin
-  const isHelpdesk = HELPDESK_EMAILS.includes(user?.email)
+  // isAdmin now covers both permanent admins (ADMIN_EMAILS) and anyone with
+  // an active, not-yet-expired temporary admin grant on their profile.
+  const isAdmin      = isAdminUser(user?.email, profile)
+  const isTempAdmin  = isTempAdminOnly(user?.email, profile)
+  const tempAdminUntil = profile?.temp_admin_until || null
+  const isVerified  = isAdmin
+  const isHelpdesk  = HELPDESK_EMAILS.includes(user?.email)
 
   return (
     <AuthContext.Provider value={{
-      user, profile, loading, isAdmin, isVerified, isHelpdesk,
+      user, profile, loading, isAdmin, isTempAdmin, tempAdminUntil, isVerified, isHelpdesk,
       signUp, signIn, signInWithGoogle, signOut, updateProfile, uploadAvatar, recordWin, recordLoss,
       refreshProfile: () => user && fetchProfile(user.id),
     }}>

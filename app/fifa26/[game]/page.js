@@ -11,7 +11,6 @@ import styles from './page.module.css'
 import DotsMenu from '../DotsMenu'
 import FifaTutorial from '../FifaTutorial'
 
-const ADMIN_EMAILS = ['stevenmsambwa8@gmail.com', 'nabogamingss1@gmail.com']
 const FIFA_GAMES   = ['efootball', 'dls', 'ufl']
 const GROUPS       = ['A','B','C','D','E','F','G','H','I','J','K','L']
 
@@ -217,7 +216,7 @@ export default function FIFA26GamePage() {
   if (!FIFA_GAMES.includes(gameSlug)) return notFound()
 
   const meta        = GAME_META[gameSlug]
-  const userIsAdmin = isAdmin || ADMIN_EMAILS.includes(user?.email)
+  const userIsAdmin = isAdmin
 
   const [tab, setTab]                       = useState('fixtures')
   const [fixtureGroup, setFixtureGroup]     = useState('all')

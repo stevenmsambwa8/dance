@@ -1,11 +1,20 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { useAuth } from '../../../../components/AuthProvider'
+import { useAuth, ADMIN_EMAILS } from '../../../../components/AuthProvider'
 import { supabase } from '../../../../lib/supabase'
 import { FLAG_OPTIONS, DEFAULT_FLAG } from '../../../../lib/constants'
 import styles from './page.module.css'
 import usePageLoading from '../../../../components/usePageLoading'
+
+// Preset windows for a temporary admin grant. "Custom" lets the admin pick
+// an exact expiry instead.
+const TEMP_ADMIN_PRESETS = [
+  { label: '1 hour',   hours: 1 },
+  { label: '6 hours',  hours: 6 },
+  { label: '24 hours', hours: 24 },
+  { label: '7 days',   hours: 24 * 7 },
+]
 
 const PHONE_CODES = [
   { code: '254', label: 'Kenya' },
@@ -14,7 +23,7 @@ const PHONE_CODES = [
 ]
 
 export default function EditUserPage() {
-  const { isAdmin, loading: authLoading } = useAuth()
+  const { isAdmin, isTempAdmin, loading: authLoading } = useAuth()
   const router = useRouter()
   const params = useParams()
   const userId = params?.id
@@ -27,10 +36,13 @@ export default function EditUserPage() {
   const [phoneCode, setPhoneCode] = useState('255')
   const [phoneLocal, setPhoneLocal] = useState('')
 
-  const [newBadgeDraft, setNewBadgeDraft] = useState({ label: '', icon: '🏅', color: '', desc: '', iconUrl: '' })
+  const [newBadgeDraft, setNewBadgeDraft] = useState({ label: '', icon: '🏅', color: '', desc: '', iconUrl: '', editable: false })
   const [useCustomColor, setUseCustomColor] = useState(false)
   const [badgeIconFile, setBadgeIconFile] = useState(null)
   const [badgeIconUploading, setBadgeIconUploading] = useState(false)
+
+  const [grantHours, setGrantHours] = useState(TEMP_ADMIN_PRESETS[1].hours)
+  const [grantSaving, setGrantSaving] = useState(false)
 
   usePageLoading(authLoading || loading)
 
@@ -123,14 +135,58 @@ export default function EditUserPage() {
       // badge then renders in the site's theme accent color.
       color: useCustomColor ? (newBadgeDraft.color || null) : null,
       desc: newBadgeDraft.desc.trim() || '',
+      // If true, the user themselves can edit this badge's label/icon/
+      // color/desc from their account page. They can never add, remove,
+      // or flip this flag — only an admin can here.
+      editable: !!newBadgeDraft.editable,
     }
     setProfile(x => ({ ...x, custom_badges: [...(x.custom_badges || []), badge] }))
-    setNewBadgeDraft({ label: '', icon: '🏅', color: '', desc: '', iconUrl: '' })
+    setNewBadgeDraft({ label: '', icon: '🏅', color: '', desc: '', iconUrl: '', editable: false })
     setUseCustomColor(false)
     setBadgeIconFile(null)
   }
   function removeCustomBadge(id) {
     setProfile(x => ({ ...x, custom_badges: (x.custom_badges || []).filter(b => b.id !== id) }))
+  }
+  function toggleBadgeEditable(id) {
+    setProfile(x => ({
+      ...x,
+      custom_badges: (x.custom_badges || []).map(b => b.id === id ? { ...b, editable: !b.editable } : b),
+    }))
+  }
+
+  // ── Temporary admin grant/revoke — takes effect immediately, separate
+  // from the main "Save Player" button, since it's a sensitive action an
+  // admin should be able to fire off (or undo) on its own. ────────────────
+  const isTargetPermanentAdmin = ADMIN_EMAILS.includes(profile?.email)
+  const tempAdminActive = !!profile?.temp_admin_until && new Date(profile.temp_admin_until).getTime() > Date.now()
+
+  async function sendTempAdminUpdate(temp_admin_until) {
+    if (!profile) return
+    setGrantSaving(true)
+    const { data: { session } } = await supabase.auth.getSession()
+    let error = null
+    try {
+      const res = await fetch('/api/admin/update-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ userId: profile.id, updates: { temp_admin_until } }),
+      })
+      const json = await res.json()
+      if (!res.ok) error = json.error || 'Failed'
+    } catch (e) { error = e.message }
+    setGrantSaving(false)
+    if (error) { alert(error); return }
+    setProfile(x => ({ ...x, temp_admin_until }))
+  }
+
+  function grantTempAdmin() {
+    const until = new Date(Date.now() + grantHours * 60 * 60 * 1000).toISOString()
+    sendTempAdminUpdate(until)
+  }
+  function revokeTempAdmin() {
+    if (!confirm('Disconnect admin access for this user right now?')) return
+    sendTempAdminUpdate(null)
   }
 
   if (authLoading || !isAdmin) return null
@@ -245,6 +301,12 @@ export default function EditUserPage() {
                     <div className={styles.badgeLabel} style={{ color: b.color || 'var(--accent)' }}>{b.label}</div>
                     {b.desc && <div className={styles.badgeDesc}>{b.desc}</div>}
                   </div>
+                  {b.editable && <span className={styles.badgeEditableTag}>User-editable</span>}
+                  <button type="button" className={styles.iconBtnSm}
+                    title={b.editable ? 'Revoke edit access' : 'Let this user edit this badge'}
+                    onClick={() => toggleBadgeEditable(b.id)}>
+                    <i className={b.editable ? 'ri-lock-unlock-line' : 'ri-lock-line'} />
+                  </button>
                   <button type="button" className={styles.iconBtnDanger} onClick={() => removeCustomBadge(b.id)}>
                     <i className="ri-delete-bin-line" />
                   </button>
@@ -301,11 +363,51 @@ export default function EditUserPage() {
               )}
             </div>
 
+            <label className={styles.editableToggle}>
+              <input type="checkbox" checked={!!newBadgeDraft.editable}
+                onChange={e => setNewBadgeDraft(d => ({ ...d, editable: e.target.checked }))} />
+              Let this user edit this badge <span className={styles.editableToggleHint}>(label, icon, color, description — not add/remove)</span>
+            </label>
+
             <button type="button" className={styles.addBadgeBtn} onClick={addCustomBadge}>
               <i className="ri-add-line" /> Add Badge
             </button>
           </div>
         </div>
+
+        {!isTargetPermanentAdmin && (
+          <div className={styles.card}>
+            <label className={styles.sectionLabel}>Temporary Admin Access</label>
+
+            <div className={`${styles.adminGrantStatus} ${tempAdminActive ? styles.adminGrantActive : ''}`}>
+              {tempAdminActive
+                ? <span>Admin access active until <strong>{new Date(profile.temp_admin_until).toLocaleString()}</strong></span>
+                : <span>No temporary admin access granted.</span>}
+              {tempAdminActive && (
+                <button type="button" className={styles.disconnectBtn} onClick={revokeTempAdmin} disabled={grantSaving}>
+                  <i className="ri-shut-down-line" /> Disconnect now
+                </button>
+              )}
+            </div>
+
+            {isTempAdmin ? (
+              <p className={styles.badgeDesc}>Only a permanent admin can grant or revoke admin access.</p>
+            ) : (
+              <>
+                <div className={styles.durationRow}>
+                  {TEMP_ADMIN_PRESETS.map(p => (
+                    <button key={p.hours} type="button"
+                      className={`${styles.durationBtn} ${grantHours === p.hours ? styles.durationBtnActive : ''}`}
+                      onClick={() => setGrantHours(p.hours)}>{p.label}</button>
+                  ))}
+                </div>
+                <button type="button" className={styles.grantBtn} onClick={grantTempAdmin} disabled={grantSaving}>
+                  <i className="ri-shield-star-line" /> {grantSaving ? 'Granting…' : (tempAdminActive ? 'Extend / Replace grant' : 'Grant admin access')}
+                </button>
+              </>
+            )}
+          </div>
+        )}
 
         <button className={styles.saveBtn} onClick={saveUser} disabled={saving}>
           <i className="ri-check-line" /> {saving ? 'Saving…' : 'Save Player'}

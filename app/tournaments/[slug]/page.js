@@ -1,5 +1,6 @@
 'use client'
 import { getCurrentSeason, computeLevelAfterWin } from '@/lib/seasons'
+import { isAdminUser } from '@/lib/adminAccess'
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -2503,12 +2504,12 @@ export default function TournamentDetail() {
   async function verifyCanManage() {
     if (!user) { showToast('You must be logged in.', 'error'); return false }
     try {
-      const ADMIN_EMAILS = ['stevenmsambwa8@gmail.com', 'nabogamingss1@gmail.com']
-      const [{ data: { user: freshUser } }, { data: tFresh }] = await Promise.all([
+      const [{ data: { user: freshUser } }, { data: tFresh }, { data: freshProfile }] = await Promise.all([
         supabase.auth.getUser(),                                                    // live session — can't be faked client-side
         supabase.from('tournaments').select('created_by').eq('id', id).maybeSingle(), // fresh from DB
+        supabase.from('profiles').select('temp_admin_until').eq('id', user.id).maybeSingle(),
       ])
-      const serverIsAdmin   = ADMIN_EMAILS.includes(freshUser?.email)
+      const serverIsAdmin   = isAdminUser(freshUser?.email, freshProfile)
       const serverIsCreator = tFresh?.created_by === user.id
       if (!serverIsAdmin && !serverIsCreator) {
         showToast('Permission denied.', 'error')

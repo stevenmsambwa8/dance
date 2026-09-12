@@ -356,3 +356,106 @@
 .saveBtn:hover { opacity: 0.88; }
 }
 .saveBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.badgeEditableTag {
+  font-size: 9.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #22c55e;
+  border: 1px solid rgba(34,197,94,0.4);
+  background: rgba(34,197,94,0.08);
+  border-radius: 5px;
+  padding: 2px 5px;
+  flex-shrink: 0;
+}
+
+.editableToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+.editableToggleHint {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.adminGrantStatus {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-dark);
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.adminGrantActive {
+  border-color: rgba(34,197,94,0.4);
+  background: rgba(34,197,94,0.08);
+  color: var(--text);
+}
+.adminGrantActive strong { color: #22c55e; }
+
+.disconnectBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(239,68,68,0.35);
+  background: transparent;
+  color: #ef4444;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+@media (hover: hover) {
+.disconnectBtn:hover { background: rgba(239,68,68,0.08); }
+}
+
+.durationRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.durationBtn {
+  padding: 7px 11px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border-dark);
+  background: var(--bg-2);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.durationBtnActive {
+  border-color: var(--text);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.grantBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(34,197,94,0.4);
+  background: rgba(34,197,94,0.1);
+  color: #22c55e;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+@media (hover: hover) {
+.grantBtn:hover { background: rgba(34,197,94,0.18); }
+}
