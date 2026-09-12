@@ -996,11 +996,27 @@ export default function TournamentManage() {
     }))
     if (!removedIds.size) { showToast('Table already matches the current roster.'); return }
     const newGroups = voidGroupFixturesForRemovedUsers(freshBd.groups, removedIds)
-    const nb = { ...freshBd, groups: newGroups }
+    let nb = { ...freshBd, groups: newGroups }
     await supabase.from('tournaments').update({ bracket_data: nb }).eq('id', id.current)
     setBracketData(nb)
+    nb = await maybeAdvanceGroupStage(nb)
     showToast(`Table refreshed — ${removedIds.size} player${removedIds.size !== 1 ? 's' : ''} cleared from remaining fixtures, all results kept.`, 'success')
     load()
+  }
+
+  // Shared auto-advance check: after ANY action that can finish off the last
+  // open fixture in a group/league (scoring it, voiding it, or refreshing a
+  // removed player's leftover pending fixtures away), re-check whether the
+  // stage is now complete and, if so, build the knockout / lock standings —
+  // exactly like scoring the literal last fixture already does.
+  async function maybeAdvanceGroupStage(bd) {
+    if (!isGroupStageComplete(bd.groups)) return bd
+    if (tournament?.stage_format === 'league') {
+      const finalized = await finalizeLeague(bd)
+      return finalized || bd
+    }
+    const merged = await autoBuildKnockout(bd)
+    return merged || bd
   }
 
   // ── Group stage actions ─────────────────────────────────────────────────────
@@ -1395,9 +1411,13 @@ export default function TournamentManage() {
         ...fx, scoreHome: null, scoreAway: null, status: 'void', disputed: false, submissions: null,
       }),
     })
-    const newBd = { ...freshBd, groups: newGroups }
+    let newBd = { ...freshBd, groups: newGroups }
     await supabase.from('tournaments').update({ bracket_data: newBd }).eq('id', id.current)
     setBracketData(newBd)
+    // Voiding can be the thing that finishes off the group/league (it counts
+    // as a settled fixture) — check right away instead of waiting for
+    // someone to separately score a fixture that will never happen.
+    newBd = await maybeAdvanceGroupStage(newBd)
     showToast('Match marked as not played — no points for either side.', 'success')
     setGroupSavingId(null)
   }
@@ -1445,9 +1465,12 @@ export default function TournamentManage() {
           // never happen now — void those so they stop blocking the group
           // from completing, and flag the player as removed on the table.
           const newGroups = voidGroupFixturesForRemovedUsers(freshBd.groups, removedIds)
-          const nb = { ...freshBd, groups: newGroups }
+          let nb = { ...freshBd, groups: newGroups }
           await supabase.from('tournaments').update({ bracket_data: nb }).eq('id', id.current)
           setBracketData(nb)
+          // Removing the last player blocking a group can be the very thing
+          // that completes it — check right away, same as scoring a fixture does.
+          nb = await maybeAdvanceGroupStage(nb)
         }
         showToast(`${username || t('tournaments.playerLabel')} ${t('tournaments.removedSuffix')}`, 'success')
         load()
