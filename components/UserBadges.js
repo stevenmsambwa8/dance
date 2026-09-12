@@ -242,17 +242,18 @@ function CustomBadgeIcon({ icon, iconUrl, color, size }) {
 
 /* ── Main export ─────────────────────────────────────────── */
 export default function UserBadges({
-  email, plan, planExpiresAt, countryFlag, isSeasonWinner, customBadges, size = 16, gap = 3, hideAdmin = false
+  email, plan, planExpiresAt, countryFlag, isSeasonWinner, customBadges, tempAdminUntil, size = 16, gap = 3, hideAdmin = false
 }) {
   useEffect(injectStyles, [])
   const isAdmin  = !hideAdmin && ADMIN_EMAILS.includes(email)
+  const isTempAdmin = !hideAdmin && !isAdmin && !!tempAdminUntil && new Date(tempAdminUntil).getTime() > Date.now()
   const ap       = getActivePlan({ plan, plan_expires_at: planExpiresAt })
   const isElite  = ap === 'elite' || ap === 'team'
   const isPro    = ap === 'pro'
   const showFlag = !!countryFlag
   const showFire = !!isSeasonWinner
   const extras   = Array.isArray(customBadges) ? customBadges.filter(b => b && b.label) : []
-  if (!isAdmin && !isElite && !isPro && !showFlag && !showFire && extras.length === 0) return null
+  if (!isAdmin && !isTempAdmin && !isElite && !isPro && !showFlag && !showFire && extras.length === 0) return null
 
   const flagLabel = countryFlag
     ? countryFlag.charAt(0).toUpperCase() + countryFlag.slice(1) : ''
@@ -264,6 +265,13 @@ export default function UserBadges({
         <BadgeBtn tip={{ title:'Admin', color:'#22c55e',
           desc:'This user is a Nabogaming platform administrator.' }}>
           <img src="/tick.png" alt="Admin"
+            style={{ width:size, height:size, display:'block' }}/>
+        </BadgeBtn>
+      )}
+      {isTempAdmin && (
+        <BadgeBtn tip={{ title:'Temporary Admin', color:'#22c55e',
+          desc:'This user has been granted temporary admin access, which can be revoked at any time.' }}>
+          <img src="/tick-pre.png" alt="Temporary Admin"
             style={{ width:size, height:size, display:'block' }}/>
         </BadgeBtn>
       )}

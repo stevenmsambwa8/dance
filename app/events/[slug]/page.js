@@ -36,7 +36,7 @@ export default function EventViewPage() {
     setEvent(ev)
 
     const [{ data: cr }, { data: rsvps }] = await Promise.all([
-      supabase.from('profiles').select('id, username, avatar_url, email, country_flag, plan, plan_expires_at, custom_badges, is_season_winner').eq('id', ev.created_by).single(),
+      supabase.from('profiles').select('id, username, avatar_url, email, country_flag, plan, plan_expires_at, custom_badges, temp_admin_until, is_season_winner').eq('id', ev.created_by).single(),
       supabase.from('event_rsvps').select('user_id, profiles(username, avatar_url)').eq('event_id', ev.id).order('created_at', { ascending: false }).limit(24),
     ])
     setCreator(cr || null)
@@ -120,7 +120,7 @@ export default function EventViewPage() {
         {creator?.avatar_url && <img src={creator.avatar_url} alt="" className={styles.hostAvatar} />}
         <span className={styles.hostName}>
           Hosted by {creator?.username || 'Nabogaming Admin'}
-          <UserBadges email={creator?.email} plan={creator?.plan} planExpiresAt={creator?.plan_expires_at} countryFlag={creator?.country_flag} isSeasonWinner={creator?.is_season_winner} customBadges={creator?.custom_badges} size={15} gap={3} />
+          <UserBadges email={creator?.email} plan={creator?.plan} planExpiresAt={creator?.plan_expires_at} countryFlag={creator?.country_flag} isSeasonWinner={creator?.is_season_winner} customBadges={creator?.custom_badges} tempAdminUntil={creator?.temp_admin_until} size={15} gap={3} />
         </span>
       </div>
 

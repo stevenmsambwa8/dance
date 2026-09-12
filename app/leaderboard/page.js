@@ -53,7 +53,7 @@ export default function LeaderboardPage() {
       if (selectedGame === 'all') {
         const { data } = await supabase
           .from('profiles')
-          .select('id,username,level,tier,points,wins,avatar_url,country_flag,email,is_season_winner,custom_badges,plan,plan_expires_at')
+          .select('id,username,level,tier,points,wins,avatar_url,country_flag,email,is_season_winner,custom_badges, temp_admin_until,plan,plan_expires_at')
           .not('email', 'in', '(nabogamingss1@gmail.com)')
           .order('points', { ascending: false })
           .limit(50)
@@ -272,7 +272,7 @@ export default function LeaderboardPage() {
                       <span className={styles.rowName}>
                         {p.username}
                         {isMe && <span className={styles.youPill}>{t('home.you') || 'You'}</span>}
-                        <UserBadges email={p.email} plan={p.plan} planExpiresAt={p.plan_expires_at} countryFlag={p.country_flag} isSeasonWinner={p.is_season_winner} customBadges={p.custom_badges} size={11} gap={2} />
+                        <UserBadges email={p.email} plan={p.plan} planExpiresAt={p.plan_expires_at} countryFlag={p.country_flag} isSeasonWinner={p.is_season_winner} customBadges={p.custom_badges} tempAdminUntil={p.temp_admin_until} size={11} gap={2} />
                       </span>
                       <span className={styles.rowSub} style={{ color: tm.color }}>
                         <i className={tm.icon} /> {p.tier} · Lv.{p.level ?? 1} · {p.wins || 0}W
@@ -329,7 +329,7 @@ export default function LeaderboardPage() {
               {isSelfSelected && <span className={styles.youPill}>{t('home.you') || 'You'}</span>}
             </div>
             <div className={styles.modalBadgesRow}>
-              <UserBadges email={selectedPlayer.email} plan={selectedPlayer.plan} planExpiresAt={selectedPlayer.plan_expires_at} countryFlag={selectedPlayer.country_flag} isSeasonWinner={selectedPlayer.is_season_winner} customBadges={selectedPlayer.custom_badges} size={13} gap={4} />
+              <UserBadges email={selectedPlayer.email} plan={selectedPlayer.plan} planExpiresAt={selectedPlayer.plan_expires_at} countryFlag={selectedPlayer.country_flag} isSeasonWinner={selectedPlayer.is_season_winner} customBadges={selectedPlayer.custom_badges} tempAdminUntil={selectedPlayer.temp_admin_until} size={13} gap={4} />
             </div>
             <div className={styles.modalTier} style={{ color: selTm.color }}>
               <i className={selTm.icon} /> {selectedPlayer.tier}

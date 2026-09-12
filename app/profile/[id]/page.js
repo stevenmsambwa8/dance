@@ -89,7 +89,7 @@ export default function PublicProfile() {
       supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', id),
       supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', id),
       supabase.from('posts')
-        .select('id, user_id, content, likes, comment_count, created_at, profiles(id, username, tier, level, avatar_url, email, country_flag, is_season_winner, custom_badges)')
+        .select('id, user_id, content, likes, comment_count, created_at, profiles(id, username, tier, level, avatar_url, email, country_flag, is_season_winner, custom_badges, temp_admin_until)')
         .eq('user_id', id)
         .order('created_at', { ascending: false })
         .limit(20),
@@ -383,7 +383,7 @@ export default function PublicProfile() {
                 email={profile.email}
                 countryFlag={profile.country_flag}
                 isSeasonWinner={profile.is_season_winner}
-                customBadges={profile.custom_badges}
+                customBadges={profile.custom_badges} tempAdminUntil={profile.temp_admin_until}
                 size={18}
               />
             </div>
@@ -563,7 +563,7 @@ export default function PublicProfile() {
                         email={post.profiles?.email}
                         countryFlag={post.profiles?.country_flag}
                         isSeasonWinner={post.profiles?.is_season_winner}
-                        customBadges={post.profiles?.custom_badges}
+                        customBadges={post.profiles?.custom_badges} tempAdminUntil={post.profiles?.temp_admin_until}
                         size={12}
                         gap={2}
                       />

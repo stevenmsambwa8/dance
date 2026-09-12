@@ -51,7 +51,7 @@ function SuggestedFollows() {
       // so the row feels like "everyday users" rather than just the top ranks.
       const { data } = await supabase
         .from('profiles')
-        .select('id, username, avatar_url, tier, level, plan, plan_expires_at, country_flag, is_season_winner, custom_badges, email')
+        .select('id, username, avatar_url, tier, level, plan, plan_expires_at, country_flag, is_season_winner, custom_badges, temp_admin_until, email')
         .order('created_at', { ascending: false })
         .limit(40)
       if (cancelled) return
@@ -111,7 +111,7 @@ function SuggestedFollows() {
                     {(p.username || '?').length > 10 ? (p.username || '?').slice(0, 10) + '…' : (p.username || '?')}
                     <UserBadges
                       email={p.email} plan={p.plan} planExpiresAt={p.plan_expires_at}
-                      countryFlag={p.country_flag} isSeasonWinner={p.is_season_winner} customBadges={p.custom_badges}
+                      countryFlag={p.country_flag} isSeasonWinner={p.is_season_winner} customBadges={p.custom_badges} tempAdminUntil={p.temp_admin_until}
                       size={10} gap={2} />
                   </p>
                   <p className={styles.followMeta}>{p.tier || 'Bronze'} · Lv.{p.level ?? 1}</p>
