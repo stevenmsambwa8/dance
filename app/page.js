@@ -926,23 +926,25 @@ export default function Home() {
                         className={`${styles.lbPodiumCard} ${styles['lbPodiumRank' + (i + 1)]} ${isMe ? styles.leaderRowMe : ''}`}
                       >
                         {i === 0 && <i className={`ri-vip-crown-fill ${styles.lbCrown}`} />}
-                        <div className={styles.lbPodiumAvatar} style={{ '--ring': rankColors[i] }}>
-                          <div className={styles.lbPodiumAvatarInner}>
-                            {p.avatar_url
-                              ? <img src={p.avatar_url} alt="" loading="lazy" decoding="async" />
-                              : <span>{(p.username || '?').slice(0,2).toUpperCase()}</span>
-                            }
+                        <div className={styles.lbPodiumCardInner}>
+                          <div className={styles.lbPodiumAvatar} style={{ '--ring': rankColors[i] }}>
+                            <div className={styles.lbPodiumAvatarInner}>
+                              {p.avatar_url
+                                ? <img src={p.avatar_url} alt="" loading="lazy" decoding="async" />
+                                : <span>{(p.username || '?').slice(0,2).toUpperCase()}</span>
+                              }
+                            </div>
+                            <span className={styles.lbPodiumRankBadge} style={{ background: rankColors[i] }}>{i + 1}</span>
                           </div>
-                          <span className={styles.lbPodiumRankBadge} style={{ background: rankColors[i] }}>{i + 1}</span>
+                          <span className={styles.lbPodiumName}>
+                            {p.username}
+                            {isMe && <span className={styles.youPill}>{t('home.you')}</span>}
+                          </span>
+                          <span className={styles.lbPodiumTier} style={{ color: tm.color }}>
+                            <i className={tm.icon} /> {p.tier}
+                          </span>
+                          <span className={styles.lbPodiumPts}>{pts.toLocaleString()}</span>
                         </div>
-                        <span className={styles.lbPodiumName}>
-                          {p.username}
-                          {isMe && <span className={styles.youPill}>{t('home.you')}</span>}
-                        </span>
-                        <span className={styles.lbPodiumTier} style={{ color: tm.color }}>
-                          <i className={tm.icon} /> {p.tier}
-                        </span>
-                        <span className={styles.lbPodiumPts}>{pts.toLocaleString()}</span>
                       </Link>
                     )
                   })}

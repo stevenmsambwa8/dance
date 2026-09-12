@@ -181,23 +181,25 @@ export default function LeaderboardPage() {
                     className={`${styles.podiumCard} ${styles['podiumRank' + (i + 1)]} ${isMe ? styles.rowMe : ''}`}
                   >
                     {i === 0 && <i className={`ri-vip-crown-fill ${styles.crown}`} />}
-                    <div className={styles.podiumAvatar} style={{ '--ring': RANK_COLORS[i] }}>
-                      <div className={styles.podiumAvatarInner}>
-                        {p.avatar_url
-                          ? <img src={p.avatar_url} alt="" loading="lazy" decoding="async" />
-                          : <span>{(p.username || '?').slice(0, 2).toUpperCase()}</span>
-                        }
+                    <div className={styles.podiumCardInner}>
+                      <div className={styles.podiumAvatar} style={{ '--ring': RANK_COLORS[i] }}>
+                        <div className={styles.podiumAvatarInner}>
+                          {p.avatar_url
+                            ? <img src={p.avatar_url} alt="" loading="lazy" decoding="async" />
+                            : <span>{(p.username || '?').slice(0, 2).toUpperCase()}</span>
+                          }
+                        </div>
+                        <span className={styles.podiumRankBadge} style={{ background: RANK_COLORS[i] }}>{i + 1}</span>
                       </div>
-                      <span className={styles.podiumRankBadge} style={{ background: RANK_COLORS[i] }}>{i + 1}</span>
+                      <span className={styles.podiumName}>
+                        {p.username}
+                        {isMe && <span className={styles.youPill}>{t('home.you') || 'You'}</span>}
+                      </span>
+                      <span className={styles.podiumTier} style={{ color: tm.color }}>
+                        <i className={tm.icon} /> {p.tier}
+                      </span>
+                      <span className={styles.podiumPts}>{pts.toLocaleString()}</span>
                     </div>
-                    <span className={styles.podiumName}>
-                      {p.username}
-                      {isMe && <span className={styles.youPill}>{t('home.you') || 'You'}</span>}
-                    </span>
-                    <span className={styles.podiumTier} style={{ color: tm.color }}>
-                      <i className={tm.icon} /> {p.tier}
-                    </span>
-                    <span className={styles.podiumPts}>{pts.toLocaleString()}</span>
                   </Link>
                 )
               })}
