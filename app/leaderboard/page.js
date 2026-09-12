@@ -1,8 +1,10 @@
 'use client'
 import { useEffect, useState, useMemo } from 'react'
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '../../components/AuthProvider'
+import { useAuthGate } from '../../components/AuthGateModal'
 import { supabase } from '../../lib/supabase'
+import Modal from '../../components/Modal'
 import styles from './page.module.css'
 import { GAME_META, GAME_SLUGS, RANK_META } from '../../lib/constants'
 import UserBadges from '../../components/UserBadges'
@@ -28,12 +30,18 @@ function SkeletonRow() {
 
 export default function LeaderboardPage() {
   const { user, profile } = useAuth()
+  const { openAuthGate } = useAuthGate()
+  const router = useRouter()
   const { t } = useTranslation()
 
   const [selectedGame, setSelectedGame] = useState('all')
   const [list, setList] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+
+  const [selectedPlayer, setSelectedPlayer] = useState(null)
+  const [isFollowing, setIsFollowing] = useState(false)
+  const [followBusy, setFollowBusy] = useState(false)
 
   usePageLoading(loading)
 
@@ -60,6 +68,41 @@ export default function LeaderboardPage() {
     return () => { cancelled = true }
   }, [selectedGame])
 
+  // Check follow status whenever the preview modal opens for someone new
+  useEffect(() => {
+    if (!selectedPlayer || !user || selectedPlayer.id === user.id) { setIsFollowing(false); return }
+    let cancelled = false
+    supabase
+      .from('follows')
+      .select('follower_id')
+      .eq('follower_id', user.id)
+      .eq('following_id', selectedPlayer.id)
+      .maybeSingle()
+      .then(({ data }) => { if (!cancelled) setIsFollowing(!!data) })
+    return () => { cancelled = true }
+  }, [selectedPlayer, user])
+
+  async function toggleFollow() {
+    if (!user) { openAuthGate(); return }
+    if (!selectedPlayer) return
+    setFollowBusy(true)
+    if (isFollowing) {
+      await supabase.from('follows').delete()
+        .eq('follower_id', user.id).eq('following_id', selectedPlayer.id)
+      setIsFollowing(false)
+    } else {
+      await supabase.from('follows').insert({ follower_id: user.id, following_id: selectedPlayer.id })
+      setIsFollowing(true)
+    }
+    setFollowBusy(false)
+  }
+
+  function viewFullProfile() {
+    if (!selectedPlayer) return
+    router.push(`/profile/${selectedPlayer.id}`)
+    setSelectedPlayer(null)
+  }
+
   const filtered = useMemo(() => {
     if (!search.trim()) return list
     const q = search.trim().toLowerCase()
@@ -73,7 +116,10 @@ export default function LeaderboardPage() {
   const podiumOrder = podium.length === 3 ? [1, 0, 2] : podium.map((_, i) => i)
 
   const myRankIdx = user ? list.findIndex(p => p.id === user.id) : -1
-  const myInPodiumOrList = myRankIdx > -1 && myRankIdx < filtered.length && filtered[myRankIdx]?.id === user?.id
+
+  const selPts = selectedPlayer ? (isAll ? (selectedPlayer.points || 0) : (selectedPlayer.game_points || 0)) : 0
+  const selTm = selectedPlayer ? (RANK_META[selectedPlayer.tier] || RANK_META.Gold) : RANK_META.Gold
+  const isSelfSelected = selectedPlayer && user?.id === selectedPlayer.id
 
   return (
     <div className={styles.page}>
@@ -135,7 +181,7 @@ export default function LeaderboardPage() {
 
       {/* Your position */}
       {user && myRankIdx > -1 && !search && (
-        <Link href={`/profile/${user.id}`} className={styles.myRankCard}>
+        <button className={styles.myRankCard} onClick={() => setSelectedPlayer(list[myRankIdx])}>
           <span className={styles.myRankLabel}>{t('players.yourPosition') || 'Your Position'}</span>
           <div className={styles.myRankBody}>
             <span className={styles.myRankNum}>#{myRankIdx + 1}</span>
@@ -151,7 +197,7 @@ export default function LeaderboardPage() {
               <span className={styles.ptsLabel}> {(t('home.pts') || 'pts').toLowerCase()}</span>
             </span>
           </div>
-        </Link>
+        </button>
       )}
 
       {loading ? (
@@ -175,9 +221,9 @@ export default function LeaderboardPage() {
                 const tm = RANK_META[p.tier] || RANK_META.Gold
                 const pts = isAll ? (p.points || 0) : (p.game_points || 0)
                 return (
-                  <Link
+                  <button
                     key={p.id}
-                    href={`/profile/${p.id}`}
+                    onClick={() => setSelectedPlayer(p)}
                     className={`${styles.podiumCard} ${styles['podiumRank' + (i + 1)]} ${isMe ? styles.rowMe : ''}`}
                   >
                     {i === 0 && <i className={`ri-vip-crown-fill ${styles.crown}`} />}
@@ -200,7 +246,7 @@ export default function LeaderboardPage() {
                       </span>
                       <span className={styles.podiumPts}>{pts.toLocaleString()}</span>
                     </div>
-                  </Link>
+                  </button>
                 )
               })}
             </div>
@@ -214,7 +260,7 @@ export default function LeaderboardPage() {
                 const tm = RANK_META[p.tier] || RANK_META.Gold
                 const pts = isAll ? (p.points || 0) : (p.game_points || 0)
                 return (
-                  <Link key={p.id} href={`/profile/${p.id}`} className={`${styles.row} ${isMe ? styles.rowMe : ''}`}>
+                  <button key={p.id} onClick={() => setSelectedPlayer(p)} className={`${styles.row} ${isMe ? styles.rowMe : ''}`}>
                     <span className={styles.rowPos}>#{i + 1}</span>
                     <div className={styles.rowAvatar}>
                       {p.avatar_url
@@ -236,13 +282,76 @@ export default function LeaderboardPage() {
                       {pts.toLocaleString()}
                       <span className={styles.ptsLabel}> {(t('home.pts') || 'pts').toLowerCase()}</span>
                     </span>
-                  </Link>
+                  </button>
                 )
               })}
             </div>
           )}
         </>
       )}
+
+      {/* Player preview modal */}
+      <Modal
+        open={!!selectedPlayer}
+        onClose={() => setSelectedPlayer(null)}
+        title={selectedPlayer?.username || t('players.players') || 'Player'}
+        size="sm"
+        footer={selectedPlayer && (
+          <>
+            {!isSelfSelected && (
+              <button
+                className={`${styles.modalFollowBtn} ${isFollowing ? styles.modalFollowBtnActive : ''}`}
+                onClick={toggleFollow}
+                disabled={followBusy}
+              >
+                <i className={isFollowing ? 'ri-user-check-line' : 'ri-user-add-line'} />
+                {isFollowing ? 'Following' : 'Follow'}
+              </button>
+            )}
+            <button className={styles.modalViewBtn} onClick={viewFullProfile}>
+              <i className="ri-user-3-line" /> View Profile
+            </button>
+          </>
+        )}
+      >
+        {selectedPlayer && (
+          <div className={styles.modalBody}>
+            <div className={styles.modalAvatarWrap} style={{ '--ring': selTm.color }}>
+              <div className={styles.modalAvatarInner}>
+                {selectedPlayer.avatar_url
+                  ? <img src={selectedPlayer.avatar_url} alt="" />
+                  : <span>{(selectedPlayer.username || '?').slice(0, 2).toUpperCase()}</span>
+                }
+              </div>
+            </div>
+            <div className={styles.modalNameRow}>
+              <span className={styles.modalName}>{selectedPlayer.username}</span>
+              {isSelfSelected && <span className={styles.youPill}>{t('home.you') || 'You'}</span>}
+            </div>
+            <div className={styles.modalBadgesRow}>
+              <UserBadges email={selectedPlayer.email} plan={selectedPlayer.plan} planExpiresAt={selectedPlayer.plan_expires_at} countryFlag={selectedPlayer.country_flag} isSeasonWinner={selectedPlayer.is_season_winner} customBadges={selectedPlayer.custom_badges} size={13} gap={4} />
+            </div>
+            <div className={styles.modalTier} style={{ color: selTm.color }}>
+              <i className={selTm.icon} /> {selectedPlayer.tier}
+            </div>
+
+            <div className={styles.modalStatsGrid}>
+              <div className={styles.modalStat}>
+                <span className={styles.modalStatVal}>{selPts.toLocaleString()}</span>
+                <span className={styles.modalStatLabel}>{t('players.points') || 'Points'}</span>
+              </div>
+              <div className={styles.modalStat}>
+                <span className={styles.modalStatVal}>{selectedPlayer.wins || 0}</span>
+                <span className={styles.modalStatLabel}>{t('players.wins') || 'Wins'}</span>
+              </div>
+              <div className={styles.modalStat}>
+                <span className={styles.modalStatVal}>{selectedPlayer.level ?? 1}</span>
+                <span className={styles.modalStatLabel}>Lv.</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

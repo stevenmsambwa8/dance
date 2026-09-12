@@ -93,6 +93,11 @@
 /* ── Your position ── */
 .myRankCard {
   display: block;
+  width: 100%;
+  text-align: left;
+  font-family: var(--font);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
   text-decoration: none;
   color: inherit;
   background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--bg-2)), var(--bg-2));
@@ -137,6 +142,11 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  width: 100%;
+  text-align: center;
+  font-family: var(--font);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
   text-decoration: none;
   color: inherit;
   border-radius: 18px;
@@ -303,6 +313,13 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  width: 100%;
+  text-align: left;
+  font-family: var(--font);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  background: none;
+  border: none;
   padding: 11px 0;
   border-bottom: 1px solid var(--border);
   text-decoration: none;
@@ -370,3 +387,116 @@
   animation: skelPulse 1.2s ease-in-out infinite;
 }
 @keyframes skelPulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+
+/* ── Player preview modal ── */
+.modalBody {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+  padding: 4px 0 6px;
+}
+
+.modalAvatarWrap {
+  width: 78px; height: 78px;
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 10px;
+}
+.modalAvatarWrap::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, var(--ring), transparent 30%, var(--ring) 60%, transparent 90%, var(--ring));
+  animation: nbPodRingSpin 3s linear infinite;
+  opacity: 0.85;
+}
+.modalAvatarInner {
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  border: 3px solid var(--bg);
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface);
+  font-size: 22px;
+  font-weight: 800;
+}
+.modalAvatarInner img { width: 100%; height: 100%; object-fit: cover; }
+
+.modalNameRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 17px;
+  font-weight: 900;
+}
+.modalName { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.modalBadgesRow { margin-top: 2px; }
+
+.modalTier {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.modalStatsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+  margin-top: 18px;
+}
+.modalStat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 4px;
+  border-radius: 12px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+}
+.modalStatVal { font-size: 15px; font-weight: 900; color: var(--text); }
+.modalStatLabel { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+
+.modalFollowBtn {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 11px;
+  border-radius: 10px;
+  border: 1px solid var(--border-dark);
+  background: var(--bg-2);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  font-family: var(--font);
+  cursor: pointer;
+}
+.modalFollowBtn:disabled { opacity: 0.6; }
+.modalFollowBtnActive {
+  background: rgba(34,197,94,0.12);
+  border-color: rgba(34,197,94,0.4);
+  color: #22c55e;
+}
+
+.modalViewBtn {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 11px;
+  border-radius: 10px;
+  border: none;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 13px;
+  font-weight: 700;
+  font-family: var(--font);
+  cursor: pointer;
+}
