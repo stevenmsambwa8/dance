@@ -49,6 +49,45 @@ function parseBracketData(raw) {
 }
 function nextPow2(n) { let p = 1; while (p < n) p <<= 1; return p }
 
+// ── Vacancy reconciliation ──────────────────────────────────────────────────
+// Shared by removeParticipant() (auto-runs for the one player just removed)
+// and the manual "Refresh Table" / "Refresh Bracket" buttons (re-checks
+// everyone against the current roster — a fixer for cases where the two
+// drifted apart, e.g. a removal that happened outside this flow). Never
+// touches a fixture/match that's already been played — only vacates or
+// voids what a departed player would otherwise still be blocking.
+function voidGroupFixturesForRemovedUsers(groups, removedIds) {
+  if (!groups || !removedIds?.size) return groups
+  return groups.map(g => {
+    const members = g.members.map(m => {
+      const uids = m.players ? m.players.map(pl => pl.userId) : [m.userId ?? m.id ?? m.teamId]
+      return uids.some(uid => uid && removedIds.has(uid)) ? { ...m, removed: true } : m
+    })
+    const removedMemberIds = new Set(members.filter(m => m.removed).map(m => m.id ?? m.userId ?? m.teamId))
+    const fixtures = g.fixtures.map(fx => {
+      if (fx.status === 'played' || fx.status === 'void') return fx // history is never rewritten
+      const involvesRemoved = removedMemberIds.has(fx.homeId) || removedMemberIds.has(fx.awayId)
+      return involvesRemoved ? { ...fx, status: 'void', scoreHome: null, scoreAway: null } : fx
+    })
+    return { ...g, members, fixtures }
+  })
+}
+
+function vacateBracketSlotsForRemovedUsers(rounds, isTeamBattle, removedIds, t) {
+  if (!rounds || !removedIds?.size) return rounds
+  const openSlot = () => ({ userId: null, name: t ? t('tournaments.openStatus') : 'Open', avatar: null, status: 'open' })
+  return rounds.map(r => r.map(pair => pair.map(slot => {
+    if (!slot) return slot
+    if (isTeamBattle) {
+      if (!slot.members) return slot
+      const newMembers = slot.members.map(m => (m?.userId && removedIds.has(m.userId)) ? openSlot() : m)
+      const anyChanged = newMembers.some((m, i) => m !== slot.members[i])
+      return anyChanged ? { ...slot, members: newMembers, status: newMembers.every(m => !m?.userId) ? 'open' : slot.status } : slot
+    }
+    return (slot.userId && removedIds.has(slot.userId)) ? openSlot() : slot
+  })))
+}
+
 function buildLobbyBracket(maxSlots, teamSize = 1) {
   if (!maxSlots || maxSlots < 2) return null
   const size = nextPow2(maxSlots)
@@ -914,6 +953,56 @@ export default function TournamentManage() {
     })
   }
 
+  // Non-destructive fixer for the knockout bracket: re-checks every slot
+  // against who's actually still registered right now and vacates any that
+  // point at a departed player, WITHOUT touching decided matches, scores, or
+  // anyone else's placement. Use this if the bracket and the roster have
+  // drifted apart (e.g. a player was removed some other way).
+  async function refreshBracketSlots() {
+    if (!await verifyCanManage()) return
+    const { data: freshT } = await supabase.from('tournaments').select('bracket_data').eq('id', id.current).single()
+    const freshBd = parseBracketData(freshT?.bracket_data) ?? bracketData
+    if (!freshBd?.rounds) return
+    const { data: active } = await supabase.from('tournament_participants').select('user_id').eq('tournament_id', id.current)
+    const activeIds = new Set((active || []).map(p => p.user_id))
+    const removedIds = new Set()
+    freshBd.rounds.forEach(r => r.forEach(pair => pair.forEach(slot => {
+      if (!slot) return
+      const uids = freshBd.isTeamBattle ? (slot.members || []).map(m => m?.userId) : [slot.userId]
+      uids.forEach(uid => { if (uid && !activeIds.has(uid)) removedIds.add(uid) })
+    })))
+    if (!removedIds.size) { showToast('Bracket already matches the current roster.'); return }
+    const newRounds = vacateBracketSlotsForRemovedUsers(freshBd.rounds, freshBd.isTeamBattle, removedIds, t)
+    const nb = { ...freshBd, rounds: newRounds }
+    await saveBracket(nb); setBracketData(nb)
+    showToast(`Bracket refreshed — ${removedIds.size} vacated slot${removedIds.size !== 1 ? 's' : ''}, everything else untouched.`, 'success')
+  }
+
+  // Same idea for the group/league table: flags anyone no longer registered
+  // and voids ONLY their still-pending fixtures (never a played one), so a
+  // departed player stops blocking the stage from completing while every
+  // recorded result and every other player's standing stays exactly as-is.
+  async function refreshGroupTable() {
+    if (!await verifyCanManage()) return
+    const { data: freshT } = await supabase.from('tournaments').select('bracket_data').eq('id', id.current).single()
+    const freshBd = parseBracketData(freshT?.bracket_data) ?? bracketData
+    if (!freshBd?.groups) return
+    const { data: active } = await supabase.from('tournament_participants').select('user_id').eq('tournament_id', id.current)
+    const activeIds = new Set((active || []).map(p => p.user_id))
+    const removedIds = new Set()
+    freshBd.groups.forEach(g => g.members.forEach(m => {
+      const uids = m.players ? m.players.map(pl => pl.userId) : [m.userId ?? m.id ?? m.teamId]
+      uids.forEach(uid => { if (uid && !activeIds.has(uid)) removedIds.add(uid) })
+    }))
+    if (!removedIds.size) { showToast('Table already matches the current roster.'); return }
+    const newGroups = voidGroupFixturesForRemovedUsers(freshBd.groups, removedIds)
+    const nb = { ...freshBd, groups: newGroups }
+    await supabase.from('tournaments').update({ bracket_data: nb }).eq('id', id.current)
+    setBracketData(nb)
+    showToast(`Table refreshed — ${removedIds.size} player${removedIds.size !== 1 ? 's' : ''} cleared from remaining fixtures, all results kept.`, 'success')
+    load()
+  }
+
   // ── Group stage actions ─────────────────────────────────────────────────────
   async function initGroups() {
     if (!await verifyCanManage()) return
@@ -1275,6 +1364,60 @@ export default function TournamentManage() {
     setGroupSavingId(null)
   }
 
+  // Marks a fixture as "not played" — no winner, no points for either side.
+  // If it had already been scored, reverses exactly the points that result
+  // gave out before wiping it, so the table can't end up double-counting or
+  // stuck with stale points. Use for a cancelled/void match (bad report,
+  // no-contest, disqualified game, etc) rather than deleting the fixture.
+  async function voidFixture(groupId, fixtureId) {
+    if (!await verifyCanManage()) return
+    setGroupSavingId(fixtureId)
+    const { data: freshT } = await supabase.from('tournaments').select('bracket_data').eq('id', id.current).single()
+    const freshBd = parseBracketData(freshT?.bracket_data) ?? bracketData
+    const group = freshBd.groups.find(g => g.id === groupId)
+    const fixture = group?.fixtures.find(fx => fx.id === fixtureId)
+    if (!fixture) { setGroupSavingId(null); return }
+
+    if (fixture.status === 'played' && fixture.scoreHome != null && fixture.scoreAway != null) {
+      const homeMember = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fixture.homeId)
+      const awayMember = group.members.find(m => (m.id ?? m.userId ?? m.teamId) === fixture.awayId)
+      const homePts = fixture.scoreHome > fixture.scoreAway ? 3 : fixture.scoreHome === fixture.scoreAway ? 1 : 0
+      const awayPts = fixture.scoreAway > fixture.scoreHome ? 3 : fixture.scoreAway === fixture.scoreHome ? 1 : 0
+      const jobs = []
+      if (homePts) resolveMemberUserIds(homeMember).forEach(uid => jobs.push(awardGroupPoints(uid, -homePts)))
+      if (awayPts) resolveMemberUserIds(awayMember).forEach(uid => jobs.push(awardGroupPoints(uid, -awayPts)))
+      if (jobs.length) await Promise.all(jobs)
+    }
+
+    const newGroups = freshBd.groups.map(g => g.id !== groupId ? g : {
+      ...g,
+      fixtures: g.fixtures.map(fx => fx.id !== fixtureId ? fx : {
+        ...fx, scoreHome: null, scoreAway: null, status: 'void', disputed: false, submissions: null,
+      }),
+    })
+    const newBd = { ...freshBd, groups: newGroups }
+    await supabase.from('tournaments').update({ bracket_data: newBd }).eq('id', id.current)
+    setBracketData(newBd)
+    showToast('Match marked as not played — no points for either side.', 'success')
+    setGroupSavingId(null)
+  }
+
+  // Reopens a voided fixture back to pending so a score can be entered again.
+  async function unvoidFixture(groupId, fixtureId) {
+    if (!await verifyCanManage()) return
+    setGroupSavingId(fixtureId)
+    const { data: freshT } = await supabase.from('tournaments').select('bracket_data').eq('id', id.current).single()
+    const freshBd = parseBracketData(freshT?.bracket_data) ?? bracketData
+    const newGroups = freshBd.groups.map(g => g.id !== groupId ? g : {
+      ...g,
+      fixtures: g.fixtures.map(fx => fx.id !== fixtureId ? fx : { ...fx, status: 'pending' }),
+    })
+    const newBd = { ...freshBd, groups: newGroups }
+    await supabase.from('tournaments').update({ bracket_data: newBd }).eq('id', id.current)
+    setBracketData(newBd)
+    setGroupSavingId(null)
+  }
+
   // ── Player actions ────────────────────────────────────────────────────────
   async function removeParticipant(userId, username) {
     if (!await verifyCanManage()) return
@@ -1287,16 +1430,24 @@ export default function TournamentManage() {
           supabase.from('tournament_leaderboard').delete().eq('tournament_id', id.current).eq('user_id', userId),
           supabase.from('tournament_payments').delete().eq('tournament_id', id.current).eq('user_id', userId),
         ])
-        if (bracketData?.rounds) {
-          const openSlot   = { userId: null, name: t('tournaments.openStatus'), avatar: null, status: 'open' }
-          const openMember = { userId: null, name: t('tournaments.openStatus'), avatar: null, status: 'open' }
-          const newRounds = bracketData.rounds.map(r => r.map(pair =>
-            bracketData.isTeamBattle
-              ? pair.map(team => !team?.members ? team : { ...team, members: team.members.map(m => m?.userId === userId ? openMember : m), status: team.members.every(m => !m?.userId || m.userId === userId) ? 'open' : team.status })
-              : pair.map(s => s?.userId === userId ? openSlot : s)
-          ))
-          const nb = { ...bracketData, rounds: newRounds }
+        // Re-fetch fresh so this doesn't clobber any bracket/group edits that
+        // landed in between the confirm dialog opening and being clicked.
+        const { data: freshT } = await supabase.from('tournaments').select('bracket_data').eq('id', id.current).single()
+        const freshBd = parseBracketData(freshT?.bracket_data) ?? bracketData
+        const removedIds = new Set([userId])
+        if (freshBd?.rounds) {
+          const newRounds = vacateBracketSlotsForRemovedUsers(freshBd.rounds, freshBd.isTeamBattle, removedIds, t)
+          const nb = { ...freshBd, rounds: newRounds }
           await saveBracket(nb); setBracketData(nb)
+        } else if (freshBd?.groups) {
+          // Group/league stage: keep every played result exactly as recorded
+          // (that's history), but this player's still-pending fixtures can
+          // never happen now — void those so they stop blocking the group
+          // from completing, and flag the player as removed on the table.
+          const newGroups = voidGroupFixturesForRemovedUsers(freshBd.groups, removedIds)
+          const nb = { ...freshBd, groups: newGroups }
+          await supabase.from('tournaments').update({ bracket_data: nb }).eq('id', id.current)
+          setBracketData(nb)
         }
         showToast(`${username || t('tournaments.playerLabel')} ${t('tournaments.removedSuffix')}`, 'success')
         load()
@@ -1720,6 +1871,9 @@ export default function TournamentManage() {
                       : (tournament?.stage_format === 'league' ? 'Standings lock in automatically once every fixture is played.' : t('tournaments.knockoutBuildsAuto'))}
                   </div>
                   <div className={styles.btnRow}>
+                    <button className={styles.btnGhost} onClick={refreshGroupTable} title="Clear removed players from remaining fixtures without touching played results">
+                      <i className="ri-refresh-line" /> Refresh Table
+                    </button>
                     <button className={styles.btnDanger} onClick={resetGroups}>
                       <i className="ri-restart-line" /> {tournament?.stage_format === 'league' ? 'Reset Fixtures' : t('tournaments.resetGroups')}
                     </button>
@@ -1874,12 +2028,28 @@ export default function TournamentManage() {
                               // admin to decide by hand if one side DID submit (no automatic action).
                               // Editing an already-played fixture's score is still allowed — that's
                               // a correction to a real result, not fabricating one from nothing.
-                              const expiredUnplayed = fx.status !== 'played' && st?.phase === 'over'
+                              const expiredUnplayed = fx.status !== 'played' && fx.status !== 'void' && st?.phase === 'over'
                               const neitherSubmitted = !fx.submissions?.home && !fx.submissions?.away
                               const canEnterScore = fx.status === 'played' || !expiredUnplayed
                               return (
                                 <div key={fx.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                                  {canEnterScore ? (
+                                  {fx.status === 'void' ? (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', fontSize: 11.5 }}>
+                                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-muted)', textDecoration: 'line-through' }}>{home?.name || '?'}</span>
+                                      <span style={{ fontSize: 9.5, fontWeight: 800, color: 'var(--text-muted)', padding: '2px 7px', borderRadius: 5, background: 'var(--bg-2)', whiteSpace: 'nowrap' }}>
+                                        <i className="ri-close-circle-line" /> Not played
+                                      </span>
+                                      <span style={{ flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-muted)', textDecoration: 'line-through' }}>{away?.name || '?'}</span>
+                                      <button
+                                        onClick={() => unvoidFixture(group.id, fx.id)}
+                                        disabled={groupSavingId === fx.id}
+                                        title="Undo — re-open this fixture for a score"
+                                        style={{ width: 26, height: 26, borderRadius: 7, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', flexShrink: 0, cursor: 'pointer' }}
+                                      >
+                                        <i className={groupSavingId === fx.id ? 'ri-loader-4-line' : 'ri-arrow-go-back-line'} />
+                                      </button>
+                                    </div>
+                                  ) : canEnterScore ? (
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', fontSize: 11.5 }}>
                                     <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: fx.status === 'played' ? 400 : 700 }}>{home?.name || '?'}</span>
                                     <input type="number" value={draft.home} placeholder="-" style={{ width: 34, textAlign: 'center', padding: '4px 2px', borderRadius: 6, border: '1px solid var(--border-dark)', background: 'var(--bg)', color: 'var(--text)', fontSize: 12 }}
@@ -1895,6 +2065,14 @@ export default function TournamentManage() {
                                     >
                                       <i className={groupSavingId === fx.id ? 'ri-loader-4-line' : 'ri-check-line'} />
                                     </button>
+                                    <button
+                                      onClick={() => voidFixture(group.id, fx.id)}
+                                      disabled={groupSavingId === fx.id}
+                                      title="Mark as not played — no points for either side"
+                                      style={{ width: 26, height: 26, borderRadius: 7, border: '1px solid #ef444440', background: '#ef444412', color: '#ef4444', flexShrink: 0, cursor: 'pointer' }}
+                                    >
+                                      <i className="ri-close-circle-line" />
+                                    </button>
                                   </div>
                                   ) : (
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', fontSize: 11.5 }}>
@@ -1903,7 +2081,7 @@ export default function TournamentManage() {
                                       <span style={{ flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 700 }}>{away?.name || '?'}</span>
                                     </div>
                                   )}
-                                  {fx.status !== 'played' && (
+                                  {fx.status !== 'played' && fx.status !== 'void' && (
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px 7px' }}>
                                       {st ? (
                                         <span style={{
@@ -1965,7 +2143,7 @@ export default function TournamentManage() {
                                       see the numbers/proof a player sent in, only a boolean "submitted or
                                       not". Show both sides' claimed scores (and proof screenshot, if any)
                                       any time a submission exists and the fixture isn't finalized yet. ── */}
-                                  {fx.status !== 'played' && (fx.submissions?.home || fx.submissions?.away) && (
+                                  {fx.status !== 'played' && fx.status !== 'void' && (fx.submissions?.home || fx.submissions?.away) && (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '0 12px 9px' }}>
                                       {fx.disputed && (
                                         <span style={{ fontSize: 9.5, fontWeight: 800, color: '#ef4444' }}>
@@ -2073,9 +2251,14 @@ export default function TournamentManage() {
                     <i className="ri-play-fill" /> {t('tournaments.generateBracket')}
                     {realCount < 2 && <span style={{ fontSize: 10, opacity: 0.6 }}> {t('tournaments.twoPlusNeeded')}</span>}
                   </button>
-                : <button className={styles.btnDanger} onClick={resetBracket}>
-                    <i className="ri-restart-line" /> {t('tournaments.resetBracketBtn')}
-                  </button>
+                : <>
+                    <button className={styles.btnGhost} onClick={refreshBracketSlots} title="Vacate slots for players no longer registered, without touching decided matches">
+                      <i className="ri-refresh-line" /> Refresh
+                    </button>
+                    <button className={styles.btnDanger} onClick={resetBracket}>
+                      <i className="ri-restart-line" /> {t('tournaments.resetBracketBtn')}
+                    </button>
+                  </>
               }
               <button className={styles.btnGhost} onClick={() => setActiveTab('bracket')}>
                 <i className="ri-edit-line" /> {t('common.edit')}
@@ -2417,9 +2600,14 @@ export default function TournamentManage() {
                         <i className="ri-play-fill" /> {t('tournaments.generateFromPlayers')}
                         {realCount < 2 && <span style={{ fontSize: 10, opacity: 0.6 }}> {t('tournaments.twoPlusNeeded')}</span>}
                       </button>
-                    : <button className={styles.btnDanger} onClick={resetBracket}>
-                        <i className="ri-restart-line" /> {t('tournaments.resetBracketBtn')}
-                      </button>
+                    : <>
+                        <button className={styles.btnGhost} onClick={refreshBracketSlots} title="Vacate slots for players no longer registered, without touching decided matches">
+                          <i className="ri-refresh-line" /> Refresh
+                        </button>
+                        <button className={styles.btnDanger} onClick={resetBracket}>
+                          <i className="ri-restart-line" /> {t('tournaments.resetBracketBtn')}
+                        </button>
+                      </>
                   }
                   <button className={styles.btnGhost} onClick={() => router.push(`/tournaments/${tournament.slug || tournament.id}#matches`, { scroll: false })}>
                     <i className="ri-eye-line" /> {t('common.view')}

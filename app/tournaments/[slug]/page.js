@@ -3568,9 +3568,9 @@ export default function TournamentDetail() {
 
   function getUserBadgeProps(uid) {
     const fromP = participants.find(p => p.user_id === uid)
-    if (fromP?.profiles) return { email: fromP.profiles.email, plan: fromP.profiles.plan, planExpiresAt: fromP.profiles.plan_expires_at, countryFlag: fromP.profiles.country_flag, isSeasonWinner: fromP.profiles.is_season_winner, customBadges: fromP.profiles.custom_badges, temp_admin_until, tempAdminUntil: fromP.profiles.temp_admin_until }
+    if (fromP?.profiles) return { email: fromP.profiles.email, plan: fromP.profiles.plan, planExpiresAt: fromP.profiles.plan_expires_at, countryFlag: fromP.profiles.country_flag, isSeasonWinner: fromP.profiles.is_season_winner, customBadges: fromP.profiles.custom_badges, tempAdminUntil: fromP.profiles.temp_admin_until }
     const fromLb = leaderboard.find(e => e.user_id === uid)
-    if (fromLb?.profiles) return { email: fromLb.profiles.email, plan: fromLb.profiles.plan, planExpiresAt: fromLb.profiles.plan_expires_at, countryFlag: fromLb.profiles.country_flag, isSeasonWinner: fromLb.profiles.is_season_winner, customBadges: fromLb.profiles.custom_badges, temp_admin_until, tempAdminUntil: fromLb.profiles.temp_admin_until }
+    if (fromLb?.profiles) return { email: fromLb.profiles.email, plan: fromLb.profiles.plan, planExpiresAt: fromLb.profiles.plan_expires_at, countryFlag: fromLb.profiles.country_flag, isSeasonWinner: fromLb.profiles.is_season_winner, customBadges: fromLb.profiles.custom_badges, tempAdminUntil: fromLb.profiles.temp_admin_until }
     return { email: null, plan: null, planExpiresAt: null, countryFlag: null, isSeasonWinner: false, customBadges: null, tempAdminUntil: null }
   }
 
