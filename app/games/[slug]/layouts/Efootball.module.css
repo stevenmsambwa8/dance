@@ -1,0 +1,48 @@
+/* ── eFootball — stadium scoreboard theme ── */
+.page { padding-bottom: 100px; }
+.back { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); padding: 16px 20px 0; }
+
+.scoreboard { margin: 14px 20px 0; border-radius: 14px; background: #06210f; color: #eafff0; overflow: hidden; }
+.sbTop { display: flex; align-items: center; gap: 12px; padding: 16px 16px 12px; }
+.sbLogo { width: 46px; height: 46px; border-radius: 8px; object-fit: cover; }
+.sbLeague { font-size: 9px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #00c853; }
+.sbName { font-size: 22px; font-weight: 900; letter-spacing: -0.01em; }
+.sbTicker { display: flex; border-top: 1px solid rgba(0,200,83,0.25); }
+.sbCell { flex: 1; text-align: center; padding: 12px 4px; border-right: 1px solid rgba(0,200,83,0.2); }
+.sbCell:last-child { border-right: none; }
+.sbCell span { display: block; font-size: 20px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.sbCell label { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #7fbfa0; }
+.sbLive { color: #00c853; }
+
+.actions { display: flex; gap: 10px; padding: 14px 20px 0; }
+.subBtn, .chatBtn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 11px; border-radius: 8px; border: 1.5px solid var(--border-dark); font-size: 12px; font-weight: 700; color: var(--text-dim); cursor: pointer; text-decoration: none; background: transparent; }
+.subActive { background: #00c853; border-color: #00c853; color: #06210f; }
+
+.desc { font-size: 13px; color: var(--text-dim); line-height: 1.7; padding: 14px 20px 0; }
+
+.section { padding: 22px 20px 0; }
+.sectionTitle { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 800; margin-bottom: 12px; }
+.empty { text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0; }
+
+.fixtureList { display: flex; flex-direction: column; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+.fixture { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 13px 14px; border-bottom: 1px solid var(--border); cursor: pointer; }
+.fixture:last-child { border-bottom: none; }
+.fixtureLocked { opacity: 0.4; pointer-events: none; }
+.fixtureMain { min-width: 0; }
+.fixtureName { font-size: 13px; font-weight: 700; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fixtureFormat { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.fixtureScore { text-align: right; flex-shrink: 0; }
+.fixtureLiveTag { display: block; font-size: 10px; font-weight: 800; color: #ef4444; }
+.fixtureSlots { display: block; font-size: 11px; font-weight: 700; color: var(--text-dim); }
+.fixtureFee { font-size: 10px; font-weight: 700; color: #00c853; }
+.fixtureFree { font-size: 10px; font-weight: 700; color: var(--text-muted); }
+
+.potmSkel { height: 78px; border-radius: 12px; background: var(--bg-2); }
+.potm { position: relative; display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 12px; background: linear-gradient(135deg, rgba(0,200,83,0.1), transparent); border: 1px solid rgba(0,200,83,0.3); }
+.potmRating { position: absolute; top: 8px; right: 10px; font-size: 20px; font-weight: 900; color: rgba(0,200,83,0.35); }
+.potmAvatar, .potmAvatarFallback { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid #00c853; }
+.potmAvatarFallback { display: flex; align-items: center; justify-content: center; background: #00c853; color: #06210f; font-size: 19px; font-weight: 900; }
+.potmInfo { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.potmName { font-size: 14px; font-weight: 800; }
+.potmTier { font-size: 10px; font-weight: 700; margin-top: 2px; }
+.potmStats { display: flex; flex-direction: column; gap: 2px; text-align: right; font-size: 11px; font-weight: 700; color: var(--text-dim); }

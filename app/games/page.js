@@ -1,16 +1,69 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { useAuth } from '../../components/AuthProvider'
 import { useAuthGate } from '../../components/AuthGateModal'
 import { supabase } from '../../lib/supabase'
 import { GAME_SLUGS, GAME_META } from '../../lib/constants'
 import styles from './page.module.css'
-import { getCurrentSeason, getSeasonDateRange, getDaysRemaining } from '../../lib/seasons'
+import { getCurrentSeason } from '../../lib/seasons'
 import usePageLoading from '../../components/usePageLoading'
 import useTranslation from '../../lib/useTranslation'
 
 export { GAME_SLUGS, GAME_META }
+
+function Row({ title, icon, slugs, gameStats, subscribed, subLoading, loading, toggleSubscribe, t }) {
+  const trackRef = useRef(null)
+
+  function scrollBy(dir) {
+    trackRef.current?.scrollBy({ left: dir * 320, behavior: 'smooth' })
+  }
+
+  return (
+    <section className={styles.row}>
+      <div className={styles.rowHead}>
+        <h2 className={styles.rowTitle}><i className={icon} /> {title}</h2>
+        <div className={styles.rowNav}>
+          <button className={styles.rowNavBtn} onClick={() => scrollBy(-1)} aria-label="Scroll left"><i className="ri-arrow-left-s-line" /></button>
+          <button className={styles.rowNavBtn} onClick={() => scrollBy(1)} aria-label="Scroll right"><i className="ri-arrow-right-s-line" /></button>
+        </div>
+      </div>
+      <div className={styles.rowTrack} ref={trackRef}>
+        {slugs.map(slug => {
+          const meta = GAME_META[slug]
+          const stats = gameStats[slug] || {}
+          const isSub = subscribed[slug]
+          return (
+            <Link href={`/games/${slug}`} key={slug} className={styles.card} style={{ '--gc': meta.color || 'var(--accent)' }}>
+              <div className={styles.cardArt}>
+                {meta.image
+                  ? <img src={meta.image} alt={meta.name} className={styles.cardImg} />
+                  : <i className={meta.icon} />}
+                <div className={styles.cardFade} />
+                <button
+                  className={`${styles.cardSub} ${isSub ? styles.cardSubActive : ''}`}
+                  onClick={(e) => toggleSubscribe(e, slug)}
+                  disabled={subLoading[slug]}
+                  aria-label={isSub ? t('gamesPage.subscribed') : t('gamesPage.subscribe')}
+                >
+                  <i className={isSub ? 'ri-bookmark-fill' : 'ri-bookmark-line'} />
+                </button>
+                <div className={styles.cardBody}>
+                  <span className={styles.cardGenre}>{meta.genre}</span>
+                  <h3 className={styles.cardName}>{meta.name}</h3>
+                  <div className={styles.cardMeta}>
+                    <span><i className="ri-user-line" />{loading ? '…' : (stats.subscribers || 0).toLocaleString()}</span>
+                    <span><i className="ri-trophy-line" />{loading ? '…' : (stats.tournaments || 0)}</span>
+                  </div>
+                </div>
+              </div>
+            </Link>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
 
 export default function Games() {
   const { user } = useAuth()
@@ -68,6 +121,47 @@ export default function Games() {
     setSubLoading(l => ({ ...l, [slug]: false }))
   }
 
+  // Featured game for the top banner = highest subscriber count once stats load, else first game
+  const featuredSlug = useMemo(() => {
+    if (loading) return GAME_SLUGS[0]
+    let best = GAME_SLUGS[0], bestCount = -1
+    GAME_SLUGS.forEach(slug => {
+      const c = gameStats[slug]?.subscribers || 0
+      if (c > bestCount) { best = slug; bestCount = c }
+    })
+    return best
+  }, [loading, gameStats])
+
+  const featured = GAME_META[featuredSlug]
+  const featuredStats = gameStats[featuredSlug] || {}
+  const featuredSub = subscribed[featuredSlug]
+
+  // Group games by broad category for the rows below the hero (a few
+  // GAME_META genre labels differ slightly, e.g. "Battle Royale" vs
+  // "FPS / Battle Royale" — normalize so related games share one row)
+  const genreGroups = useMemo(() => {
+    const normalize = (genre) => {
+      if (genre.includes('Battle Royale')) return 'Battle Royale'
+      if (genre.includes('Sports') || genre.includes('Football')) return 'Football / Sports'
+      if (genre.includes('Simulation') || genre.includes('Racing')) return 'Simulation / Racing'
+      return genre
+    }
+    const groups = {}
+    GAME_SLUGS.forEach(slug => {
+      const label = normalize(GAME_META[slug].genre)
+      if (!groups[label]) groups[label] = []
+      groups[label].push(slug)
+    })
+    return groups
+  }, [])
+
+  const genreIcon = (genre) => {
+    if (genre.includes('Battle Royale')) return 'ri-crosshair-2-line'
+    if (genre.includes('Sports') || genre.includes('Football')) return 'ri-football-line'
+    if (genre.includes('Simulation') || genre.includes('Racing')) return 'ri-steering-2-line'
+    return 'ri-gamepad-line'
+  }
+
   return (
     <div className={styles.page}>
       <div className={styles.header}>
@@ -75,43 +169,45 @@ export default function Games() {
         <h1 className={styles.headline}>{t('gamesPage.title')}</h1>
       </div>
 
-      <div className={styles.list}>
-        {GAME_SLUGS.map((slug, i) => {
-          const meta = GAME_META[slug]
-          const stats = gameStats[slug] || {}
-          const isSub = subscribed[slug]
-          return (
-            <div key={slug} className={styles.rowWrap}>
-              <Link href={`/games/${slug}`} className={styles.row}>
-                <span className={styles.num}>0{i + 1}</span>
-                <div className={styles.icon}>
-                  {meta.image
-                    ? <img src={meta.image} alt={meta.name} className={styles.gameImg} />
-                    : <i className={meta.icon} />}
-                </div>
-                <div className={styles.info}>
-                  <div className={styles.infoTop}>
-                    <h2>{meta.name}</h2>
-                    <button
-                      className={`${styles.subBtn} ${isSub ? styles.subActive : ''}`}
-                      onClick={(e) => toggleSubscribe(e, slug)}
-                      disabled={subLoading[slug]}
-                    >
-                      {isSub ? t('gamesPage.subscribed') : t('gamesPage.subscribe')}
-                    </button>
-                  </div>
-                  <span>{meta.genre} · {meta.full}</span>
-                </div>
-                <div className={styles.meta}>
-                  <span className={styles.metaItem}><i className="ri-user-line" />{loading ? '…' : stats.subscribers?.toLocaleString()} {t('gamesPage.players')}</span>
-                  <span className={styles.metaItem}><i className="ri-trophy-line" />{loading ? '…' : stats.tournaments} {t('gamesPage.tournaments')}</span>
-                </div>
-                <i className={`ri-arrow-right-line ${styles.arrow}`} />
-              </Link>
-            </div>
-          )
-        })}
-      </div>
+      {/* Featured hero banner */}
+      <Link href={`/games/${featuredSlug}`} className={styles.hero} style={{ '--gc': featured.color || 'var(--accent)' }}>
+        {featured.image && <img src={featured.image} alt={featured.name} className={styles.heroImg} />}
+        <div className={styles.heroFade} />
+        <div className={styles.heroContent}>
+          <span className={styles.heroBadge}><i className="ri-fire-fill" /> Most Popular</span>
+          <h2 className={styles.heroName}>{featured.name}</h2>
+          <p className={styles.heroDesc}>{featured.desc}</p>
+          <div className={styles.heroFooter}>
+            <span className={styles.heroPlay}><i className="ri-play-fill" /> View Arena</span>
+            <span className={styles.heroStat}><i className="ri-user-line" /> {loading ? '…' : (featuredStats.subscribers || 0).toLocaleString()} {t('gamesPage.players')}</span>
+            <span className={styles.heroStat}><i className="ri-trophy-line" /> {loading ? '…' : (featuredStats.tournaments || 0)} {t('gamesPage.tournaments')}</span>
+          </div>
+        </div>
+        <button
+          className={`${styles.heroSub} ${featuredSub ? styles.heroSubActive : ''}`}
+          onClick={(e) => toggleSubscribe(e, featuredSlug)}
+          disabled={subLoading[featuredSlug]}
+        >
+          <i className={featuredSub ? 'ri-bookmark-fill' : 'ri-bookmark-line'} />
+          {featuredSub ? t('gamesPage.subscribed') : t('gamesPage.subscribe')}
+        </button>
+      </Link>
+
+      {/* Genre rows */}
+      {Object.entries(genreGroups).map(([genre, slugs]) => (
+        <Row
+          key={genre}
+          title={genre}
+          icon={genreIcon(genre)}
+          slugs={slugs}
+          gameStats={gameStats}
+          subscribed={subscribed}
+          subLoading={subLoading}
+          loading={loading}
+          toggleSubscribe={toggleSubscribe}
+          t={t}
+        />
+      ))}
     </div>
   )
 }
