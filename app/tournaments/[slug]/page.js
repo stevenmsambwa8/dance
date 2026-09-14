@@ -1535,17 +1535,22 @@ export default function TournamentDetail() {
       return {
         user_id: uid,
         id: lbMap[uid]?.id || null,
-        // Total = group-stage points (win 3 / draw 1 / loss 0), read live so
-        // corrections and admin adjustments always show correctly, PLUS
-        // whatever's earned outside that live table:
-        //  - League: only the position bonus once it's complete (see above) —
-        //    never the raw tournament_leaderboard counter, which already
-        //    contains the same group points and would double them.
+        // Total displayed points, by format:
+        //  - League: group-stage points (win 3 / draw 1 / loss 0), read live
+        //    so corrections and admin adjustments always show correctly,
+        //    PLUS the position bonus once the table is complete. Never the
+        //    raw tournament_leaderboard counter here — it already contains
+        //    the same group points (awarded per fixture) and would double
+        //    them.
         //  - Groups+Knockout / Bracket-only: the tournament_leaderboard
-        //    counter, since that's the only record of bracket-stage wins,
-        //    eliminations and DQ penalties (not covered by groupStatsByUser).
-        points: gs
-          ? gs.groupPoints + (isLeague ? (leagueBonusByUser[uid] || 0) : (lbMap[uid]?.points || 0))
+        //    counter directly. That counter is already the single running
+        //    total across BOTH group-stage fixtures and knockout wins/DQs
+        //    (every award, group or bracket, goes through the same
+        //    awardBracketPoints call) — adding the live group points on top
+        //    of it, as this used to do, double-counted the group-stage
+        //    portion for every player once a group finished.
+        points: isLeague && gs
+          ? gs.groupPoints + (leagueBonusByUser[uid] || 0)
           : (lbMap[uid]?.points || 0),
         goalDiff: gs?.goalDiff ?? null,
         goalsFor: gs?.goalsFor ?? null,
