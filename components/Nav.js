@@ -347,19 +347,6 @@ export default function Nav() {
             </Link>
           )}
 
-          {/* ── Daily Login Reward — global, same as the notif bell.
-                The gift icon opens DailyRewardModal directly; the
-                auto-popup (mounted once below) is what surfaces an
-                unclaimed reward without forcing anything on the user —
-                tapping the popup body opens the same modal, and its own
-                Collect Now claims in place without opening it at all. ── */}
-          {user && (
-            <button className={styles.groupIconBtn} onClick={() => setRewardModalOpen(true)} title="Daily login reward">
-              <i className="ri-gift-2-line" />
-              {!dailyReward.status?.claimedToday && <span className={styles.badge} />}
-            </button>
-          )}
-
           <button className={styles.hamburger} onClick={() => setSidebarOpen(true)}>
             <i className="ri-menu-2-line" />
           </button>
@@ -500,14 +487,14 @@ export default function Nav() {
           )}
 
           <div className={styles.sidebarFifaBlock}>
-            <Link href="/fifa26" className={styles.sidebarFifaCard} onClick={() => setSidebarOpen(false)}>
+            <div className={`${styles.sidebarFifaCard} ${styles.sidebarFifaLocked}`} aria-disabled="true" role="presentation" tabIndex={-1}>
               <div className={styles.sidebarFifaHeader}>
-                <span className={styles.sidebarFifaBadge}>HOT</span>
+                <span className={styles.sidebarFifaBadge}>LOCKED</span>
                 <span className={styles.sidebarFifaTitle}>FIFA 26 HUB</span>
               </div>
               <p className={styles.sidebarFifaText}>Explore active tournaments, seasonal matches, and real-time leaderboards.</p>
-              <i className="ri-arrow-right-line" />
-            </Link>
+              <i className="ri-lock-2-line" />
+            </div>
           </div>
         </nav>
 

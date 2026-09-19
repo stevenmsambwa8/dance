@@ -739,3 +739,12 @@
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
 }
+/* FIFA 26 Hub — locked: visible but not touchable/clickable */
+.sidebarFifaLocked {
+  pointer-events: none;
+  cursor: not-allowed;
+  user-select: none;
+  opacity: 0.55;
+  filter: grayscale(0.8);
+}
+.sidebarFifaLocked .sidebarFifaBadge { background: var(--text-muted, #666); }
