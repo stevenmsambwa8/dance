@@ -268,22 +268,27 @@ export default function AuthProvider({ children }) {
   }
 
   async function signInWithGoogle() {
+    const isApp = typeof navigator !== 'undefined' &&
+      navigator.userAgent.includes('Nabogaming-App')
+
+    if (isApp) {
+      // Flutter app: hand off to its native Google Sign-In bottom sheet.
+      // It calls window.__nativeGoogleLogin(...) (see lib/supabase.js) once
+      // done, which sets the session here and reloads.
+      if (window.NabogamingNative) {
+        window.NabogamingNative.postMessage('signInWithGoogle')
+      }
+      return
+    }
+
     // Save current page so auth/confirm can return user here after Google OAuth
     const returnTo = window.location.pathname + window.location.search
     try { localStorage.setItem('auth_return_to', returnTo) } catch {}
-    // The Flutter wrapper app sets a distinctive User-Agent (see kAppName in
-    // its main.dart). When we detect it, send the OAuth redirect to a custom
-    // URL scheme the app has registered instead of a plain https URL — a
-    // Chrome Custom Tab hands that straight back to the app unconditionally,
-    // no domain verification needed. Regular web visitors are unaffected.
-    const isApp = typeof navigator !== 'undefined' &&
-      navigator.userAgent.includes('Nabogaming-App')
-    const redirectTo = isApp
-      ? 'nabogaming://auth-callback'
-      : `${window.location.origin}/auth/callback`
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo },
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
     })
     if (error) throw error
   }
