@@ -1,33 +1,26 @@
 'use client'
 import { usePathname } from 'next/navigation'
-import { useEffect, useRef, useState, createContext, useContext } from 'react'
+import { useEffect, useRef, useState, createContext } from 'react'
 import { useLoadingContext } from './LoadingContext'
 
 /**
- * PageTransition — loading overlay shown between navigations.
+ * PageTransition — no slide/animation between pages. Navigation is instant;
+ * the only visual cue is the centered loading circle, shown ONLY while the
+ * incoming page is actually loading (pages report this via usePageLoading).
  *
- * REWRITE NOTES (fixes "bottom nav disappears" bug):
- * The previous version patched window.history.pushState/replaceState to
- * show the overlay, then hid it from two independent, uncoordinated paths.
- * Pages that never call usePageLoading() relied entirely on a 50ms fallback
- * timer, which could leave the overlay stuck visible over the fixed nav.
+ * - Route changes -> overlay appears.
+ * - Page reports done (usePageLoading(false)) -> overlay fades out.
+ * - Page never reports loading (doesn't use the hook / has nothing to
+ *   fetch) -> overlay is dropped after a short grace period instead of
+ *   lingering.
+ * - Hard ceiling so it can never get stuck over the nav.
  *
- * REWRITE NOTES PART 2 (fixes "loader starts bottom-center, snaps to
- * center" bug):
- * The overlay used to render *inside* <SlideTransition>'s transformed div
- * (in layout.js: SlideTransition > PageTransition > main). Even though the
- * overlay is `position: fixed`, while SlideTransition's wrapper has an
- * active `transform` (during the ~280ms slide animation) that wrapper
- * becomes the overlay's containing block instead of the real viewport —
- * so the overlay rendered offset by however far the slide had moved, then
- * visually "snapped" to true center once the transform cleared back to
- * `none`. The fix: the overlay is now rendered by <PageLoaderOverlay>,
- * which must be placed as a SIBLING of <SlideTransition> in layout.js
- * (same level as NavWrapper) — never as its descendant — so it is always
- * fixed to the actual viewport no matter what transform is happening below
- * it. PageTransition itself keeps the pathname/loading logic and now only
- * wraps <main> for backwards compatibility — it renders no overlay itself.
+ * <PageLoaderOverlay> lives in layout.js next to NavWrapper.
  */
+
+const GRACE_MS = 200      // wait for the new page to declare it's loading
+const HARD_CAP_MS = 8000  // absolute safety ceiling
+const FADE_MS = 150
 
 const PageLoaderContext = createContext({ visible: false, opacity: 0 })
 
@@ -36,24 +29,38 @@ function usePageLoaderState() {
   const { loading: pageLoading } = useLoadingContext()
   const [visible, setVisible]    = useState(false)
   const [opacity, setOpacity]    = useState(0)
-  const prevPath = useRef(pathname)
-  const hardCap  = useRef(null)
-  const fadeOut  = useRef(null)
+  const prevPath   = useRef(pathname)
+  const loadingRef = useRef(pageLoading)
+  const hardCap    = useRef(null)
+  const fadeOut    = useRef(null)
+  const grace      = useRef(null)
+
+  function clearAll() {
+    clearTimeout(hardCap.current)
+    clearTimeout(fadeOut.current)
+    clearTimeout(grace.current)
+  }
 
   function show() {
-    clearTimeout(fadeOut.current)
-    clearTimeout(hardCap.current)
+    clearAll()
     setVisible(true)
     setOpacity(1)
-    // Absolute ceiling — overlay is force-hidden after this no matter what.
-    hardCap.current = setTimeout(hide, 2000)
+    hardCap.current = setTimeout(hide, HARD_CAP_MS)
+    // If the new page hasn't flagged itself as loading by now, there's
+    // nothing to wait for.
+    grace.current = setTimeout(() => {
+      if (!loadingRef.current) hide()
+    }, GRACE_MS)
   }
 
   function hide() {
     clearTimeout(hardCap.current)
+    clearTimeout(grace.current)
     setOpacity(0)
-    fadeOut.current = setTimeout(() => setVisible(false), 250)
+    fadeOut.current = setTimeout(() => setVisible(false), FADE_MS)
   }
+
+  useEffect(() => { loadingRef.current = pageLoading }, [pageLoading])
 
   // Show the instant the route actually changes.
   useEffect(() => {
@@ -63,25 +70,17 @@ function usePageLoaderState() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname])
 
-  // Hide once the new page reports it's done loading (or never started).
+  // Hide once the page reports it's done loading.
   useEffect(() => {
     if (!pageLoading && visible) hide()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageLoading, pathname])
+  }, [pageLoading])
 
-  useEffect(() => () => {
-    clearTimeout(hardCap.current)
-    clearTimeout(fadeOut.current)
-  }, [])
+  useEffect(() => clearAll, [])
 
   return { visible, opacity }
 }
 
-/**
- * Renders the actual fixed overlay + backdrop box + spinner.
- * MUST be placed OUTSIDE/SIBLING of <SlideTransition> in layout.js so it's
- * never a descendant of any transformed element.
- */
 export function PageLoaderOverlay() {
   const { visible, opacity } = usePageLoaderState()
 
@@ -92,7 +91,7 @@ export function PageLoaderOverlay() {
       className="page-loader-overlay"
       style={{
         opacity,
-        transition: 'opacity 0.25s ease',
+        transition: `opacity ${FADE_MS}ms ease`,
         pointerEvents: opacity > 0 ? 'all' : 'none',
       }}
     >
@@ -103,9 +102,7 @@ export function PageLoaderOverlay() {
   )
 }
 
-// Kept as a plain pass-through wrapper around <main> for backwards
-// compatibility with layout.js's existing structure — it no longer renders
-// the overlay itself (see PageLoaderOverlay above).
+// Plain pass-through, kept so layout.js structure stays the same.
 export default function PageTransition({ children }) {
   return <>{children}</>
 }

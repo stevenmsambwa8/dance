@@ -4,7 +4,6 @@ import NavWrapper from '../components/NavWrapper'
 import ThemeProvider from '../components/ThemeProvider'
 import LanguageProvider from '../components/LanguageProvider'
 import PageTransition, { PageLoaderOverlay } from '../components/PageTransition'
-import SlideTransition from '../components/SlideTransition'
 import AuthProvider from '../components/AuthProvider'
 import { ToastProvider } from '../components/ToastProvider'
 import PhoneGate from '../components/PhoneGate'
@@ -74,23 +73,15 @@ export default function RootLayout({ children }) {
                 <MusicPlayerProvider>          {/* ← NEW */}
                   <AuthGateProvider>
                     <MaintenanceGate>
-                      {/* Fixed UI — must live OUTSIDE SlideTransition so it doesn't slide */}
+                      {/* Fixed UI */}
                       <NavWrapper />
                       <PhoneGate />
-                      {/* Loader overlay also lives OUTSIDE SlideTransition — see
-                          PageTransition.js notes. Rendering it inside the slide
-                          wrapper made it inherit that wrapper's transform as its
-                          containing block, causing it to render off-center during
-                          the slide animation and only "snap" to true center once
-                          the transform cleared. */}
+                      {/* Page loading circle */}
                       <PageLoaderOverlay />
 
-                      {/* Slide wrapper — handles directional page transitions */}
-                      <SlideTransition>
-                        <PageTransition>
-                          <main>{children}</main>
-                        </PageTransition>
-                      </SlideTransition>
+                      <PageTransition>
+                        <main>{children}</main>
+                      </PageTransition>
                     </MaintenanceGate>
                   </AuthGateProvider>
                 </MusicPlayerProvider>          {/* ← NEW */}

@@ -268,22 +268,25 @@ export default function AuthProvider({ children }) {
   }
 
   async function signInWithGoogle() {
+    // Save current page so we know where to send the user back after sign-in
+    // (read by /auth/confirm for the web redirect flow, and by
+    // window.__nativeGoogleLogin for the in-app native flow).
+    const returnTo = window.location.pathname + window.location.search
+    try { localStorage.setItem('auth_return_to', returnTo) } catch {}
+
     const isApp = typeof navigator !== 'undefined' &&
       navigator.userAgent.includes('Nabogaming-App')
 
     if (isApp) {
       // Flutter app: hand off to its native Google Sign-In bottom sheet.
       // It calls window.__nativeGoogleLogin(...) (see lib/supabase.js) once
-      // done, which sets the session here and reloads.
+      // done, which sets the session here and sends the user on.
       if (window.NabogamingNative) {
         window.NabogamingNative.postMessage('signInWithGoogle')
       }
       return
     }
 
-    // Save current page so auth/confirm can return user here after Google OAuth
-    const returnTo = window.location.pathname + window.location.search
-    try { localStorage.setItem('auth_return_to', returnTo) } catch {}
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
