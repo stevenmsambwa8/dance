@@ -1,0 +1,38 @@
+.wrap { display: flex; flex-direction: column; gap: 12px; padding-top: 4px; }
+.head { display: flex; align-items: center; justify-content: space-between; }
+.title { font-size: 16px; font-weight: 800; margin: 0; }
+.refresh { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--border-dark); background: var(--surface); color: var(--text); font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.refresh:disabled { opacity: 0.5; }
+.error { display: flex; align-items: center; gap: 6px; padding: 9px 12px; border-radius: 10px; background: rgba(239,68,68,0.1); color: #ef4444; font-size: 12px; font-weight: 600; }
+.loading, .empty { text-align: center; color: var(--text-muted); font-size: 13px; padding: 28px 0; }
+
+.cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.card { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 12px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-family: inherit; text-align: left; cursor: pointer; }
+.cardOn { border-color: var(--text); }
+.cardTop { width: 100%; display: flex; align-items: center; justify-content: space-between; font-size: 18px; color: var(--text-muted); }
+.cardTop em { font-style: normal; font-size: 11px; font-weight: 800; }
+.cardVal { font-size: 24px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.cardLabel { font-size: 11px; font-weight: 700; color: var(--text-muted); }
+
+.bar { display: flex; height: 8px; border-radius: 99px; overflow: hidden; background: var(--bg-2); }
+.bar span { height: 100%; }
+
+.search { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--border-dark); border-radius: 10px; background: var(--surface); color: var(--text); font-family: inherit; font-size: 13px; outline: none; }
+
+.list { display: flex; flex-direction: column; }
+.row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.row:last-child { border-bottom: none; }
+.avatar { width: 40px; height: 40px; border-radius: 50%; overflow: hidden; flex-shrink: 0; background: var(--bg-2); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--text-muted); }
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.who { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.name { font-size: 13px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.email { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pills { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 3px; }
+.pill { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 99px; background: var(--bg-2); color: var(--text-dim); }
+.pillGoogle { background: rgba(234,67,53,0.12); color: #ea4335; }
+.pillEmail { background: rgba(59,130,246,0.12); color: #3b82f6; }
+.when { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; font-size: 12px; font-weight: 700; }
+.when small { font-size: 10px; color: var(--text-muted); font-weight: 600; }
+.more { align-self: center; min-height: 38px; padding: 0 20px; border-radius: 999px; border: 1px solid var(--border-dark); background: var(--surface); color: var(--text); font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+
+@media (min-width: 720px) { .cards { grid-template-columns: repeat(4, minmax(0, 1fr)); } }

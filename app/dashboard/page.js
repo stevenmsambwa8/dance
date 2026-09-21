@@ -10,6 +10,7 @@ import styles from './page.module.css'
 import usePageLoading from '../../components/usePageLoading'
 import AdminSubscriptions from '../../components/AdminSubscriptions'
 import AdminGames from '../../components/AdminGames'
+import AdminLogins from '../../components/AdminLogins'
 
 function makeMatchCode(id) {
   if (!id) return '0000'
@@ -29,6 +30,7 @@ const NAV_GROUPS = [
   {
     tabs: [
       { id: 'Users',         icon: 'ri-group-line',               label: 'Users' },
+      { id: 'Logins',        icon: 'ri-login-circle-line',        label: 'Logins' },
       { id: 'Masters',       icon: 'ri-crown-line',               label: 'Masters' },
       { id: 'Notifications', icon: 'ri-notification-3-line',      label: 'Notify' },
     ]
@@ -133,7 +135,7 @@ export default function Dashboard() {
   function searchParamsInitialTab() {
     if (typeof window === 'undefined') return 'Overview'
     const t = new URLSearchParams(window.location.search).get('tab')
-    const validTabs = ['Overview','Todos','Subscriptions','Users','Masters','Notifications','Tournaments','Battles','Posts','Shop','Games']
+    const validTabs = ['Overview','Todos','Subscriptions','Users','Masters','Notifications','Tournaments','Battles','Posts','Shop','Games','Logins']
     return validTabs.includes(t) ? t : 'Overview'
   }
   const [stats, setStats] = useState({})
@@ -1493,6 +1495,9 @@ export default function Dashboard() {
 
           {/* ════ GAMES ════ */}
           {tab === 'Games' && <AdminGames />}
+
+          {/* ════ LOGINS ════ */}
+          {tab === 'Logins' && <AdminLogins />}
 
         </>)}
       </div>
