@@ -43,6 +43,7 @@ export default function AdminLogins() {
   const [filter, setFilter]   = useState('all')
   const [search, setSearch]   = useState('')
   const [limit, setLimit]     = useState(PAGE)
+  const [profileCount, setProfileCount] = useState(0)
 
   useEffect(() => { load() }, [])
 
@@ -68,8 +69,10 @@ export default function AdminLogins() {
         from += 1000
       }
 
+      setProfileCount(Object.keys(profiles).length)
       const list = (json.users || []).map(u => ({
         ...u,
+        hasProfile: !!profiles[u.id],
         method: methodOf(u.providers),
         username: profiles[u.id]?.username || null,
         avatar_url: profiles[u.id]?.avatar_url || null,
@@ -91,11 +94,27 @@ export default function AdminLogins() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     return rows.filter(r => {
-      if (filter !== 'all' && r.method !== filter) return false
+      if (filter === 'noprofile') { if (r.hasProfile) return false }
+      else if (filter !== 'all' && r.method !== filter) return false
       if (!q) return true
       return (r.username || '').toLowerCase().includes(q) || (r.email || '').toLowerCase().includes(q)
     })
   }, [rows, filter, search])
+
+  // Why "login accounts" and "player profiles" can differ
+  const diag = useMemo(() => {
+    const missing = rows.filter(r => !r.hasProfile)
+    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+    return {
+      missing: missing.length,
+      google:  missing.filter(r => r.providers.includes('google')).length,
+      email:   missing.filter(r => r.providers.includes('email')).length,
+      unconfirmed: missing.filter(r => !r.confirmed).length,
+      neverLoggedIn: missing.filter(r => !r.last_sign_in_at).length,
+      recent:  missing.filter(r => r.created_at && new Date(r.created_at).getTime() > weekAgo).length,
+      profileOnly: Math.max(0, profileCount - rows.filter(r => r.hasProfile).length),
+    }
+  }, [rows, profileCount])
 
   const pct = n => counts.all ? Math.round((n / counts.all) * 100) : 0
   const shown = filtered.slice(0, limit)
@@ -143,6 +162,25 @@ export default function AdminLogins() {
             </div>
           )}
 
+          <div className={styles.diag}>
+            <div className={styles.diagTitle}>Why the totals can differ from “Players”</div>
+            <div className={styles.diagRow}><span>Login accounts</span><b>{counts.all}</b></div>
+            <div className={styles.diagRow}><span>Player profiles</span><b>{profileCount}</b></div>
+            <div className={styles.diagRow}><span>Accounts with no profile</span><b className={diag.missing ? styles.warn : ''}>{diag.missing}</b></div>
+            {diag.missing > 0 && (
+              <div className={styles.diagSub}>
+                Google {diag.google} · Email {diag.email} · never logged in {diag.neverLoggedIn} · unconfirmed {diag.unconfirmed} · created in last 7 days {diag.recent}
+              </div>
+            )}
+            <div className={styles.diagRow}><span>Profiles with no login account</span><b className={diag.profileOnly ? styles.warn : ''}>{diag.profileOnly}</b></div>
+            {diag.missing > 0 && (
+              <button type="button" className={styles.diagBtn}
+                onClick={() => { setFilter(filter === 'noprofile' ? 'all' : 'noprofile'); setLimit(PAGE) }}>
+                {filter === 'noprofile' ? 'Show everyone' : `Show the ${diag.missing} without a profile`}
+              </button>
+            )}
+          </div>
+
           <input className={styles.search} placeholder="Search username or email…" value={search}
             onChange={e => { setSearch(e.target.value); setLimit(PAGE) }} />
 
@@ -157,6 +195,8 @@ export default function AdminLogins() {
                   <div className={styles.email}>{r.email || '—'}</div>
                   <div className={styles.pills}>
                     {r.providers.length ? r.providers.map(p => <ProviderPill key={p} p={p} />) : <span className={styles.pill}>Unknown</span>}
+                    {!r.hasProfile && <span className={`${styles.pill} ${styles.pillWarn}`}>No profile</span>}
+                    {!r.confirmed && <span className={styles.pill}>Unconfirmed</span>}
                   </div>
                 </div>
                 <div className={styles.when}>

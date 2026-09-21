@@ -145,36 +145,46 @@ export default function AuthProvider({ children }) {
       const rawName = authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || ''
       const fromName = rawName.trim().split(' ')[0].replace(/[^a-zA-Z0-9_]/g, '').slice(0, 10).toLowerCase()
       const fromEmail = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '').slice(0, 10).toLowerCase()
-      const base = fromName || fromEmail || 'player'
+      // Username/flag chosen on the sign-up form travel in user_metadata (see signUp),
+      // so a profile created on first login keeps them.
+      const metaName = (authUser?.user_metadata?.username || '').toString().trim()
+      const base = metaName || fromName || fromEmail || 'player'
       const { data: existing } = await supabase.from('profiles').select('id').eq('username', base).maybeSingle()
       const username = existing
         ? `${base.slice(0, 9)}_${Math.floor(Math.random() * 900) + 100}`
         : base
       const avatar_url = authUser?.user_metadata?.avatar_url ?? null
 
-      const { data: newProfile, error: insertError } = await supabase
-        .from('profiles')
-        .insert({
-          id: userId,
-          username,
-          email,
-          avatar_url,
-          tier: 'Gold',
-          rank: 99,
-          wins: 0,
-          losses: 0,
-          points: 0,
-          bio: '',
-          play_style: 'Aggressive',
-          current_season: currentSeason,
-          season_wins: 0,
-          season_losses: 0,
-          country_flag: 'tanzania',
-          is_season_winner: false,
-          level: 1,
-        })
-        .select()
-        .maybeSingle()
+      const newRow = {
+        id: userId,
+        username,
+        email,
+        avatar_url,
+        tier: 'Gold',
+        rank: 99,
+        wins: 0,
+        losses: 0,
+        points: 0,
+        bio: '',
+        play_style: 'Aggressive',
+        current_season: currentSeason,
+        season_wins: 0,
+        season_losses: 0,
+        country_flag: authUser?.user_metadata?.country_flag || 'tanzania',
+        is_season_winner: false,
+        level: 1,
+      }
+      let { data: newProfile, error: insertError } = await supabase
+        .from('profiles').insert(newRow).select().maybeSingle()
+
+      // Username already taken (race with another sign-up) → retry once with a suffix
+      // instead of silently leaving this account without a profile.
+      if (insertError?.code === '23505') {
+        const retryRow = { ...newRow, username: `${base.slice(0, 9)}_${Math.floor(Math.random() * 9000) + 1000}` }
+        const retryIns = await supabase.from('profiles').insert(retryRow).select().maybeSingle()
+        newProfile = retryIns.data; insertError = retryIns.error
+      }
+      if (insertError) console.warn('[auth] profile create failed:', insertError.code, insertError.message)
 
       if (!insertError && newProfile) {
         data = newProfile
@@ -234,11 +244,18 @@ export default function AuthProvider({ children }) {
   }
 
   async function signUp(email, password, username, countryFlag = null) {
-    const { data, error } = await supabase.auth.signUp({ email, password })
+    // username + flag ride along in user_metadata so the profile that gets created
+    // (here, or on first login if there's no session yet) keeps what was typed.
+    const { data, error } = await supabase.auth.signUp({
+      email, password,
+      options: { data: { username, country_flag: countryFlag || 'tanzania' } },
+    })
     if (error) throw error
-    if (data.user) {
+    // No session yet (e.g. email confirmation on) → an insert now is blocked by RLS and
+    // used to fail silently. fetchProfile creates the profile on first login instead.
+    if (data.user && data.session) {
       const currentSeason = getCurrentSeason()
-      await supabase.from('profiles').insert({
+      const { error: profErr } = await supabase.from('profiles').insert({
         id: data.user.id,
         username,
         email,
@@ -256,6 +273,8 @@ export default function AuthProvider({ children }) {
         is_season_winner: false,
         level: 1,
       })
+      // 23505 = a profile already exists (created by fetchProfile in parallel) — fine.
+      if (profErr && profErr.code !== '23505') console.warn('[auth] signUp profile insert failed:', profErr.code, profErr.message)
       linkReferralOnSignup(supabase, data.user.id)
     }
     return data

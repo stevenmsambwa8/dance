@@ -50,6 +50,7 @@ export async function GET(request) {
         id: u.id,
         email: u.email || null,
         providers,
+        confirmed: !!(u.email_confirmed_at || u.confirmed_at || u.phone_confirmed_at),
         last_sign_in_at: u.last_sign_in_at || null,
         created_at: u.created_at || null,
       })

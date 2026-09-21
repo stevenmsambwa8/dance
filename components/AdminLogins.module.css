@@ -36,3 +36,12 @@
 .more { align-self: center; min-height: 38px; padding: 0 20px; border-radius: 999px; border: 1px solid var(--border-dark); background: var(--surface); color: var(--text); font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
 
 @media (min-width: 720px) { .cards { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+.pillWarn { background: rgba(245,158,11,0.16); color: #d97706; }
+.diag { border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; background: var(--surface); }
+.diagTitle { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 2px; }
+.diagRow { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--text-dim); }
+.diagRow b { color: var(--text); font-size: 14px; font-variant-numeric: tabular-nums; }
+.diagRow b.warn { color: #d97706; }
+.diagSub { font-size: 11px; color: var(--text-muted); line-height: 1.6; margin: -2px 0 2px; }
+.diagBtn { align-self: flex-start; margin-top: 4px; min-height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--border-dark); background: var(--bg); color: var(--text); font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
