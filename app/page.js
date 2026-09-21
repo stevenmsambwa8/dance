@@ -442,6 +442,7 @@ export default function Home() {
 
   const [tournaments,  setTournaments]  = useState([])
   const [events,       setEvents]       = useState([])
+  const [pastEvents,   setPastEvents]   = useState([])
   const [loadingEvents, setLoadingEvents] = useState(true)
   const [topPlayers,   setTopPlayers]   = useState([])
   const [selectedGame,      setSelectedGame]      = useState('all')
@@ -535,14 +536,51 @@ export default function Home() {
     supabase
       .from('events')
       .select('id,title,slug,category,banner_url,location,start_at,end_at,status,rsvp_count,is_test,created_by')
-      .order('start_at', { ascending: true })
-      .limit(10)
+      .order('start_at', { ascending: false })
+      .limit(30)
       .then(({ data }) => {
-        const upcoming = (data || []).filter(ev => deriveEventStatus(ev) !== 'ended')
-        setEvents(filterTest(upcoming))
+        const all = filterTest(data || [])
+        const isActive = ev => { const st = deriveEventStatus(ev); return st === 'upcoming' || st === 'live' }
+        // Active: soonest first (live events naturally come first). Past: most recent first.
+        const active = all.filter(isActive).sort((a, b) => new Date(a.start_at) - new Date(b.start_at))
+        const past   = all.filter(ev => !isActive(ev))
+        setEvents(active)
+        setPastEvents(past.slice(0, 8))
         setLoadingEvents(false)
       })
   }, [])
+
+  // Event card — used for both active events and (greyed-out, still clickable) past events
+  function renderEventCard(ev, isPast) {
+    const catMeta = EVENT_CATEGORY_META[ev.category] || EVENT_CATEGORY_META.other
+    const evStatus = deriveEventStatus(ev)
+    const badgeText = isPast
+      ? (evStatus === 'cancelled' ? t('home.eventCancelled') : t('home.eventEnded'))
+      : (evStatus === 'live' ? t('home.liveNow') : formatEventDate(ev.start_at))
+    return (
+      <Link key={ev.id} href={`/events/${ev.slug || ev.id}`} className={`${styles.eCard} ${isPast ? styles.eCardPast : ''}`}>
+        <div className={styles.eCardImg}>
+          {ev.banner_url
+            ? <img src={ev.banner_url} alt={ev.title} className={styles.eCardImgEl} loading="lazy" decoding="async" />
+            : <div className={styles.eCardImgFallback} style={{ background: `${catMeta.color}22` }}><i className={catMeta.icon} style={{ color: catMeta.color }} /></div>
+          }
+          <div className={styles.eCardImgBadges}>
+            <span className={styles.eStatusBadge} style={{ background: !isPast && evStatus === 'live' ? '#22c55e' : 'rgba(0,0,0,0.55)' }}>
+              {!isPast && <i className="ri-circle-fill" style={{ fontSize: 6 }} />} {badgeText}
+            </span>
+          </div>
+        </div>
+        <div className={styles.eCardBody}>
+          <div className={styles.eCatChip} style={{ color: catMeta.color, background: `${catMeta.color}18` }}><i className={catMeta.icon} /> {catMeta.label}</div>
+          <div className={styles.eCardName}>{ev.title}</div>
+          <div className={styles.eStatRow}>
+            {ev.location && <span><i className="ri-map-pin-line" /> {ev.location}</span>}
+            <span><i className="ri-group-line" /> {ev.rsvp_count || 0}</span>
+          </div>
+        </div>
+      </Link>
+    )
+  }
 
   useEffect(() => {
     if (selectedGame === 'all') return
@@ -714,7 +752,7 @@ export default function Home() {
             <div className={styles.heroBody}>
               <div className={styles.heroName}>
                 {profile.username}
-                <UserBadges email={profile.email} plan={profile.plan} planExpiresAt={profile.plan_expires_at} countryFlag={profile.country_flag} isSeasonWinner={profile.is_season_winner} customBadges={profile.custom_badges} tempAdminUntil={profile.temp_admin_until} size={16} />
+                <UserBadges email={profile.email} plan={profile.plan} planExpiresAt={profile.plan_expires_at} countryFlag={profile.country_flag} isSeasonWinner={profile.is_season_winner} customBadges={profile.custom_badges} tempAdminUntil={profile.temp_admin_until} size={20} />
               </div>
               <div className={styles.heroBadgeRow}>
                 <span className={styles.heroBadge} style={{ color: tierMeta.color, borderColor: tierMeta.color + '55', background: tierMeta.color + '18' }}>
@@ -815,42 +853,31 @@ export default function Home() {
       <Section title={t('events.events') || 'Events'} href="/events" linkLabel={t('common.all')}>
         {loadingEvents ? (
           <div className={styles.eGrid}><SkeletonEventCard /><SkeletonEventCard /></div>
-        ) : events.length === 0 ? (
-          <div className={styles.empty}>
-            <i className="ri-calendar-event-line" />
-            <p>{t('home.noUpcomingEvents') || 'No upcoming events'}</p>
-            <Link href="/events" className={styles.emptyBtn}>{t('home.browseAll')}</Link>
-          </div>
         ) : (
-          <div className={styles.eGrid} ref={eGridRef}>
-            {events.map(ev => {
-              const catMeta = EVENT_CATEGORY_META[ev.category] || EVENT_CATEGORY_META.other
-              const evStatus = deriveEventStatus(ev)
-              return (
-                <Link key={ev.id} href={`/events/${ev.slug || ev.id}`} className={styles.eCard}>
-                  <div className={styles.eCardImg}>
-                    {ev.banner_url
-                      ? <img src={ev.banner_url} alt={ev.title} className={styles.eCardImgEl} loading="lazy" decoding="async" />
-                      : <div className={styles.eCardImgFallback} style={{ background: `${catMeta.color}22` }}><i className={catMeta.icon} style={{ color: catMeta.color }} /></div>
-                    }
-                    <div className={styles.eCardImgBadges}>
-                      <span className={styles.eStatusBadge} style={{ background: evStatus === 'live' ? '#22c55e' : 'rgba(0,0,0,0.55)' }}>
-                        <i className="ri-circle-fill" style={{ fontSize: 6 }} /> {evStatus === 'live' ? (t('home.liveNow') || 'Live') : formatEventDate(ev.start_at)}
-                      </span>
-                    </div>
-                  </div>
-                  <div className={styles.eCardBody}>
-                    <div className={styles.eCatChip} style={{ color: catMeta.color, background: `${catMeta.color}18` }}><i className={catMeta.icon} /> {catMeta.label}</div>
-                    <div className={styles.eCardName}>{ev.title}</div>
-                    <div className={styles.eStatRow}>
-                      {ev.location && <span><i className="ri-map-pin-line" /> {ev.location}</span>}
-                      <span><i className="ri-group-line" /> {ev.rsvp_count || 0}</span>
-                    </div>
-                  </div>
-                </Link>
-              )
-            })}
-          </div>
+          <>
+            {events.length === 0 ? (
+              <div className={styles.eEmpty}>
+                <i className="ri-calendar-event-line" />
+                <div>
+                  <p className={styles.eEmptyTitle}>{t('home.noActiveEvents')}</p>
+                  <p className={styles.eEmptySub}>{t('home.noActiveEventsSub')}</p>
+                </div>
+              </div>
+            ) : (
+              <div className={styles.eGrid} ref={eGridRef}>
+                {events.map(ev => renderEventCard(ev, false))}
+              </div>
+            )}
+
+            {pastEvents.length > 0 && (
+              <>
+                <div className={styles.ePastLabel}>{t('home.pastEvents')}</div>
+                <div className={styles.eGrid}>
+                  {pastEvents.map(ev => renderEventCard(ev, true))}
+                </div>
+              </>
+            )}
+          </>
         )}
       </Section>
 

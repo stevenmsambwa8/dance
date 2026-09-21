@@ -70,7 +70,7 @@
 .heroBody { display: flex; flex-direction: column; gap: 8px; }
 
 .heroName {
-  font-size: 22px;
+  font-size: 30px;
   font-weight: 800;
   letter-spacing: -0.01em;
   display: flex;
@@ -638,6 +638,26 @@
 .eStatRow { display: flex; gap: 9px; font-size: 10.5px; font-weight: 600; color: var(--text-muted); flex-wrap: wrap; }
 .eStatRow span { display: flex; align-items: center; gap: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .eStatRow i { font-size: 12.5px; flex-shrink: 0; }
+
+/* No-active-events holder + greyed-out past events */
+.eEmpty {
+  display: flex; align-items: center; gap: 14px;
+  padding: 18px 16px; margin-bottom: 14px;
+  border: 1.5px dashed var(--border-dark); border-radius: 16px;
+  color: var(--text-muted);
+}
+.eEmpty > i { font-size: 30px; opacity: 0.45; flex-shrink: 0; }
+.eEmptyTitle { margin: 0; font-size: 14px; font-weight: 800; color: var(--text); }
+.eEmptySub { margin: 2px 0 0; font-size: 12px; }
+.ePastLabel {
+  font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text-muted); margin: 4px 0 10px;
+}
+.eCardPast { opacity: 0.6; }
+.eCardPast .eCardImgEl,
+.eCardPast .eCardImgFallback { filter: grayscale(1); }
+.eCardPast .eCatChip { color: var(--text-muted) !important; background: var(--bg-2) !important; }
+.eCardPast .eCardName { color: var(--text-dim); }
 
 /* ══════════ TOURNAMENT QUICK VIEW SIDEBAR ══════════ */
 .tSidebarOverlay {
@@ -1475,7 +1495,7 @@
 
 /* ══════════ RESPONSIVE ══════════ */
 @media (max-width: 420px) {
-  .heroName     { font-size: 19px; }
+  .heroName     { font-size: 26px; }
   .heroStatVal  { font-size: 14px; }
   .heroStats    { gap: 5px; }
   .heroStat     { padding: 6px 2px; }
@@ -1494,7 +1514,7 @@
   .clanGrid     { grid-template-columns: repeat(3, 1fr); }
   .tCard        { width: 280px; }
   .eCard        { width: 250px; }
-  .heroName     { font-size: 26px; }
+  .heroName     { font-size: 36px; }
 }
 
 @media (min-width: 1024px) {

@@ -127,7 +127,6 @@
 .cardBody {
   padding: 10px 12px 12px;
   display: flex; flex-direction: column; gap: 3px;
-  border-top: 2px solid var(--gc);
 }
 .cardGenre {
   font-size: 9px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
