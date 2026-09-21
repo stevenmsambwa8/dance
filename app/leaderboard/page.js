@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase'
 import Modal from '../../components/Modal'
 import styles from './page.module.css'
 import { GAME_META, GAME_SLUGS, RANK_META } from '../../lib/constants'
+import { useGames } from '../../components/GameSettingsProvider'
 import UserBadges from '../../components/UserBadges'
 import useTranslation from '../../lib/useTranslation'
 import usePageLoading from '../../components/usePageLoading'
@@ -33,6 +34,7 @@ export default function LeaderboardPage() {
   const { openAuthGate } = useAuthGate()
   const router = useRouter()
   const { t } = useTranslation()
+  const { visibleSlugs } = useGames()
 
   const [selectedGame, setSelectedGame] = useState('all')
   const [list, setList] = useState([])
@@ -142,7 +144,7 @@ export default function LeaderboardPage() {
           <span className={styles.gameTabImgWrap}><i className="ri-global-line" /></span>
           <span className={styles.gameTabLabel}>{t('common.all') || 'All'}</span>
         </button>
-        {GAME_SLUGS.map(slug => {
+        {visibleSlugs.map(slug => {
           const g = GAME_META[slug]
           return (
             <button

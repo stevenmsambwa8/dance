@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase'
 import usePageLoading from '../../components/usePageLoading'
 import { useCurrency } from '../../lib/useCurrency'
 import { RANK_META, GAME_SLUGS, GAME_META } from '../../lib/constants'
+import { useGames } from '../../components/GameSettingsProvider'
 import { isLocked, daysRemaining } from '../../lib/profileLock'
 import styles from './page.module.css'
 
@@ -46,6 +47,7 @@ export default function SettingsPage() {
   const router = useRouter()
   const { user, profile, updateProfile, uploadAvatar, signOut, isAdmin } = useAuth()
   const { openAuthGate } = useAuthGate()
+  const { visibleSlugs } = useGames()
   const { fmtAmt, currency } = useCurrency(profile?.country_flag ?? null)
 
   const [loading,      setLoading]      = useState(!profile)
@@ -318,7 +320,7 @@ export default function SettingsPage() {
         <div className={styles.field}>
           <label>Game Tags</label>
           <div className={styles.chipRow}>
-            {GAME_SLUGS.map(s => {
+            {visibleSlugs.map(s => {
               const name = GAME_META[s].name
               return (
                 <button key={s} type="button"

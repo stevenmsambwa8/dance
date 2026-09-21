@@ -9,6 +9,7 @@ import { getCurrentSeason, computeLevelAfterWin } from '../../lib/seasons'
 import styles from './page.module.css'
 import usePageLoading from '../../components/usePageLoading'
 import AdminSubscriptions from '../../components/AdminSubscriptions'
+import AdminGames from '../../components/AdminGames'
 
 function makeMatchCode(id) {
   if (!id) return '0000'
@@ -38,6 +39,7 @@ const NAV_GROUPS = [
       { id: 'Battles',       icon: 'ri-sword-line',               label: 'Battles' },
       { id: 'Posts',         icon: 'ri-article-line',             label: 'Posts' },
       { id: 'Shop',          icon: 'ri-store-2-line',             label: 'Shop' },
+      { id: 'Games',         icon: 'ri-gamepad-line',             label: 'Games' },
     ]
   }
 ]
@@ -131,7 +133,7 @@ export default function Dashboard() {
   function searchParamsInitialTab() {
     if (typeof window === 'undefined') return 'Overview'
     const t = new URLSearchParams(window.location.search).get('tab')
-    const validTabs = ['Overview','Todos','Subscriptions','Users','Masters','Notifications','Tournaments','Battles','Posts','Shop']
+    const validTabs = ['Overview','Todos','Subscriptions','Users','Masters','Notifications','Tournaments','Battles','Posts','Shop','Games']
     return validTabs.includes(t) ? t : 'Overview'
   }
   const [stats, setStats] = useState({})
@@ -1488,6 +1490,9 @@ export default function Dashboard() {
               <AdminSubscriptions onCountChange={setPendingSubsCount} />
             </div>
           )}
+
+          {/* ════ GAMES ════ */}
+          {tab === 'Games' && <AdminGames />}
 
         </>)}
       </div>

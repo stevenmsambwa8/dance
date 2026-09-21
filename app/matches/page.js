@@ -9,9 +9,11 @@ import { getCurrentSeason } from '../../lib/seasons'
 import UserBadges from '../../components/UserBadges'
 import usePageLoading from '../../components/usePageLoading'
 import { GAME_SLUGS, GAME_META } from '../../lib/constants'
+import { useGames } from '../../components/GameSettingsProvider'
 
 export default function Matches() {
   const { user } = useAuth()
+  const { visibleSlugs } = useGames()
   const { openAuthGate } = useAuthGate()
   const router = useRouter()
 
@@ -218,7 +220,7 @@ export default function Matches() {
         <>
           <div className={styles.filters}>
             <button className={`${styles.pill} ${gameFilter === 'all' ? styles.pillActive : ''}`} onClick={() => setGameFilter('all')}>All Games</button>
-            {GAME_SLUGS.map(g => (
+            {visibleSlugs.map(g => (
               <button key={g} className={`${styles.pill} ${gameFilter === g ? styles.pillActive : ''}`} onClick={() => setGameFilter(g)}>
                 {GAME_META[g]?.name || g}
               </button>

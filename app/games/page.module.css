@@ -146,6 +146,16 @@
 .cardMeta i { font-size: 12px; }
 .cardSubBtn { margin-top: 8px; }
 
+/* Temporarily disabled game */
+.cardOff { opacity: 0.7; }
+.cardOff .cardImg { filter: grayscale(1); }
+.cardOffNote {
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  margin-top: 8px; min-height: 32px; padding: 0 10px; border-radius: 999px;
+  background: var(--bg-2); color: var(--text-muted);
+  font-size: 11px; font-weight: 700; text-align: center; line-height: 1.2;
+}
+
 @media (min-width: 700px) {
   .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 }

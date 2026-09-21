@@ -9,11 +9,11 @@ import { supabase } from '../../lib/supabase'
 import UserBadges from '../../components/UserBadges'
 import usePageLoading from '../../components/usePageLoading'
 import { GAME_META, GAME_SLUGS, RANK_META } from '../../lib/constants'
+import { useGames } from '../../components/GameSettingsProvider'
 import { getCurrentSeason } from '../../lib/seasons'
 import { useCurrency } from '../../lib/useCurrency'
 import styles from './page.module.css'
 
-const ALL_GAMES   = GAME_SLUGS.map(s => GAME_META[s].name)
 const PLAY_STYLES = ['Aggressive', 'Defensive', 'Support', 'Sniper', 'All-Round']
 const FLAG_OPTIONS = [
   { value: 'kenya',        label: 'Kenya' },
@@ -25,6 +25,8 @@ const FLAG_OPTIONS = [
 
 export default function AccountPage() {
   const { user, profile, updateProfile, uploadAvatar, isAdmin } = useAuth()
+  const { visibleSlugs } = useGames()
+  const ALL_GAMES = visibleSlugs.map(s => GAME_META[s].name)
   const { openAuthGate } = useAuthGate()
 
   // ── Currency hook (unconditional) ──

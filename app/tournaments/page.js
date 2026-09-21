@@ -9,6 +9,7 @@ import styles from './page.module.css'
 import usePageLoading from '../../components/usePageLoading'
 import { useCurrency } from '../../lib/useCurrency'
 import { GAME_SLUGS, GAME_META } from '../../lib/constants'
+import { useGames } from '../../components/GameSettingsProvider'
 import { getCurrentSeason } from '../../lib/seasons'
 import { getActivePlan } from '../../lib/plans'
 import useTranslation from '../../lib/useTranslation'
@@ -206,7 +207,10 @@ export default function Tournaments() {
   const { fmtAmt } = useCurrency(profile?.country_flag ?? null)
   const { t } = useTranslation()
 
-  const [tournaments, setTournaments] = useState([])
+  const { visibleSlugs, isGameVisible } = useGames()
+  const [rawTournaments, setTournaments] = useState([])
+  // Tournaments of hidden / deleted games never show up in the list
+  const tournaments = useMemo(() => rawTournaments.filter(tour => isGameVisible(tour.game_slug)), [rawTournaments, isGameVisible])
   const [loading,     setLoading]     = useState(true)
   usePageLoading(loading)
 
@@ -358,7 +362,7 @@ export default function Tournaments() {
       )}
 
       <div className={styles.filters}>
-        {['all', ...GAME_SLUGS].map(f => (
+        {['all', ...visibleSlugs].map(f => (
           <button key={f}
             className={`${styles.filterBtn} ${filter === f ? styles.filterActive : ''}`}
             onClick={() => setFilter(f)}

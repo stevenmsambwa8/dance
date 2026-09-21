@@ -5,6 +5,7 @@ import { useAuth } from '../../../components/AuthProvider'
 import { useAuthGate } from '../../../components/AuthGateModal'
 import { supabase } from '../../../lib/supabase'
 import { GAME_SLUGS, GAME_META } from '../../../lib/constants'
+import { useGames } from '../../../components/GameSettingsProvider'
 import { getActivePlan } from '../../../lib/plans'
 import BracketBuilder, { buildEmptyBracket } from '../../../components/BracketBuilder'
 import { buildEmptyBRBracket, PLACEMENT_TABLE_PRESETS, DEFAULT_KILL_POINT_VALUE } from '../../../lib/brPoints'
@@ -84,6 +85,8 @@ export default function CreateTournament() {
   const { user, profile, isAdmin } = useAuth()
   const { openAuthGate } = useAuthGate()
   const router = useRouter()
+  // Only games that are live can get new tournaments (hidden / disabled / deleted are excluded)
+  const { enabledSlugs } = useGames()
 
   if (!user) {
     return (
@@ -111,7 +114,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
   const [direction, setDirection] = useState('forward')
 
   const [form, setForm] = useState({
-    name: '', game_slug: (prefillGameSlug && GAME_SLUGS.includes(prefillGameSlug)) ? prefillGameSlug : (GAME_SLUGS[0] || 'pubg'),
+    name: '', game_slug: (prefillGameSlug && enabledSlugs.includes(prefillGameSlug)) ? prefillGameSlug : (enabledSlugs[0] || GAME_SLUGS[0] || 'pubg'),
     format: '', prize: '', slots: 16,
     date: '', description: '',
     entrance_fee: '',
@@ -259,6 +262,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
 
   async function submit() {
     if (!user || submitting) return
+    if (!enabledSlugs.includes(form.game_slug)) { setErrors({ _submit: 'This game is currently unavailable. Pick another game.' }); return }
     if (!isPaidPlan && myCreated !== null) {
       const thisFee = parseFee(form.entrance_fee)
       const isPaidT = !!thisFee
@@ -456,7 +460,7 @@ function CreateForm({ user, profile, isAdmin, router }) {
               </div>
               <div className={styles.sectionBody}>
                 <div className={styles.gameTileGrid}>
-                  {GAME_SLUGS.map(s => {
+                  {enabledSlugs.map(s => {
                     const active = form.game_slug === s
                     return (
                       <button key={s} type="button" className={`${styles.gameTile} ${active ? styles.gameTileActive : ''}`} onClick={() => set('game_slug', s)}>

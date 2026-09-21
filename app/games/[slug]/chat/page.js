@@ -1,11 +1,13 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, notFound } from 'next/navigation'
+import GameDisabledNotice from '../GameDisabledNotice'
 import Link from 'next/link'
 import { useAuth } from '../../../../components/AuthProvider'
 import { useAuthGate } from '../../../../components/AuthGateModal'
 import { supabase } from '../../../../lib/supabase'
 import { GAME_META } from '../../../../lib/constants'
+import { useGames } from '../../../../components/GameSettingsProvider'
 import UserBadges from '../../../../components/UserBadges'
 import usePageLoading from '../../../../components/usePageLoading'
 import styles from './page.module.css'
@@ -211,6 +213,8 @@ export default function GameChat() {
   const router = useRouter()
   const { user } = useAuth()
   const { openAuthGate } = useAuthGate()
+  const { loaded: gamesLoaded, getGameStatus } = useGames()
+  const gameState = getGameStatus(slug).state
   const game = GAME_META[slug]
 
   const [messages, setMessages]               = useState([])
@@ -556,6 +560,9 @@ export default function GameChat() {
   }
 
   if (!game) return null
+  if (!gamesLoaded) return null
+  if (gameState === 'hidden' || gameState === 'deleted') notFound()
+  if (gameState === 'disabled') return <GameDisabledNotice game={game} status={getGameStatus(slug)} />
   if (!user) return (
     <div className={styles.page}>
       <div className={styles.centered}>

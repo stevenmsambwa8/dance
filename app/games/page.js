@@ -9,11 +9,17 @@ import styles from './page.module.css'
 import { getCurrentSeason } from '../../lib/seasons'
 import usePageLoading from '../../components/usePageLoading'
 import SubscribeButton from '../../components/SubscribeButton'
+import { useGames } from '../../components/GameSettingsProvider'
 import useTranslation from '../../lib/useTranslation'
 
 export { GAME_SLUGS, GAME_META }
 
-function GameSection({ title, icon, slugs, gameStats, subscribed, subLoading, loading, toggleSubscribe, t }) {
+function fmtBack(iso) {
+  if (!iso) return ''
+  return new Date(iso).toLocaleString([], { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
+}
+
+function GameSection({ title, icon, slugs, gameStats, subscribed, subLoading, loading, toggleSubscribe, getGameStatus, t }) {
   return (
     <section className={styles.section}>
       <div className={styles.sectionHead}>
@@ -25,8 +31,10 @@ function GameSection({ title, icon, slugs, gameStats, subscribed, subLoading, lo
           const meta = GAME_META[slug]
           const stats = gameStats[slug] || {}
           const isSub = subscribed[slug]
+          const st    = getGameStatus(slug)
+          const off   = st.state === 'disabled'
           return (
-            <Link href={`/games/${slug}`} key={slug} className={styles.card} style={{ '--gc': meta.color || 'var(--accent)' }}>
+            <Link href={`/games/${slug}`} key={slug} className={`${styles.card} ${off ? styles.cardOff : ''}`} style={{ '--gc': meta.color || 'var(--accent)' }}>
               <div className={styles.cardArt}>
                 {meta.image
                   ? <img src={meta.image} alt={meta.name} className={styles.cardImg} />
@@ -39,15 +47,19 @@ function GameSection({ title, icon, slugs, gameStats, subscribed, subLoading, lo
                   <span><i className="ri-user-line" />{loading ? '…' : (stats.subscribers || 0).toLocaleString()}</span>
                   <span><i className="ri-trophy-line" />{loading ? '…' : (stats.tournaments || 0)}</span>
                 </div>
-                <SubscribeButton
-                  size="sm" block
-                  className={styles.cardSubBtn}
-                  subscribed={isSub}
-                  disabled={subLoading[slug]}
-                  onClick={(e) => toggleSubscribe(e, slug)}
-                  subscribeLabel={t('gamesPage.subscribe')}
-                  subscribedLabel={t('gamesPage.subscribed')}
-                />
+                {off ? (
+                  <div className={styles.cardOffNote}><i className="ri-pause-circle-line" /> Disabled · back {fmtBack(st.until)}</div>
+                ) : (
+                  <SubscribeButton
+                    size="sm" block
+                    className={styles.cardSubBtn}
+                    subscribed={isSub}
+                    disabled={subLoading[slug]}
+                    onClick={(e) => toggleSubscribe(e, slug)}
+                    subscribeLabel={t('gamesPage.subscribe')}
+                    subscribedLabel={t('gamesPage.subscribed')}
+                  />
+                )}
               </div>
             </Link>
           )
@@ -61,6 +73,7 @@ export default function Games() {
   const { user } = useAuth()
   const { openAuthGate } = useAuthGate()
   const { t } = useTranslation()
+  const { visibleSlugs, enabledSlugs, getGameStatus } = useGames()
   const [gameStats, setGameStats] = useState({})
   const [subscribed, setSubscribed] = useState({})
   const [loading, setLoading] = useState(true)
@@ -113,20 +126,22 @@ export default function Games() {
     setSubLoading(l => ({ ...l, [slug]: false }))
   }
 
-  // Featured game for the top banner = highest subscriber count once stats load, else first game
+  // Featured game for the top banner = most-subscribed LIVE game once stats load, else the first live game
   const featuredSlug = useMemo(() => {
-    if (loading) return GAME_SLUGS[0]
-    let best = GAME_SLUGS[0], bestCount = -1
-    GAME_SLUGS.forEach(slug => {
+    const pool = enabledSlugs
+    if (!pool.length) return null
+    if (loading) return pool[0]
+    let best = pool[0], bestCount = -1
+    pool.forEach(slug => {
       const c = gameStats[slug]?.subscribers || 0
       if (c > bestCount) { best = slug; bestCount = c }
     })
     return best
-  }, [loading, gameStats])
+  }, [loading, gameStats, enabledSlugs])
 
-  const featured = GAME_META[featuredSlug]
-  const featuredStats = gameStats[featuredSlug] || {}
-  const featuredSub = subscribed[featuredSlug]
+  const featured = featuredSlug ? GAME_META[featuredSlug] : null
+  const featuredStats = (featuredSlug && gameStats[featuredSlug]) || {}
+  const featuredSub = featuredSlug ? subscribed[featuredSlug] : false
 
   // Group games by broad category for the rows below the hero (a few
   // GAME_META genre labels differ slightly, e.g. "Battle Royale" vs
@@ -139,13 +154,13 @@ export default function Games() {
       return genre
     }
     const groups = {}
-    GAME_SLUGS.forEach(slug => {
+    visibleSlugs.forEach(slug => {
       const label = normalize(GAME_META[slug].genre)
       if (!groups[label]) groups[label] = []
       groups[label].push(slug)
     })
     return groups
-  }, [])
+  }, [visibleSlugs])
 
   const genreIcon = (genre) => {
     if (genre.includes('Battle Royale')) return 'ri-crosshair-2-line'
@@ -162,6 +177,7 @@ export default function Games() {
       </div>
 
       {/* Featured hero banner */}
+      {featured && (
       <Link href={`/games/${featuredSlug}`} className={styles.hero} style={{ '--gc': featured.color || 'var(--accent)' }}>
         {featured.image && <img src={featured.image} alt={featured.name} className={styles.heroImg} />}
         <div className={styles.heroFade} />
@@ -185,6 +201,11 @@ export default function Games() {
           subscribedLabel={t('gamesPage.subscribed')}
         />
       </Link>
+      )}
+
+      {visibleSlugs.length === 0 && (
+        <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, padding: '40px 16px' }}>No games available right now.</p>
+      )}
 
       {/* Genre sections (grid) */}
       {Object.entries(genreGroups).map(([genre, slugs]) => (
@@ -198,6 +219,7 @@ export default function Games() {
           subLoading={subLoading}
           loading={loading}
           toggleSubscribe={toggleSubscribe}
+          getGameStatus={getGameStatus}
           t={t}
         />
       ))}

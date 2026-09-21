@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthProvider'
 import { useAuthGate } from './AuthGateModal'
 import { GAME_SLUGS, GAME_META } from '../lib/constants'
+import { useGames } from './GameSettingsProvider'
 import { getRecentStories } from '../lib/news'
 import styles from './SearchSidebar.module.css'
 
@@ -39,6 +40,7 @@ import styles from './SearchSidebar.module.css'
  */
 export default function SearchSidebar({ open, onClose }) {
   const router = useRouter()
+  const { visibleSlugs } = useGames()
   const { user } = useAuth()
   const { openAuthGate } = useAuthGate()
   const [query, setQuery]       = useState('')
@@ -128,7 +130,7 @@ export default function SearchSidebar({ open, onClose }) {
 
   function searchGames(q) {
     const needle = q.toLowerCase()
-    return GAME_SLUGS
+    return visibleSlugs
       .filter(slug => {
         const m = GAME_META[slug]
         return m.name.toLowerCase().includes(needle) ||
@@ -261,7 +263,7 @@ export default function SearchSidebar({ open, onClose }) {
 
               <SectionLabel text="Browse games" />
               <div className={styles.gameGrid}>
-                {GAME_SLUGS.map(slug => (
+                {visibleSlugs.map(slug => (
                   <Link key={slug} href={`/games/${slug}`} className={styles.gameChip} onClick={handleClose}>
                     <i className={GAME_META[slug].icon} />
                     <span>{GAME_META[slug].name}</span>

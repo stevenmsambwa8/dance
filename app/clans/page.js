@@ -6,6 +6,7 @@ import { useAuth } from '../../components/AuthProvider'
 import { useAuthGate } from '../../components/AuthGateModal'
 import { supabase } from '../../lib/supabase'
 import { GAME_SLUGS, GAME_META } from '../../lib/constants'
+import { useGames } from '../../components/GameSettingsProvider'
 import { identityColor } from '../../lib/clanColors'
 import usePageLoading from '../../components/usePageLoading'
 import MarqueeText from '../../components/MarqueeText'
@@ -16,6 +17,7 @@ const SQUAD_CAP = 25
 
 export default function ClansPage() {
   const { user } = useAuth()
+  const { visibleSlugs, enabledSlugs } = useGames()
   const { openAuthGate } = useAuthGate()
   const router = useRouter()
 
@@ -58,7 +60,7 @@ export default function ClansPage() {
 
   function handleCreate() {
     if (!user) { openAuthGate(); return }
-    router.push(`/clans/create?game=${game === 'all' ? GAME_SLUGS[0] : game}`)
+    router.push(`/clans/create?game=${game === 'all' ? (enabledSlugs[0] || GAME_SLUGS[0]) : game}`)
   }
 
   async function handleShare() {
@@ -117,7 +119,7 @@ export default function ClansPage() {
 
         <select className={styles.gameSelect} value={game} onChange={e => setGame(e.target.value)}>
           <option value="all">All games</option>
-          {GAME_SLUGS.map(g => (
+          {visibleSlugs.map(g => (
             <option key={g} value={g}>{GAME_META[g]?.name || g}</option>
           ))}
         </select>

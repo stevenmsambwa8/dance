@@ -13,10 +13,10 @@ import UserBadges from '../../../components/UserBadges'
 import PlanBadge from '../../../components/PlanBadge'
 import usePageLoading from '../../../components/usePageLoading'
 import { GAME_META, GAME_SLUGS } from '../../../lib/constants'
+import { useGames } from '../../../components/GameSettingsProvider'
 import { RANK_TIERS, RANK_META } from '../../../lib/constants'
 import { useCurrency } from '../../../lib/useCurrency'
 
-const ALL_GAMES = GAME_SLUGS.map(s => GAME_META[s].name)
 const PLAY_STYLES = ['Aggressive', 'Defensive', 'Support', 'Sniper', 'All-Round']
 const FLAG_OPTIONS = [
   { value: 'kenya',    label: 'Kenya' },
@@ -29,6 +29,8 @@ export default function PublicProfile() {
   const router = useRouter()
   const { user, profile: myProfile, isAdmin } = useAuth()
   const { openAuthGate } = useAuthGate()
+  const { visibleSlugs } = useGames()
+  const ALL_GAMES = visibleSlugs.map(s => GAME_META[s].name)
 
   const [profile, setProfile]             = useState(null)
   const [loading, setLoading]             = useState(true)

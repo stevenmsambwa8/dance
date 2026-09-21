@@ -8,6 +8,7 @@ import styles from './page.module.css'
 import { getCurrentSeason, getDaysRemaining, TIER_ORDER, TIER_WIN_THRESHOLD, getLevelWinThreshold, MAX_LEVEL } from '../lib/seasons'
 import { GAME_META, GAME_SLUGS, RANK_META } from '../lib/constants'
 import UserBadges from '../components/UserBadges'
+import { useGames } from '../components/GameSettingsProvider'
 import { useCurrency } from '../lib/useCurrency'
 import useTranslation from '../lib/useTranslation'
 import { identityColor } from '../lib/clanColors'
@@ -439,8 +440,10 @@ export default function Home() {
   const { openAuthGate } = useAuthGate()
   const { fmtAmt, currencyMeta } = useCurrency(profile?.country_flag)
   const { t } = useTranslation()
+  const { visibleSlugs, isGameVisible, getGameStatus } = useGames()
 
   const [tournaments,  setTournaments]  = useState([])
+  const visibleTournaments = tournaments.filter(tour => isGameVisible(tour.game_slug))
   const [events,       setEvents]       = useState([])
   const [pastEvents,   setPastEvents]   = useState([])
   const [loadingEvents, setLoadingEvents] = useState(true)
@@ -797,7 +800,7 @@ export default function Home() {
       <Section title={t('tournaments.tournaments')} href="/tournaments" linkLabel={t('common.all')}>
         {loadingTourns ? (
           <div className={styles.tGrid}><SkeletonTournamentCard /><SkeletonTournamentCard /></div>
-        ) : tournaments.length === 0 ? (
+        ) : visibleTournaments.length === 0 ? (
           <div className={styles.empty}>
             <i className="ri-node-tree" />
             <p>{t('home.noActiveTournaments')}</p>
@@ -805,7 +808,7 @@ export default function Home() {
           </div>
         ) : (
           <div className={styles.tGrid} ref={tGridRef}>
-            {tournaments.map((tour, i) => {
+            {visibleTournaments.map((tour, i) => {
               const game  = GAME_META[tour.game_slug]
               const prize = parsePrize(tour.prize)
               const fee   = parsePrize(tour.entrance_fee)
@@ -890,7 +893,7 @@ export default function Home() {
           >
             <span className={styles.gameFilterIconWrap}><i className="ri-global-line" /></span> {t('common.all')}
           </button>
-          {GAME_SLUGS.map(slug => {
+          {visibleSlugs.map(slug => {
             const g = GAME_META[slug]
             return (
               <button
@@ -1022,10 +1025,12 @@ export default function Home() {
       {/* ══════════ GAMES GRID ══════════ */}
       <Section title={t('navigation.games')} href="/games" linkLabel={t('common.all')}>
         <div className={styles.gamesGrid}>
-          {GAME_SLUGS.map(slug => {
+          {visibleSlugs.map(slug => {
             const game = GAME_META[slug]
+            const off  = getGameStatus(slug).state === 'disabled'
             return (
-              <Link key={slug} href={`/games/${slug}`} className={styles.gameCard}>
+              <Link key={slug} href={`/games/${slug}`} className={styles.gameCard}
+                style={off ? { opacity: 0.45, filter: 'grayscale(1)' } : undefined}>
                 {game?.image
                   ? <img src={game.image} alt={game.name} className={styles.gameCardImg} loading="lazy" decoding="async" />
                   : <i className={game?.icon || 'ri-gamepad-line'} className={styles.gameCardIcon} />

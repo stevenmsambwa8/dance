@@ -8,6 +8,7 @@ import AuthProvider from '../components/AuthProvider'
 import { ToastProvider } from '../components/ToastProvider'
 import PhoneGate from '../components/PhoneGate'
 import LoadingProvider from '../components/LoadingContext'
+import GameSettingsProvider from '../components/GameSettingsProvider'
 import ThemeScript from '../components/ThemeScript'
 import MaintenanceGate from '../components/MaintenanceGate'
 import { AuthGateProvider } from '../components/AuthGateModal'
@@ -70,6 +71,7 @@ export default function RootLayout({ children }) {
             <ThemeProvider>
               <LanguageProvider>
               <LoadingProvider>
+                <GameSettingsProvider>
                 <MusicPlayerProvider>          {/* ← NEW */}
                   <AuthGateProvider>
                     <MaintenanceGate>
@@ -85,6 +87,7 @@ export default function RootLayout({ children }) {
                     </MaintenanceGate>
                   </AuthGateProvider>
                 </MusicPlayerProvider>          {/* ← NEW */}
+                </GameSettingsProvider>
               </LoadingProvider>
               </LanguageProvider>
             </ThemeProvider>

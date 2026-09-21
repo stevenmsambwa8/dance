@@ -5,6 +5,7 @@ import { useAuth } from '../../../components/AuthProvider'
 import { useAuthGate } from '../../../components/AuthGateModal'
 import { supabase } from '../../../lib/supabase'
 import { GAME_SLUGS, GAME_META } from '../../../lib/constants'
+import { useGames } from '../../../components/GameSettingsProvider'
 import styles from './page.module.css'
 
 export default function CreateClanPage() {
@@ -21,8 +22,9 @@ function CreateClanPageInner() {
   const { user } = useAuth()
   const { openAuthGate } = useAuthGate()
   const fileRef = useRef()
+  const { enabledSlugs } = useGames()
 
-  const [game, setGame]               = useState(params.get('game') || GAME_SLUGS[0])
+  const [game, setGame]               = useState(params.get('game') || enabledSlugs[0] || GAME_SLUGS[0])
   const [name, setName]               = useState('')
   const [description, setDescription] = useState('')
   const [logoFile, setLogoFile]       = useState(null)
@@ -177,7 +179,7 @@ function CreateClanPageInner() {
       <div className={styles.field}>
         <label>Game</label>
         <div className={styles.gameGrid}>
-          {GAME_SLUGS.map(g => (
+          {enabledSlugs.map(g => (
             <button key={g}
               className={`${styles.gameBtn} ${game === g ? styles.gameBtnActive : ''}`}
               onClick={() => setGame(g)}>
