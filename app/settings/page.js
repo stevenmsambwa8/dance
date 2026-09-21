@@ -65,6 +65,8 @@ export default function SettingsPage() {
   const [saved,       setSaved]       = useState(false)
   const [saveError,   setSaveError]   = useState('')
   const [avatarLoading, setAvatarLoading] = useState(false)
+  const [photoError, setPhotoError] = useState('')
+  const [photoDone,  setPhotoDone]  = useState(false)
   const [phoneError,  setPhoneError]  = useState('')
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [deleteInput, setDeleteInput] = useState('')
@@ -165,12 +167,21 @@ export default function SettingsPage() {
   }
 
   async function handleAvatarChange(e) {
-    const file = e.target.files?.[0]
+    const input = e.target
+    const file = input.files?.[0]
+    input.value = '' // allow re-selecting the same file later
     if (!file) return
+    setPhotoError(''); setPhotoDone(false)
+    if (!file.type.startsWith('image/')) { setPhotoError('Please choose an image file.'); return }
+    if (file.size > 5 * 1024 * 1024)     { setPhotoError('Image is too large — max 5 MB.'); return }
     setAvatarLoading(true)
-    try { await uploadAvatar(file) }
-    catch(e) { alert('Upload failed: ' + e.message) }
-    finally   { setAvatarLoading(false) }
+    try {
+      await uploadAvatar(file)
+      setPhotoDone(true)
+      setTimeout(() => setPhotoDone(false), 4000)
+    }
+    catch(err) { setPhotoError('Upload failed: ' + err.message) }
+    finally    { setAvatarLoading(false) }
   }
 
   async function handleSignOut() {
@@ -236,13 +247,43 @@ export default function SettingsPage() {
             <span className={styles.avatarLevel}>Lv.{profile?.level ?? '—'}</span>
           </div>
           <div className={styles.avatarCurrency}>Currency: <strong>{currency}</strong></div>
-          {avatarLocked && (
-            <p className={styles.fieldHint}>
-              <i className="ri-lock-line" /> Photo locked for {avatarDaysLeft} more day{avatarDaysLeft === 1 ? '' : 's'}
-            </p>
-          )}
         </div>
       </div>
+
+      {/* ── Profile Photo ── */}
+      <Section icon="ri-image-add-line" title="Profile Photo">
+        <div className={styles.photoArea}>
+          <div className={styles.photoPreview}>
+            {avatarLoading ? (
+              <i className="ri-loader-4-line" />
+            ) : profile?.avatar_url ? (
+              <img src={profile.avatar_url} alt="" />
+            ) : (
+              <span>{initials}</span>
+            )}
+          </div>
+          <div className={styles.photoInfo}>
+            <button
+              type="button"
+              className={styles.photoBtn}
+              onClick={() => fileRef.current?.click()}
+              disabled={avatarLocked || avatarLoading}
+            >
+              <i className={avatarLocked ? 'ri-lock-line' : 'ri-camera-line'} />
+              {avatarLoading ? 'Uploading…' : profile?.avatar_url ? 'Change photo' : 'Upload photo'}
+            </button>
+            {avatarLocked ? (
+              <p className={styles.fieldHint}>
+                <i className="ri-lock-line" /> Locked for {avatarDaysLeft} more day{avatarDaysLeft === 1 ? '' : 's'} — your photo can only change once every 60 days.
+              </p>
+            ) : (
+              <p className={styles.fieldHint}>JPG, PNG or WebP, up to 5 MB. Square photos look best. You can change it once every 60 days.</p>
+            )}
+            {photoDone  && <p className={`${styles.fieldHint} ${styles.fieldSuccess}`}><i className="ri-check-circle-line" /> Photo updated.</p>}
+            {photoError && <p className={`${styles.fieldHint} ${styles.fieldError}`}><i className="ri-error-warning-line" /> {photoError}</p>}
+          </div>
+        </div>
+      </Section>
 
       {/* ── Profile Info ── */}
       <Section icon="ri-user-3-line" title="Profile Info">

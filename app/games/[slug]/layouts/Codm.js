@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+import SubscribeButton from '../../../../components/SubscribeButton'
 import styles from './Codm.module.css'
 import { tournamentStatus, onRowClick, fmtFee } from './helpers'
 import { getTierColor } from '../useGameData'
@@ -21,9 +22,7 @@ export default function CodmLayout({ data }) {
       </div>
 
       <div className={styles.controlRow}>
-        <button className={`${styles.ctrlBtn} ${subscribed ? styles.ctrlActive : ''}`} onClick={toggleSubscribe}>
-          <i className={subscribed ? 'ri-bookmark-fill' : 'ri-bookmark-line'} /> {subscribed ? 'Subscribed' : 'Subscribe'}
-        </button>
+        <SubscribeButton subscribed={subscribed} onClick={toggleSubscribe} variant="dark" />
         <Link href={`/games/${slug}/chat`} className={styles.ctrlBtn}><i className="ri-group-line" /> Squad</Link>
         <div className={styles.ctrlStat}><span>{loading ? '—' : subCount.toLocaleString()}</span>players</div>
       </div>

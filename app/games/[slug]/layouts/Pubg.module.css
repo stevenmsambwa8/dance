@@ -16,15 +16,15 @@
 .hot { color: #f4b400; }
 
 .actionRow { display: flex; gap: 10px; padding: 4px 20px 20px; background: #0c0c0e; border-radius: 0 0 22px 22px; }
-.subBtn, .chatBtn {
+.subBtn { flex: 1; }
+.chatBtn {
   flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px;
-  min-height: 46px; padding: 0 12px; border-radius: 10px;
+  min-height: 46px; padding: 0 12px; border-radius: 999px;
   font-size: 12px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase;
   cursor: pointer; border: 1px solid rgba(244,180,0,0.45); background: transparent; color: #f4b400;
   text-decoration: none; transition: transform 0.12s;
 }
-.subBtn:active, .chatBtn:active { transform: scale(0.97); }
-.subActive { background: #f4b400; color: #0c0c0e; }
+.chatBtn:active { transform: scale(0.97); }
 
 .desc { font-size: 13px; color: var(--text-dim); line-height: 1.7; padding: 20px 20px 24px; max-width: 560px; }
 

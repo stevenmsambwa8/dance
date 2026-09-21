@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+import SubscribeButton from '../../../../components/SubscribeButton'
 import styles from './Maleo.module.css'
 import { tournamentStatus, onRowClick, fmtFee } from './helpers'
 import { getTierColor } from '../useGameData'
@@ -29,9 +30,7 @@ export default function MaleoLayout({ data }) {
       </div>
 
       <div className={styles.actions}>
-        <button className={`${styles.subBtn} ${subscribed ? styles.subActive : ''}`} onClick={toggleSubscribe}>
-          <i className={subscribed ? 'ri-bookmark-fill' : 'ri-bookmark-line'} /> {subscribed ? 'Subscribed' : 'Subscribe'}
-        </button>
+        <SubscribeButton subscribed={subscribed} onClick={toggleSubscribe} className={styles.subBtn} />
         <Link href={`/games/${slug}/chat`} className={styles.chatBtn}><i className="ri-group-line" /> Convoy Chat</Link>
       </div>
 

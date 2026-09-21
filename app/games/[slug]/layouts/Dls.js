@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+import SubscribeButton from '../../../../components/SubscribeButton'
 import styles from './Dls.module.css'
 import { tournamentStatus, onRowClick, fmtFee } from './helpers'
 import { getTierColor } from '../useGameData'
@@ -15,9 +16,7 @@ export default function DlsLayout({ data }) {
         <h1 className={styles.name}>{game.name}</h1>
         <p className={styles.full}>{game.full}</p>
         <div className={styles.subRow}>
-          <button className={`${styles.subBtn} ${subscribed ? styles.subActive : ''}`} onClick={toggleSubscribe}>
-            <i className={subscribed ? 'ri-bookmark-fill' : 'ri-bookmark-line'} /> {subscribed ? 'Subscribed' : 'Subscribe'}
-          </button>
+          <SubscribeButton subscribed={subscribed} onClick={toggleSubscribe} />
           <Link href={`/games/${slug}/chat`} className={styles.chatBtn}><i className="ri-group-line" /> Club Chat</Link>
         </div>
         <div className={styles.stats}>

@@ -10,9 +10,8 @@
 .full { font-size: 12px; color: #c4cdb0; margin-top: 6px; }
 
 .controlRow { display: flex; align-items: center; gap: 8px; padding: 14px 20px; background: #0a0c08; }
-.ctrlBtn { display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid rgba(124,156,63,0.5); font-size: 12px; font-weight: 800; color: #c4cdb0; cursor: pointer; text-decoration: none; background: transparent; transition: transform 0.12s; }
+.ctrlBtn { display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid rgba(124,156,63,0.5); font-size: 12px; font-weight: 800; color: #c4cdb0; cursor: pointer; text-decoration: none; background: transparent; transition: transform 0.12s; }
 .ctrlBtn:active { transform: scale(0.97); }
-.ctrlActive { background: #7c9c3f; border-color: #7c9c3f; color: #0a0c08; }
 .ctrlStat { margin-left: auto; font-size: 11px; color: #8d9779; }
 .ctrlStat span { font-weight: 900; color: #fff; margin-right: 4px; font-size: 14px; font-variant-numeric: tabular-nums; }
 

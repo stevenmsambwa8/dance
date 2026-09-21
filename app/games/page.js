@@ -8,6 +8,7 @@ import { GAME_SLUGS, GAME_META } from '../../lib/constants'
 import styles from './page.module.css'
 import { getCurrentSeason } from '../../lib/seasons'
 import usePageLoading from '../../components/usePageLoading'
+import SubscribeButton from '../../components/SubscribeButton'
 import useTranslation from '../../lib/useTranslation'
 
 export { GAME_SLUGS, GAME_META }
@@ -30,14 +31,6 @@ function GameSection({ title, icon, slugs, gameStats, subscribed, subLoading, lo
                 {meta.image
                   ? <img src={meta.image} alt={meta.name} className={styles.cardImg} />
                   : <i className={meta.icon} />}
-                <button
-                  className={`${styles.cardSub} ${isSub ? styles.cardSubActive : ''}`}
-                  onClick={(e) => toggleSubscribe(e, slug)}
-                  disabled={subLoading[slug]}
-                  aria-label={isSub ? t('gamesPage.subscribed') : t('gamesPage.subscribe')}
-                >
-                  <i className={isSub ? 'ri-bookmark-fill' : 'ri-bookmark-line'} />
-                </button>
               </div>
               <div className={styles.cardBody}>
                 <span className={styles.cardGenre}>{meta.genre}</span>
@@ -46,6 +39,15 @@ function GameSection({ title, icon, slugs, gameStats, subscribed, subLoading, lo
                   <span><i className="ri-user-line" />{loading ? '…' : (stats.subscribers || 0).toLocaleString()}</span>
                   <span><i className="ri-trophy-line" />{loading ? '…' : (stats.tournaments || 0)}</span>
                 </div>
+                <SubscribeButton
+                  size="sm" block
+                  className={styles.cardSubBtn}
+                  subscribed={isSub}
+                  disabled={subLoading[slug]}
+                  onClick={(e) => toggleSubscribe(e, slug)}
+                  subscribeLabel={t('gamesPage.subscribe')}
+                  subscribedLabel={t('gamesPage.subscribed')}
+                />
               </div>
             </Link>
           )
@@ -173,14 +175,15 @@ export default function Games() {
             <span className={styles.heroStat}><i className="ri-trophy-line" /> {loading ? '…' : (featuredStats.tournaments || 0)} {t('gamesPage.tournaments')}</span>
           </div>
         </div>
-        <button
-          className={`${styles.heroSub} ${featuredSub ? styles.heroSubActive : ''}`}
-          onClick={(e) => toggleSubscribe(e, featuredSlug)}
+        <SubscribeButton
+          variant="dark"
+          className={styles.heroSub}
+          subscribed={featuredSub}
           disabled={subLoading[featuredSlug]}
-        >
-          <i className={featuredSub ? 'ri-bookmark-fill' : 'ri-bookmark-line'} />
-          {featuredSub ? t('gamesPage.subscribed') : t('gamesPage.subscribe')}
-        </button>
+          onClick={(e) => toggleSubscribe(e, featuredSlug)}
+          subscribeLabel={t('gamesPage.subscribe')}
+          subscribedLabel={t('gamesPage.subscribed')}
+        />
       </Link>
 
       {/* Genre sections (grid) */}

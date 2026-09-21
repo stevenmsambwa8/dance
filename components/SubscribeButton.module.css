@@ -1,0 +1,22 @@
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 40px; padding: 0 18px;
+  border: none; border-radius: 999px;
+  background: var(--text); color: var(--bg);
+  font-family: inherit; font-size: 13px; font-weight: 700; white-space: nowrap;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.15s ease, color 0.15s ease;
+}
+.btn i { font-size: 15px; }
+.btn:active { transform: scale(0.97); }
+.btn:disabled { opacity: 0.6; cursor: default; }
+
+/* Subscribed — grey pill with bell */
+.on { background: var(--bg-2); color: var(--text); }
+
+/* On dark / image backgrounds */
+.dark { background: #fff; color: #0f0f0f; }
+.dark.on { background: rgba(255,255,255,0.16); color: #fff; }
+
+.sm { min-height: 32px; padding: 0 14px; font-size: 12px; }
+.block { width: 100%; }

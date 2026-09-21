@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+import SubscribeButton from '../../../../components/SubscribeButton'
 import styles from './FreeFire.module.css'
 import { tournamentStatus, onRowClick, fmtFee } from './helpers'
 import { getTierColor } from '../useGameData'
@@ -22,9 +23,7 @@ export default function FreeFireLayout({ data }) {
       <div className={styles.statPills}>
         <span className={styles.pill}><i className="ri-user-line" /> {loading ? '…' : subCount.toLocaleString()} squad</span>
         <span className={styles.pill}><i className="ri-trophy-line" /> {loading ? '…' : tournaments.filter(t => t.status === 'active').length} open</span>
-        <button className={`${styles.pillBtn} ${subscribed ? styles.pillBtnActive : ''}`} onClick={toggleSubscribe}>
-          <i className={subscribed ? 'ri-bookmark-fill' : 'ri-bookmark-line'} /> {subscribed ? 'Subscribed' : 'Subscribe'}
-        </button>
+        <SubscribeButton subscribed={subscribed} onClick={toggleSubscribe} size="sm" />
       </div>
 
       {game.desc && <p className={styles.desc}>{game.desc}</p>}
