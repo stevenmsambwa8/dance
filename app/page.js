@@ -882,7 +882,7 @@ export default function Home() {
       </Section>
 
       {/* ══════════ LEADERBOARD ══════════ */}
-      <Section title={t('players.leaderboard')} href="/leaderboard" linkLabel={t('home.allPlayers')} className={styles.lbSection}>
+      <Section title={t('players.leaderboard')} className={styles.lbSection}>
         <div className={styles.gameFilterRow}>
           <button
             className={`${styles.gameFilterChip} ${selectedGame === 'all' ? styles.gameFilterChipActive : ''}`}
@@ -1012,7 +1012,7 @@ export default function Home() {
               )}
 
               <Link href="/leaderboard" className={styles.lbFullBtn}>
-                <i className="ri-trophy-line" /> {t('home.allPlayers') || 'View Full Leaderboard'}
+                {t('home.allPlayers')} <i className="ri-arrow-right-s-line" />
               </Link>
             </>
           )

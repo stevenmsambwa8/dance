@@ -7,7 +7,10 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { ADMIN_EMAILS } from './AuthProvider'
+import { useRouter } from 'next/navigation'
+import { ADMIN_EMAILS, useAuth } from './AuthProvider'
+import { useAuthGate } from './AuthGateModal'
+import { supabase } from '../lib/supabase'
 import { getActivePlan } from '../lib/plans'
 
 /* ── Inject once ─────────────────────────────────────────── */
@@ -53,6 +56,7 @@ const BADGE_CSS = `
   word-break: break-word;
   white-space: normal;
 }
+.nb-tip-desc-last { margin-bottom: 0; }
 .nb-tip-ctas {
   display: flex;
   gap: 6px;
@@ -76,6 +80,13 @@ const BADGE_CSS = `
   color: var(--text-dim);
   border: 1px solid var(--border-dark) !important;
 }
+/* White outlined button (used for "Change my flag") */
+.nb-tip-white {
+  background: #fff;
+  color: #111;
+  border: 1px solid var(--border-dark) !important;
+}
+.nb-tip-btn:disabled { opacity: .5; cursor: default; }
 `
 function injectStyles() {
   if (typeof document === 'undefined' || document.getElementById('nb-bs')) return
@@ -86,9 +97,19 @@ function injectStyles() {
 }
 
 /* ── Tooltip ─────────────────────────────────────────────── */
-function Tooltip({ anchorEl, title, desc, color, onClose }) {
+// kind: 'plan' (Upgrade + Help) | 'flag' (Change my flag, own badge only)
+//       | 'winner' (Follow + Message) | 'admin' / 'custom' (no CTA)
+function Tooltip({ anchorEl, title, desc, color, kind = 'plan', email, userId, onClose }) {
   const ref = useRef(null)
+  const router = useRouter()
+  const { user } = useAuth()
+  const { openAuthGate } = useAuthGate()
   const [pos, setPos] = useState({ top: -999, left: -999, opacity: 0 })
+  const [ownerId,   setOwnerId]   = useState(userId || null)
+  const [following, setFollowing] = useState(false)
+  const [busy,      setBusy]      = useState(false)
+
+  const isOwn = !!user && ((!!email && user.email === email) || (!!ownerId && user.id === ownerId))
 
   useEffect(() => {
     if (!anchorEl || !ref.current) return
@@ -119,19 +140,88 @@ function Tooltip({ anchorEl, title, desc, color, onClose }) {
     }
   }, [dismiss])
 
-  return (
-    <div ref={ref} className="nb-tip"
-      style={{ top: pos.top, left: pos.left, opacity: pos.opacity }}
-      onClick={e => e.stopPropagation()}>
-      <p className="nb-tip-title" style={{ color }}>{title}</p>
-      <p className="nb-tip-desc">{desc}</p>
-      <div className="nb-tip-ctas">
+  // Winner tooltip: resolve the badge owner's id (by email if not passed) + current follow state
+  useEffect(() => {
+    if (kind !== 'winner' || ownerId || !email) return
+    let cancel = false
+    supabase.from('profiles').select('id').eq('email', email).maybeSingle()
+      .then(({ data }) => { if (!cancel && data?.id) setOwnerId(data.id) })
+    return () => { cancel = true }
+  }, [kind, email, ownerId])
+
+  useEffect(() => {
+    if (kind !== 'winner' || !user || !ownerId || ownerId === user.id) return
+    let cancel = false
+    supabase.from('follows').select('follower_id')
+      .eq('follower_id', user.id).eq('following_id', ownerId).maybeSingle()
+      .then(({ data }) => { if (!cancel) setFollowing(!!data) })
+    return () => { cancel = true }
+  }, [kind, user, ownerId])
+
+  async function toggleFollow() {
+    if (!user) { openAuthGate(); onClose(); return }
+    if (!ownerId || busy) return
+    setBusy(true)
+    const was = following
+    setFollowing(!was)
+    const { error } = was
+      ? await supabase.from('follows').delete().eq('follower_id', user.id).eq('following_id', ownerId)
+      : await supabase.from('follows').insert({ follower_id: user.id, following_id: ownerId })
+    if (error) setFollowing(was)
+    setBusy(false)
+  }
+
+  function message() {
+    if (!user) { openAuthGate(); onClose(); return }
+    if (!ownerId) return
+    onClose()
+    router.push(`/dm/${ownerId}`)
+  }
+
+  let ctas = null
+  if (kind === 'plan') {
+    ctas = (
+      <>
         <a href="/upgrade" className="nb-tip-btn"
           style={{ background: color, color: '#000' }}
           onClick={onClose}>Upgrade</a>
         <a href="/help-desk" className="nb-tip-btn nb-tip-secondary"
           onClick={onClose}>Help</a>
-      </div>
+      </>
+    )
+  } else if (kind === 'flag' && isOwn) {
+    ctas = <a href="/settings" className="nb-tip-btn nb-tip-white" onClick={onClose}>Change my flag</a>
+  } else if (kind === 'winner' && user && !isOwn) {
+    ctas = (
+      <>
+        <button type="button" className="nb-tip-btn" disabled={!ownerId || busy} onClick={toggleFollow}
+          style={following
+            ? { background: 'var(--bg-2)', color: 'var(--text)' }
+            : { background: color, color: '#000' }}>
+          {following ? 'Following' : 'Follow'}
+        </button>
+        <button type="button" className="nb-tip-btn nb-tip-secondary" disabled={!ownerId} onClick={message}>
+          Message
+        </button>
+      </>
+    )
+  } else if (kind === 'winner' && !user) {
+    // Logged out: still offer both, they route through the login gate
+    ctas = (
+      <>
+        <button type="button" className="nb-tip-btn" onClick={toggleFollow} style={{ background: color, color: '#000' }}>Follow</button>
+        <button type="button" className="nb-tip-btn nb-tip-secondary" onClick={message}>Message</button>
+      </>
+    )
+  }
+
+  return (
+    <div ref={ref} className="nb-tip"
+      style={{ top: pos.top, left: pos.left, opacity: pos.opacity }}
+      onClick={e => e.stopPropagation()}>
+      <p className="nb-tip-title" style={{ color }}>{title}</p>
+      <p className={`nb-tip-desc ${ctas ? '' : 'nb-tip-desc-last'}`}>{desc}</p>
+      {ctas && <div className="nb-tip-ctas">{ctas}</div>}
     </div>
   )
 }
@@ -242,7 +332,7 @@ function CustomBadgeIcon({ icon, iconUrl, color, size }) {
 
 /* ── Main export ─────────────────────────────────────────── */
 export default function UserBadges({
-  email, plan, planExpiresAt, countryFlag, isSeasonWinner, customBadges, tempAdminUntil, size = 16, gap = 3, hideAdmin = false
+  email, plan, planExpiresAt, countryFlag, isSeasonWinner, customBadges, tempAdminUntil, userId, size = 16, gap = 3, hideAdmin = false
 }) {
   useEffect(injectStyles, [])
   const isAdmin  = !hideAdmin && ADMIN_EMAILS.includes(email)
@@ -262,21 +352,21 @@ export default function UserBadges({
     <span style={{ display:'inline-flex', alignItems:'center', gap,
                    verticalAlign:'middle', marginLeft:gap, flexShrink:0 }}>
       {isAdmin && (
-        <BadgeBtn tip={{ title:'Admin', color:'#22c55e',
+        <BadgeBtn tip={{ kind:'admin', title:'Admin', color:'#22c55e',
           desc:'This user is a Nabogaming platform administrator.' }}>
           <img src="/tick.png" alt="Admin"
             style={{ width:size, height:size, display:'block' }}/>
         </BadgeBtn>
       )}
       {isTempAdmin && (
-        <BadgeBtn tip={{ title:'Temporary Admin', color:'#22c55e',
+        <BadgeBtn tip={{ kind:'admin', title:'Temporary Admin', color:'#22c55e',
           desc:'This user has been granted temporary admin access, which can be revoked at any time.' }}>
           <img src="/tick-pre.png" alt="Temporary Admin"
             style={{ width:size, height:size, display:'block' }}/>
         </BadgeBtn>
       )}
       {isElite && (
-        <BadgeBtn tip={{ title:'Elite', color:'#38bdf8',
+        <BadgeBtn tip={{ kind:'plan', title:'Elite', color:'#38bdf8',
           desc: ap === 'team'
             ? 'Team plan member. Includes Elite perks and full team features.'
             : 'Elite subscriber. Can create tournaments, sell in the shop, and more.' }}>
@@ -284,27 +374,27 @@ export default function UserBadges({
         </BadgeBtn>
       )}
       {isPro && (
-        <BadgeBtn tip={{ title:'Pro', color:'#a855f7',
+        <BadgeBtn tip={{ kind:'plan', title:'Pro', color:'#a855f7',
           desc:'Pro subscriber. Unlimited tournament entries, DMs, and Pro-only events.' }}>
           <ProBadge size={size}/>
         </BadgeBtn>
       )}
       {showFlag && (
-        <BadgeBtn tip={{ title: flagLabel, color:'#f59e0b',
+        <BadgeBtn tip={{ kind:'flag', email, userId, title: flagLabel, color:'#f59e0b',
           desc:`This player is based in ${flagLabel}.` }}>
           <img src={`/${countryFlag}.png`} alt={countryFlag}
             style={{ width:size, height:size, display:'block', borderRadius:2 }}/>
         </BadgeBtn>
       )}
       {showFire && (
-        <BadgeBtn tip={{ title:'Season Champion', color:'#f97316',
+        <BadgeBtn tip={{ kind:'winner', email, userId, title:'Season Champion', color:'#f97316',
           desc:'This player has won a past season championship.' }}>
           <img src="/fire.png" alt="Season Champion"
             style={{ width:size, height:size, display:'block' }}/>
         </BadgeBtn>
       )}
       {extras.map(b => (
-        <BadgeBtn key={b.id || b.label} tip={{ title: b.label, color: b.color || '#f97316',
+        <BadgeBtn key={b.id || b.label} tip={{ kind:'custom', title: b.label, color: b.color || '#f97316',
           desc: b.desc || `Awarded: ${b.label}` }}>
           <CustomBadgeIcon icon={b.icon} iconUrl={b.iconUrl} color={b.color || '#f97316'} size={size} />
         </BadgeBtn>
