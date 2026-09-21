@@ -1,4 +1,4 @@
-.page { margin: 0 auto; padding: 24px 0 80px; }
+.page { max-width: 1100px; margin: 0 auto; padding: 24px 0 80px; }
 
 .header { margin-bottom: 20px; padding: 0 16px; }
 .eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
@@ -84,99 +84,97 @@
 }
 .heroSubActive { background: var(--gc) !important; border-color: var(--gc) !important; }
 
-/* ── Genre rows ── */
-.row { margin-bottom: 28px; }
-.rowHead {
+/* ── Genre sections — real grid ── */
+.section { margin-bottom: 28px; }
+.sectionHead {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0 16px; margin-bottom: 10px;
+  padding: 0 16px; margin-bottom: 12px;
 }
-.rowTitle {
+.sectionTitle {
   display: flex; align-items: center; gap: 8px;
   font-size: 15px; font-weight: 800; color: var(--text);
 }
-.rowTitle i { font-size: 16px; color: var(--text-muted); }
-.rowNav { display: flex; gap: 6px; }
-.rowNavBtn {
-  width: 28px; height: 28px; border-radius: 50%;
-  border: 1px solid var(--border-dark); background: var(--surface);
-  color: var(--text-dim); display: flex; align-items: center; justify-content: center;
-  cursor: pointer; transition: background 0.12s;
-}
-@media (hover: hover) {
-.rowNavBtn:hover { background: var(--bg-2); color: var(--text); }
+.sectionTitle i { font-size: 16px; color: var(--text-muted); }
+.sectionCount {
+  min-width: 22px; height: 22px; padding: 0 7px; border-radius: 11px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800; color: var(--text-muted);
+  background: var(--bg-2); border: 1px solid var(--border);
 }
 
-.rowTrack {
-  display: flex; gap: 12px; overflow-x: auto;
-  padding: 2px 16px 6px;
-  scroll-snap-type: x proximity;
-  scrollbar-width: none;
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 0 16px;
 }
-.rowTrack::-webkit-scrollbar { display: none; }
 
 .card {
-  position: relative;
-  flex: 0 0 auto;
-  width: 220px;
+  display: flex; flex-direction: column;
+  min-width: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
   color: inherit;
-  scroll-snap-align: start;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+.card:active { transform: scale(0.98); }
+@media (hover: hover) {
+.card:hover { transform: translateY(-3px); border-color: var(--gc); }
 }
 .cardArt {
   position: relative;
   width: 100%;
-  aspect-ratio: 16 / 10;
-  border-radius: 14px;
-  overflow: hidden;
-  border: 1px solid var(--border);
+  aspect-ratio: 4 / 3;
   background: var(--bg-2);
   display: flex; align-items: center; justify-content: center;
-  transition: transform 0.18s ease, border-color 0.18s ease;
 }
 .cardArt > i { font-size: 34px; color: var(--text-muted); }
-@media (hover: hover) {
-.card:hover .cardArt { transform: translateY(-3px); border-color: var(--gc); }
-}
 .cardImg {
   position: absolute; inset: 0;
   width: 100%; height: 100%;
   object-fit: cover;
 }
-.cardFade {
-  position: absolute; inset: 0;
-  background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.15) 55%, transparent 100%);
-}
 .cardSub {
   position: absolute; top: 8px; right: 8px; z-index: 2;
-  width: 28px; height: 28px; border-radius: 50%;
-  background: rgba(0,0,0,0.45);
+  width: 30px; height: 30px; border-radius: 50%;
+  background: rgba(0,0,0,0.5);
   border: 1px solid rgba(255,255,255,0.25);
-  color: #fff; font-size: 13px;
+  color: #fff; font-size: 14px;
   display: flex; align-items: center; justify-content: center;
-  cursor: pointer; backdrop-filter: blur(4px);
+  cursor: pointer; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
 }
 .cardSubActive { background: var(--gc); border-color: var(--gc); }
 .cardBody {
-  position: absolute; left: 0; right: 0; bottom: 0; z-index: 1;
-  padding: 10px 12px;
-  display: flex; flex-direction: column; gap: 2px;
+  padding: 10px 12px 12px;
+  display: flex; flex-direction: column; gap: 3px;
+  border-top: 2px solid var(--gc);
 }
 .cardGenre {
   font-size: 9px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
   color: var(--gc);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .cardName {
-  font-size: 15px; font-weight: 800; color: #fff;
+  font-size: 15px; font-weight: 800; color: var(--text);
   letter-spacing: -0.01em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.cardMeta { display: flex; gap: 10px; margin-top: 2px; }
+.cardMeta { display: flex; gap: 12px; margin-top: 3px; }
 .cardMeta span {
-  display: flex; align-items: center; gap: 3px;
-  font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.75);
+  display: flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600; color: var(--text-muted);
 }
-.cardMeta i { font-size: 11px; }
+.cardMeta i { font-size: 12px; }
 
+@media (min-width: 700px) {
+  .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+}
+@media (min-width: 1000px) {
+  .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
 @media (max-width: 540px) {
-  .card { width: 168px; }
   .heroContent { padding: 22px 16px 68px; }
   .heroSub { right: 12px; bottom: 12px; padding: 8px 12px; }
 }

@@ -11,10 +11,9 @@ export default function DefaultLayout({ data }) {
     master, masterLoading, formatMasterDate } = data
 
   return (
-    <div className={styles.page}>
-      <div className={styles.hero} style={{ '--gc': game.color || 'var(--accent)' }}>
+    <div className={styles.page} style={{ '--gc': game.color || 'var(--accent)' }}>
+      <div className={styles.hero}>
         {game.image && <div className={styles.heroBg} style={{ backgroundImage: `url(${game.image})` }} />}
-        <Link href="/games" className={styles.back}><i className="ri-arrow-left-line" /> All Games</Link>
         <div className={styles.heroInner}>
           <span className={styles.genreChip}>{game.genre}</span>
           <h1 className={styles.name}>{game.name}</h1>

@@ -10,8 +10,6 @@ export default function FreeFireLayout({ data }) {
 
   return (
     <div className={styles.page}>
-      <Link href="/games" className={styles.back}><i className="ri-arrow-left-line" /> All Games</Link>
-
       <div className={styles.hero}>
         {game.image && <img src={game.image} alt={game.name} className={styles.heroImg} />}
         <div className={styles.heroShape} />

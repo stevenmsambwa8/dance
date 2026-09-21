@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { useAuth } from '../../components/AuthProvider'
 import { useAuthGate } from '../../components/AuthGateModal'
@@ -12,23 +12,14 @@ import useTranslation from '../../lib/useTranslation'
 
 export { GAME_SLUGS, GAME_META }
 
-function Row({ title, icon, slugs, gameStats, subscribed, subLoading, loading, toggleSubscribe, t }) {
-  const trackRef = useRef(null)
-
-  function scrollBy(dir) {
-    trackRef.current?.scrollBy({ left: dir * 320, behavior: 'smooth' })
-  }
-
+function GameSection({ title, icon, slugs, gameStats, subscribed, subLoading, loading, toggleSubscribe, t }) {
   return (
-    <section className={styles.row}>
-      <div className={styles.rowHead}>
-        <h2 className={styles.rowTitle}><i className={icon} /> {title}</h2>
-        <div className={styles.rowNav}>
-          <button className={styles.rowNavBtn} onClick={() => scrollBy(-1)} aria-label="Scroll left"><i className="ri-arrow-left-s-line" /></button>
-          <button className={styles.rowNavBtn} onClick={() => scrollBy(1)} aria-label="Scroll right"><i className="ri-arrow-right-s-line" /></button>
-        </div>
+    <section className={styles.section}>
+      <div className={styles.sectionHead}>
+        <h2 className={styles.sectionTitle}><i className={icon} /> {title}</h2>
+        <span className={styles.sectionCount}>{slugs.length}</span>
       </div>
-      <div className={styles.rowTrack} ref={trackRef}>
+      <div className={styles.grid}>
         {slugs.map(slug => {
           const meta = GAME_META[slug]
           const stats = gameStats[slug] || {}
@@ -39,7 +30,6 @@ function Row({ title, icon, slugs, gameStats, subscribed, subLoading, loading, t
                 {meta.image
                   ? <img src={meta.image} alt={meta.name} className={styles.cardImg} />
                   : <i className={meta.icon} />}
-                <div className={styles.cardFade} />
                 <button
                   className={`${styles.cardSub} ${isSub ? styles.cardSubActive : ''}`}
                   onClick={(e) => toggleSubscribe(e, slug)}
@@ -48,13 +38,13 @@ function Row({ title, icon, slugs, gameStats, subscribed, subLoading, loading, t
                 >
                   <i className={isSub ? 'ri-bookmark-fill' : 'ri-bookmark-line'} />
                 </button>
-                <div className={styles.cardBody}>
-                  <span className={styles.cardGenre}>{meta.genre}</span>
-                  <h3 className={styles.cardName}>{meta.name}</h3>
-                  <div className={styles.cardMeta}>
-                    <span><i className="ri-user-line" />{loading ? '…' : (stats.subscribers || 0).toLocaleString()}</span>
-                    <span><i className="ri-trophy-line" />{loading ? '…' : (stats.tournaments || 0)}</span>
-                  </div>
+              </div>
+              <div className={styles.cardBody}>
+                <span className={styles.cardGenre}>{meta.genre}</span>
+                <h3 className={styles.cardName}>{meta.name}</h3>
+                <div className={styles.cardMeta}>
+                  <span><i className="ri-user-line" />{loading ? '…' : (stats.subscribers || 0).toLocaleString()}</span>
+                  <span><i className="ri-trophy-line" />{loading ? '…' : (stats.tournaments || 0)}</span>
                 </div>
               </div>
             </Link>
@@ -193,9 +183,9 @@ export default function Games() {
         </button>
       </Link>
 
-      {/* Genre rows */}
+      {/* Genre sections (grid) */}
       {Object.entries(genreGroups).map(([genre, slugs]) => (
-        <Row
+        <GameSection
           key={genre}
           title={genre}
           icon={genreIcon(genre)}

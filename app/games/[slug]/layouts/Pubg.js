@@ -16,8 +16,6 @@ export default function PubgLayout({ data }) {
       <div className={styles.hero}>
         {game.image && <div className={styles.heroBg} style={{ backgroundImage: `url(${game.image})` }} />}
         <div className={styles.heroScrim} />
-        <div className={styles.grid} />
-        <Link href="/games" className={styles.back}><i className="ri-arrow-left-line" /> All Games</Link>
         <div className={styles.heroInner}>
           <span className={styles.dropTag}>{game.tag || 'Winner Winner'}</span>
           <h1 className={styles.name}>{game.name}</h1>

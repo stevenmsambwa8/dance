@@ -47,20 +47,6 @@
   -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 100%);
 }
 
-/* Faint grid texture */
-.hero::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(var(--border) 1px, transparent 1px),
-    linear-gradient(90deg, var(--border) 1px, transparent 1px);
-  background-size: 32px 32px;
-  opacity: 0.25;
-  pointer-events: none;
-  z-index: 0;
-}
-
 /* Bottom fade */
 .hero::after {
   content: '';

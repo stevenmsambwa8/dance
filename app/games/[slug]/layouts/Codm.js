@@ -13,7 +13,6 @@ export default function CodmLayout({ data }) {
       <div className={styles.poster}>
         {game.image && <img src={game.image} alt={game.name} className={styles.posterImg} />}
         <div className={styles.posterScrim} />
-        <Link href="/games" className={styles.back}><i className="ri-arrow-left-line" /> All Games</Link>
         <div className={styles.posterText}>
           <span className={styles.rating}><i className="ri-shield-star-fill" /> {game.genre}</span>
           <h1 className={styles.name}>{game.name}</h1>

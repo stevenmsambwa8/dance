@@ -10,8 +10,6 @@ export default function MaleoLayout({ data }) {
 
   return (
     <div className={styles.page}>
-      <Link href="/games" className={styles.back}><i className="ri-arrow-left-line" /> All Games</Link>
-
       <div className={styles.hero}>
         <div className={styles.heroTop}>
           {game.image && <img src={game.image} alt={game.name} className={styles.logo} />}

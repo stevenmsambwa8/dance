@@ -10,8 +10,6 @@ export default function EfootballLayout({ data }) {
 
   return (
     <div className={styles.page}>
-      <Link href="/games" className={styles.back}><i className="ri-arrow-left-line" /> All Games</Link>
-
       <div className={styles.scoreboard}>
         <div className={styles.sbTop}>
           {game.image && <img src={game.image} alt={game.name} className={styles.sbLogo} />}

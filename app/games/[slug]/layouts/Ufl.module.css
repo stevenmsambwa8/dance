@@ -1,33 +1,36 @@
-/* ── UFL — split-screen "VS" matchup theme ── */
+/* ── UFL — split-screen "VS" matchup ── */
 .page { padding-bottom: 100px; }
-.vsHero { background: linear-gradient(180deg, #001a1f 0%, var(--bg) 100%); padding-bottom: 18px; }
-.back { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.7); padding: 16px 20px 0; }
-.vsRow { display: flex; align-items: center; justify-content: center; gap: 0; padding: 20px 20px 0; }
-.vsSide { flex: 1; display: flex; justify-content: center; }
-.vsImg { width: 84px; height: 84px; border-radius: 14px; object-fit: cover; border: 2px solid #00bcd4; }
-.vsPlaceholder { width: 84px; height: 84px; border-radius: 14px; border: 2px dashed rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; font-size: 30px; color: rgba(255,255,255,0.4); }
-.vsBadge { flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; background: #00bcd4; color: #001a1f; font-size: 11px; font-weight: 900; display: flex; align-items: center; justify-content: center; z-index: 1; margin: 0 -8px; }
-.name { text-align: center; font-size: 26px; font-weight: 900; color: #fff; margin-top: 16px; letter-spacing: -0.02em; }
-.full { text-align: center; font-size: 12px; color: rgba(255,255,255,0.65); margin-top: 2px; }
 
-.actions { display: flex; gap: 10px; padding: 16px 20px 0; }
-.subBtn, .chatBtn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 11px; border-radius: 8px; border: 1.5px solid var(--border-dark); font-size: 12px; font-weight: 700; color: var(--text-dim); cursor: pointer; text-decoration: none; background: transparent; }
+.vsHero { background: linear-gradient(180deg, #001a1f 0%, #00272e 55%, var(--bg) 100%); padding: 28px 20px 24px; }
+.vsRow { display: flex; align-items: center; justify-content: center; gap: 0; }
+.vsSide { flex: 1; display: flex; justify-content: center; }
+.vsImg { width: 92px; height: 92px; border-radius: 18px; object-fit: cover; border: 2px solid #00bcd4; box-shadow: 0 8px 24px rgba(0,188,212,0.3); }
+.vsPlaceholder { width: 92px; height: 92px; border-radius: 18px; border: 2px dashed rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; font-size: 32px; color: rgba(255,255,255,0.4); }
+.vsBadge { flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%; background: #00bcd4; color: #001a1f; font-size: 12px; font-weight: 900; display: flex; align-items: center; justify-content: center; z-index: 1; margin: 0 -10px; box-shadow: 0 0 0 4px #001a1f; }
+.name { text-align: center; font-size: 28px; font-weight: 900; color: #fff; margin-top: 18px; letter-spacing: -0.03em; }
+.full { text-align: center; font-size: 12px; color: rgba(255,255,255,0.65); margin-top: 3px; }
+
+.actions { display: flex; gap: 10px; padding: 8px 20px 0; }
+.subBtn, .chatBtn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 0 12px; border-radius: 12px; border: 1.5px solid var(--border-dark); font-size: 12px; font-weight: 700; color: var(--text-dim); cursor: pointer; text-decoration: none; background: transparent; transition: transform 0.12s; }
+.subBtn:active, .chatBtn:active { transform: scale(0.97); }
 .subActive { background: #00bcd4; border-color: #00bcd4; color: #001a1f; }
 
-.statBar { display: flex; justify-content: space-around; padding: 16px 20px 0; }
-.statBar span { font-size: 11px; color: var(--text-muted); text-align: center; }
-.statBar strong { display: block; font-size: 18px; font-weight: 900; color: var(--text); }
+.statBar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 14px 20px 0; }
+.statBar span { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); text-align: center; padding: 10px 6px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); }
+.statBar strong { display: block; font-size: 20px; font-weight: 900; color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: 0; }
 
 .desc { font-size: 13px; color: var(--text-dim); line-height: 1.7; padding: 16px 20px 0; }
 
-.section { padding: 22px 20px 0; }
-.sectionTitle { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 800; margin-bottom: 12px; }
-.empty { text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0; }
+.section { padding: 24px 20px 0; }
+.sectionTitle { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 800; margin-bottom: 12px; }
+.sectionTitle i { color: #00bcd4; }
+.empty { text-align: center; color: var(--text-muted); font-size: 13px; padding: 24px 0; border: 1px dashed var(--border-dark); border-radius: 12px; }
 
-.bracketList { display: flex; flex-direction: column; gap: 8px; }
-.bracket { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 10px; border: 1.5px solid var(--border); cursor: pointer; }
+.bracketList { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.bracket { display: flex; align-items: center; gap: 12px; padding: 13px 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; transition: transform 0.12s, border-color 0.15s; }
+.bracket:active { transform: scale(0.985); }
 @media (hover: hover) { .bracket:hover { border-color: #00bcd4; } }
-.bracketLocked { opacity: 0.4; pointer-events: none; }
+.bracketLocked { opacity: 0.45; pointer-events: none; }
 .bracketVs { display: flex; flex-direction: column; gap: 4px; }
 .bracketDot { width: 8px; height: 8px; border-radius: 50%; background: #00bcd4; }
 .bracketInfo { flex: 1; min-width: 0; }
@@ -35,13 +38,15 @@
 .bracketFormat { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
 .bracketRight { text-align: right; flex-shrink: 0; }
 .bracketLive { display: block; font-size: 9px; font-weight: 800; color: #ef4444; }
-.bracketSlots { font-size: 11px; font-weight: 700; color: var(--text-dim); }
+.bracketSlots { font-size: 12px; font-weight: 800; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 
-.champSkel { height: 68px; border-radius: 12px; background: var(--bg-2); }
-.champ { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 12px; background: rgba(0,188,212,0.08); border: 1px solid rgba(0,188,212,0.3); }
-.champAvatar, .champAvatarFallback { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; border: 2px solid #00bcd4; }
+.champSkel { height: 68px; border-radius: 14px; background: var(--bg-2); }
+.champ { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 14px; background: linear-gradient(135deg, rgba(0,188,212,0.12), transparent 70%); border: 1px solid rgba(0,188,212,0.35); }
+.champAvatar, .champAvatarFallback { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid #00bcd4; flex-shrink: 0; }
 .champAvatarFallback { display: flex; align-items: center; justify-content: center; background: #00bcd4; color: #001a1f; font-size: 17px; font-weight: 900; }
 .champInfo { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.champName { font-size: 14px; font-weight: 800; }
+.champName { font-size: 14px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .champTier { font-size: 10px; font-weight: 700; margin-top: 2px; }
-.champWins { font-size: 13px; font-weight: 900; color: #00bcd4; flex-shrink: 0; }
+.champWins { font-size: 14px; font-weight: 900; color: #00bcd4; flex-shrink: 0; }
+
+@media (min-width: 720px) { .bracketList { grid-template-columns: 1fr 1fr; } }

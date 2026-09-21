@@ -11,7 +11,6 @@ export default function UflLayout({ data }) {
   return (
     <div className={styles.page}>
       <div className={styles.vsHero}>
-        <Link href="/games" className={styles.back}><i className="ri-arrow-left-line" /> All Games</Link>
         <div className={styles.vsRow}>
           <div className={styles.vsSide}>
             {game.image && <img src={game.image} alt={game.name} className={styles.vsImg} />}

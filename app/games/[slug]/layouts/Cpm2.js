@@ -13,7 +13,6 @@ export default function Cpm2Layout({ data }) {
       <div className={styles.showroom}>
         {game.image && <div className={styles.showroomBg} style={{ backgroundImage: `url(${game.image})` }} />}
         <div className={styles.showroomFloor} />
-        <Link href="/games" className={styles.back}><i className="ri-arrow-left-line" /> All Games</Link>
         <div className={styles.showroomText}>
           <span className={styles.plate}>{game.tag || 'Start Your Engine'}</span>
           <h1 className={styles.name}>{game.name}</h1>
