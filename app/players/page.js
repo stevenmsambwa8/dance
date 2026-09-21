@@ -1,7 +1,6 @@
 'use client'
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import Modal from '../../components/Modal'
 import { useAuth, isHelpdeskEmail } from '../../components/AuthProvider'
 import { useAuthGate } from '../../components/AuthGateModal'
 import { supabase } from '../../lib/supabase'
@@ -11,10 +10,7 @@ import { getCurrentSeason } from '../../lib/seasons'
 import UserBadges from '../../components/UserBadges'
 import { useOnlineUsers } from '../../lib/usePresence'
 import { presenceLabel } from '../../lib/lastSeen'
-import { RANK_META, GAME_SLUGS, GAME_META } from '../../lib/constants'
-
-const GAME_MODES = ['Elimination', 'Capture', 'Deathmatch', 'Sniper', 'Team Battle']
-const PAGE_SIZE  = 30
+import { RANK_META } from '../../lib/constants'
 
 /* ── Daily Spotlight Cards ───────────────────────────────── */
 function SpotlightCards({ players, onlineIds, onNavigate }) {
@@ -92,27 +88,12 @@ export default function PlayersPage() {
   const router            = useRouter()
   const [players, setPlayers]           = useState([])
   const [following, setFollowing]       = useState({})
-  const [challengeTarget, setChallengeTarget] = useState(null)
-  const [game, setGame]                 = useState(GAME_SLUGS[0])
-  const [mode, setMode]                 = useState(GAME_MODES[0])
-  const [format, setFormat]             = useState('')
-  const [scheduledAt, setScheduledAt]   = useState('')
-  const [sent, setSent]                 = useState(false)
   const [loading, setLoading]           = useState(true)
   const [search, setSearch]             = useState('')
-  const [page, setPage]                 = useState(0)
-  const [hasMore, setHasMore]           = useState(true)
   usePageLoading(loading)
   const onlineIds = useOnlineUsers()
 
-  const [recruitOpen, setRecruitOpen]       = useState(false)
-  const [recruitGame, setRecruitGame]       = useState(GAME_SLUGS[0])
-  const [recruitMode, setRecruitMode]       = useState(GAME_MODES[0])
-  const [recruitMessage, setRecruitMessage] = useState('')
-  const [recruitSent, setRecruitSent]       = useState(false)
-  const [recruitSending, setRecruitSending] = useState(false)
-
-  useEffect(() => { loadPlayers(0) }, [])
+  useEffect(() => { loadPlayers() }, [])
 
   useEffect(() => {
     if (!user || !players.length) return
@@ -125,20 +106,27 @@ export default function PlayersPage() {
       })
   }, [user, players.length])
 
-  async function loadPlayers(pageNum = 0) {
+  // Load EVERY player (no cap). Supabase returns at most 1000 rows per request,
+  // so page through in batches until a short batch comes back.
+  async function loadPlayers() {
     setLoading(true)
-    const from = pageNum * PAGE_SIZE
-    const to   = from + PAGE_SIZE - 1
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('level', { ascending: false })
-      .order('wins',  { ascending: false })
-      .range(from, to)
-    const rows = data || []
-    setPlayers(prev => pageNum === 0 ? rows : [...prev, ...rows])
-    setHasMore(rows.length === PAGE_SIZE)
-    setPage(pageNum)
+    const BATCH = 1000
+    let all = []
+    let from = 0
+    while (true) {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('level', { ascending: false })
+        .order('wins',  { ascending: false })
+        .order('id',    { ascending: true })   // stable tie-break so batches never overlap
+        .range(from, from + BATCH - 1)
+      if (error || !data) break
+      all = all.concat(data)
+      if (data.length < BATCH) break
+      from += BATCH
+    }
+    setPlayers(all)
     setLoading(false)
   }
 
@@ -155,43 +143,27 @@ export default function PlayersPage() {
     }
   }
 
-  async function sendChallenge() {
-    if (!user) { openAuthGate(); return }
-    const slug = `${(profile?.username||'p').toLowerCase().replace(/[^a-z0-9]/g,'')}-vs-${(challengeTarget.username||'p').toLowerCase().replace(/[^a-z0-9]/g,'')}-${Math.random().toString(36).slice(2,8)}`
-    await supabase.from('matches').insert({
-      challenger_id: user.id, challenged_id: challengeTarget.id,
-      game, game_mode: mode, format, status: 'pending',
-      slug, scheduled_at: scheduledAt || null,
+  // Level/wins rank (order the players were loaded in) — stays meaningful even
+  // though the list itself is sorted by activity.
+  const rankById = useMemo(() => {
+    const m = {}
+    players.forEach((p, i) => { m[p.id] = i + 1 })
+    return m
+  }, [players])
+
+  // Online first (keeping level/wins order), then most recently seen, never-seen last.
+  const sortedPlayers = useMemo(() => {
+    const seen = p => (p.last_seen ? new Date(p.last_seen).getTime() || 0 : 0)
+    return [...players].sort((a, b) => {
+      const ao = onlineIds.has(a.id)
+      const bo = onlineIds.has(b.id)
+      if (ao !== bo) return ao ? -1 : 1
+      if (ao && bo) return 0
+      return seen(b) - seen(a)
     })
-    setSent(true)
-    setTimeout(() => { setSent(false); setChallengeTarget(null); setFormat(''); setScheduledAt('') }, 1800)
-  }
+  }, [players, onlineIds])
 
-  async function sendRecruit() {
-    if (!user) { openAuthGate(); return }
-    setRecruitSending(true)
-    const slug = `open-${recruitGame}-${Math.random().toString(36).slice(2,8)}`
-    const { data: match, error } = await supabase.from('matches').insert({
-      challenger_id: user.id, challenged_id: null,
-      game: recruitGame, game_mode: recruitMode,
-      status: 'recruiting', slug, recruiting: true,
-      recruit_message: recruitMessage || null,
-    }).select().single()
-    if (!error && match) {
-      await supabase.rpc('recruit_for_match', {
-        p_match_id: match.id, p_game_slug: recruitGame,
-        p_creator_id: user.id, p_message: recruitMessage || null,
-      })
-    }
-    setRecruitSending(false)
-    setRecruitSent(true)
-    setTimeout(() => {
-      setRecruitSent(false); setRecruitOpen(false); setRecruitMessage('')
-      if (match) router.push(`/matches/${match.slug}`)
-    }, 1400)
-  }
-
-  const filtered = players.filter(p =>
+  const filtered = sortedPlayers.filter(p =>
     !search || p.username?.toLowerCase().includes(search.toLowerCase())
   )
 
@@ -204,10 +176,6 @@ export default function PlayersPage() {
           <p className={styles.eyebrow}>Season {getCurrentSeason()} · PlayWithFriends</p>
           <h1 className={styles.headline}>PLAYERS</h1>
         </div>
-        <button className={styles.recruitHeaderBtn}
-          onClick={() => { if (!user) { openAuthGate(); return } setRecruitOpen(true) }}>
-          <i className="ri-megaphone-line"/> Recruit
-        </button>
       </div>
 
       {/* Spotlight cards — only shown before search */}
@@ -243,7 +211,7 @@ export default function PlayersPage() {
       </div>
 
       {/* Skeleton */}
-      {loading && page === 0 && (
+      {loading && (
         <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
           {[...Array(7)].map((_, i) => (
             <div key={i} style={{
@@ -258,7 +226,7 @@ export default function PlayersPage() {
       {/* List */}
       {!loading && (
         <div className={styles.list}>
-          {filtered.map((p, idx) => {
+          {filtered.map(p => {
             const rankMeta  = RANK_META[p.tier] || RANK_META.Gold
             const isOnline  = onlineIds.has(p.id)
             const isSupport = isHelpdeskEmail(p.email)
@@ -273,7 +241,7 @@ export default function PlayersPage() {
 
                 {/* Rank */}
                 {!isSupport
-                  ? <span className={styles.rankNum}>#{idx + 1}</span>
+                  ? <span className={styles.rankNum}>#{rankById[p.id]}</span>
                   : <span style={{ fontSize:18, width:28, textAlign:'center', flexShrink:0 }}>
                       <i className="ri-customer-service-2-line" style={{ color:'var(--accent)' }}/>
                     </span>
@@ -335,13 +303,6 @@ export default function PlayersPage() {
                       title={following[p.id] ? 'Unfollow' : 'Follow'}>
                       <i className={following[p.id] ? 'ri-user-check-line' : 'ri-user-add-line'}/>
                     </button>
-                    {!isSupport && (
-                      <button className={styles.challengeBtn}
-                        onClick={e => { e.stopPropagation(); setChallengeTarget(p) }}
-                        title="Challenge">
-                        <i className="ri-sword-line"/>
-                      </button>
-                    )}
                   </div>
                 )}
               </div>
@@ -356,115 +317,8 @@ export default function PlayersPage() {
             </div>
           )}
 
-          {!search && hasMore && (
-            <button className={styles.loadMoreBtn}
-              onClick={() => loadPlayers(page + 1)}>
-              Load more players
-            </button>
-          )}
         </div>
       )}
-
-      {/* ── Challenge Modal ── */}
-      <Modal open={!!challengeTarget}
-        onClose={() => { setChallengeTarget(null); setSent(false); setFormat(''); setScheduledAt('') }}
-        title="Request Match" size="sm"
-        footer={sent
-          ? <span className={styles.sentMsg}><i className="ri-check-line"/> Request sent!</span>
-          : <button className={styles.sendBtn} onClick={sendChallenge}>
-              <i className="ri-send-plane-line"/> Send Challenge
-            </button>
-        }>
-        {challengeTarget && (
-          <div className={styles.challengeBody}>
-            <div className={styles.challengePlayer}>
-              <div className={styles.chAvatar}>
-                {challengeTarget.avatar_url
-                  ? <img src={challengeTarget.avatar_url} alt=""
-                      style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:8 }}/>
-                  : challengeTarget.username.slice(0, 2).toUpperCase()
-                }
-              </div>
-              <div>
-                <div className={styles.chName}>{challengeTarget.username}</div>
-                <div className={styles.chRank}>Lv.{challengeTarget.level ?? 1} · {challengeTarget.tier}</div>
-              </div>
-            </div>
-            <div className={styles.formField}>
-              <label>Game</label>
-              <div className={styles.modeGrid}>
-                {GAME_SLUGS.map(g => (
-                  <button key={g} className={`${styles.modeBtn} ${game === g ? styles.modeActive : ''}`}
-                    onClick={() => setGame(g)}>
-                    <i className={GAME_META[g]?.icon} style={{ marginRight:4 }}/>{GAME_META[g]?.name || g}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className={styles.formField}>
-              <label>Game Mode</label>
-              <div className={styles.modeGrid}>
-                {GAME_MODES.map(m => (
-                  <button key={m} className={`${styles.modeBtn} ${mode === m ? styles.modeActive : ''}`}
-                    onClick={() => setMode(m)}>{m}</button>
-                ))}
-              </div>
-            </div>
-            <div className={styles.formField}>
-              <label>Format</label>
-              <input className={styles.textInput} placeholder="e.g. Bo3, Bo5…"
-                value={format} onChange={e => setFormat(e.target.value)}/>
-            </div>
-            <div className={styles.formField}>
-              <label>Date & Time</label>
-              <input type="datetime-local" className={styles.textInput}
-                value={scheduledAt} onChange={e => setScheduledAt(e.target.value)}/>
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      {/* ── Recruit Modal ── */}
-      <Modal open={recruitOpen}
-        onClose={() => { if (!recruitSending) { setRecruitOpen(false); setRecruitSent(false); setRecruitMessage('') } }}
-        title="Recruit an Opponent" size="sm"
-        footer={recruitSent
-          ? <span className={styles.sentMsg}><i className="ri-check-line"/> Call-out sent!</span>
-          : <button className={styles.sendBtn} disabled={recruitSending} onClick={sendRecruit}>
-              <i className="ri-megaphone-line"/> {recruitSending ? 'Sending…' : 'Post & Notify'}
-            </button>
-        }>
-        <div className={styles.challengeBody}>
-          <p style={{ fontSize:12, color:'var(--text-muted)', margin:0, lineHeight:1.5 }}>
-            Creates an open match. Everyone subscribed to the game gets notified — first to tap Join takes the slot.
-          </p>
-          <div className={styles.formField}>
-            <label>Game</label>
-            <div className={styles.modeGrid}>
-              {GAME_SLUGS.map(g => (
-                <button key={g} className={`${styles.modeBtn} ${recruitGame === g ? styles.modeActive : ''}`}
-                  onClick={() => setRecruitGame(g)}>
-                  <i className={GAME_META[g]?.icon} style={{ marginRight:4 }}/>{GAME_META[g]?.name || g}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className={styles.formField}>
-            <label>Game Mode</label>
-            <div className={styles.modeGrid}>
-              {GAME_MODES.map(m => (
-                <button key={m} className={`${styles.modeBtn} ${recruitMode === m ? styles.modeActive : ''}`}
-                  onClick={() => setRecruitMode(m)}>{m}</button>
-              ))}
-            </div>
-          </div>
-          <div className={styles.formField}>
-            <label>Message (optional)</label>
-            <input className={styles.textInput} placeholder="e.g. Looking for a Bo3 tonight at 9PM"
-              value={recruitMessage} onChange={e => setRecruitMessage(e.target.value)} maxLength={120}/>
-          </div>
-        </div>
-      </Modal>
     </div>
   )
 }
