@@ -41,6 +41,10 @@ input, textarea, [contenteditable] {
 
   --accent: #2f9da9;
   --accent-text: #ffffff;
+
+  /* Soft teal-tinted gradient, matches the extended-theme card treatment */
+  --card-bg: linear-gradient(135deg, #ffffff 0%, #eaf6f7 100%);
+  --glow: 0 0 20px rgba(47,157,169,0.12);
 }
 
 /* ── Dark Theme ── */
@@ -59,6 +63,9 @@ input, textarea, [contenteditable] {
 
   --accent: #2f9da9;
   --accent-text: #ffffff;
+
+  --card-bg: linear-gradient(135deg, #242426 0%, #1a1a1c 100%);
+  --glow: 0 0 20px rgba(47,157,169,0.2), 0 0 40px rgba(0,0,0,0.25);
 }
 
 /* ── Base ── */
@@ -303,6 +310,8 @@ button {
 }
 
 /* ── Glow effect applied to surfaces in themed modes ── */
+:root                 .themed-glow,
+[data-theme="dark"]   .themed-glow,
 [data-theme="neon"]   .themed-glow,
 [data-theme="sunset"] .themed-glow,
 [data-theme="forest"] .themed-glow,
@@ -312,6 +321,7 @@ button {
 }
 
 /* ── Scrollbar accent coloring per theme ── */
+[data-theme="dark"]   ::-webkit-scrollbar-thumb { background: #2f9da944; }
 [data-theme="neon"]   ::-webkit-scrollbar-thumb { background: #bf00ff44; }
 [data-theme="sunset"] ::-webkit-scrollbar-thumb { background: #ff6b0044; }
 [data-theme="forest"] ::-webkit-scrollbar-thumb { background: #00e67644; }
