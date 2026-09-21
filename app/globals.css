@@ -41,10 +41,6 @@ input, textarea, [contenteditable] {
 
   --accent: #2f9da9;
   --accent-text: #ffffff;
-
-  /* Soft teal-tinted gradient, matches the extended-theme card treatment */
-  --card-bg: linear-gradient(135deg, #ffffff 0%, #eaf6f7 100%);
-  --glow: 0 0 20px rgba(47,157,169,0.12);
 }
 
 /* ── Dark Theme ── */
@@ -63,9 +59,6 @@ input, textarea, [contenteditable] {
 
   --accent: #2f9da9;
   --accent-text: #ffffff;
-
-  --card-bg: linear-gradient(135deg, #242426 0%, #1a1a1c 100%);
-  --glow: 0 0 20px rgba(47,157,169,0.2), 0 0 40px rgba(0,0,0,0.25);
 }
 
 /* ── Base ── */
@@ -309,22 +302,57 @@ button {
   --glow:        0 0 24px rgba(0,212,255,0.2), 0 0 60px rgba(0,80,160,0.2);
 }
 
+/* ── 🌌 AURORA — Moving gradient sky, purple/pink/cyan glow on deep night ── */
+[data-theme="aurora"] {
+  --bg:          radial-gradient(at 15% 15%, rgba(124,58,237,0.45) 0%, transparent 55%),
+                 radial-gradient(at 85% 10%, rgba(236,72,153,0.35) 0%, transparent 55%),
+                 radial-gradient(at 50% 100%, rgba(6,182,212,0.3) 0%, transparent 60%),
+                 linear-gradient(160deg, #0a0118 0%, #150a30 50%, #0a0118 100%);
+  --bg-rgb:      10,1,24;
+  --bg-2:        #170b34;
+  --surface:     #1c0f3d;
+
+  --border:      #2c1a56;
+  --border-dark: #3d2578;
+
+  --text:        #f3e8ff;
+  --text-dim:    #cbb0ec;
+  --text-muted:  #8a72b8;
+
+  --accent:      #c026d3;
+  --accent-text: #ffffff;
+
+  --card-bg:     linear-gradient(135deg, #2a1358 0%, #1c0f3d 100%);
+  --glow:        0 0 24px rgba(192,38,211,0.3), 0 0 60px rgba(6,182,212,0.15);
+}
+
+/* Fixed attachment so the gradient feels like a backdrop, not a tile */
+[data-theme="aurora"] body {
+  background-attachment: fixed;
+  background-size: 200% 200%;
+  animation: auroraDrift 18s ease-in-out infinite alternate;
+}
+
+@keyframes auroraDrift {
+  0%   { background-position: 0% 0%; }
+  100% { background-position: 100% 100%; }
+}
+
 /* ── Glow effect applied to surfaces in themed modes ── */
-:root                 .themed-glow,
-[data-theme="dark"]   .themed-glow,
 [data-theme="neon"]   .themed-glow,
 [data-theme="sunset"] .themed-glow,
 [data-theme="forest"] .themed-glow,
 [data-theme="gold"]   .themed-glow,
-[data-theme="ocean"]  .themed-glow {
+[data-theme="ocean"]  .themed-glow,
+[data-theme="aurora"] .themed-glow {
   box-shadow: var(--glow);
 }
 
 /* ── Scrollbar accent coloring per theme ── */
-[data-theme="dark"]   ::-webkit-scrollbar-thumb { background: #2f9da944; }
 [data-theme="neon"]   ::-webkit-scrollbar-thumb { background: #bf00ff44; }
 [data-theme="sunset"] ::-webkit-scrollbar-thumb { background: #ff6b0044; }
 [data-theme="forest"] ::-webkit-scrollbar-thumb { background: #00e67644; }
 [data-theme="gold"]   ::-webkit-scrollbar-thumb { background: #ffd70044; }
 [data-theme="ocean"]  ::-webkit-scrollbar-thumb { background: #00d4ff44; }
 [data-theme="snow"]   ::-webkit-scrollbar-thumb { background: #0077cc44; }
+[data-theme="aurora"] ::-webkit-scrollbar-thumb { background: #c026d344; }

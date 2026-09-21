@@ -66,6 +66,14 @@ swatch: '#081c2e',
 dark: true,
 accent: '#00d4ff',
 },
+aurora: {
+label: 'Aurora',
+icon: 'ri-rainbow-line',
+color: '#0a0118',
+swatch: 'linear-gradient(135deg, #7c3aed 0%, #ec4899 55%, #06b6d4 100%)',
+dark: true,
+accent: '#c026d3',
+},
 }
 
 function applyTheme(theme) {
