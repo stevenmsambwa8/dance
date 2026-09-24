@@ -85,8 +85,6 @@ export default function CreateTournament() {
   const { user, profile, isAdmin } = useAuth()
   const { openAuthGate } = useAuthGate()
   const router = useRouter()
-  // Only games that are live can get new tournaments (hidden / disabled / deleted are excluded)
-  const { enabledSlugs } = useGames()
 
   if (!user) {
     return (
@@ -109,6 +107,8 @@ function CreateForm({ user, profile, isAdmin, router }) {
   const prefillClanId   = searchParams.get('clan') || null
   const prefillGameSlug = searchParams.get('game')
   const prefillTeamSize = Number(searchParams.get('team_size'))
+  // Only games that are live can get new tournaments (hidden / disabled / deleted are excluded)
+  const { enabledSlugs } = useGames()
 
   const [step, setStep] = useState(0)
   const [direction, setDirection] = useState('forward')
