@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
+import useSWR, { mutate } from 'swr'
 import Link from 'next/link'
 import { useAuth } from '../components/AuthProvider'
 import { useAuthGate } from '../components/AuthGateModal'
@@ -442,116 +443,123 @@ export default function Home() {
   const { t } = useTranslation()
   const { visibleSlugs, isGameVisible, getGameStatus } = useGames()
 
-  const [tournaments,  setTournaments]  = useState([])
-  const visibleTournaments = tournaments.filter(tour => isGameVisible(tour.game_slug))
-  const [events,       setEvents]       = useState([])
-  const [pastEvents,   setPastEvents]   = useState([])
-  const [loadingEvents, setLoadingEvents] = useState(true)
-  const [topPlayers,   setTopPlayers]   = useState([])
   const [selectedGame,      setSelectedGame]      = useState('all')
-  const [gamePlayers,       setGamePlayers]       = useState([])
-  const [loadingGamePlayers, setLoadingGamePlayers] = useState(false)
-  const [shopItems,    setShopItems]    = useState([])
-  const [shopImages,   setShopImages]   = useState({})
-  const [recentPosts,  setRecentPosts]  = useState([])
-
-  const [loadingTourns,  setLoadingTourns]  = useState(true)
-  const [loadingPlayers, setLoadingPlayers] = useState(true)
-  const [loadingShop,    setLoadingShop]    = useState(true)
-  const [loadingFeed,    setLoadingFeed]    = useState(true)
-
-  const [gameMasters,     setGameMasters]     = useState([])
   const [showMasterModal, setShowMasterModal] = useState(false)
-
   const [sidebarTournament, setSidebarTournament] = useState(null)
-
-  const [availableClans, setAvailableClans] = useState([])
-  const [clanSquads,     setClanSquads]     = useState({})
-  const [loadingClans,   setLoadingClans]   = useState(true)
 
   const tGridRef = useRef(null)
   const eGridRef = useRef(null)
+  const masterModalCheckedRef = useRef(false)
 
+  const TOURNAMENT_COLS = 'id,name,slug,game_slug,status,slots,registered_count,date,prize,entrance_fee,is_test,created_by,created_at,bracket_data'
+
+  function filterTest(list) {
+    return (list || []).filter(t => {
+      if (!t.is_test) return true
+      if (!user) return false
+      return isAdmin || t.created_by === user?.id
+    })
+  }
+
+  /* ── Game masters (weekly RPC + fallback) — cached across visits ── */
+  const { data: gameMasters = [] } = useSWR('home-game-masters', async () => {
+    const { data: rpcData, error: rpcErr } = await supabase.rpc('get_all_current_game_masters')
+    if (!rpcErr && rpcData?.length) return rpcData
+
+    const monday = (() => {
+      const d = new Date()
+      const day = d.getDay()
+      d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day))
+      d.setHours(0,0,0,0)
+      return d.toISOString().split('T')[0]
+    })()
+    const nextMonday = (() => {
+      const d = new Date(monday)
+      d.setDate(d.getDate() + 7)
+      return d.toISOString().split('T')[0]
+    })()
+    const { data: fallback } = await supabase
+      .from('game_masters')
+      .select('*, profiles(username, avatar_url, tier, country_flag)')
+      .gte('week_start', monday)
+      .lt('week_start', nextMonday)
+      .order('crowned_at', { ascending: false })
+
+    return (fallback || []).map(r => ({
+      game_slug: r.game_slug,
+      master_id: r.id,
+      user_id: r.user_id,
+      username: r.profiles?.username,
+      avatar_url: r.profiles?.avatar_url,
+      tier: r.profiles?.tier,
+      country_flag: r.profiles?.country_flag,
+      total_wins: r.total_wins,
+      total_points: r.total_points,
+      tournaments_played: r.tournaments_played,
+      crowned_at: r.crowned_at,
+    }))
+  })
+
+  // Show the crown modal once per page-load, the first time masters actually
+  // arrive. SWR may silently revalidate this same query later in the
+  // background (tab refocus etc) — that shouldn't reopen the modal.
   useEffect(() => {
-    async function loadGameMasters() {
-      let masters = null
-      const { data: rpcData, error: rpcErr } = await supabase.rpc('get_all_current_game_masters')
-      if (!rpcErr && rpcData?.length) {
-        masters = rpcData
-      } else {
-        const monday = (() => {
-          const d = new Date()
-          const day = d.getDay()
-          d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day))
-          d.setHours(0,0,0,0)
-          return d.toISOString().split('T')[0]
-        })()
-        const nextMonday = (() => {
-          const d = new Date(monday)
-          d.setDate(d.getDate() + 7)
-          return d.toISOString().split('T')[0]
-        })()
-        const { data: fallback } = await supabase
-          .from('game_masters')
-          .select('*, profiles(username, avatar_url, tier, country_flag)')
-          .gte('week_start', monday)
-          .lt('week_start', nextMonday)
-          .order('crowned_at', { ascending: false })
-        if (fallback?.length) {
-          masters = fallback.map(r => ({
-            game_slug: r.game_slug,
-            master_id: r.id,
-            user_id: r.user_id,
-            username: r.profiles?.username,
-            avatar_url: r.profiles?.avatar_url,
-            tier: r.profiles?.tier,
-            country_flag: r.profiles?.country_flag,
-            total_wins: r.total_wins,
-            total_points: r.total_points,
-            tournaments_played: r.tournaments_played,
-            crowned_at: r.crowned_at,
-          }))
-        }
-      }
-      if (!masters?.length) return
-      setGameMasters(masters)
-      try {
-        const suppress = localStorage.getItem('master_modal_suppress')
-        if (!suppress || Date.now() >= Number(suppress)) setShowMasterModal(true)
-      } catch {
-        setShowMasterModal(true)
-      }
+    if (!gameMasters.length || masterModalCheckedRef.current) return
+    masterModalCheckedRef.current = true
+    try {
+      const suppress = localStorage.getItem('master_modal_suppress')
+      if (!suppress || Date.now() >= Number(suppress)) setShowMasterModal(true)
+    } catch {
+      setShowMasterModal(true)
     }
-    loadGameMasters()
-  }, [])
+  }, [gameMasters])
 
-  useEffect(() => {
-    supabase
+  /* ── Active tournaments — cached, kept fresh by the realtime channel below ── */
+  const { data: rawTournaments = [], isLoading: loadingTourns } = useSWR('home-tournaments', async () => {
+    const { data } = await supabase
       .from('tournaments')
-      .select('id,name,slug,game_slug,status,slots,registered_count,date,prize,entrance_fee,is_test,created_by,created_at,bracket_data')
+      .select(TOURNAMENT_COLS)
       .in('status', ['active', 'ongoing'])
       .order('created_at', { ascending: false })
       .limit(4)
-      .then(({ data }) => { setTournaments(filterTest(data)); setLoadingTourns(false) })
-  }, [])
+    return data || []
+  })
+  const tournaments = filterTest(rawTournaments)
+  const visibleTournaments = tournaments.filter(tour => isGameVisible(tour.game_slug))
 
   useEffect(() => {
-    supabase
+    const ch = supabase
+      .channel('home-tourney-count')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tournament_participants' }, async () => {
+        const { data } = await supabase
+          .from('tournaments')
+          .select(TOURNAMENT_COLS)
+          .in('status', ['active', 'ongoing'])
+          .order('created_at', { ascending: false })
+          .limit(4)
+        // Push straight into the SWR cache instead of refetching — this is
+        // what keeps the cached list correct as other players join/leave,
+        // without every visitor's tab re-querying on its own.
+        if (data) mutate('home-tournaments', data, false)
+      })
+      .subscribe()
+    return () => supabase.removeChannel(ch)
+  }, [])
+
+  /* ── Events ── */
+  const { data: rawEvents = [], isLoading: loadingEvents } = useSWR('home-events', async () => {
+    const { data } = await supabase
       .from('events')
       .select('id,title,slug,category,banner_url,location,start_at,end_at,status,rsvp_count,is_test,created_by')
       .order('start_at', { ascending: false })
       .limit(30)
-      .then(({ data }) => {
-        const all = filterTest(data || [])
-        const isActive = ev => { const st = deriveEventStatus(ev); return st === 'upcoming' || st === 'live' }
-        // Active: soonest first (live events naturally come first). Past: most recent first.
-        const active = all.filter(isActive).sort((a, b) => new Date(a.start_at) - new Date(b.start_at))
-        const past   = all.filter(ev => !isActive(ev))
-        setEvents(active)
-        setPastEvents(past.slice(0, 8))
-        setLoadingEvents(false)
-      })
-  }, [])
+    return data || []
+  })
+  const allEvents = filterTest(rawEvents)
+  const isActiveEvent = ev => { const st = deriveEventStatus(ev); return st === 'upcoming' || st === 'live' }
+  // Active: soonest first (live events naturally come first). Past: most recent first.
+  const events = allEvents.filter(isActiveEvent).sort((a, b) => new Date(a.start_at) - new Date(b.start_at))
+  const pastEvents = allEvents.filter(ev => !isActiveEvent(ev)).slice(0, 8)
 
   // Event card — used for both active events and (greyed-out, still clickable) past events
   function renderEventCard(ev, isPast) {
@@ -585,110 +593,88 @@ export default function Home() {
     )
   }
 
-  useEffect(() => {
-    if (selectedGame === 'all') return
-    setLoadingGamePlayers(true)
-    supabase
-      .rpc('get_game_leaderboard', { p_game_slug: selectedGame, p_limit: 5 })
-      .then(({ data, error }) => {
-        setGamePlayers(error ? [] : (data || []))
-        setLoadingGamePlayers(false)
-      })
-  }, [selectedGame])
+  /* ── Selected-game leaderboard — separate cache entry per game ── */
+  const { data: gamePlayers = [], isLoading: loadingGamePlayers } = useSWR(
+    selectedGame === 'all' ? null : ['home-game-leaderboard', selectedGame],
+    async () => {
+      const { data, error } = await supabase.rpc('get_game_leaderboard', { p_game_slug: selectedGame, p_limit: 5 })
+      return error ? [] : (data || [])
+    }
+  )
 
-  useEffect(() => {
-
-    supabase
+  /* ── Top players ── */
+  const { data: topPlayers = [], isLoading: loadingPlayers } = useSWR('home-top-players', async () => {
+    const { data } = await supabase
       .from('profiles')
       .select('id,username,level,tier,points,wins,season_wins,avatar_url,country_flag,email,is_season_winner,custom_badges, temp_admin_until,plan,plan_expires_at')
       .not('email', 'in', '(nabogamingss1@gmail.com)')
       .order('points', { ascending: false })
       .limit(5)
-      .then(({ data }) => { setTopPlayers(data || []); setLoadingPlayers(false) })
+    return data || []
+  })
 
-    supabase
+  /* ── Shop items + their images (second query chained off the ids) ── */
+  const { data: shopItems = [], isLoading: loadingShop } = useSWR('home-shop-items', async () => {
+    const { data } = await supabase
       .from('shop_items')
       .select('id,title,price,category,profiles(username)')
       .eq('active', true)
       .order('created_at', { ascending: false })
       .limit(4)
-      .then(({ data }) => {
-        setShopItems(data || [])
-        setLoadingShop(false)
-        if (data?.length) {
-          const ids = data.map(i => i.id)
-          supabase
-            .from('shop_item_images')
-            .select('item_id,url,sort_order')
-            .in('item_id', ids)
-            .order('sort_order', { ascending: true })
-            .then(({ data: imgs }) => {
-              if (!imgs) return
-              const map = {}
-              imgs.forEach(img => { if (!map[img.item_id]) map[img.item_id] = []; map[img.item_id].push(img.url) })
-              setShopImages(map)
-            })
-        }
-      })
+    return data || []
+  })
+  const shopIds = shopItems.map(i => i.id)
+  const { data: shopImages = {} } = useSWR(
+    shopIds.length ? ['home-shop-images', shopIds.join(',')] : null,
+    async () => {
+      const { data: imgs } = await supabase
+        .from('shop_item_images')
+        .select('item_id,url,sort_order')
+        .in('item_id', shopIds)
+        .order('sort_order', { ascending: true })
+      const map = {}
+      ;(imgs || []).forEach(img => { if (!map[img.item_id]) map[img.item_id] = []; map[img.item_id].push(img.url) })
+      return map
+    }
+  )
 
-    supabase
+  /* ── Recent posts ── */
+  const { data: recentPosts = [], isLoading: loadingFeed } = useSWR('home-recent-posts', async () => {
+    const { data } = await supabase
       .from('posts')
       .select('id,content,likes,comment_count,created_at,profiles(id,username,avatar_url,tier)')
       .order('created_at', { ascending: false })
       .limit(3)
-      .then(({ data }) => { setRecentPosts(data || []); setLoadingFeed(false) })
+    return data || []
+  })
 
-    supabase
+  /* ── Clans + their squads (second query chained off the ids) ── */
+  const { data: availableClans = [], isLoading: loadingClans } = useSWR('home-clans', async () => {
+    const { data } = await supabase
       .from('clans')
       .select('id,code,name,game,logo_url,banner_url,tag_prefix,member_count,squad_count')
       .lt('member_count', CLAN_CAP)
       .order('member_count', { ascending: false })
       .limit(6)
-      .then(({ data: clanData }) => {
-        setAvailableClans(clanData || [])
-        setLoadingClans(false)
-        const withSquads = (clanData || []).filter(c => c.squad_count > 0).map(c => c.id)
-        if (withSquads.length) {
-          supabase
-            .from('clan_squads')
-            .select('id,code,clan_id,name,image_url,member_count')
-            .in('clan_id', withSquads)
-            .order('member_count', { ascending: false })
-            .then(({ data: squadRows }) => {
-              const grouped = {}
-              ;(squadRows || []).forEach(sq => {
-                if (!grouped[sq.clan_id]) grouped[sq.clan_id] = []
-                if (grouped[sq.clan_id].length < 3) grouped[sq.clan_id].push(sq)
-              })
-              setClanSquads(grouped)
-            })
-        }
+    return data || []
+  })
+  const clanIdsWithSquads = availableClans.filter(c => c.squad_count > 0).map(c => c.id)
+  const { data: clanSquads = {} } = useSWR(
+    clanIdsWithSquads.length ? ['home-clan-squads', clanIdsWithSquads.join(',')] : null,
+    async () => {
+      const { data: squadRows } = await supabase
+        .from('clan_squads')
+        .select('id,code,clan_id,name,image_url,member_count')
+        .in('clan_id', clanIdsWithSquads)
+        .order('member_count', { ascending: false })
+      const grouped = {}
+      ;(squadRows || []).forEach(sq => {
+        if (!grouped[sq.clan_id]) grouped[sq.clan_id] = []
+        if (grouped[sq.clan_id].length < 3) grouped[sq.clan_id].push(sq)
       })
-  }, [])
-
-  useEffect(() => {
-    const ch = supabase
-      .channel('home-tourney-count')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tournament_participants' }, async () => {
-        const { data } = await supabase
-          .from('tournaments')
-          .select('id,name,slug,game_slug,status,slots,registered_count,date,prize,entrance_fee,is_test,created_by,created_at,bracket_data')
-          .in('status', ['active', 'ongoing'])
-          .order('created_at', { ascending: false })
-          .limit(4)
-        if (data) setTournaments(filterTest(data))
-      })
-      .subscribe()
-    return () => supabase.removeChannel(ch)
-  }, [user, isAdmin])
-
-  function filterTest(list) {
-    return (list || []).filter(t => {
-      if (!t.is_test) return true
-      if (!user) return false
-      return isAdmin || t.created_by === user?.id
-    })
-  }
+      return grouped
+    }
+  )
 
   const allSquads = availableClans.flatMap(clan =>
     (clanSquads[clan.id] || []).map(squad => ({ squad, clan }))
