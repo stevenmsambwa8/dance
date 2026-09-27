@@ -6,7 +6,11 @@
 /* ── Layout ── */
 .page {
   position: fixed;
-  inset: 0;
+  top: 0; left: 0; right: 0;
+  /* Same real-time viewport tracking as the DM page — see
+     ViewportHeightSync — instead of `inset: 0` implicitly relying on the
+     browser's own (laggier) fixed-viewport resize timing. */
+  height: var(--app-vh, 100dvh);
   display: flex;
   flex-direction: column;
   background: var(--bg);

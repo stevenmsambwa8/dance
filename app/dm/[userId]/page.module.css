@@ -1,6 +1,10 @@
 .page {
   margin: 0 auto;
-  height: 100dvh; display: flex; flex-direction: column; overflow: hidden; padding: 0;
+  /* var(--app-vh) tracks the live visual viewport in real time (see
+     ViewportHeightSync); 100dvh is only the fallback for the brief moment
+     before that JS has run, or if it's unavailable. This is what keeps
+     the composer in step with the keyboard instead of lagging behind it. */
+  height: var(--app-vh, 100dvh); display: flex; flex-direction: column; overflow: hidden; padding: 0;
 }
 .centered {
   display: flex; flex-direction: column; align-items: center;

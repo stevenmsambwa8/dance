@@ -4,7 +4,10 @@
 
 .page {
   display: flex; flex-direction: column;
-  height: 100dvh;
+  /* Real-time viewport tracking (see ViewportHeightSync) so the Next/Back
+     row rides up with the keyboard instead of snapping into place once
+     the browser's own dvh resize finally settles. */
+  height: var(--app-vh, 100dvh);
   margin: 0 auto;
   padding: 16px 14px calc(20px + env(safe-area-inset-bottom, 0px));
   overflow: hidden;

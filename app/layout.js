@@ -13,6 +13,7 @@ import ThemeScript from '../components/ThemeScript'
 import MaintenanceGate from '../components/MaintenanceGate'
 import { AuthGateProvider } from '../components/AuthGateModal'
 import MusicPlayerProvider from '../components/MusicPlayerContext' // ← NEW
+import ViewportHeightSync from '../components/ViewportHeightSync'
 
 export const metadata = {
   title: 'Nabogaming — Tournament Dashboard',
@@ -71,6 +72,7 @@ export default function RootLayout({ children }) {
       </head>
 
       <body>
+        <ViewportHeightSync />
         <AuthProvider>
           <ToastProvider>
             <ThemeProvider>
