@@ -15,6 +15,15 @@
      explicit prevents it inheriting one by accident. */
   transform: none;
 
+  /* Promotes the bar to its own compositor layer without setting an actual
+     transform (keeps the guard above intact). Without this, every resize
+     tick of the visual viewport while the keyboard opens/closes forces the
+     backdrop-filter blur to be recomputed on the main thread, which shows
+     up as a visible flicker/stutter right as the keyboard animates. */
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+
   /* Floating pill look */
   border-radius: 28px;
   overflow: visible; /* allow the center circle to pop up above the pill */

@@ -29,6 +29,11 @@ export const viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
+  // Forces a consistent, immediate layout-viewport resize when the keyboard
+  // opens on every supporting browser, instead of some falling back to a
+  // visual-only resize that then corrects itself a frame later — that
+  // correction is what reads as "flicker" on fixed bottom bars.
+  interactiveWidget: 'resizes-content',
 }
 
 export default function RootLayout({ children }) {

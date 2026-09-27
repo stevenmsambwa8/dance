@@ -6,7 +6,7 @@
   display: flex; flex-direction: column;
   height: 100dvh;
   margin: 0 auto;
-  padding: 16px 14px 20px;
+  padding: 16px 14px calc(20px + env(safe-area-inset-bottom, 0px));
   overflow: hidden;
   box-sizing: border-box;
   position: relative;
@@ -431,8 +431,17 @@
   animation: shake 0.32s;
 }
 
-/* ── Nav row — pinned to bottom ── */
-.navRow { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-shrink: 0; }
+/* ── Nav row — pinned to bottom, safe-area aware like BottomNav ── */
+.navRow {
+  display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-shrink: 0;
+
+  /* Same compositor-layer hint as BottomNav: stops this row from being
+     repainted on every resize tick of the keyboard-open animation, which
+     is what caused the visible flicker/jump right above the keyboard. */
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
 .navBack {
   display: flex; align-items: center; gap: 6px;
   padding: 10px 18px; border: 1px solid var(--border-dark); border-radius: 10px; background: none;
