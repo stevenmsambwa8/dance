@@ -4,6 +4,9 @@ import { useEffect, useRef, useState, createContext } from 'react'
 import { useLoadingContext } from './LoadingContext'
 
 /**
+ * NOTE: <PageLoaderOverlay> is currently NOT mounted in layout.js (centered
+ * loader disabled). Code and CSS are kept so it can be re-enabled later.
+ *
  * PageTransition — no slide/animation between pages. Navigation is instant;
  * the only visual cue is the centered loading circle, shown ONLY while the
  * incoming page is actually loading (pages report this via usePageLoading).
@@ -15,7 +18,7 @@ import { useLoadingContext } from './LoadingContext'
  *   lingering.
  * - Hard ceiling so it can never get stuck over the nav.
  *
- * <PageLoaderOverlay> lives in layout.js next to NavWrapper.
+ * <PageLoaderOverlay> can be mounted in layout.js next to NavWrapper.
  */
 
 const GRACE_MS = 200      // wait for the new page to declare it's loading

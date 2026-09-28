@@ -892,7 +892,6 @@ export default function Dashboard() {
                 <button className={styles.iconBtn} onClick={() => { loadTodos(); loadTournamentPayments() }}><i className="ri-refresh-line" /></button>
               </div>
 
-              {(todosLoading || tournamentPaymentsLoading) && <div className={styles.loadWrap}><div className="loader" /></div>}
 
               {!todosLoading && !tournamentPaymentsLoading && todos.length === 0 && tournamentPayments.length === 0 && (
                 <div className={styles.emptyState}>
@@ -1007,7 +1006,6 @@ export default function Dashboard() {
                 </button>
                 <p className={styles.masterAutoNote}>Reads this week's tournament leaderboards and crowns the player with most wins + points per game.</p>
               </div>
-              {mastersLoading && <div className={styles.loadWrap}><div className="loader" /></div>}
               {!mastersLoading && (
                 <div className={styles.masterGameGrid}>
                   {GAME_SLUGS.map(slug => {

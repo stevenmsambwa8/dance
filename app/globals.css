@@ -119,7 +119,10 @@ button {
   border-radius: 2px;
 }
 
-/* ── Loader ── */
+/* ── Loader ──
+   RESERVED: the centered loader is currently not rendered anywhere.
+   Keep these styles (.loader, .loader-box, .page-loader-overlay, .loader-wrap)
+   for future use. */
 .loader {
   width: 44px;
   aspect-ratio: 1;

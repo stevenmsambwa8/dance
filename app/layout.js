@@ -3,7 +3,8 @@ import Script from 'next/script'
 import NavWrapper from '../components/NavWrapper'
 import ThemeProvider from '../components/ThemeProvider'
 import LanguageProvider from '../components/LanguageProvider'
-import PageTransition, { PageLoaderOverlay } from '../components/PageTransition'
+import PageTransition from '../components/PageTransition'
+// import { PageLoaderOverlay } from '../components/PageTransition' // reserved: centered loader, currently disabled
 import AuthProvider from '../components/AuthProvider'
 import { ToastProvider } from '../components/ToastProvider'
 import PhoneGate from '../components/PhoneGate'
@@ -85,8 +86,8 @@ export default function RootLayout({ children }) {
                       {/* Fixed UI */}
                       <NavWrapper />
                       <PhoneGate />
-                      {/* Page loading circle */}
-                      <PageLoaderOverlay />
+                      {/* Centered page loading circle is disabled for now.
+                          To bring it back: import PageLoaderOverlay above and render <PageLoaderOverlay /> here. */}
 
                       <PageTransition>
                         <main>{children}</main>
