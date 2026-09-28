@@ -1,0 +1,108 @@
+.page {
+  min-height: calc(100vh - 160px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px 48px;
+}
+
+.inner {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.title {
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+  line-height: 1.15;
+}
+
+.sub {
+  margin-top: 10px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  max-width: 340px;
+}
+
+/* ── Countdown ── */
+.timer {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  width: 100%;
+  margin: 36px 0 32px;
+}
+
+.unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.unit + .unit {
+  border-left: 1px solid var(--border);
+}
+
+.digits {
+  font-size: clamp(34px, 11vw, 52px);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.unitLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* ── Button ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 320px;
+  height: 52px;
+  margin-top: 8px;
+  border-radius: 99px;
+  border: 1px solid var(--text);
+  background: var(--text);
+  color: var(--bg);
+  font-family: var(--font);
+  font-size: 15px;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn i { font-size: 18px; }
+
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.btn:disabled {
+  background: var(--bg-2);
+  border-color: var(--border-dark);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.note {
+  margin-top: 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
