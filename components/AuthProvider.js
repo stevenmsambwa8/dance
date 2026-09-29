@@ -1,7 +1,7 @@
 'use client'
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { usePresence, useZoneTracker } from '../lib/usePresence'
+import { usePresence } from '../lib/usePresence'
 import { captureReferralFromURL, linkReferralOnSignup, tryPayReferralBonus } from '../lib/referralBonus'
 import { clearCached } from '../lib/pageCache'
 import { isLocked, lockMessage } from '../lib/profileLock'
@@ -112,7 +112,6 @@ export default function AuthProvider({ children }) {
   }, [])
 
   usePresence(user?.id)
-  useZoneTracker(user?.id) // powers the Lobby Map (/map) — tracks which section the user is in
 
   useEffect(() => {
     if (!user?.id) return

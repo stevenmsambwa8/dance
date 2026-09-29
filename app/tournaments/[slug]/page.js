@@ -11,6 +11,7 @@ import { GAME_META } from '../../../lib/constants'
 import styles from './page.module.css'
 import UserBadges from '../../../components/UserBadges'
 import usePageLoading from '../../../components/usePageLoading'
+import TournamentHub from './TournamentHub'
 import { useCurrency } from '../../../lib/useCurrency'
 import { canDo, underLimit, getActivePlan } from '../../../lib/plans'
 import UpgradeModal from '../../../components/UpgradeModal'
@@ -680,17 +681,44 @@ export default function TournamentDetail() {
   const [registering, setRegistering] = useState(false)
   const [leaving, setLeaving] = useState(false)
   const [bracketSaving, setBracketSaving] = useState(false)
-  const [activeTab, setActiveTab] = useState('bracket')
+  // null = the hub (overview) screen; otherwise the key of the open section.
+  const [activeTab, setActiveTab] = useState(null)
 
-  // Switch tabs AND scroll so the tab bar/content sits at the top of the
-  // viewport, like the page had already been scrolled there — rather than
-  // leaving the newly-picked tab's content wherever the page happened to be.
+  // Open a section full-screen. A history entry is pushed so the phone's
+  // back gesture/button returns to the hub instead of leaving the page.
   function changeTab(key) {
     setActiveTab(key)
-    requestAnimationFrame(() => {
-      document.getElementById('tournament-tabs')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    })
+    if (typeof window !== 'undefined') {
+      if (window.location.hash.replace(/^#/, '') !== key) {
+        window.history.pushState({ hubSection: true }, '', `#${key}`)
+      }
+      window.scrollTo({ top: 0 })
+    }
   }
+
+  // Back to the hub
+  function closeSection() {
+    if (typeof window !== 'undefined' && window.history.state?.hubSection) {
+      window.history.back() // popstate handler below resets the view
+    } else {
+      setActiveTab(null)
+      if (typeof window !== 'undefined') {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search)
+        window.scrollTo({ top: 0 })
+      }
+    }
+  }
+
+  useEffect(() => {
+    const VALID = ['groups', 'standings', 'bracket', 'matches', 'leaderboard', 'players']
+    const onPop = () => {
+      const h = window.location.hash.replace(/^#/, '')
+      setActiveTab(VALID.includes(h) ? h : null)
+      window.scrollTo({ top: 0 })
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
 
   // Jump from a results-rail card into the Matches tab — just switch tabs and
   // let the user find the match themselves; don't auto-scroll/highlight it,
@@ -3622,6 +3650,24 @@ export default function TournamentDetail() {
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
+  const hubSections = [
+    ...(tournament.stage_format === 'groups_knockout'
+      ? [{ key: 'groups', icon: 'ri-layout-grid-line', title: t('tournaments.groupsTab') }]
+      : []),
+    ...(tournament.stage_format === 'league'
+      ? [{ key: 'groups', icon: 'ri-trophy-line', title: 'Table' }]
+      : []),
+    ...(tournament.stage_format === 'br_points'
+      ? [{ key: 'standings', icon: 'ri-bar-chart-2-line', title: 'Standings' }]
+      : tournament.stage_format === 'league'
+      ? []
+      : [{ key: 'bracket', icon: 'ri-node-tree', title: t('tournaments.bracket') }]),
+    { key: 'matches',     icon: 'ri-sword-line',     title: t('matches.matches') },
+    { key: 'leaderboard', icon: 'ri-bar-chart-line', title: t('players.leaderboard') },
+    { key: 'players',     icon: 'ri-group-line',     title: t('players.players') },
+  ]
+  const activeSection = hubSections.find(x => x.key === activeTab)
+
   return (
     <div className={styles.page} onClick={() => lbActionMenu && setLbActionMenu(null)}>
 
@@ -3637,9 +3683,15 @@ export default function TournamentDetail() {
 
       {/* Top bar — circular back button + Manage, both top-right */}
       <div className={styles.topBar}>
-        <button className={styles.backCircle} onClick={() => router.back()} aria-label="Back">
+        <button className={styles.backCircle} onClick={() => (activeTab ? closeSection() : router.back())} aria-label="Back">
           <i className="ri-arrow-left-line" />
         </button>
+        {activeTab && (
+          <div className={styles.sectionBarTitle} id="tournament-tabs">
+            <span className={styles.sectionBarName}>{tournament.name}</span>
+            <span className={styles.sectionBarSub}>{activeSection?.title || activeTab}</span>
+          </div>
+        )}
         {canManage && tournament && (
           <button
             className={styles.manageBtnTop}
@@ -3651,13 +3703,14 @@ export default function TournamentDetail() {
         )}
       </div>
 
-      {registered && tournament && (
+      {registered && tournament && !activeTab && (
         <div style={{ padding: '0 16px', marginBottom: 4 }}>
           <PendingResultCards limit={1} onlyTournamentId={id} />
         </div>
       )}
 
-      {/* Hero — "match ticket" card */}
+      {/* Hero — "match ticket" card (hub only) */}
+      {!activeTab && (
       <div className={styles.hero}>
         <div className={styles.ticket}>
           <div className={styles.ticketHead}>
@@ -3862,15 +3915,34 @@ export default function TournamentDetail() {
         )}
       </div>
 
-      {/* ── Results rail — global, scrollable, tab-independent ── */}
-      <ResultsRail
+      )}
+
+      {/* ── Hub: stage, your path, section tiles ── */}
+      {!activeTab && (
+        <TournamentHub
+          tournament={tournament}
+          participants={participants}
+          leaderboard={leaderboard}
+          bracketData={bracketData}
+          userId={user?.id}
+          registered={registered}
+          sections={hubSections}
+          onOpen={changeTab}
+          loading={loadingTournament || loadingParticipants}
+          realCount={realCount}
+          getRoundLabel={getRoundLabelSimple}
+        />
+      )}
+
+      {/* ── Results rail (hub only) ── */}
+      {!activeTab && <ResultsRail
         bracketData={bracketData}
         participants={participants}
         styles={styles}
         t={t}
         onOpenMatch={openMatchResult}
         onOpenFixture={openFixtureResult}
-      />
+      />}
 
       {/* ── Payment Modal ── */}
       {showPayModal && (() => {
@@ -4052,37 +4124,6 @@ export default function TournamentDetail() {
           </div>
         )
       })()}
-
-      {/* Tabs */}
-      <div className={styles.tabs} id="tournament-tabs">
-        {[
-          ...(tournament.stage_format === 'groups_knockout'
-            ? [{ key: 'groups', icon: 'ri-layout-grid-line', title: t('tournaments.groupsTab') }]
-            : []),
-          ...(tournament.stage_format === 'league'
-            ? [{ key: 'groups', icon: 'ri-trophy-line', title: 'Table' }]
-            : []),
-          ...(tournament.stage_format === 'br_points'
-            ? [{ key: 'standings', icon: 'ri-bar-chart-2-line', title: 'Standings' }]
-            : tournament.stage_format === 'league'
-            ? []
-            : [{ key: 'bracket', icon: 'ri-node-tree', title: t('tournaments.bracket') }]),
-          { key: 'matches',     icon: 'ri-sword-line',    title: t('matches.matches') },
-          { key: 'leaderboard', icon: 'ri-bar-chart-line',title: t('players.leaderboard') },
-          { key: 'players',     icon: 'ri-group-line',    title: t('tournaments.playersTabCount').replace('{count}', loadingParticipants ? '…' : realCount) },
-        ].map(tab => (
-          <button
-            key={tab.key}
-            className={`${styles.tab} ${activeTab === tab.key ? styles.tabActive : ''}`}
-            onClick={() => changeTab(tab.key)}
-            title={tab.title}
-            aria-label={tab.title}
-          >
-            <i className={tab.icon} />
-            <span className={styles.tabLabel}>{tab.title}</span>
-          </button>
-        ))}
-      </div>
 
       {/* ── GROUPS TAB (read-only, group stage) ── */}
       {activeTab === 'groups' && (

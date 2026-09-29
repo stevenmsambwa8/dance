@@ -1,0 +1,79 @@
+.hub { padding: 4px 16px 8px; display: flex; flex-direction: column; gap: 12px; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 14px 14px 16px;
+}
+
+/* ── Stage stepper ── */
+.stepper { display: flex; align-items: center; justify-content: space-between; position: relative; }
+.stepper::before {
+  content: ''; position: absolute; left: 12%; right: 12%; top: 15px; height: 2px;
+  background: var(--border-dark);
+}
+.step { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.stepDot {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-2); border: 2px solid var(--border-dark);
+  color: var(--text-muted); font-size: 15px;
+}
+.stepLabel { font-size: 11px; font-weight: 700; color: var(--text-muted); }
+.stepDone .stepDot { background: var(--accent); border-color: var(--accent); color: var(--accent-text, #fff); }
+.stepNow .stepDot { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent); }
+.stepNow .stepLabel { color: var(--text); font-weight: 800; }
+
+.progressWrap { margin-top: 14px; }
+.progressTop { display: flex; justify-content: space-between; font-size: 11.5px; font-weight: 700; color: var(--text-dim); margin-bottom: 6px; }
+.track { height: 6px; border-radius: 99px; background: var(--bg-2); overflow: hidden; }
+.fill { height: 100%; border-radius: 99px; background: var(--accent); transition: width 0.4s ease; }
+
+/* ── Your status ── */
+.myCard {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--surface)), var(--surface));
+}
+.myGold { border-color: #eab30870; background: linear-gradient(135deg, rgba(234,179,8,0.16), var(--surface)); }
+.myOut { opacity: 0.85; border-color: var(--border); background: var(--surface); }
+.myKicker { font-size: 10.5px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--accent); }
+.myTitle { margin-top: 4px; font-size: 14.5px; font-weight: 800; color: var(--text); line-height: 1.35; }
+.vsRow { display: flex; align-items: center; gap: 10px; margin: 12px 0; font-size: 14px; font-weight: 800; }
+.vsYou { color: var(--text); }
+.vsTag { font-size: 10px; font-weight: 900; padding: 3px 8px; border-radius: 99px; background: var(--bg-2); color: var(--text-muted); }
+.vsOpp { display: inline-flex; align-items: center; gap: 6px; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vsOpp img { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; }
+.myBtn {
+  display: inline-flex; align-items: center; gap: 2px;
+  height: 36px; padding: 0 14px; border: none; border-radius: 11px;
+  background: var(--accent); color: var(--accent-text, #fff);
+  font-size: 13px; font-weight: 800; font-family: inherit;
+}
+
+/* ── Section tiles ── */
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tile {
+  position: relative; text-align: left;
+  display: flex; flex-direction: column; gap: 4px;
+  min-height: 118px; padding: 14px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
+  color: var(--text); font-family: inherit;
+  transition: transform 0.12s ease, border-color 0.15s ease;
+}
+.tile:active { transform: scale(0.97); }
+.tileIcon {
+  width: 36px; height: 36px; border-radius: 11px; margin-bottom: 6px;
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+  color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.tileTitle { font-size: 14px; font-weight: 800; }
+.tilePreview { font-size: 11.5px; font-weight: 600; color: var(--text-muted); line-height: 1.35; }
+.tileArrow { position: absolute; top: 12px; right: 12px; font-size: 16px; color: var(--text-muted); }
+.avatars { display: flex; margin-top: 4px; }
+.avatar {
+  width: 22px; height: 22px; border-radius: 50%; margin-right: -7px;
+  border: 2px solid var(--surface); background: var(--bg-2); overflow: hidden;
+  display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--text-muted);
+}
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
