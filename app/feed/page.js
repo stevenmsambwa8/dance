@@ -7,18 +7,19 @@ import { supabase } from '../../lib/supabase'
 import styles from './page.module.css'
 import UserBadges from '../../components/UserBadges'
 import usePageLoading from '../../components/usePageLoading'
+import { getCached, setCached } from '../../lib/pageCache'
 
 export default function Feed() {
   const { user, profile, isAdmin } = useAuth()
   const { openAuthGate } = useAuthGate()
-  const [posts, setPosts] = useState([])
+  const [posts, setPosts] = useState(() => getCached('feed:posts') || [])
   const [liked, setLiked] = useState({})
   const [selected, setSelected] = useState(null)
   const [comment, setComment] = useState('')
   const [comments, setComments] = useState([])
   const [newPost, setNewPost] = useState('')
   const [postModal, setPostModal] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => !getCached('feed:posts'))
   usePageLoading(loading)
   const [submitting, setSubmitting] = useState(false)
   const [postError, setPostError] = useState('')
@@ -32,13 +33,13 @@ export default function Feed() {
   useEffect(() => { loadPosts() }, [])
 
   async function loadPosts() {
-    setLoading(true)
+    if (!getCached('feed:posts')) setLoading(true)
     const { data, error } = await supabase
       .from('posts')
       .select('id, user_id, content, likes, comment_count, created_at, profiles(id, username, tier, level, avatar_url, email, plan, plan_expires_at, game_tags, country_flag, is_season_winner, custom_badges, temp_admin_until)')
       .order('created_at', { ascending: false })
       .limit(50)
-    if (!error) setPosts(data || [])
+    if (!error) { setPosts(data || []); setCached('feed:posts', data || []) }
     setLoading(false)
   }
 

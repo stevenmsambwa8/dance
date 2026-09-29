@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase'
 import { getCurrentSeason, getDaysRemaining, TIER_ORDER, TIER_WIN_THRESHOLD, getLevelWinThreshold, MAX_LEVEL } from '../../lib/seasons'
 import UserBadges from '../../components/UserBadges'
 import usePageLoading from '../../components/usePageLoading'
+import { getCached, setCached } from '../../lib/pageCache'
 import styles from './page.module.css'
 
 const TIER_COLORS = {
@@ -63,10 +64,11 @@ function getEncouragement(seasonWins, seasonLosses) {
 export default function SeasonPage() {
   const { user, profile } = useAuth()
   const { openAuthGate } = useAuthGate()
-  const [logs, setLogs] = useState([])
-  const [tourneyEntries, setTourneyEntries] = useState([])
-  const [seasonHistory, setSeasonHistory] = useState([])
-  const [loading, setLoading] = useState(true)
+  const _c = user ? getCached(`season:${user.id}`) : null
+  const [logs, setLogs] = useState(_c?.logs || [])
+  const [tourneyEntries, setTourneyEntries] = useState(_c?.tourneyEntries || [])
+  const [seasonHistory, setSeasonHistory] = useState(_c?.seasonHistory || [])
+  const [loading, setLoading] = useState(!_c)
   usePageLoading(loading)
 
   const season = getCurrentSeason()
@@ -79,7 +81,7 @@ export default function SeasonPage() {
   }, [user])
 
   async function load() {
-    setLoading(true)
+    if (!getCached(`season:${user.id}`)) setLoading(true)
     const [logsRes, tournRes, histRes] = await Promise.all([
       supabase.from('earnings_log').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(100),
       supabase.from('tournament_leaderboard')
@@ -96,6 +98,7 @@ export default function SeasonPage() {
     setLogs(logsRes.data || [])
     setTourneyEntries(tournRes.data || [])
     setSeasonHistory(histRes.data || [])
+    setCached(`season:${user.id}`, { logs: logsRes.data || [], tourneyEntries: tournRes.data || [], seasonHistory: histRes.data || [] })
     setLoading(false)
   }
 

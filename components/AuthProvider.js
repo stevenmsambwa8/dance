@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { usePresence, useZoneTracker } from '../lib/usePresence'
 import { captureReferralFromURL, linkReferralOnSignup, tryPayReferralBonus } from '../lib/referralBonus'
+import { clearCached } from '../lib/pageCache'
 import { isLocked, lockMessage } from '../lib/profileLock'
 import { ADMIN_EMAILS as ADMIN_EMAILS_LIST, isAdminUser, isTempAdminOnly } from '../lib/adminAccess'
 import {
@@ -316,6 +317,7 @@ export default function AuthProvider({ children }) {
   }
 
   async function signOut() {
+    clearCached() // drop per-user cached page data
     try { localStorage.removeItem('nabogaming-profile') } catch {}
     await supabase.auth.signOut()
   }

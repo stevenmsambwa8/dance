@@ -8,6 +8,7 @@ import { GAME_SLUGS, GAME_META } from '../../lib/constants'
 import styles from './page.module.css'
 import { getCurrentSeason } from '../../lib/seasons'
 import usePageLoading from '../../components/usePageLoading'
+import { getCached, setCached } from '../../lib/pageCache'
 import SubscribeButton from '../../components/SubscribeButton'
 import { useGames } from '../../components/GameSettingsProvider'
 import useTranslation from '../../lib/useTranslation'
@@ -74,9 +75,9 @@ export default function Games() {
   const { openAuthGate } = useAuthGate()
   const { t } = useTranslation()
   const { visibleSlugs, enabledSlugs, getGameStatus } = useGames()
-  const [gameStats, setGameStats] = useState({})
-  const [subscribed, setSubscribed] = useState({})
-  const [loading, setLoading] = useState(true)
+  const [gameStats, setGameStats] = useState(() => getCached('games:stats') || {})
+  const [subscribed, setSubscribed] = useState(() => getCached('games:subs') || {})
+  const [loading, setLoading] = useState(() => !getCached('games:stats'))
   const [subLoading, setSubLoading] = useState({})
   usePageLoading(loading)
 
@@ -95,6 +96,7 @@ export default function Games() {
     const statsMap = {}
     results.forEach(r => { statsMap[r.slug] = r })
     setGameStats(statsMap)
+    setCached('games:stats', statsMap)
 
     if (user) {
       const { data: subs } = await supabase.from('game_subscriptions').select('game_slug').eq('user_id', user.id)
@@ -102,6 +104,7 @@ export default function Games() {
         const map = {}
         subs.forEach(s => { map[s.game_slug] = true })
         setSubscribed(map)
+        setCached('games:subs', map)
       }
     }
     setLoading(false)

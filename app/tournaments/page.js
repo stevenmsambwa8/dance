@@ -7,6 +7,7 @@ import { useAuthGate } from '../../components/AuthGateModal'
 import { supabase } from '../../lib/supabase'
 import styles from './page.module.css'
 import usePageLoading from '../../components/usePageLoading'
+import { getCached, setCached } from '../../lib/pageCache'
 import { useCurrency } from '../../lib/useCurrency'
 import { GAME_SLUGS, GAME_META } from '../../lib/constants'
 import { useGames } from '../../components/GameSettingsProvider'
@@ -208,10 +209,10 @@ export default function Tournaments() {
   const { t } = useTranslation()
 
   const { visibleSlugs, isGameVisible } = useGames()
-  const [rawTournaments, setTournaments] = useState([])
+  const [rawTournaments, setTournaments] = useState(() => getCached('tournaments:all') || [])
   // Tournaments of hidden / deleted games never show up in the list
   const tournaments = useMemo(() => rawTournaments.filter(tour => isGameVisible(tour.game_slug)), [rawTournaments, isGameVisible])
-  const [loading,     setLoading]     = useState(true)
+  const [loading,     setLoading]     = useState(() => !getCached('tournaments:all'))
   usePageLoading(loading)
 
   const [filter,      setFilter]      = useState('all')
@@ -283,7 +284,8 @@ export default function Tournaments() {
   }, [user])
 
   async function loadTournaments() {
-    setLoading(true)
+    // Only show the loader when there is nothing cached to display.
+    if (!getCached(`tournaments:${filter}`)) setLoading(true)
     let q = supabase.from('tournaments').select('*').order('created_at', { ascending: false })
     if (filter !== 'all') q = q.eq('game_slug', filter)
     const { data } = await q
@@ -294,6 +296,8 @@ export default function Tournaments() {
       return isAdmin || tour.created_by === user.id
     })
     setTournaments(visible)
+    setCached(`tournaments:${filter}`, visible)
+    if (filter === 'all') setCached('tournaments:all', visible)
     setLoading(false)
   }
 
