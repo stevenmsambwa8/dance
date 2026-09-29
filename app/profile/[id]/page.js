@@ -16,6 +16,7 @@ import { GAME_META, GAME_SLUGS } from '../../../lib/constants'
 import { useGames } from '../../../components/GameSettingsProvider'
 import { RANK_TIERS, RANK_META } from '../../../lib/constants'
 import { useCurrency } from '../../../lib/useCurrency'
+import { showAlert, confirmDialog } from '../../../lib/dialog'
 
 const PLAY_STYLES = ['Aggressive', 'Defensive', 'Support', 'Sniper', 'All-Round']
 const FLAG_OPTIONS = [
@@ -173,7 +174,7 @@ export default function PublicProfile() {
       await uploadAvatar(file)
       const { data } = await supabase.from('profiles').select('avatar_url').eq('id', id).single()
       if (data) setProfile(p => ({ ...p, avatar_url: data.avatar_url }))
-    } catch (e) { alert('Upload failed: ' + e.message) }
+    } catch (e) { showAlert('Upload failed: ' + e.message) }
     setAvatarLoading(false)
   }
 
@@ -222,7 +223,7 @@ export default function PublicProfile() {
   async function deletePost(post) {
     if (!user) return
     if (user.id !== post.user_id && !isAdmin) return
-    if (!confirm('Delete this post?')) return
+    if (!(await confirmDialog('Delete this post?'))) return
     const { error } = await supabase.from('posts').delete().eq('id', post.id)
     if (!error) {
       setPosts(p => p.filter(x => x.id !== post.id))

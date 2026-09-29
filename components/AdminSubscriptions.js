@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { PLANS } from '../lib/plans'
+import { showAlert, confirmDialog } from '../lib/dialog'
 
 const STATUS_COLORS = {
   pending:   { color: '#f59e0b', bg: '#f59e0b18', label: 'Pending'   },
@@ -58,7 +59,7 @@ export default function AdminSubscriptions({ onCountChange }) {
       load()
     } catch (err) {
       console.error('activate error:', err)
-      alert('Activation failed: ' + err.message)
+      showAlert('Activation failed: ' + err.message)
     } finally { setActing(null) }
   }
 
@@ -81,12 +82,12 @@ export default function AdminSubscriptions({ onCountChange }) {
       load()
     } catch (err) {
       console.error('reject error:', err)
-      alert('Rejection failed: ' + err.message)
+      showAlert('Rejection failed: ' + err.message)
     } finally { setActing(null) }
   }
 
   async function cancel(sub) {
-    if (!window.confirm(`Cancel ${sub.profiles?.username || 'this user'}'s ${PLANS[sub.plan]?.label} plan? This will reset them to free immediately.`)) return
+    if (!(await confirmDialog(`Cancel ${sub.profiles?.username || 'this user'}'s ${PLANS[sub.plan]?.label} plan? This will reset them to free immediately.`))) return
     setActing(sub.id)
     try {
       const cancelNote = notes[sub.id] || 'Cancelled by admin'
@@ -125,7 +126,7 @@ export default function AdminSubscriptions({ onCountChange }) {
       load()
     } catch (err) {
       console.error('cancel error:', err)
-      alert('Cancellation failed: ' + err.message)
+      showAlert('Cancellation failed: ' + err.message)
     } finally { setActing(null) }
   }
 

@@ -8,6 +8,7 @@ import styles from './page.module.css'
 import usePageLoading from '../../components/usePageLoading'
 import { useCurrency } from '../../lib/useCurrency'
 import ProductDrawer from '../../components/ProductDrawer'
+import { showAlert, confirmDialog } from '../../lib/dialog'
 
 const CATS = ['all', 'accounts', 'gear', 'services']
 const MAX_IMAGES = 4
@@ -155,7 +156,7 @@ export default function Shop() {
         status: 'pending',
       })
       .select().single()
-    if (error) { setBuying(b => ({ ...b, [item.id]: false })); alert(error.message); return }
+    if (error) { setBuying(b => ({ ...b, [item.id]: false })); showAlert(error.message); return }
     await supabase.from('notifications').insert({
       user_id: item.seller_id,
       type: 'buy_request',
@@ -205,14 +206,14 @@ export default function Shop() {
   }
 
   async function listItem() {
-    if (!user) return alert('Log in to sell items')
-    if (!form.title || !form.price) return alert('Title and price are required')
+    if (!user) return showAlert('Log in to sell items')
+    if (!form.title || !form.price) return showAlert('Title and price are required')
     setListing(true)
     const { data: item, error } = await supabase
       .from('shop_items')
       .insert({ seller_id: user.id, title: form.title, price: form.price, category: form.category, description: form.description, active: true })
       .select().single()
-    if (error) { alert(error.message); setListing(false); return }
+    if (error) { showAlert(error.message); setListing(false); return }
     if (pendingFiles.length > 0) {
       setCompressing(true)
       for (let i = 0; i < pendingFiles.length; i++) {
@@ -241,14 +242,14 @@ export default function Shop() {
       category: form.category, description: form.description,
     }).eq('id', editingId)
     setSaving(false)
-    if (error) { alert(error.message); return }
+    if (error) { showAlert(error.message); return }
     closeDrawer()
     loadItems()
   }
 
   async function deleteItem(item, e) {
     e?.stopPropagation()
-    if (!confirm(`Delete "${item.title}"?`)) return
+    if (!(await confirmDialog(`Delete "${item.title}"?`))) return
     await supabase.from('shop_items').update({ active: false }).eq('id', item.id)
     loadItems()
   }

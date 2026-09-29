@@ -8,6 +8,7 @@ import styles from './page.module.css'
 import UserBadges from '../../components/UserBadges'
 import usePageLoading from '../../components/usePageLoading'
 import { getCached, setCached } from '../../lib/pageCache'
+import { showAlert, confirmDialog } from '../../lib/dialog'
 
 export default function Feed() {
   const { user, profile, isAdmin } = useAuth()
@@ -74,7 +75,7 @@ export default function Feed() {
   }
 
   async function toggleLike(post) {
-    if (!user) return alert('Log in to like posts')
+    if (!user) return showAlert('Log in to like posts')
     const isLiked = liked[post.id]
     setLiked(l => ({ ...l, [post.id]: !isLiked }))
     const newLikes = post.likes + (isLiked ? -1 : 1)
@@ -91,7 +92,7 @@ export default function Feed() {
     if (!user) return
     const canDelete = user.id === post.user_id || isAdmin
     if (!canDelete) return
-    if (!confirm('Delete this post?')) return
+    if (!(await confirmDialog('Delete this post?'))) return
     const { error } = await supabase.from('posts').delete().eq('id', post.id)
     if (!error) {
       setPosts(p => p.filter(x => x.id !== post.id))

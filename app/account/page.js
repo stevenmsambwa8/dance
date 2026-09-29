@@ -13,6 +13,7 @@ import { useGames } from '../../components/GameSettingsProvider'
 import { getCurrentSeason } from '../../lib/seasons'
 import { useCurrency } from '../../lib/useCurrency'
 import styles from './page.module.css'
+import { showAlert, confirmDialog } from '../../lib/dialog'
 
 const PLAY_STYLES = ['Aggressive', 'Defensive', 'Support', 'Sniper', 'All-Round']
 const FLAG_OPTIONS = [
@@ -125,7 +126,7 @@ export default function AccountPage() {
     if (!file) return
     setAvatarLoading(true)
     try { await uploadAvatar(file) }
-    catch (e) { alert('Upload failed: ' + e.message) }
+    catch (e) { showAlert('Upload failed: ' + e.message) }
     finally   { setAvatarLoading(false) }
   }
 
@@ -151,7 +152,7 @@ export default function AccountPage() {
   }
 
   async function deletePost(id) {
-    if (!confirm('Delete this post?')) return
+    if (!(await confirmDialog('Delete this post?'))) return
     await supabase.from('posts').delete().eq('id', id).eq('user_id', user.id)
     setPosts(p => p.filter(x => x.id !== id))
   }

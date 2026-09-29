@@ -11,6 +11,7 @@ import usePageLoading from '../../components/usePageLoading'
 import AdminSubscriptions from '../../components/AdminSubscriptions'
 import AdminGames from '../../components/AdminGames'
 import AdminLogins from '../../components/AdminLogins'
+import { showAlert, confirmDialog } from '../../lib/dialog'
 
 function makeMatchCode(id) {
   if (!id) return '0000'
@@ -344,7 +345,7 @@ export default function Dashboard() {
       crowned_at: new Date().toISOString(),
     }, { onConflict: 'game_slug,week_start' })
     setCrownSaving(false)
-    if (error) { alert(error.message); return }
+    if (error) { showAlert(error.message); return }
     await supabase.from('notifications').insert({
       user_id: crownSelected.id, type: 'announcement',
       title: `👑 You're the ${gameName} Weekly Master!`,
@@ -372,7 +373,7 @@ export default function Dashboard() {
   }
 
   async function removeMaster(id) {
-    if (!confirm('Remove this master crown?')) return
+    if (!(await confirmDialog('Remove this master crown?'))) return
     await supabase.from('game_masters').delete().eq('id', id)
     loadAllMasters()
   }
@@ -380,7 +381,7 @@ export default function Dashboard() {
   async function approveTournamentPayment(pmt) {
     const { data: adminProf } = await supabase.from('profiles').select('id').eq('email', ADMIN_EMAIL).single()
     const { error } = await supabase.rpc('approve_tournament_payment', { p_payment_id: pmt.id, p_admin_id: adminProf?.id })
-    if (error) { alert(error.message); return }
+    if (error) { showAlert(error.message); return }
     await supabase.from('notifications').insert({
       user_id: pmt.user.id,
       title: '✅ Payment Approved — You\'re Registered!',
@@ -391,7 +392,7 @@ export default function Dashboard() {
   }
 
   async function rejectTournamentPayment(pmt) {
-    if (!confirm(`Reject payment from ${pmt.user?.username}?`)) return
+    if (!(await confirmDialog(`Reject payment from ${pmt.user?.username}?`))) return
     await supabase.from('tournament_payments').update({ status: 'rejected', reviewed_at: new Date().toISOString() }).eq('id', pmt.id)
     await supabase.from('notifications').insert({
       user_id: pmt.user.id, title: '❌ Payment Rejected',
@@ -421,19 +422,19 @@ export default function Dashboard() {
   }
 
   async function deleteUser(id) {
-    if (!confirm('Delete profile? Auth record stays.')) return
+    if (!(await confirmDialog('Delete profile? Auth record stays.'))) return
     await supabase.from('profiles').delete().eq('id', id)
     setUsers(u => u.filter(x => x.id !== id))
   }
 
   // Bulk-assign the default flag (Tanzania) to every profile missing one.
   async function fixMissingFlags() {
-    if (!confirm('Set flag to Tanzania for every player with no country flag set?')) return
+    if (!(await confirmDialog('Set flag to Tanzania for every player with no country flag set?'))) return
     setFixingFlags(true)
     setFlagFixResult(null)
     const { data: missing, error: findErr } = await supabase
       .from('profiles').select('id').is('country_flag', null)
-    if (findErr) { alert(findErr.message); setFixingFlags(false); return }
+    if (findErr) { showAlert(findErr.message); setFixingFlags(false); return }
     const ids = (missing || []).map(m => m.id)
     if (ids.length === 0) {
       setFlagFixResult(0)
@@ -442,7 +443,7 @@ export default function Dashboard() {
     }
     const { error: updErr } = await supabase.from('profiles')
       .update({ country_flag: DEFAULT_FLAG }).in('id', ids)
-    if (updErr) { alert(updErr.message); setFixingFlags(false); return }
+    if (updErr) { showAlert(updErr.message); setFixingFlags(false); return }
     setUsers(u => u.map(x => ids.includes(x.id) ? { ...x, country_flag: DEFAULT_FLAG } : x))
     setFlagFixResult(ids.length)
     setFixingFlags(false)
@@ -451,12 +452,12 @@ export default function Dashboard() {
 
   async function savePost() {
     const { error } = await supabase.from('posts').update({ content: editPost.content }).eq('id', editPost.id)
-    if (error) { alert(error.message); return }
+    if (error) { showAlert(error.message); return }
     setPosts(p => p.map(x => x.id === editPost.id ? { ...x, content: editPost.content } : x))
     setEditPost(null)
   }
   async function deletePost(id) {
-    if (!confirm('Delete this post?')) return
+    if (!(await confirmDialog('Delete this post?'))) return
     await supabase.from('posts').delete().eq('id', id)
     setPosts(p => p.filter(x => x.id !== id))
   }
@@ -467,12 +468,12 @@ export default function Dashboard() {
       slots: Number(editTournament.slots), date: editTournament.date,
       status: editTournament.status, description: editTournament.description,
     }).eq('id', editTournament.id)
-    if (error) { alert(error.message); return }
+    if (error) { showAlert(error.message); return }
     setTournaments(ts => ts.map(t => t.id === editTournament.id ? { ...t, ...editTournament } : t))
     setEditTournament(null)
   }
   async function deleteTournament(id) {
-    if (!confirm('Delete this tournament and all its data?')) return
+    if (!(await confirmDialog('Delete this tournament and all its data?'))) return
     await supabase.from('tournament_leaderboard').delete().eq('tournament_id', id)
     await supabase.from('tournament_participants').delete().eq('tournament_id', id)
     await supabase.from('tournaments').delete().eq('id', id)
@@ -484,12 +485,12 @@ export default function Dashboard() {
       status: editBattle.status, game: editBattle.game || null, game_mode: editBattle.game_mode,
       format: editBattle.format, ticker_text: editBattle.ticker_text || null,
     }).eq('id', editBattle.id)
-    if (error) { alert(error.message); return }
+    if (error) { showAlert(error.message); return }
     setBattles(bs => bs.map(b => b.id === editBattle.id ? { ...b, ...editBattle } : b))
     setEditBattle(null)
   }
   async function deleteBattle(id) {
-    if (!confirm('Delete this match?')) return
+    if (!(await confirmDialog('Delete this match?'))) return
     await supabase.from('matches').delete().eq('id', id)
     setBattles(bs => bs.filter(b => b.id !== id))
   }
@@ -499,13 +500,13 @@ export default function Dashboard() {
       supabase.from('profiles').select('id').eq('username', battleForm.player1).single(),
       supabase.from('profiles').select('id').eq('username', battleForm.player2).single(),
     ])
-    if (!p1 || !p2) { alert('One or both usernames not found'); setBattleCreating(false); return }
+    if (!p1 || !p2) { showAlert('One or both usernames not found'); setBattleCreating(false); return }
     const { error } = await supabase.from('matches').insert({
       challenger_id: p1.id, challenged_id: p2.id, game: battleForm.game || null, game_mode: battleForm.game_mode,
       format: battleForm.format, scheduled_at: battleForm.scheduled_at || null, status: 'confirmed',
     })
     setBattleCreating(false)
-    if (!error) { setBattleModal(false); loadAll() } else alert(error.message)
+    if (!error) { setBattleModal(false); loadAll() } else showAlert(error.message)
   }
 
   // Awards points/wins/losses for a completed match. Shared by both the
@@ -551,7 +552,7 @@ export default function Dashboard() {
     const { error } = await supabase.from('matches').update({
       status: 'completed', winner_id: winnerId, score_challenger: scoreCh, score_challenged: scoreCd,
     }).eq('id', match.id)
-    if (error) { alert(error.message); return }
+    if (error) { showAlert(error.message); return }
     await supabase.from('score_requests').update({ status: 'accepted', resolution: 'admin_override' }).eq('id', sr.id)
     await awardMatchResult(match, winnerId)
     setScoreRequestsByMatch(m => { const next = { ...m }; delete next[match.id]; return next })
@@ -564,7 +565,7 @@ export default function Dashboard() {
     const { error } = await supabase.from('matches').update({
       status: 'completed', winner_id: winnerId || null, score_challenger: scoreCh, score_challenged: scoreCd,
     }).eq('id', match.id)
-    if (error) { alert(error.message); return }
+    if (error) { showAlert(error.message); return }
     const sr = scoreRequestsByMatch[match.id]
     if (sr) await supabase.from('score_requests').update({ status: 'accepted', resolution: 'admin_override' }).eq('id', sr.id)
     await awardMatchResult(match, winnerId || null)
@@ -578,12 +579,12 @@ export default function Dashboard() {
       title: editShop.title, price: editShop.price, category: editShop.category,
       description: editShop.description, active: editShop.active,
     }).eq('id', editShop.id)
-    if (error) { alert(error.message); return }
+    if (error) { showAlert(error.message); return }
     setShopItems(s => s.map(x => x.id === editShop.id ? { ...x, ...editShop } : x))
     setEditShop(null)
   }
   async function deleteShop(id) {
-    if (!confirm('Delete this shop item?')) return
+    if (!(await confirmDialog('Delete this shop item?'))) return
     await supabase.from('shop_items').delete().eq('id', id)
     setShopItems(s => s.filter(x => x.id !== id))
   }
@@ -999,7 +1000,7 @@ export default function Dashboard() {
               <div className={styles.masterAutoRow}>
                 <button className={styles.btnAccent} onClick={async () => {
                   const { error } = await supabase.rpc('crown_weekly_game_master', { p_game_slug: null })
-                  if (error) alert(error.message)
+                  if (error) showAlert(error.message)
                   else { loadAllMasters(); setCrownSuccess('All weekly masters recomputed from tournament data!') }
                 }}>
                   <i className="ri-cpu-line" /> Auto-Compute All Masters

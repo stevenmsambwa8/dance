@@ -15,6 +15,7 @@ import MaintenanceGate from '../components/MaintenanceGate'
 import { AuthGateProvider } from '../components/AuthGateModal'
 import MusicPlayerProvider from '../components/MusicPlayerContext' // ← NEW
 import ViewportHeightSync from '../components/ViewportHeightSync'
+import DialogHost from '../components/DialogHost'
 
 export const metadata = {
   title: 'Nabogaming — Tournament Dashboard',
@@ -74,6 +75,7 @@ export default function RootLayout({ children }) {
 
       <body>
         <ViewportHeightSync />
+        <DialogHost />
         <AuthProvider>
           <ToastProvider>
             <ThemeProvider>

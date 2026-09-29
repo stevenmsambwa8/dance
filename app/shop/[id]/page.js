@@ -9,6 +9,7 @@ import styles from './page.module.css'
 import UserBadges from '../../../components/UserBadges'
 import usePageLoading from '../../../components/usePageLoading'
 import { useCurrency } from '../../../lib/useCurrency'
+import { showAlert } from '../../../lib/dialog'
 
 export default function ShopItemDetail() {
   const { id }   = useParams()
@@ -132,7 +133,7 @@ export default function ShopItemDetail() {
         status: 'pending',
       })
       .select().single()
-    if (error) { setBuying(false); alert(error.message); return }
+    if (error) { setBuying(false); showAlert(error.message); return }
     await supabase.from('notifications').insert({
       user_id: item.seller_id, type: 'buy_request',
       title: 'New buy request',

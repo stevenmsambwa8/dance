@@ -6,6 +6,7 @@ import { supabase } from '../../../../lib/supabase'
 import { FLAG_OPTIONS, DEFAULT_FLAG } from '../../../../lib/constants'
 import styles from './page.module.css'
 import usePageLoading from '../../../../components/usePageLoading'
+import { showAlert, confirmDialog } from '../../../../lib/dialog'
 
 // Preset windows for a temporary admin grant. "Custom" lets the admin pick
 // an exact expiry instead.
@@ -115,13 +116,13 @@ export default function EditUserPage() {
       error = { message: e.message }
     }
     setSaving(false)
-    if (error) { alert(error.message); return }
+    if (error) { showAlert(error.message); return }
     router.push('/dashboard?tab=Users')
   }
 
   async function deleteUser() {
     if (!profile) return
-    if (!confirm('Delete this profile? Their auth record stays, but the profile row and its data go away.')) return
+    if (!(await confirmDialog('Delete this profile? Their auth record stays, but the profile row and its data go away.'))) return
     await supabase.from('profiles').delete().eq('id', profile.id)
     router.push('/dashboard?tab=Users')
   }
@@ -132,7 +133,7 @@ export default function EditUserPage() {
     const ext = badgeIconFile.name.split('.').pop()
     const path = `badge-icons/${profile.id}-${Date.now()}.${ext}`
     const { error: upErr } = await supabase.storage.from('public').upload(path, badgeIconFile)
-    if (upErr) { alert(upErr.message); setBadgeIconUploading(false); return }
+    if (upErr) { showAlert(upErr.message); setBadgeIconUploading(false); return }
     const { data: pub } = supabase.storage.from('public').getPublicUrl(path)
     setNewBadgeDraft(d => ({ ...d, iconUrl: pub.publicUrl }))
     setBadgeIconFile(null)
@@ -210,7 +211,7 @@ export default function EditUserPage() {
       if (!res.ok) error = json.error || 'Failed'
     } catch (e) { error = e.message }
     setGrantSaving(false)
-    if (error) { alert(error); return }
+    if (error) { showAlert(error); return }
     setProfile(x => ({ ...x, temp_admin_until }))
   }
 
@@ -218,8 +219,8 @@ export default function EditUserPage() {
     const until = new Date(Date.now() + grantHours * 60 * 60 * 1000).toISOString()
     sendTempAdminUpdate(until)
   }
-  function revokeTempAdmin() {
-    if (!confirm('Disconnect admin access for this user right now?')) return
+  async function revokeTempAdmin() {
+    if (!(await confirmDialog('Disconnect admin access for this user right now?'))) return
     sendTempAdminUpdate(null)
   }
 

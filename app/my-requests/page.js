@@ -7,6 +7,7 @@ import { useAuthGate } from '../../components/AuthGateModal'
 import { supabase } from '../../lib/supabase'
 import styles from './page.module.css'
 import usePageLoading from '../../components/usePageLoading'
+import { confirmDialog } from '../../lib/dialog'
 
 function fmtPrice(val) {
   const n = parseFloat(String(val).replace(/[^0-9.]/g, ''))
@@ -77,7 +78,7 @@ export default function MyRequestsPage() {
   }
 
   async function deleteRequest(reqId) {
-    if (!confirm('Delete this request? This cannot be undone.')) return
+    if (!(await confirmDialog('Delete this request? This cannot be undone.'))) return
     setDeleting(reqId)
     // Delete associated negotiation messages first
     await supabase.from('negotiation_messages').delete().eq('request_id', reqId)

@@ -1,0 +1,82 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.5);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  animation: fadeIn 0.15s ease;
+}
+.dialog {
+  width: 100%;
+  max-width: 320px;
+  padding: 24px 20px 16px;
+  text-align: center;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border-dark);
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  animation: pop 0.18s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+.icon {
+  width: 46px;
+  height: 46px;
+  margin: 0 auto 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 24px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.iconDanger {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.14);
+}
+.title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.message {
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--text-dim);
+  word-break: break-word;
+  white-space: pre-wrap;
+  margin-bottom: 18px;
+}
+.actions {
+  display: flex;
+  gap: 10px;
+}
+.actions button {
+  flex: 1;
+  height: 44px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font);
+  border: none;
+  transition: transform 0.1s, opacity 0.15s;
+}
+.actions button:active { transform: scale(0.97); }
+.btnGhost {
+  background: var(--bg-2);
+  color: var(--text);
+  border: 1px solid var(--border) !important;
+}
+.btnPrimary {
+  background: var(--accent);
+  color: var(--accent-text, #fff);
+}
+.btnDanger { background: #ef4444; color: #fff; }
+
+@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+@keyframes pop { from { opacity: 0; transform: scale(0.9) } to { opacity: 1; transform: scale(1) } }

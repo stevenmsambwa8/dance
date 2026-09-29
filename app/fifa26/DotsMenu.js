@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '../../components/AuthProvider'
 import { useAuthGate } from '../../components/AuthGateModal'
 import styles from './DotsMenu.module.css'
+import { showAlert } from '../../lib/dialog'
 
 export default function DotsMenu({ gameSlug, gameName }) {
   const [open, setOpen] = useState(false)
@@ -33,7 +34,7 @@ export default function DotsMenu({ gameSlug, gameName }) {
       navigator.share({ title: gameName || 'FIFA 26 World Cup 2026', text, url }).catch(() => {})
     } else {
       navigator.clipboard.writeText(url).then(() => {
-        alert('Link copied!')
+        showAlert('Link copied!')
       }).catch(() => {})
     }
   }

@@ -8,6 +8,7 @@ import styles from './page.module.css'
 import UserBadges from '../../../components/UserBadges'
 import usePageLoading from '../../../components/usePageLoading'
 import { GAME_META } from '../../../lib/constants'
+import { showAlert, confirmDialog } from '../../../lib/dialog'
 
 export default function MatchPage() {
   const { slug } = useParams()
@@ -67,7 +68,7 @@ export default function MatchPage() {
   }
 
   async function forfeitMatch() {
-    if (!confirm('Forfeit this match? Your opponent will be declared winner.')) return
+    if (!(await confirmDialog('Forfeit this match? Your opponent will be declared winner.'))) return
     setForfeitLoading(true)
     const opponentId = user.id === match.challenger_id ? match.challenged_id : match.challenger_id
     const me = user.id === match.challenger_id ? match.challenger : match.challenged
@@ -98,7 +99,7 @@ export default function MatchPage() {
   // either auto-completing (scores agree) or flagging for admin (conflict).
   async function submitMyScore() {
     if (!user) { openAuthGate(); return }
-    if (!confirm('Submit this score? If your opponent reports the same result, the match completes automatically.')) return
+    if (!(await confirmDialog('Submit this score? If your opponent reports the same result, the match completes automatically.'))) return
     setScoreSubmitting(true)
     const { data, error } = await supabase.rpc('submit_match_score', {
       p_match_id: match.id,
@@ -107,7 +108,7 @@ export default function MatchPage() {
       p_score_challenged: scoreGoals.challenged,
     })
     setScoreSubmitting(false)
-    if (error) { alert(error.message); return }
+    if (error) { showAlert(error.message); return }
     if (data?.status === 'auto_completed' && (user.id === match.challenger_id || user.id === match.challenged_id)) {
       refreshProfile?.()
     }
@@ -256,7 +257,7 @@ export default function MatchPage() {
                 .update({ challenged_id: user.id, status: 'pending', recruiting: false, recruit_closed_at: new Date().toISOString() })
                 .eq('id', match.id).eq('recruiting', true).is('challenged_id', null)
               if (!error) loadMatch()
-              else alert('Someone already joined this match.')
+              else showAlert('Someone already joined this match.')
             }}>
               <i className="ri-sword-line" /> Join This Match
             </button>

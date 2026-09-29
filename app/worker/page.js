@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { GAME_SLUGS, GAME_META } from '@/lib/constants';
 import styles from './page.module.css';
+import { confirmDialog } from '../../lib/dialog'
 
 async function callCommand(secret, command, params) {
   const res = await fetch('/api/admin/command', {
@@ -156,7 +157,7 @@ export default function WorkerPage() {
   }
 
   async function handleDelete(t) {
-    if (!confirm(`Delete "${t.name}" and all its data?`)) return;
+    if (!(await confirmDialog(`Delete "${t.name}" and all its data?`))) return;
     const result = await run('delete-tournament', { tournament_id: t.id });
     if (result.ok) {
       setHistory(pushHistory({ action: 'deleted', at: new Date().toISOString(), snapshot: result.result.deleted }));
