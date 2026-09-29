@@ -12,7 +12,7 @@ import styles from './page.module.css'
  *
  * UNLOCK_AT = 30 Sep 2026, 00:00 East Africa Time (UTC+3).
  */
-const APK_URL   = '/nabogaming.apk'
+const APK_URL   = 'https://www.mediafire.com/file/v28r2zvpvlcq5b9/nabogaming.apk/file'
 const UNLOCK_AT = new Date('2026-09-30T00:00:00+03:00').getTime()
 
 const COPY = {
