@@ -66,14 +66,6 @@ swatch: '#081c2e',
 dark: true,
 accent: '#00d4ff',
 },
-aurora: {
-label: 'Aurora',
-icon: 'ri-rainbow-line',
-color: '#1a0838',
-swatch: 'linear-gradient(135deg, #1a0838 0%, #c026d3 100%)',
-dark: true,
-accent: '#c026d3',
-},
 }
 
 function applyTheme(theme) {
@@ -94,7 +86,8 @@ export default function ThemeProvider({ children }) {
 const [theme, setTheme] = useState('light')
 
 useEffect(() => {
-const savedTheme = localStorage.getItem('theme') || 'light'
+const stored = localStorage.getItem('theme')
+const savedTheme = THEMES[stored] ? stored : 'light'
 
 setTheme(savedTheme)
 applyTheme(savedTheme)

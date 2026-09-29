@@ -305,39 +305,12 @@ button {
   --glow:        0 0 24px rgba(0,212,255,0.2), 0 0 60px rgba(0,80,160,0.2);
 }
 
-/* ── 🌌 AURORA — Simple two-color gradient: deep purple → magenta ── */
-[data-theme="aurora"] {
-  --bg:          linear-gradient(160deg, #1a0838 0%, #4a0f5c 100%);
-  --bg-rgb:      26,8,56;
-  --bg-2:        #2a1050;
-  --surface:     #2a1050;
-
-  --border:      #4a2a7a;
-  --border-dark: #5e3a96;
-
-  --text:        #f3e8ff;
-  --text-dim:    #cbb0ec;
-  --text-muted:  #9a80c4;
-
-  --accent:      #c026d3;
-  --accent-text: #ffffff;
-
-  --card-bg:     linear-gradient(135deg, #3a1770 0%, #2a1050 100%);
-  --glow:        0 0 24px rgba(192,38,211,0.3), 0 0 60px rgba(124,58,237,0.15);
-}
-
-/* Fixed attachment so the gradient stays as a static backdrop */
-[data-theme="aurora"] body {
-  background-attachment: fixed;
-}
-
 /* ── Glow effect applied to surfaces in themed modes ── */
 [data-theme="neon"]   .themed-glow,
 [data-theme="sunset"] .themed-glow,
 [data-theme="forest"] .themed-glow,
 [data-theme="gold"]   .themed-glow,
-[data-theme="ocean"]  .themed-glow,
-[data-theme="aurora"] .themed-glow {
+[data-theme="ocean"]  .themed-glow {
   box-shadow: var(--glow);
 }
 
@@ -348,4 +321,16 @@ button {
 [data-theme="gold"]   ::-webkit-scrollbar-thumb { background: #ffd70044; }
 [data-theme="ocean"]  ::-webkit-scrollbar-thumb { background: #00d4ff44; }
 [data-theme="snow"]   ::-webkit-scrollbar-thumb { background: #0077cc44; }
-[data-theme="aurora"] ::-webkit-scrollbar-thumb { background: #c026d344; }
+
+/* ── iOS-style soft hairline borders on every dark theme ──
+   Translucent white instead of a solid grey, so borders blend into whatever
+   surface/tint sits behind them and fade in softly like iPhone dark mode. */
+[data-theme="dark"],
+[data-theme="neon"],
+[data-theme="sunset"],
+[data-theme="forest"],
+[data-theme="gold"],
+[data-theme="ocean"] {
+  --border:      rgba(255, 255, 255, 0.08);
+  --border-dark: rgba(255, 255, 255, 0.14);
+}

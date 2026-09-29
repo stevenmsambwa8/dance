@@ -13,7 +13,8 @@ export default function ThemeScript() {
           ocean:  '#010a14',
         };
 
-        var active = localStorage.getItem('theme') || 'light';
+        var active = localStorage.getItem('theme');
+        if (!themes[active]) active = 'light';
 
         document.documentElement.setAttribute('data-theme', active);
 
