@@ -39,6 +39,7 @@ export default function PublicProfile() {
   const [following, setFollowing]         = useState(false)
   const [followLoading, setFollowLoading] = useState(false)
   const [stats, setStats]                 = useState({ followers: 0, following: 0 })
+  const [totalLikes, setTotalLikes]       = useState(0)
   const [posts, setPosts]                 = useState([])
   const [liked, setLiked]                 = useState({})
   const [achievements, setAchievements]   = useState([])
@@ -110,6 +111,10 @@ export default function PublicProfile() {
     setProfile(prof)
     setStats({ followers: followersCount || 0, following: followingCount || 0 })
     setPosts(postsData || [])
+    // Likes across every post (the list above only loads the latest 20)
+    supabase.from('posts').select('likes').eq('user_id', id).then(({ data }) => {
+      setTotalLikes((data || []).reduce((n, r) => n + (r.likes || 0), 0))
+    })
     setAchievements(achData || [])
     setShopItems(shopData || [])
     setShopLoading(false)
@@ -304,10 +309,13 @@ export default function PublicProfile() {
   return (
     <div className={styles.page}>
 
-      {/* ── Header — dots only, overlaid on hero ── */}
+      {/* ── Top bar: back left, menu right ── */}
       <div className={styles.header}>
+        <button className={styles.topBack} onClick={() => router.back()} aria-label="Back">
+          <i className="ri-arrow-left-s-line" />
+        </button>
         <div className={styles.menuWrap}>
-          <button className={styles.dotsBtn} onClick={() => setMenuOpen(o => !o)}>
+          <button className={styles.dotsBtn} onClick={() => setMenuOpen(o => !o)} aria-label="More options">
             <i className="ri-more-2-fill" />
           </button>
           {menuOpen && (
@@ -335,25 +343,27 @@ export default function PublicProfile() {
         </div>
       </div>
 
-      {/* ══════════════════════════════════════
-          BRANDED PAGE WRAPPER — tier accent
-          ══════════════════════════════════════ */}
       <div
         className={styles.brandedWrap}
         style={{ '--user-accent': tierMeta.color, '--user-accent-dim': tierMeta.color + '22' }}
       >
 
-        {/* ── Bio banner — hero at top ── */}
-        {profile.bio && (
-          <div className={styles.bioBanner}>
-            <p className={styles.bioText}>{profile.bio}</p>
-          </div>
-        )}
-
-        {/* ── Avatar row ── */}
+        {/* ── Hero: name + stats left, avatar right ── */}
         <div className={styles.hero}>
+          <div className={styles.heroText}>
+            <div className={styles.heroNameRow}>
+              <h1 className={styles.heroName}>{profile.username}</h1>
+              <UserBadges
+                email={profile.email}
+                countryFlag={profile.country_flag}
+                isSeasonWinner={profile.is_season_winner}
+                customBadges={profile.custom_badges} tempAdminUntil={profile.temp_admin_until}
+                size={18}
+              />
+            </div>
+            <span className={styles.handle}>@{(profile.username || '').toLowerCase().replace(/\s+/g, '')}</span>
+          </div>
 
-          {/* Avatar */}
           <div
             className={styles.avatarWrap}
             onClick={profile.avatar_url ? () => setZoomedAvatar(true) : (isOwnProfile ? () => fileRef.current?.click() : undefined)}
@@ -369,111 +379,105 @@ export default function PublicProfile() {
               <div className={styles.avatarInner}>{initials}</div>
             )}
             {isOwnProfile && (
-              <div className={styles.avatarCamera}><i className="ri-camera-line" /></div>
+              <button
+                type="button"
+                className={styles.avatarPlus}
+                aria-label="Change photo"
+                onClick={e => { e.stopPropagation(); fileRef.current?.click() }}
+              >
+                <i className="ri-add-line" />
+              </button>
             )}
-            {/* Active pulse for high-win users */}
-            {(profile.wins || 0) >= 50 && <span className={styles.activePulse} />}
             <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarChange} />
           </div>
 
-          {/* Info column */}
-          <div className={styles.heroInfo}>
-
-            {/* Username */}
-            <div className={styles.heroNameRow}>
-              <h1 className={styles.heroName}>{profile.username}</h1>
-              <UserBadges
-                email={profile.email}
-                countryFlag={profile.country_flag}
-                isSeasonWinner={profile.is_season_winner}
-                customBadges={profile.custom_badges} tempAdminUntil={profile.temp_admin_until}
-                size={18}
-              />
+          <div className={styles.heroStats}>
+            <div className={styles.heroStatItem}>
+              <strong>{stats.following.toLocaleString()}</strong>
+              <span>Following</span>
             </div>
-
-            {/* Chips */}
-            <div className={styles.heroBadgeRow}>
-              {isCreator && (
-                <span className={styles.creatorBadge}>
-                  <i className="ri-trophy-line" /> Creator
-                </span>
-              )}
-              {isPartner ? (
-                <span className={styles.partnerChip}>
-                  <i className="ri-shield-star-fill" /> PARTNER
-                </span>
-              ) : (
-                <span
-                  className={styles.tierBadge}
-                  style={{ color: tierMeta.color, borderColor: tierMeta.color + '55', background: tierMeta.color + '18' }}
-                >
-                  <i className={tierMeta.icon} />
-                  {profile.tier || 'Gold'}
-                </span>
-              )}
-              <span className={styles.levelChip}>Lv.{profile.level ?? 1}</span>
-              {profile.play_style && (
-                <span className={styles.playStyleChip}>{profile.play_style}</span>
-              )}
+            <div className={styles.heroStatItem}>
+              <strong>{stats.followers.toLocaleString()}</strong>
+              <span>Followers</span>
             </div>
-
-            {/* Stats */}
-            <div className={styles.heroStats}>
-              <div className={styles.heroStatItem}>
-                <strong>{stats.followers.toLocaleString()}</strong>
-                <span>Followers</span>
-              </div>
-              <div className={styles.heroStatDivider} />
-              <div className={styles.heroStatItem}>
-                <strong>{stats.following.toLocaleString()}</strong>
-                <span>Following</span>
-              </div>
-              <div className={styles.heroStatDivider} />
-              <div className={styles.heroStatItem}>
-                <strong>{posts.length}</strong>
-                <span>Posts</span>
-              </div>
+            <div className={styles.heroStatItem}>
+              <strong>{totalLikes.toLocaleString()}</strong>
+              <span>Likes</span>
             </div>
-
-            {/* CTA */}
-            {!isOwnProfile ? (
-              <div className={styles.heroCta}>
-                <button
-                  className={`${styles.followPill} ${following ? styles.followingPill : ''}`}
-                  onClick={toggleFollow}
-                  disabled={followLoading}
-                >
-                  {following
-                    ? <><i className="ri-check-line" /> Following</>
-                    : <><i className="ri-add-line" /> Follow</>
-                  }
-                </button>
-                <button
-                  className={styles.msgIconBtn}
-                  onClick={() => user
-                    ? (isHelpdeskEmail(profile?.email) ? router.push('/help-desk') : router.push(`/dm/${id}`))
-                    : openAuthGate()
-                  }
-                >
-                  <i className="ri-message-3-line" />
-                </button>
-              </div>
-            ) : (
-              <button className={styles.editPill} onClick={() => setEditModal(true)}>
-                <i className="ri-edit-line" /> Edit Profile
-              </button>
-            )}
           </div>
         </div>
 
-        {/* Game tags */}
-        {(profile.game_tags || []).length > 0 && (
-          <div className={styles.heroTags}>
-            {profile.game_tags.map(g => (
+        <div className={styles.heroDetails}>
+          {profile.bio && <p className={styles.bioText}>{profile.bio}</p>}
+
+          {/* Chips */}
+          <div className={styles.heroBadgeRow}>
+            {isCreator && (
+              <span className={styles.creatorBadge}>
+                <i className="ri-trophy-line" /> Creator
+              </span>
+            )}
+            {isPartner ? (
+              <span className={styles.partnerChip}>
+                <i className="ri-shield-star-fill" /> Partner
+              </span>
+            ) : (
+              <span
+                className={styles.tierBadge}
+                style={{ color: tierMeta.color, borderColor: tierMeta.color + '55', background: tierMeta.color + '18' }}
+              >
+                <i className={tierMeta.icon} />
+                {profile.tier || 'Gold'}
+              </span>
+            )}
+            <span className={styles.levelChip}>Lv.{profile.level ?? 1}</span>
+            {profile.play_style && (
+              <span className={styles.playStyleChip}>{profile.play_style}</span>
+            )}
+            {(profile.game_tags || []).map(g => (
               <span key={g} className={styles.heroTag}>{g}</span>
             ))}
           </div>
-        )}
+
+          {/* CTA */}
+          {!isOwnProfile ? (
+            <div className={styles.heroCta}>
+              <button
+                className={`${styles.followPill} ${following ? styles.followingPill : ''}`}
+                onClick={toggleFollow}
+                disabled={followLoading}
+              >
+                {following
+                  ? <><i className="ri-check-line" /> Following</>
+                  : <><i className="ri-add-line" /> Follow</>
+                }
+              </button>
+              <button
+                className={styles.msgIconBtn}
+                aria-label="Message"
+                onClick={() => user
+                  ? (isHelpdeskEmail(profile?.email) ? router.push('/help-desk') : router.push(`/dm/${id}`))
+                  : openAuthGate()
+                }
+              >
+                <i className="ri-message-3-line" />
+              </button>
+            </div>
+          ) : (
+            <div className={styles.heroCta}>
+              <button className={styles.editPill} onClick={() => setEditModal(true)}>
+                Edit profile
+              </button>
+              <button
+                className={styles.editPill}
+                onClick={() => navigator.share?.({ title: profile.username, url: window.location.href })
+                  ?? navigator.clipboard?.writeText(window.location.href)}
+              >
+                Share profile
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── Avatar zoom lightbox ── */}
@@ -523,19 +527,21 @@ export default function PublicProfile() {
         )}
 
         {/* ── Tab bar ── */}
-        <div className={styles.tabs}>
+        <div className={styles.tabs} role="tablist">
           {[
-            { key: 'posts', label: 'Posts', count: posts.length },
-            { key: 'shop',  label: 'Shop',  count: shopItems.length },
-            ...(isCreator ? [{ key: 'tournaments', label: 'Tournaments', count: activeTournaments.length }] : []),
+            { key: 'posts', icon: 'ri-layout-grid-line', label: 'Posts',  count: posts.length },
+            { key: 'shop',  icon: 'ri-store-2-line',     label: 'Shop',   count: shopItems.length },
+            ...(isCreator ? [{ key: 'tournaments', icon: 'ri-trophy-line', label: 'Tournaments', count: activeTournaments.length }] : []),
           ].map(t => (
             <button
               key={t.key}
+              role="tab"
+              aria-selected={activeTab === t.key}
+              aria-label={`${t.label} (${t.count})`}
               className={`${styles.tab} ${activeTab === t.key ? styles.tabActive : ''}`}
               onClick={() => setActiveTab(t.key)}
             >
-              {t.label}
-              {t.count > 0 && <span className={styles.tabCount}>{t.count}</span>}
+              <i className={t.icon} />
             </button>
           ))}
         </div>

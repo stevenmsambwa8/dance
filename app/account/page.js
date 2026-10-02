@@ -39,6 +39,7 @@ export default function AccountPage() {
   const [shopItems,    setShopItems]    = useState([])
   const [posts,        setPosts]        = useState([])
   const [followStats,  setFollowStats]  = useState({ followers: 0, following: 0 })
+  const [totalLikes,   setTotalLikes]   = useState(0)
   const [loading,      setLoading]      = useState(true)
   usePageLoading(loading)
 
@@ -116,6 +117,9 @@ export default function AccountPage() {
       setPosts(postData      || [])
       setFollowStats({ followers: followersCount || 0, following: followingCount || 0 })
       setLoading(false)
+      // Likes across every post (the list above only loads the latest 20)
+      const { data: likeRows } = await supabase.from('posts').select('likes').eq('user_id', user.id)
+      setTotalLikes((likeRows || []).reduce((n, r) => n + (r.likes || 0), 0))
     }
     load()
   }, [user])
@@ -177,6 +181,13 @@ export default function AccountPage() {
   )
 
   const initials  = (profile?.username || 'P').slice(0, 2).toUpperCase()
+  const handle    = (profile?.username || '').toLowerCase().replace(/\s+/g, '')
+
+  function shareProfile() {
+    const url = `${window.location.origin}/profile/${user.id}`
+    if (navigator.share) navigator.share({ title: profile?.username, url }).catch(() => {})
+    else navigator.clipboard?.writeText(url)
+  }
   const winRate   = profile
     ? ((profile.wins / Math.max((profile.wins || 0) + (profile.losses || 0), 1)) * 100).toFixed(0) + '%'
     : '—'
@@ -189,19 +200,43 @@ export default function AccountPage() {
   return (
     <div className={styles.page}>
 
-      {/* ── Header bar ── */}
-      <div className={styles.header}>
-        <div />
-        <div style={{display:'flex',gap:8}}>
-          <a href="/settings" className={styles.editBtn}>
-            <i className="ri-settings-3-line" /> Settings
-          </a>
+      {/* ── Top bar ── */}
+      <div className={styles.topBar}>
+        <div className={styles.topActions}>
+          {isPartner && (
+            <Link href="/partner" className={styles.topIcon} aria-label="Partner hub">
+              <i className="ri-shield-star-fill" />
+            </Link>
+          )}
+          {isAdmin && (
+            <Link href="/dashboard" className={styles.topIcon} aria-label="Admin dashboard">
+              <i className="ri-shield-line" />
+            </Link>
+          )}
+          <Link href="/settings" className={styles.topIcon} aria-label="Settings">
+            <i className="ri-menu-line" />
+          </Link>
         </div>
       </div>
 
-      {/* ── Hero ── */}
+      {/* ── Hero: name + stats left, avatar right ── */}
       <div className={styles.hero}>
-        {/* Avatar */}
+        <div className={styles.heroText}>
+          <div className={styles.heroNameRow}>
+            <h1 className={styles.heroName}>{profile?.username || '—'}</h1>
+            <UserBadges
+              email={profile?.email}
+              plan={profile?.plan}
+              planExpiresAt={profile?.plan_expires_at}
+              countryFlag={profile?.country_flag}
+              isSeasonWinner={profile?.is_season_winner}
+              customBadges={profile?.custom_badges} tempAdminUntil={profile?.temp_admin_until}
+              size={18}
+            />
+          </div>
+          <span className={styles.handle}>@{handle}</span>
+        </div>
+
         <div
           className={styles.avatarWrap}
           data-tier={profile?.tier || 'Gold'}
@@ -219,83 +254,62 @@ export default function AccountPage() {
           ) : (
             <div className={styles.avatarInner}>{initials}</div>
           )}
-          <div className={styles.avatarCamera} onClick={e => { e.stopPropagation(); fileRef.current?.click() }}>
-            <i className="ri-camera-line" />
-          </div>
+          <button
+            type="button"
+            className={styles.avatarPlus}
+            aria-label="Change photo"
+            onClick={e => { e.stopPropagation(); fileRef.current?.click() }}
+          >
+            <i className="ri-add-line" />
+          </button>
           <input ref={fileRef} type="file" accept="image/*" style={{ display:'none' }} onChange={handleAvatarChange} />
         </div>
 
-        {/* Meta */}
-        <div className={styles.heroMeta}>
-          <div className={styles.heroNameRow}>
-            <h1 className={styles.heroName}>{profile?.username || '—'}</h1>
-            <UserBadges
-              email={profile?.email}
-              plan={profile?.plan}
-              planExpiresAt={profile?.plan_expires_at}
-              countryFlag={profile?.country_flag}
-              isSeasonWinner={profile?.is_season_winner}
-              customBadges={profile?.custom_badges} tempAdminUntil={profile?.temp_admin_until}
-              size={18}
-            />
+        <div className={styles.followStats}>
+          <div className={styles.followStat}>
+            <strong>{followStats.following.toLocaleString()}</strong>
+            <span>Following</span>
           </div>
-          <div className={styles.heroSubRow}>
-            {isPartner ? (
-              <span className={styles.partnerChip}><i className="ri-shield-star-fill" /> PARTNER</span>
-            ) : (
-              <span
-                className={styles.tierBadge}
-                style={{ color: tierMeta.color, borderColor: tierMeta.color + '55', background: tierMeta.color + '18' }}
-              >
-                <i className={tierMeta.icon} />
-                {profile?.tier || 'Gold'}
-              </span>
-            )}
-            <span className={styles.heroDot}>·</span>
-            <span className={styles.heroLevel}>Lvl {profile?.level ?? '—'}</span>
-            <span className={styles.heroDot}>·</span>
-            <span className={styles.heroPlayStyle}>{profile?.play_style || 'Player'}</span>
+          <div className={styles.followStat}>
+            <strong>{followStats.followers.toLocaleString()}</strong>
+            <span>Followers</span>
           </div>
-          {(profile?.game_tags || []).length > 0 && (
-            <div className={styles.heroTags}>
-              {profile.game_tags.map(g => <span key={g} className={styles.heroTag}>{g}</span>)}
-            </div>
-          )}
+          <div className={styles.followStat}>
+            <strong>{totalLikes.toLocaleString()}</strong>
+            <span>Likes</span>
+          </div>
         </div>
       </div>
 
       {/* ── Body ── */}
       <div className={styles.body}>
 
-        {/* Follow / CTA row */}
-        <div className={styles.socialRow}>
-          <div className={styles.followStats}>
-            <div className={styles.followStat}>
-              <strong>{followStats.followers}</strong>
-              <span>Followers</span>
-            </div>
-            <div className={styles.followDivider} />
-            <div className={styles.followStat}>
-              <strong>{followStats.following}</strong>
-              <span>Following</span>
-            </div>
-          </div>
-          <div className={styles.ctaButtons}>
-            {isPartner && (
-              <Link href="/partner" className={styles.partnerHubBtn}>
-                <i className="ri-shield-star-fill" /> Hub
-              </Link>
-            )}
-            {isAdmin && (
-              <Link href="/dashboard" className={styles.adminBtn}>
-                <i className="ri-shield-line" /> Admin
-              </Link>
-            )}
-          </div>
-        </div>
-
         {/* Bio */}
         {profile?.bio && <p className={styles.bio}>{profile.bio}</p>}
+
+        {/* Rank chips */}
+        <div className={styles.heroSubRow}>
+          {isPartner ? (
+            <span className={styles.partnerChip}><i className="ri-shield-star-fill" /> Partner</span>
+          ) : (
+            <span
+              className={styles.tierBadge}
+              style={{ color: tierMeta.color, borderColor: tierMeta.color + '55', background: tierMeta.color + '18' }}
+            >
+              <i className={tierMeta.icon} />
+              {profile?.tier || 'Gold'}
+            </span>
+          )}
+          <span className={styles.heroLevel}>Lvl {profile?.level ?? '—'}</span>
+          {profile?.play_style && <span className={styles.heroPlayStyle}>{profile.play_style}</span>}
+          {(profile?.game_tags || []).map(g => <span key={g} className={styles.heroTag}>{g}</span>)}
+        </div>
+
+        {/* Actions */}
+        <div className={styles.actionRow}>
+          <Link href="/settings" className={styles.profileBtn}>Edit profile</Link>
+          <button type="button" className={styles.profileBtn} onClick={shareProfile}>Share profile</button>
+        </div>
 
         {/* Stats bar */}
         <div className={styles.statsBar} style={{ borderColor: theme.border }}>
@@ -326,20 +340,21 @@ export default function AccountPage() {
         )}
 
         {/* Tabs */}
-        <div className={styles.tabs}>
+        <div className={styles.tabs} role="tablist">
           {[
-            { key: 'posts',   icon: 'ri-file-text-line',  label: 'Posts'   },
+            { key: 'posts',   icon: 'ri-layout-grid-line', label: 'Posts'   },
             { key: 'shop',    icon: 'ri-store-2-line',     label: 'Shop'    },
             { key: 'history', icon: 'ri-history-line',     label: 'Seasons' },
           ].map(t => (
             <button
               key={t.key}
+              role="tab"
+              aria-selected={activeTab === t.key}
+              aria-label={`${t.label} (${tabCounts[t.key]})`}
               className={`${styles.tab} ${activeTab === t.key ? styles.tabActive : ''}`}
               onClick={() => setActiveTab(t.key)}
             >
               <i className={t.icon} />
-              {t.label}
-              <span className={styles.tabCount}>{tabCounts[t.key]}</span>
             </button>
           ))}
         </div>

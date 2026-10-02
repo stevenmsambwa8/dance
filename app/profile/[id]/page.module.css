@@ -26,45 +26,57 @@
 }
 
 /* ─────────────────────────────────────────────────
-   HEADER — dots only, overlaid top-right
+   TOP BAR — back left, menu right (bare icons)
 ───────────────────────────────────────────────── */
 .header {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 10px 0;
 }
+.topBack,
+.dotsBtn {
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: 50%;
+  color: var(--text);
+  font-size: 26px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+@media (hover: hover) {
+.topBack:hover,
+.dotsBtn:hover { background: var(--bg-2); }
+}
+.topBack:focus-visible,
+.dotsBtn:focus-visible,
+.avatarPlus:focus-visible,
+.followPill:focus-visible,
+.msgIconBtn:focus-visible,
+.editPill:focus-visible,
+.tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 @media (min-width: 1024px) {
   .header {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 10;
+    padding: 0;
     grid-column: 1;
     grid-row: 1;
   }
+  .topBack { display: none; }
 }
 
 .backBtn { display: none; }
 
-/* 3-dots menu */
 .menuWrap { position: relative; }
-.dotsBtn {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: rgba(0,0,0,0.28);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  border: 1px solid rgba(255,255,255,0.1);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 17px;
-  transition: background 0.15s;
-}
-
-@media (hover: hover) {
-.dotsBtn:hover { background: rgba(0,0,0,0.45); }
-}
 
 .menuOverlay {
   position: fixed;
@@ -112,9 +124,7 @@
 /* ─────────────────────────────────────────────────
    BRANDED WRAPPER — user-accent CSS var applied here
 ───────────────────────────────────────────────── */
-.brandedWrap {
-  position: relative;
-}
+.brandedWrap { position: relative; }
 
 @media (min-width: 1024px) {
   .brandedWrap {
@@ -126,90 +136,69 @@
   }
 }
 
-/* ── Bio banner — hero at the very top ── */
-.bioBanner {
-  padding: 36px 24px 40px;
-  background: linear-gradient(160deg, var(--user-accent-dim, var(--bg-2)) 0%, transparent 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  position: relative;
-}
-.bioBanner::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 48px;
-  background: linear-gradient(to bottom, transparent, var(--bg));
-  pointer-events: none;
-}
-.bioText {
-  font-size: 18px;
-  font-weight: 800;
-  line-height: 1.5;
-  color: var(--text);
-  margin: 0;
-  max-width: 340px;
-  font-style: normal;
-  opacity: 1;
-}
-
 /* ─────────────────────────────────────────────────
-   HERO — avatar left, info right
+   HERO — name + handle + stats left, big avatar right
 ───────────────────────────────────────────────── */
 .hero {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 16px 16px 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "text  avatar"
+    "stats avatar";
+  align-items: center;
+  column-gap: 16px;
+  row-gap: 18px;
+  padding: 18px 16px 14px;
 }
 
 @media (min-width: 1024px) {
   .hero {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    padding: 4px 20px 24px;
+    grid-template-areas:
+      "text  avatar"
+      "stats stats";
+    padding: 24px 20px 14px;
   }
+}
+
+.heroText { grid-area: text; align-self: end; min-width: 0; }
+.heroNameRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.heroName {
+  font-size: clamp(26px, 8vw, 34px);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+  color: var(--text);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.handle {
+  display: block;
+  margin-top: 8px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
 }
 
 /* ── Avatar ── */
 .avatarWrap {
+  grid-area: avatar;
   position: relative;
-  flex-shrink: 0;
-  width: 72px;
-  height: 72px;
+  width: clamp(104px, 31vw, 136px);
+  height: clamp(104px, 31vw, 136px);
   border-radius: 50%;
 }
-
-/* Active pulse for high-win users */
-.activePulse {
-  position: absolute;
-  inset: -5px;
-  border-radius: 50%;
-  border: 2px solid var(--user-accent, transparent);
-  opacity: 0.6;
-  animation: pulseRing 2s ease-in-out infinite;
-  pointer-events: none;
-  z-index: 0;
-}
-@keyframes pulseRing {
-  0%, 100% { transform: scale(1); opacity: 0.6; }
-  50% { transform: scale(1.06); opacity: 0.2; }
-}
-
 .avatarImg {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
   border-radius: 50%;
-  position: relative;
-  z-index: 1;
 }
 .avatarInner {
   width: 100%;
@@ -217,271 +206,150 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
-  font-weight: 900;
+  font-size: 30px;
+  font-weight: 800;
   color: var(--text);
   border-radius: 50%;
   background: var(--bg-2);
-  position: relative;
-  z-index: 1;
 }
-.avatarCamera {
+.avatarPlus {
   position: absolute;
-  inset: 0;
-  background: rgba(0,0,0,0.52);
+  right: 0;
+  bottom: 0;
+  width: 38px;
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
-  color: #fff;
-  opacity: 0;
+  font-size: 24px;
+  color: var(--accent-text);
+  background: var(--accent);
+  border: 3px solid var(--bg);
   border-radius: 50%;
-  transition: opacity 0.15s;
-  z-index: 2;
+  padding: 0;
+  cursor: pointer;
 }
 
-@media (hover: hover) {
-.avatarWrap:hover .avatarCamera { opacity: 1; }
-}
-
-/* ── Info column ── */
-.heroInfo {
-  flex: 1;
-  min-width: 0;
+/* ── Stats: bold number over muted label, no dividers ── */
+.heroStats {
+  grid-area: stats;
+  align-self: start;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding-top: 2px;
-}
-
-/* ── Name row ── */
-.heroNameRow {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  align-items: flex-start;
   flex-wrap: wrap;
+  gap: 8px 24px;
 }
-.heroName {
-  font-size: 26px;
-  font-weight: 900;
-  letter-spacing: -0.03em;
+.heroStatItem { display: flex; flex-direction: column; gap: 2px; }
+.heroStatItem strong {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
   line-height: 1.1;
   color: var(--text);
-  margin: 0;
+}
+.heroStatItem span {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
 }
 
-/* ── Badge row ── */
+/* ── Bio, chips, buttons ── */
+.heroDetails { padding: 0 16px 18px; }
+@media (min-width: 1024px) { .heroDetails { padding: 0 20px 20px; } }
+
+.bioText {
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--text);
+  margin: 0 0 12px;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
 .heroBadgeRow {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: 6px 8px;
+  margin-bottom: 16px;
 }
-
-/* Creator badge — plain */
-.creatorBadge {
+.creatorBadge,
+.tierBadge,
+.partnerChip,
+.levelChip,
+.playStyleChip,
+.heroTag {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  padding: 3px 8px;
+  padding: 3px 9px;
   border-radius: 20px;
-  background: var(--bg-2);
-  border: 1px solid var(--border-dark);
-  color: var(--text-muted);
 }
-.creatorBadge i { font-size: 10px; }
-
-.tierBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 3px 8px;
-  border-radius: 20px;
-  border: 1px solid;
-}
-.tierBadge i { font-size: 11px; }
-
+.creatorBadge { background: var(--bg-2); color: var(--text-dim); }
+.creatorBadge i { font-size: 12px; }
+.tierBadge { border: 1px solid; }
+.tierBadge i { font-size: 13px; }
 .partnerChip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
   background: linear-gradient(135deg, rgba(34,197,94,0.22), rgba(6,182,212,0.18));
   border: 1px solid rgba(34,197,94,0.55);
   color: #22c55e;
-  font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.10em;
-  padding: 3px 8px;
-  border-radius: 20px;
 }
+.levelChip { background: none; color: var(--text-muted); padding-left: 0; padding-right: 0; }
+.playStyleChip { background: none; color: var(--text-muted); font-weight: 600; text-transform: capitalize; padding-left: 0; padding-right: 0; }
+.heroTag { background: var(--bg-2); color: var(--text-dim); font-weight: 600; padding: 3px 10px; }
 
-.levelChip {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-  background: var(--bg-2);
-  border: 1px solid var(--border);
-  padding: 3px 8px;
-  border-radius: 20px;
-}
-.playStyleChip {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--text-muted);
-  background: var(--bg-2);
-  border: 1px solid var(--border);
-  padding: 3px 8px;
-  border-radius: 20px;
-  text-transform: capitalize;
-}
+.heroCta { display: flex; align-items: center; gap: 8px; }
 
-/* ── Stats — accent underline on numbers ── */
-.heroStats {
-  display: flex;
-  align-items: center;
-  gap: 0;
-}
-.heroStatItem {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1px;
-  padding-right: 12px;
-}
-.heroStatItem:first-child { padding-left: 0; }
-.heroStatItem strong {
-  font-size: 16px;
-  font-weight: 900;
-  letter-spacing: -0.03em;
-  color: var(--text);
-  line-height: 1;
-  border-bottom: 2px solid var(--user-accent, transparent);
-  padding-bottom: 1px;
-}
-.heroStatItem span {
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-.heroStatDivider {
-  width: 1px;
-  height: 24px;
-  background: var(--border);
-  flex-shrink: 0;
-  margin-right: 12px;
-}
-
-/* ── CTA ── */
-.heroCta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* ── Game tags ── */
-.heroTags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  padding: 0 16px 16px;
-}
-.heroTag {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 3px 9px;
-  border: 1px solid var(--user-accent, var(--border-dark));
-  border-radius: 20px;
-  color: var(--user-accent, var(--text-dim));
-  letter-spacing: 0.02em;
-  opacity: 0.7;
-}
-
-.followPill {
-  height: 36px;
+.followPill,
+.editPill {
+  flex: 1;
+  height: 42px;
   padding: 0 18px;
-  border-radius: 100px;
-  background: var(--bg-2);
-  border: 1.5px solid var(--border-dark);
-  color: var(--text);
-  font-size: 14px;
+  border-radius: 8px;
+  border: none;
+  font-family: var(--font);
+  font-size: 15px;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  transition: background 0.14s, border-color 0.14s, color 0.14s;
-  letter-spacing: 0.01em;
+  gap: 6px;
+  cursor: pointer;
+  transition: background 0.12s, opacity 0.12s;
 }
+/* Follow = filled accent (TikTok red-button role); Following/edit = soft grey */
+.followPill { background: var(--accent); color: var(--accent-text); }
+.followPill i { font-size: 18px; }
+.editPill { background: var(--bg-2); color: var(--text); }
+.followingPill { background: var(--bg-2); color: var(--text); }
 
 @media (hover: hover) {
-.followPill:hover {
-  background: var(--surface);
-  border-color: var(--text);
+.followPill:hover { opacity: 0.9; }
+.editPill:hover,
+.followingPill:hover { background: var(--border); opacity: 1; }
 }
-}
-.followPill i { font-size: 16px; }
-
-.followingPill {
-  background: var(--user-accent, var(--text));
-  color: #fff;
-  border-color: var(--user-accent, var(--text));
-}
-
-@media (hover: hover) {
-.followingPill:hover {
-  opacity: 0.85;
-  background: var(--user-accent, var(--text));
-  color: #fff;
-}
-}
+.followPill:disabled { opacity: 0.6; cursor: default; }
 
 .msgIconBtn {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 42px;
+  border-radius: 8px;
   background: var(--bg-2);
-  border: 1.5px solid var(--border-dark);
+  border: none;
   color: var(--text);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
-  flex-shrink: 0;
-  transition: background 0.12s, border-color 0.12s;
+  font-size: 20px;
+  cursor: pointer;
+  transition: background 0.12s;
 }
-
 @media (hover: hover) {
-.msgIconBtn:hover { background: var(--surface); border-color: var(--text); }
-}
-
-.editPill {
-  height: 36px;
-  padding: 0 20px;
-  border-radius: 100px;
-  background: var(--bg-2);
-  border: 1.5px solid var(--border-dark);
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  transition: background 0.12s, border-color 0.12s;
-}
-
-@media (hover: hover) {
-.editPill:hover { background: var(--surface); border-color: var(--text); }
+.msgIconBtn:hover { background: var(--border); }
 }
 
 /* ─────────────────────────────────────────────────
@@ -490,8 +358,6 @@
 .body {
   padding: 0 16px;
   width: 100%;
-  border-top: 1px solid var(--border);
-  padding-top: 20px;
 }
 
 @media (min-width: 1024px) {
@@ -505,15 +371,14 @@
 .statsBar {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 1px;
-  background: var(--border);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  overflow: hidden;
-  margin-bottom: 18px;
+  gap: 0;
+  background: transparent;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 14px;
 }
 .statItem {
-  background: var(--bg);
+  background: transparent;
   padding: 14px 8px;
   display: flex;
   flex-direction: column;
@@ -561,49 +426,43 @@
 }
 .achievementPill i { font-size: 14px; }
 
-/* ── Tabs ── */
+/* ── Tabs: icon-only, equal width, short underline on the active one ── */
 .tabs {
   display: flex;
-  gap: 0;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 18px;
+  margin: 0 -16px 16px;
 }
+@media (min-width: 1024px) { .tabs { margin: 0 0 16px; } }
 .tab {
+  flex: 1;
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 10px 4px;
-  margin-right: 22px;
-  font-size: 13px;
-  font-weight: 700;
+  justify-content: center;
+  height: 46px;
+  font-size: 24px;
   color: var(--text-muted);
   background: none;
   border: none;
-  border-bottom: 2px solid transparent;
-  transition: color 0.12s, border-color 0.12s;
-  position: relative;
-  bottom: -1px;
+  cursor: pointer;
+  transition: color 0.12s;
 }
-
+.tab::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -1px;
+  width: 0;
+  height: 2px;
+  background: var(--text);
+  transform: translateX(-50%);
+  transition: width 0.16s ease;
+}
 @media (hover: hover) {
 .tab:hover { color: var(--text); }
 }
-.tabActive {
-  color: var(--user-accent, var(--text));
-  border-bottom-color: var(--user-accent, var(--text));
-}
-.tabCount {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--text-muted);
-  background: var(--bg-2);
-  border-radius: 10px;
-  padding: 1px 6px;
-}
-.tabActive .tabCount {
-  background: var(--user-accent, var(--text));
-  color: #fff;
-}
+.tabActive { color: var(--text); }
+.tabActive::after { width: 36px; }
 
 /* ── Empty state ── */
 .emptyState {
